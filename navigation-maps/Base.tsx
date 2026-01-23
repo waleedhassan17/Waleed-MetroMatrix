@@ -39,6 +39,11 @@ import HomeServiceLayout from "../screens/user/homeservice/tabs/layout";
 import ProvidersScreen from "../screens/user/homeservice/service-providers/ProvidersScreen";
 import ProviderProfileScreen from "../screens/user/homeservice/provider-profile/providerProfile";
 import BookingScreen from "../screens/user/homeservice/Booking/bookingScreen";
+import BookConfirmationScreen from "../screens/user/homeservice/book-confirmation/bookConfirmation";
+import LiveTrackingScreen from "../screens/user/homeservice/live-tracking/liveTracking";
+import ServiceStatusScreen from "../screens/user/homeservice/service-status/serviceStatus";
+import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
+import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
 
 // Route names enum for type safety
 export const BaseRouteNames = {
@@ -77,6 +82,11 @@ export const BaseRouteNames = {
   ProvidersScreen: "ProvidersScreen",
   ProviderProfileScreen: "ProviderProfile",
   BookingScreen: "BookingScreen",
+  BookConfirmationScreen: "BookConfirmation",
+  LiveTrackingScreen: "liveTracking",
+  ServiceStatusScreen: "serviceStatus",
+  PaymentScreen: "PaymentScreen",
+  ReviewRatingScreen: "ReviewRating",
   
   // Other screens (to be added)
   Logout: "Logout",
@@ -118,6 +128,11 @@ export type RootStackParamList = {
   ProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; selectedServices?: string[] };
   ProviderProfile: { id: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   BookingScreen: { providerId: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  BookConfirmation: { category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  liveTracking: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  serviceStatus: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  PaymentScreen: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; paymentData?: any };
+  ReviewRating: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; serviceData?: any };
   
   // Verification
   VerifySuccess: {
@@ -355,6 +370,46 @@ export const BaseRoutes: IRoute[] = [
   {
     component: BookingScreen,
     title: BaseRouteNames.BookingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: BookConfirmationScreen,
+    title: BaseRouteNames.BookConfirmationScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: LiveTrackingScreen,
+    title: BaseRouteNames.LiveTrackingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ServiceStatusScreen,
+    title: BaseRouteNames.ServiceStatusScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: PaymentScreen,
+    title: BaseRouteNames.PaymentScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ReviewRatingScreen,
+    title: BaseRouteNames.ReviewRatingScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

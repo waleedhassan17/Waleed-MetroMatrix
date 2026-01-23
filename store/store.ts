@@ -27,6 +27,11 @@ import serviceProvidersReducer from "../screens/user/homeservice/service-provide
 import homeReducer from "../screens/user/homeservice/tabs/home-screen/homeSlice";
 import providerProfileReducer from "../screens/user/homeservice/provider-profile/providerProfileSlice";
 import bookingReducer from "../screens/user/homeservice/Booking/bookingScreenSlice";
+import bookConfirmationReducer from "../screens/user/homeservice/book-confirmation/bookConfirmationSlice";
+import liveTrackingReducer from "../screens/user/homeservice/live-tracking/liveTrackingSlice";
+import serviceStatusReducer from "../screens/user/homeservice/service-status/serviceSlice";
+import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSlice";
+import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
 
 export const store = configureStore({
   reducer: {
@@ -56,6 +61,11 @@ export const store = configureStore({
     home: homeReducer,
     providerProfile: providerProfileReducer,
     booking: bookingReducer,
+    bookConfirmation: bookConfirmationReducer,
+    liveTracking: liveTrackingReducer,
+    serviceStatus: serviceStatusReducer,
+    payment: paymentReducer,
+    reviewRating: reviewRatingReducer,
   },
 });
 
