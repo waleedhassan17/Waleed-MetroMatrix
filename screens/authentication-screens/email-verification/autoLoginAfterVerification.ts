@@ -529,7 +529,7 @@ export const getNextRouteAfterAutoLogin = (
   isProfileComplete: boolean = false
 ): string => {
   if (isProfileComplete) {
-    return userType === 'user' ? 'UserHome' : 'ProviderHome';
+    return userType === 'user' ? 'UserHome' : 'HomeServiceProviderDashboard';
   }
 
   return userType === 'user' ? 'CompleteProfile' : 'PersonalInfo';

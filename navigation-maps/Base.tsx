@@ -32,7 +32,7 @@ import ProviderApprovalPendingScreen from "../screens/authentication-screens/pro
 
 // Home Screens
 import UserHomeScreen from "../screens/user-home/userHome";
-import ProviderHomeScreen from "../screens/provider-home/ProviderHome";
+import HomeServiceProviderLayout from "../screens/providers/homeservice/tabs/index";
 
 // User Service Screens
 import HomeServiceLayout from "../screens/user/homeservice/tabs/layout";
@@ -75,7 +75,7 @@ export const BaseRouteNames = {
   
   // Home Screens
   UserHome: "UserHome",
-  ProviderHome: "ProviderHome",
+  HomeServiceProviderDashboard: "HomeServiceProviderDashboard",
   
   // User Service Screens
   HomeServiceLayout: "HomeServiceLayout",
@@ -121,7 +121,7 @@ export type RootStackParamList = {
   
   // Home Screens
   UserHome: undefined;
-  ProviderHome: undefined;
+  HomeServiceProviderDashboard: undefined;
   
   // User Service Screens
   HomeServiceLayout: undefined;
@@ -338,8 +338,8 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: ProviderHomeScreen,
-    title: BaseRouteNames.ProviderHome,
+    component: HomeServiceProviderLayout,
+    title: BaseRouteNames.HomeServiceProviderDashboard,
     options: {
       headerShown: false,
     }

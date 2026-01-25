@@ -33,6 +33,12 @@ import serviceStatusReducer from "../screens/user/homeservice/service-status/ser
 import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSlice";
 import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
 
+// Provider HomeService slices
+import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
+import providerJobsReducer from "../screens/providers/homeservice/tabs/jobs/jobSlice";
+import providerEarningsReducer from "../screens/providers/homeservice/tabs/earnings/earningSlice";
+import providerHomeProfileReducer from "../screens/providers/homeservice/profie-screen/profileSlice";
+
 export const store = configureStore({
   reducer: {
     role: roleSlice.reducer,
@@ -66,6 +72,11 @@ export const store = configureStore({
     serviceStatus: serviceStatusReducer,
     payment: paymentReducer,
     reviewRating: reviewRatingReducer,
+    // Provider HomeService reducers
+    dashboard: providerDashboardReducer,
+    jobs: providerJobsReducer,
+    earnings: providerEarningsReducer,
+    profile: providerHomeProfileReducer,
   },
 });
 
