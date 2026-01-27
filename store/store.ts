@@ -39,6 +39,11 @@ import providerJobsReducer from "../screens/providers/homeservice/tabs/jobs/jobS
 import providerEarningsReducer from "../screens/providers/homeservice/tabs/earnings/earningSlice";
 import providerHomeProfileReducer from "../screens/providers/homeservice/profie-screen/profileSlice";
 
+// Admin Service Providers slices
+import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
+import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
+import adminServiceProvidersAnalyticsReducer from "../screens/admin/providers/service-providers/tabs/analytics/analyticsSlice";
+
 export const store = configureStore({
   reducer: {
     role: roleSlice.reducer,
@@ -77,6 +82,10 @@ export const store = configureStore({
     jobs: providerJobsReducer,
     earnings: providerEarningsReducer,
     profile: providerHomeProfileReducer,
+    // Admin Service Providers reducers
+    adminSPDashboard: adminServiceProvidersDashboardReducer,
+    adminSPBookings: adminServiceProvidersBookingsReducer,
+    adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
   },
 });
 

@@ -354,11 +354,11 @@ export const signInSlice = createAppSlice({
 
     // ✅ FIXED: Google OAuth Sign In with awaited saves
     submitGoogleSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
+      async ({ idToken }: { idToken: string }, { rejectWithValue }) => {
         console.log('📤 Google sign in started');
 
         try {
-          const result = await googleOAuthLogin();
+          const result = await googleOAuthLogin(idToken);
           console.log('📥 Google sign in result:', JSON.stringify(result, null, 2));
 
           // ✅ CRITICAL FIX: Save to storage BEFORE returning
@@ -411,11 +411,11 @@ export const signInSlice = createAppSlice({
 
     // ✅ FIXED: Facebook OAuth Sign In with awaited saves
     submitFacebookSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
+      async ({ accessToken }: { accessToken: string }, { rejectWithValue }) => {
         console.log('📤 Facebook sign in started');
 
         try {
-          const result = await facebookOAuthLogin();
+          const result = await facebookOAuthLogin(accessToken);
           console.log('📥 Facebook sign in result:', JSON.stringify(result, null, 2));
 
           // ✅ CRITICAL FIX: Save to storage BEFORE returning

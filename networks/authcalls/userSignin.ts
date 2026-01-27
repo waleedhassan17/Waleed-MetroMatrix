@@ -1,6 +1,7 @@
 import { API } from "../network/network";
 import { retriveData, KeyForStorage } from "../../utils/storage_utils/storageUtils";
 import { UserLoginData, UserAuthResponse } from "../../models/user";
+import { googleLoginAPI, facebookLoginAPI, convertSocialToUserAuth } from "./socialAuth";
 
 /**
  * User Sign In (Login)
@@ -166,47 +167,53 @@ export const persistFcmToken = async (fcmToken: string, deviceType: string) => {
 };
 
 /**
- * Google OAuth Sign In
- * GET /auth/google?type=user
+ * Google OAuth Sign In - wrapper function for the slice
+ * This is called from signinSlice after getting the idToken from Google auth
+ * POST /auth/google-login
  */
-export const googleOAuthLogin = async () => {
+export const googleOAuthLogin = async (idToken?: string) => {
   try {
-    console.log('📤 Initiating Google OAuth for user');
+    console.log('📤 Initiating Google OAuth login for user');
 
-    // Note: This should typically open a WebView or browser
-    // The actual implementation depends on your OAuth flow
-    const response = await API.GET({
-      URL: "auth/google",
-      params: {
-        type: 'user'
-      },
-    });
+    if (!idToken) {
+      throw new Error('Google ID token is required');
+    }
 
-    return response.data;
+    const response = await googleLoginAPI(idToken, 'user');
+    const userAuth = convertSocialToUserAuth(response);
+    
+    return {
+      ...userAuth,
+      isNewUser: response.isNewUser,
+    };
   } catch (e: any) {
     console.error("❌ Google OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Google sign-in failed");
+    throw new Error(e.message || "Google sign-in failed");
   }
 };
 
 /**
- * Facebook OAuth Sign In
- * GET /auth/facebook?type=user
+ * Facebook OAuth Sign In - wrapper function for the slice
+ * This is called from signinSlice after getting the accessToken from Facebook auth
+ * POST /auth/facebook-login
  */
-export const facebookOAuthLogin = async () => {
+export const facebookOAuthLogin = async (accessToken?: string) => {
   try {
-    console.log('📤 Initiating Facebook OAuth for user');
+    console.log('📤 Initiating Facebook OAuth login for user');
 
-    const response = await API.GET({
-      URL: "auth/facebook",
-      params: {
-        type: 'user'
-      },
-    });
+    if (!accessToken) {
+      throw new Error('Facebook access token is required');
+    }
 
-    return response.data;
+    const response = await facebookLoginAPI(accessToken, 'user');
+    const userAuth = convertSocialToUserAuth(response);
+    
+    return {
+      ...userAuth,
+      isNewUser: response.isNewUser,
+    };
   } catch (e: any) {
     console.error("❌ Facebook OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Facebook sign-in failed");
+    throw new Error(e.message || "Facebook sign-in failed");
   }
 };

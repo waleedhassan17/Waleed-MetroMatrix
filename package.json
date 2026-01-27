@@ -19,6 +19,7 @@
     "@reduxjs/toolkit": "^2.10.1",
     "axios": "^1.13.2",
     "expo": "~54.0.32",
+    "expo-auth-session": "~7.0.10",
     "expo-blur": "~15.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",

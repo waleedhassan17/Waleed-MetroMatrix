@@ -26,6 +26,7 @@ import AdminDashboardScreen from "../screens/admin/admin-dashboard/adminDashboar
 import ProviderManagementScreen from "../screens/admin/provider-management/providerManagementScreen";
 import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewScreen";
 import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
+import ServiceProvidersAdminScreen from "../screens/admin/providers/service-providers/tabs/index";
 
 import ProviderWaitingScreen from "../screens/provider-waiting/providerWaitingScreen";
 import ProviderApprovalPendingScreen from "../screens/authentication-screens/provider-approval-pending/providerApprovalPendingScreen";
@@ -69,6 +70,7 @@ export const BaseRouteNames = {
   ProviderReviewScreen: "ProviderReview",
   PendingReview: "PendingReview",
   UserManagementScreen: "UserManagement",
+  ServiceProviders: "ServiceProviders",
   
   // Provider Approval
   ProviderApprovalPending: "ProviderApprovalPending",
@@ -147,6 +149,7 @@ export type RootStackParamList = {
   ProviderReview: { providerId: string };
   PendingReview: undefined;
   UserManagement: undefined;
+  ServiceProviders: undefined;
 
   // Other
   Logout: undefined;
@@ -319,6 +322,13 @@ export const BaseRoutes: IRoute[] = [
   {
     component: UserManagementScreen,
     title: BaseRouteNames.UserManagementScreen,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: ServiceProvidersAdminScreen,
+    title: BaseRouteNames.ServiceProviders,
     options: {
       headerShown: false,
     }

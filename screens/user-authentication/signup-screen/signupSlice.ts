@@ -3,6 +3,12 @@ import { createAppSlice } from '../../../store/createAppSlice';
 import { authRegister } from '../../../networks/authcalls/userSignup';
 import { sendVerificationEmailAPI } from '../../../networks/authcalls/emailVerification';
 import {
+  googleSignupAPI,
+  facebookSignupAPI,
+  convertSocialToUserAuth,
+  SocialAuthResponse,
+} from '../../../networks/authcalls/socialAuth';
+import {
   KeyForStorage,
   saveData,
   saveUserInfo,
@@ -38,10 +44,12 @@ interface SignUpSliceState {
   showPassword: boolean;
   error: string;
   status: 'idle' | 'loading' | 'failed';
+  socialSignupStatus: 'idle' | 'loading' | 'failed';
   accessToken: string;
   refreshToken: string;
   user: User | null;
   requiresEmailVerification: boolean;
+  isNewSocialUser: boolean;
 }
 
 interface SignUpPayload {
@@ -67,10 +75,75 @@ const initialState: SignUpSliceState = {
   showPassword: false,
   error: '',
   status: 'idle',
+  socialSignupStatus: 'idle',
   accessToken: '',
   refreshToken: '',
   user: null,
   requiresEmailVerification: false,
+  isNewSocialUser: false,
+};
+
+/**
+ * ✅ Helper to validate token before saving
+ */
+const isValidToken = (token: any): boolean => {
+  if (!token || token === null || token === undefined) return false;
+  if (typeof token !== 'string') return false;
+  if (token === 'null' || token === 'undefined' || token.trim() === '') return false;
+  if (token.length < 10) return false;
+  return true;
+};
+
+/**
+ * ✅ Helper function to save auth data
+ */
+const saveAuthToStorage = async (
+  accessToken: string,
+  refreshToken: string | undefined,
+  userData: User | null
+): Promise<boolean> => {
+  console.log('💾 saveAuthToStorage called for social signup');
+  
+  if (!isValidToken(accessToken)) {
+    console.error('❌ Invalid access token, not saving:', accessToken);
+    return false;
+  }
+  
+  try {
+    // Save access token
+    const tokenSaved = await saveData(KeyForStorage.accessToken, accessToken);
+    if (!tokenSaved) {
+      console.error('❌ Failed to save access token');
+      return false;
+    }
+    console.log('✅ Access token saved');
+    
+    // Save refresh token if valid
+    if (isValidToken(refreshToken)) {
+      await saveData(KeyForStorage.refreshToken, refreshToken);
+      console.log('✅ Refresh token saved');
+    }
+    
+    // Save user info
+    if (userData) {
+      await saveUserInfo(userData);
+      console.log('✅ User info saved');
+    }
+    
+    // Save user type
+    await saveData(KeyForStorage.userType, 'user');
+    console.log('✅ User type saved');
+    
+    // Save authentication status
+    await saveData(KeyForStorage.isAuthenticated, true);
+    console.log('✅ Authentication status saved');
+    
+    console.log('💾 All auth data saved successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving auth data:', error);
+    return false;
+  }
 };
 
 /**
@@ -222,6 +295,130 @@ export const signUpSlice = createAppSlice({
         },
       }
     ),
+
+    // ✅ Google Social Signup
+    submitGoogleSignUpAsync: create.asyncThunk(
+      async ({ idToken }: { idToken: string }, { rejectWithValue }) => {
+        console.log('📤 Google signup started');
+
+        try {
+          const result: SocialAuthResponse = await googleSignupAPI(idToken, 'user');
+          console.log('📥 Google signup result:', JSON.stringify(result, null, 2));
+
+          // Convert to user format
+          const userAuth = convertSocialToUserAuth(result);
+
+          // ✅ Save auth data to storage
+          if (userAuth.accessToken) {
+            const saved = await saveAuthToStorage(
+              userAuth.accessToken,
+              userAuth.refreshToken,
+              userAuth.user
+            );
+            
+            if (!saved) {
+              throw new Error('Failed to save authentication data');
+            }
+          }
+
+          return {
+            ...userAuth,
+            isNewUser: result.isNewUser,
+          };
+        } catch (error: any) {
+          console.log('❌ Google signup error:', error.message);
+          return rejectWithValue(error.message || 'Google signup failed');
+        }
+      },
+      {
+        pending: (state) => {
+          console.log('⏳ Google signup pending...');
+          state.socialSignupStatus = 'loading';
+          state.error = '';
+        },
+        fulfilled: (state, action) => {
+          console.log('✅ Google signup fulfilled');
+
+          state.socialSignupStatus = 'idle';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken || '';
+          state.refreshToken = action.payload.refreshToken || '';
+          state.isNewSocialUser = action.payload.isNewUser || false;
+          state.requiresEmailVerification = false; // Social signup users are already verified
+          state.error = '';
+
+          console.log('💾 Google user data saved');
+        },
+        rejected: (state, action) => {
+          console.log('❌ Google signup rejected:', action.payload || action.error.message);
+
+          state.socialSignupStatus = 'failed';
+          state.error = (action.payload as string) || action.error.message || 'Google signup failed';
+        },
+      }
+    ),
+
+    // ✅ Facebook Social Signup
+    submitFacebookSignUpAsync: create.asyncThunk(
+      async ({ accessToken }: { accessToken: string }, { rejectWithValue }) => {
+        console.log('📤 Facebook signup started');
+
+        try {
+          const result: SocialAuthResponse = await facebookSignupAPI(accessToken, 'user');
+          console.log('📥 Facebook signup result:', JSON.stringify(result, null, 2));
+
+          // Convert to user format
+          const userAuth = convertSocialToUserAuth(result);
+
+          // ✅ Save auth data to storage
+          if (userAuth.accessToken) {
+            const saved = await saveAuthToStorage(
+              userAuth.accessToken,
+              userAuth.refreshToken,
+              userAuth.user
+            );
+            
+            if (!saved) {
+              throw new Error('Failed to save authentication data');
+            }
+          }
+
+          return {
+            ...userAuth,
+            isNewUser: result.isNewUser,
+          };
+        } catch (error: any) {
+          console.log('❌ Facebook signup error:', error.message);
+          return rejectWithValue(error.message || 'Facebook signup failed');
+        }
+      },
+      {
+        pending: (state) => {
+          console.log('⏳ Facebook signup pending...');
+          state.socialSignupStatus = 'loading';
+          state.error = '';
+        },
+        fulfilled: (state, action) => {
+          console.log('✅ Facebook signup fulfilled');
+
+          state.socialSignupStatus = 'idle';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken || '';
+          state.refreshToken = action.payload.refreshToken || '';
+          state.isNewSocialUser = action.payload.isNewUser || false;
+          state.requiresEmailVerification = false; // Social signup users are already verified
+          state.error = '';
+
+          console.log('💾 Facebook user data saved');
+        },
+        rejected: (state, action) => {
+          console.log('❌ Facebook signup rejected:', action.payload || action.error.message);
+
+          state.socialSignupStatus = 'failed';
+          state.error = (action.payload as string) || action.error.message || 'Facebook signup failed';
+        },
+      }
+    ),
   }),
 
   selectors: {
@@ -231,6 +428,7 @@ export const signUpSlice = createAppSlice({
     selectPassword: (state) => state.password,
     selectShowPassword: (state) => state.showPassword,
     selectStatus: (state) => state.status,
+    selectSocialSignupStatus: (state) => state.socialSignupStatus,
     selectError: (state) => state.error,
     selectAccessToken: (state) => state.accessToken,
     selectRefreshToken: (state) => state.refreshToken,
@@ -238,7 +436,7 @@ export const signUpSlice = createAppSlice({
     selectIsAuthenticated: (state) => !!state.user && !!state.accessToken,
     selectUserId: (state) => state.user?.id,
     selectUserFullName: (state) => state.user?.fullName,
-    selectIsLoading: (state) => state.status === 'loading',
+    selectIsLoading: (state) => state.status === 'loading' || state.socialSignupStatus === 'loading',
     selectIsFormComplete: (state) =>
       state.fullName.trim().length > 0 &&
       state.phoneNumber.trim().length > 0 &&
@@ -246,6 +444,7 @@ export const signUpSlice = createAppSlice({
       state.password.trim().length > 0,
     selectIsProfileComplete: (state) => state.user?.profileComplete || false,
     selectRequiresEmailVerification: (state) => state.requiresEmailVerification,
+    selectIsNewSocialUser: (state) => state.isNewSocialUser,
   },
 });
 
@@ -258,6 +457,8 @@ export const {
   clearError,
   resetSignUp,
   submitSignUpAsync,
+  submitGoogleSignUpAsync,
+  submitFacebookSignUpAsync,
 } = signUpSlice.actions;
 
 export const {
@@ -267,6 +468,7 @@ export const {
   selectPassword,
   selectShowPassword,
   selectStatus,
+  selectSocialSignupStatus,
   selectError,
   selectAccessToken,
   selectRefreshToken,
@@ -278,4 +480,5 @@ export const {
   selectIsFormComplete,
   selectIsProfileComplete,
   selectRequiresEmailVerification,
+  selectIsNewSocialUser,
 } = signUpSlice.selectors;

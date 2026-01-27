@@ -32,6 +32,12 @@ import {
   submitGoogleSignInAsync,
   submitFacebookSignInAsync,
 } from './signinSlice';
+import {
+  useGoogleAuth,
+  useFacebookAuth,
+  processGoogleResponse,
+  processFacebookResponse,
+} from '../../../utils/social-auth/socialAuthConfig';
 
 const isAndroid = Platform.OS === 'android';
 
@@ -46,6 +52,10 @@ const SignIn = () => {
   const socialLoginStatus = useAppSelector(selectSocialLoginStatus);
   const error = useAppSelector(selectError);
 
+  // Social auth hooks
+  const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady } = useGoogleAuth();
+  const { response: facebookResponse, promptAsync: promptFacebookAsync, isReady: isFacebookReady } = useFacebookAuth();
+
   const isLoading = status === 'loading' || socialLoginStatus === 'loading';
 
   useEffect(() => {
@@ -53,6 +63,108 @@ const SignIn = () => {
       dispatch(clearError());
     }
   }, [email, password]);
+
+  // Handle Google auth response
+  useEffect(() => {
+    if (googleResponse) {
+      const result = processGoogleResponse(googleResponse);
+      
+      if (result.type === 'success' && result.idToken) {
+        console.log('✅ Google auth successful, calling login API');
+        handleGoogleLoginWithToken(result.idToken);
+      } else if (result.type === 'cancel') {
+        console.log('ℹ️ Google sign-in was cancelled');
+      } else if (result.type === 'error') {
+        Alert.alert('Google Sign In Failed', result.error || 'Unknown error occurred');
+      }
+    }
+  }, [googleResponse]);
+
+  // Handle Facebook auth response
+  useEffect(() => {
+    if (facebookResponse) {
+      const result = processFacebookResponse(facebookResponse);
+      
+      if (result.type === 'success' && result.accessToken) {
+        console.log('✅ Facebook auth successful, calling login API');
+        handleFacebookLoginWithToken(result.accessToken);
+      } else if (result.type === 'cancel') {
+        console.log('ℹ️ Facebook sign-in was cancelled');
+      } else if (result.type === 'error') {
+        Alert.alert('Facebook Sign In Failed', result.error || 'Unknown error occurred');
+      }
+    }
+  }, [facebookResponse]);
+
+  // Google login with token
+  const handleGoogleLoginWithToken = async (idToken: string) => {
+    try {
+      const result = await dispatch(submitGoogleSignInAsync({ idToken })).unwrap();
+      
+      console.log('✅ Google login successful');
+      
+      Alert.alert(
+        'Success', 
+        `Welcome! You've successfully signed in with Google.`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              try {
+                (navigation as any).navigate('UserHome');
+              } catch (navigationError) {
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'UserHome' }],
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      console.error('❌ Google login error:', err);
+      Alert.alert(
+        'Google Sign In Failed',
+        err || 'Unable to sign in with Google. Please try again.'
+      );
+    }
+  };
+
+  // Facebook login with token
+  const handleFacebookLoginWithToken = async (accessToken: string) => {
+    try {
+      const result = await dispatch(submitFacebookSignInAsync({ accessToken })).unwrap();
+      
+      console.log('✅ Facebook login successful');
+      
+      Alert.alert(
+        'Success', 
+        `Welcome! You've successfully signed in with Facebook.`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              try {
+                (navigation as any).navigate('UserHome');
+              } catch (navigationError) {
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'UserHome' }],
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      console.error('❌ Facebook login error:', err);
+      Alert.alert(
+        'Facebook Sign In Failed',
+        err || 'Unable to sign in with Facebook. Please try again.'
+      );
+    }
+  };
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -150,45 +262,30 @@ const SignIn = () => {
       dispatch(clearError());
     }
 
-    try {
-      let result;
-      
-      if (provider === 'google') {
-        result = await dispatch(submitGoogleSignInAsync()).unwrap();
-      } else {
-        result = await dispatch(submitFacebookSignInAsync()).unwrap();
+    if (provider === 'google') {
+      if (!isGoogleReady) {
+        Alert.alert('Please wait', 'Google Sign-In is initializing...');
+        return;
       }
-
-      console.log(`✅ ${provider} login successful`);
-
-      Alert.alert(
-        'Success', 
-        `Welcome! You've successfully signed in with ${provider === 'google' ? 'Google' : 'Facebook'}.`,
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              try {
-                // Social logins are always users, not admins
-                console.log('👤 User detected, navigating to UserHome');
-                (navigation as any).navigate('UserHome');
-              } catch (navigationError) {
-                console.log('⚠️ Navigation error, using reset:', navigationError);
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'UserHome' }],
-                });
-              }
-            },
-          },
-        ]
-      );
-    } catch (err: any) {
-      console.error(`❌ ${provider} login error:`, err);
-      Alert.alert(
-        `${provider === 'google' ? 'Google' : 'Facebook'} Sign In Failed`,
-        err || `Unable to sign in with ${provider === 'google' ? 'Google' : 'Facebook'}. Please try again.`
-      );
+      
+      try {
+        await promptGoogleAsync();
+      } catch (err) {
+        console.error('Error prompting Google auth:', err);
+        Alert.alert('Error', 'Failed to start Google Sign-In');
+      }
+    } else {
+      if (!isFacebookReady) {
+        Alert.alert('Please wait', 'Facebook Sign-In is initializing...');
+        return;
+      }
+      
+      try {
+        await promptFacebookAsync();
+      } catch (err) {
+        console.error('Error prompting Facebook auth:', err);
+        Alert.alert('Error', 'Failed to start Facebook Sign-In');
+      }
     }
   };
 
