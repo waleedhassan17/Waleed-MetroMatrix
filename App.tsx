@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import AppContainer from './components/app-container/appContainer';
+import { configureGoogleSignIn } from './networks/authcalls/googleSignInConfig';
+import { Platform } from 'react-native';
 
 /**
  * Main App Component
@@ -18,7 +20,14 @@ import AppContainer from './components/app-container/appContainer';
 const App: React.FC = () => {
   // Note: If you have notification management, initialize it here
   // Example: useNotificationManager();
-
+  useEffect(() => {
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      configureGoogleSignIn();
+      console.log('✅ Google Sign-In configured for native platform');
+    } else {
+      console.log('ℹ️ Web platform - Google Sign-In will use expo-auth-session');
+    }
+  }, []);
   return (
     <Provider store={store}>
       <AppContainer />

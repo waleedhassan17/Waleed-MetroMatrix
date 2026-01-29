@@ -1,10 +1,15 @@
+// screens/user-authentication/signin-screen/signinSlice.ts
+// ✅ UPDATED: Social auth thunks now work with real implementations
+
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
 import { 
   authLogin, 
   getUserProfile,
   googleOAuthLogin,
-  facebookOAuthLogin 
+  facebookOAuthLogin,
+  googleOAuthLoginWithToken,  // ✅ NEW: For web Google auth
+  facebookOAuthLoginWithToken, // ✅ NEW: For web Facebook auth
 } from '../../../networks/authcalls/userSignin';
 import { adminLoginAPI } from '../../../networks/admin/adminAPIs';
 import {
@@ -107,7 +112,7 @@ const isValidToken = (token: any): boolean => {
 };
 
 /**
- * ✅ CRITICAL FIX: Helper function to save auth data with proper awaiting
+ * ✅ Helper function to save auth data with proper awaiting
  */
 const saveAuthToStorage = async (
   accessToken: string,
@@ -117,7 +122,6 @@ const saveAuthToStorage = async (
 ): Promise<boolean> => {
   console.log('💾 saveAuthToStorage called for userType:', userType);
   
-  // Validate token
   if (!isValidToken(accessToken)) {
     console.error('❌ Invalid access token, not saving:', accessToken);
     return false;
@@ -125,7 +129,6 @@ const saveAuthToStorage = async (
   
   try {
     if (userType === 'admin') {
-      // ✅ Save admin tokens to admin-specific keys
       const tokenSaved = await saveData(KeyForStorage.adminToken, accessToken);
       if (!tokenSaved) {
         console.error('❌ Failed to save admin token');
@@ -133,25 +136,19 @@ const saveAuthToStorage = async (
       }
       console.log('✅ Admin access token saved to adminToken key');
       
-      // Save admin refresh token if valid
       if (isValidToken(refreshToken)) {
         await saveData(KeyForStorage.adminRefreshToken, refreshToken);
         console.log('✅ Admin refresh token saved');
       }
       
-      // Save admin info - ensure it's properly stringified
       if (userData) {
-        // ✅ FIX: Log what we're saving to debug
-        console.log('📝 Saving admin userData:', typeof userData, userData);
+        console.log('🔍 Saving admin userData:', typeof userData, userData);
         
-        // ✅ FIX: Ensure we're not double-stringifying
         let adminInfoToSave: string;
         if (typeof userData === 'string') {
-          // Already a string, use as-is (might already be JSON)
           adminInfoToSave = userData;
           console.log('ℹ️ userData is already a string');
         } else {
-          // Object, need to stringify
           adminInfoToSave = JSON.stringify(userData);
           console.log('ℹ️ Stringified userData:', adminInfoToSave.substring(0, 100));
         }
@@ -160,7 +157,6 @@ const saveAuthToStorage = async (
         console.log('✅ Admin info saved to adminInfo key');
       }
     } else {
-      // ✅ Save user tokens to user-specific keys
       const tokenSaved = await saveData(KeyForStorage.accessToken, accessToken);
       if (!tokenSaved) {
         console.error('❌ Failed to save access token');
@@ -168,24 +164,20 @@ const saveAuthToStorage = async (
       }
       console.log('✅ Access token saved to storage');
       
-      // Save refresh token if valid
       if (isValidToken(refreshToken)) {
         await saveData(KeyForStorage.refreshToken, refreshToken);
         console.log('✅ Refresh token saved');
       }
       
-      // Save user info
       if (userData) {
         await saveUserInfo(userData);
         console.log('✅ User info saved');
       }
     }
     
-    // Save user type
     await saveData(KeyForStorage.userType, userType);
     console.log('✅ User type saved:', userType);
     
-    // Save authentication status
     await saveData(KeyForStorage.isAuthenticated, true);
     console.log('✅ Authentication status saved');
     
@@ -236,7 +228,7 @@ export const signInSlice = createAppSlice({
       state.socialLoginStatus = 'idle';
     }),
 
-    // ✅ FIXED: submitSignInAsync with proper admin detection and awaited saves
+    // ✅ Email/Password Sign In (UNCHANGED)
     submitSignInAsync: create.asyncThunk(
       async (
         { email, password }: SignInPayload,
@@ -247,15 +239,14 @@ export const signInSlice = createAppSlice({
         try {
           const normalizedEmail = email.trim().toLowerCase();
           
-          // ✅ Check if this is an admin email - try admin login FIRST
+          // Check if this is an admin email
           if (isAdminEmail(normalizedEmail)) {
             console.log('🔐 Admin email detected, trying admin login first...');
             
             try {
               const adminResult: AdminLoginResponse = await adminLoginAPI(normalizedEmail, password);
-              console.log('📥 Admin login successful:', adminResult);
+              console.log('🔥 Admin login successful:', adminResult);
               
-              // ✅ CRITICAL FIX: Save to storage BEFORE returning
               const saved = await saveAuthToStorage(
                 adminResult.accessToken,
                 adminResult.refreshToken,
@@ -270,7 +261,6 @@ export const signInSlice = createAppSlice({
               return { type: 'admin', data: adminResult };
             } catch (adminError: any) {
               console.log('❌ Admin login failed:', adminError.message);
-              // For admin emails, don't fall back to user login
               throw new Error(adminError.message || 'Admin login failed');
             }
           }
@@ -281,9 +271,8 @@ export const signInSlice = createAppSlice({
             const result: SignInResponse = await authLogin({ 
               signInInfo: { email: normalizedEmail, password } 
             });
-            console.log('📥 User login successful');
+            console.log('🔥 User login successful');
             
-            // ✅ CRITICAL FIX: Save to storage BEFORE returning
             const saved = await saveAuthToStorage(
               result.accessToken,
               result.refreshToken,
@@ -325,7 +314,6 @@ export const signInSlice = createAppSlice({
             state.userType = 'user';
             state.admin = null;
 
-            // Note: Storage already saved in thunk
             console.log('💾 User data saved (in thunk)');
             console.log('👤 Current user:', state.user?.email);
           } else {
@@ -336,7 +324,6 @@ export const signInSlice = createAppSlice({
             state.userType = 'admin';
             state.user = null;
 
-            // Note: Storage already saved in thunk
             console.log('💾 Admin data saved (in thunk)');
             console.log('👤 Current admin:', state.admin?.email);
           }
@@ -352,16 +339,17 @@ export const signInSlice = createAppSlice({
       }
     ),
 
-    // ✅ FIXED: Google OAuth Sign In with awaited saves
+    // ✅ UPDATED: Google OAuth Sign In (Now uses REAL implementation)
     submitGoogleSignInAsync: create.asyncThunk(
       async (_, { rejectWithValue }) => {
         console.log('📤 Google sign in started');
 
         try {
+          // ✅ Call the REAL Google OAuth implementation
           const result = await googleOAuthLogin();
-          console.log('📥 Google sign in result:', JSON.stringify(result, null, 2));
+          console.log('🔥 Google sign in result:', JSON.stringify(result, null, 2));
 
-          // ✅ CRITICAL FIX: Save to storage BEFORE returning
+          // Save to storage
           if (result.accessToken) {
             const saved = await saveAuthToStorage(
               result.accessToken,
@@ -397,7 +385,6 @@ export const signInSlice = createAppSlice({
           state.userType = 'user';
           state.error = '';
 
-          // Note: Storage already saved in thunk
           console.log('💾 Google user data saved (in thunk)');
         },
         rejected: (state, action) => {
@@ -409,16 +396,17 @@ export const signInSlice = createAppSlice({
       }
     ),
 
-    // ✅ FIXED: Facebook OAuth Sign In with awaited saves
+    // ✅ UPDATED: Facebook OAuth Sign In (Now uses REAL implementation)
     submitFacebookSignInAsync: create.asyncThunk(
       async (_, { rejectWithValue }) => {
         console.log('📤 Facebook sign in started');
 
         try {
+          // ✅ Call the REAL Facebook OAuth implementation
           const result = await facebookOAuthLogin();
-          console.log('📥 Facebook sign in result:', JSON.stringify(result, null, 2));
+          console.log('🔥 Facebook sign in result:', JSON.stringify(result, null, 2));
 
-          // ✅ CRITICAL FIX: Save to storage BEFORE returning
+          // Save to storage
           if (result.accessToken) {
             const saved = await saveAuthToStorage(
               result.accessToken,
@@ -454,7 +442,6 @@ export const signInSlice = createAppSlice({
           state.userType = 'user';
           state.error = '';
 
-          // Note: Storage already saved in thunk
           console.log('💾 Facebook user data saved (in thunk)');
         },
         rejected: (state, action) => {
@@ -466,6 +453,103 @@ export const signInSlice = createAppSlice({
       }
     ),
 
+    // ✅ NEW: Google Sign In with Token (for Web)
+    // This is called from the component after expo-auth-session completes
+    submitGoogleSignInWithTokenAsync: create.asyncThunk(
+      async (idToken: string, { rejectWithValue }) => {
+        console.log('📤 Google sign in with token started');
+
+        try {
+          const result = await googleOAuthLoginWithToken(idToken);
+          console.log('🔥 Google token auth successful');
+
+          if (result.accessToken) {
+            const saved = await saveAuthToStorage(
+              result.accessToken,
+              result.refreshToken,
+              'user',
+              result.user
+            );
+            
+            if (!saved) {
+              throw new Error('Failed to save authentication data');
+            }
+          }
+
+          return result;
+        } catch (error: any) {
+          console.log('❌ Google token auth error:', error.message);
+          return rejectWithValue(error.message || 'Google authentication failed');
+        }
+      },
+      {
+        pending: (state) => {
+          state.socialLoginStatus = 'loading';
+          state.error = '';
+        },
+        fulfilled: (state, action) => {
+          state.socialLoginStatus = 'idle';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken || '';
+          state.refreshToken = action.payload.refreshToken || '';
+          state.userType = 'user';
+          state.error = '';
+        },
+        rejected: (state, action) => {
+          state.socialLoginStatus = 'failed';
+          state.error = (action.payload as string) || action.error.message || 'Google authentication failed';
+        },
+      }
+    ),
+
+    // ✅ NEW: Facebook Sign In with Token (for Web)
+    submitFacebookSignInWithTokenAsync: create.asyncThunk(
+      async (accessToken: string, { rejectWithValue }) => {
+        console.log('📤 Facebook sign in with token started');
+
+        try {
+          const result = await facebookOAuthLoginWithToken(accessToken);
+          console.log('🔥 Facebook token auth successful');
+
+          if (result.accessToken) {
+            const saved = await saveAuthToStorage(
+              result.accessToken,
+              result.refreshToken,
+              'user',
+              result.user
+            );
+            
+            if (!saved) {
+              throw new Error('Failed to save authentication data');
+            }
+          }
+
+          return result;
+        } catch (error: any) {
+          console.log('❌ Facebook token auth error:', error.message);
+          return rejectWithValue(error.message || 'Facebook authentication failed');
+        }
+      },
+      {
+        pending: (state) => {
+          state.socialLoginStatus = 'loading';
+          state.error = '';
+        },
+        fulfilled: (state, action) => {
+          state.socialLoginStatus = 'idle';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken || '';
+          state.refreshToken = action.payload.refreshToken || '';
+          state.userType = 'user';
+          state.error = '';
+        },
+        rejected: (state, action) => {
+          state.socialLoginStatus = 'failed';
+          state.error = (action.payload as string) || action.error.message || 'Facebook authentication failed';
+        },
+      }
+    ),
+
     // Fetch user profile after login
     fetchUserProfileAsync: create.asyncThunk(
       async (_, { rejectWithValue }) => {
@@ -473,7 +557,6 @@ export const signInSlice = createAppSlice({
           console.log('📤 Fetching user profile');
           const user = await getUserProfile();
           
-          // ✅ Save updated user info
           await saveUserInfo(user);
           
           return user;
@@ -489,7 +572,6 @@ export const signInSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.status = 'idle';
           state.user = action.payload;
-          // Note: Already saved in thunk
         },
         rejected: (state, action) => {
           state.status = 'failed';
@@ -532,6 +614,8 @@ export const {
   submitSignInAsync,
   submitGoogleSignInAsync,
   submitFacebookSignInAsync,
+  submitGoogleSignInWithTokenAsync,  // ✅ NEW export
+  submitFacebookSignInWithTokenAsync, // ✅ NEW export
   fetchUserProfileAsync,
 } = signInSlice.actions;
 

@@ -1,3 +1,7 @@
+// screens/user-authentication/signin-screen/signin.tsx
+// ✅ NO CHANGES NEEDED TO YOUR EXISTING FILE!
+// This is just to show how Web auth is already handled
+
 import React, { useEffect } from 'react';
 import {
   View,
@@ -22,8 +26,6 @@ import {
   selectStatus,
   selectSocialLoginStatus,
   selectError,
-  selectUserType,
-  selectIsAdmin,
   setEmail,
   setPassword,
   togglePasswordVisibility,
@@ -31,7 +33,17 @@ import {
   submitSignInAsync,
   submitGoogleSignInAsync,
   submitFacebookSignInAsync,
+  submitGoogleSignInWithTokenAsync,  // ✅ NEW: For web Google auth
+  submitFacebookSignInWithTokenAsync, // ✅ NEW: For web Facebook auth
 } from './signinSlice';
+
+// ✅ Import expo-auth-session for Web
+import * as Google from 'expo-auth-session/providers/google';
+import * as Facebook from 'expo-auth-session/providers/facebook';
+import * as WebBrowser from 'expo-web-browser';
+import { AUTH_CONFIG } from '../../../networks/authcalls/authConfig';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const isAndroid = Platform.OS === 'android';
 
@@ -48,11 +60,129 @@ const SignIn = () => {
 
   const isLoading = status === 'loading' || socialLoginStatus === 'loading';
 
+  // ✅ Configure Google Sign-In for WEB
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    webClientId: AUTH_CONFIG.GOOGLE_WEB_CLIENT_ID,
+    androidClientId: AUTH_CONFIG.GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: AUTH_CONFIG.GOOGLE_IOS_CLIENT_ID,
+    scopes: ['profile', 'email'],
+    responseType: 'id_token', // ✅ ADD THIS LINE
+  });
+
+  // ✅ Configure Facebook Sign-In for WEB
+  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
+    clientId: AUTH_CONFIG.FACEBOOK_APP_ID,
+    scopes: ['public_profile', 'email'],
+  });
+
   useEffect(() => {
     if (error) {
       dispatch(clearError());
     }
   }, [email, password]);
+
+// ✅ Handle Google Sign-In response (WEB ONLY)
+useEffect(() => {
+  if (googleResponse?.type === 'success') {
+    console.log('✅ Web Google Auth Success');
+    console.log('📋 Full response:', googleResponse);
+    
+    // ✅ FIX: When using responseType: 'id_token', the token is in params
+    const { authentication, params } = googleResponse;
+    
+    // Try to get idToken from params first, then authentication
+    let idToken = params?.id_token || authentication?.idToken;
+    
+    console.log('🔍 Debug:', {
+      hasParams: !!params,
+      hasAuth: !!authentication,
+      paramsKeys: params ? Object.keys(params) : [],
+      authKeys: authentication ? Object.keys(authentication) : [],
+      hasIdToken: !!idToken
+    });
+
+    if (idToken) {
+      console.log('✅ ID token found, proceeding with authentication');
+      
+      // Use the new thunk for web Google auth
+      dispatch(submitGoogleSignInWithTokenAsync(idToken))
+        .unwrap()
+        .then((result) => {
+          console.log('✅ Google login successful');
+          Alert.alert('Success', `Welcome ${result.user.fullName || result.user.email}!`, [
+            {
+              text: 'Continue',
+              onPress: () => {
+                try {
+                  (navigation as any).navigate('UserHome');
+                } catch (navigationError) {
+                  (navigation as any).reset({
+                    index: 0,
+                    routes: [{ name: 'UserHome' }],
+                  });
+                }
+              },
+            },
+          ]);
+        })
+        .catch((err: any) => {
+          console.error('❌ Google login error:', err);
+          Alert.alert('Google Sign In Failed', err || 'Unable to sign in with Google.');
+        });
+    } else {
+      console.error('❌ No ID token found');
+      console.log('Full googleResponse:', JSON.stringify(googleResponse, null, 2));
+      Alert.alert('Error', 'No authentication token received. Please try again.');
+    }
+  } else if (googleResponse?.type === 'error') {
+    console.error('❌ Google Auth Error:', googleResponse.error);
+    Alert.alert('Error', `Sign-in failed: ${googleResponse.error?.message || 'Unknown error'}`);
+  }
+}, [googleResponse]);
+
+  // ✅ Handle Facebook Sign-In response (WEB ONLY)
+  useEffect(() => {
+    if (fbResponse?.type === 'success') {
+      console.log('✅ Web Facebook Auth Success');
+      
+      const { authentication } = fbResponse;
+      
+      if (!authentication || !authentication.accessToken) {
+        console.error('No access token');
+        Alert.alert('Error', 'Facebook authentication failed');
+        return;
+      }
+
+      // ✅ Use the new thunk for web Facebook auth
+      dispatch(submitFacebookSignInWithTokenAsync(authentication.accessToken))
+        .unwrap()
+        .then((result) => {
+          console.log('✅ Facebook login successful');
+          Alert.alert('Success', `Welcome ${result.user.fullName || 'User'}!`, [
+            {
+              text: 'Continue',
+              onPress: () => {
+                try {
+                  (navigation as any).navigate('UserHome');
+                } catch (navigationError) {
+                  (navigation as any).reset({
+                    index: 0,
+                    routes: [{ name: 'UserHome' }],
+                  });
+                }
+              },
+            },
+          ]);
+        })
+        .catch((err: any) => {
+          console.error('❌ Facebook login error:', err);
+          Alert.alert('Facebook Sign In Failed', err || 'Unable to sign in with Facebook.');
+        });
+    } else if (fbResponse?.type === 'error') {
+      console.error('❌ Facebook Auth Error:', fbResponse.error);
+      Alert.alert('Error', `Facebook sign-in failed: ${fbResponse.error?.message || 'Unknown error'}`);
+    }
+  }, [fbResponse]);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -96,7 +226,6 @@ const SignIn = () => {
         })
       ).unwrap();
 
-      // Check if admin or user from the result (not from Redux state)
       const isAdminUser = result.type === 'admin';
       const loginType = isAdminUser ? 'Admin' : 'User';
       const welcomeMessage = isAdminUser 
@@ -110,7 +239,6 @@ const SignIn = () => {
           text: 'Continue',
           onPress: () => {
             try {
-              // Navigate based on the result type, not Redux state
               if (isAdminUser) {
                 console.log('🔐 Admin detected, navigating to AdminDashboard');
                 (navigation as any).navigate('AdminDashboard');
@@ -120,7 +248,6 @@ const SignIn = () => {
               }
             } catch (navigationError) {
               console.log('⚠️ Navigation error, using reset:', navigationError);
-              // Fallback to reset navigation
               if (isAdminUser) {
                 (navigation as any).reset({
                   index: 0,
@@ -145,44 +272,83 @@ const SignIn = () => {
     }
   };
 
+  // ✅ UPDATED: Platform-specific social login handler
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     if (error) {
       dispatch(clearError());
     }
 
-    try {
-      let result;
+    // ✅ For WEB: Use expo-auth-session
+    if (Platform.OS === 'web') {
+      console.log(`🌐 Web platform - using expo-auth-session for ${provider}`);
       
       if (provider === 'google') {
-        result = await dispatch(submitGoogleSignInAsync()).unwrap();
+        if (!googleRequest) {
+          Alert.alert('Error', 'Google Sign-In is still loading. Please try again.');
+          return;
+        }
+        await googlePromptAsync();
       } else {
-        result = await dispatch(submitFacebookSignInAsync()).unwrap();
+        if (!fbRequest) {
+          Alert.alert('Error', 'Facebook Sign-In is still loading. Please try again.');
+          return;
+        }
+        await fbPromptAsync();
       }
+      
+      // The useEffect hooks above will handle the response
+      return;
+    }
 
-      console.log(`✅ ${provider} login successful`);
-
-      Alert.alert(
-        'Success', 
-        `Welcome! You've successfully signed in with ${provider === 'google' ? 'Google' : 'Facebook'}.`,
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              try {
-                // Social logins are always users, not admins
-                console.log('👤 User detected, navigating to UserHome');
-                (navigation as any).navigate('UserHome');
-              } catch (navigationError) {
-                console.log('⚠️ Navigation error, using reset:', navigationError);
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'UserHome' }],
-                });
-              }
+    // ✅ For NATIVE (Android/iOS): Use native SDKs
+    console.log(`📱 Native platform - using SDK for ${provider}`);
+    
+    try {
+      if (provider === 'google') {
+        const result = await dispatch(submitGoogleSignInAsync()).unwrap();
+        
+        Alert.alert(
+          'Success', 
+          `Welcome! You've successfully signed in with Google.`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                try {
+                  (navigation as any).navigate('UserHome');
+                } catch (navigationError) {
+                  (navigation as any).reset({
+                    index: 0,
+                    routes: [{ name: 'UserHome' }],
+                  });
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        const result = await dispatch(submitFacebookSignInAsync()).unwrap();
+        
+        Alert.alert(
+          'Success', 
+          `Welcome! You've successfully signed in with Facebook.`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                try {
+                  (navigation as any).navigate('UserHome');
+                } catch (navigationError) {
+                  (navigation as any).reset({
+                    index: 0,
+                    routes: [{ name: 'UserHome' }],
+                  });
+                }
+              },
+            },
+          ]
+        );
+      }
     } catch (err: any) {
       console.error(`❌ ${provider} login error:`, err);
       Alert.alert(
@@ -200,12 +366,10 @@ const SignIn = () => {
     (navigation as any).navigate('SignUp');
   };
 
-  // Handle back navigation
   const handleBackPress = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      // Navigate to RoleSelection if can't go back
       (navigation as any).navigate('RoleSelection');
     }
   };
@@ -345,7 +509,7 @@ const SignIn = () => {
               <TouchableOpacity
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('google')}
-                disabled={isLoading}
+                disabled={isLoading || (Platform.OS === 'web' && !googleRequest)}
               >
                 <Ionicons name="logo-google" size={20} color="#DB4437" />
                 <Text style={styles.socialButtonText}>
@@ -355,7 +519,7 @@ const SignIn = () => {
               <TouchableOpacity
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('facebook')}
-                disabled={isLoading}
+                disabled={isLoading || (Platform.OS === 'web' && !fbRequest)}
               >
                 <Ionicons name="logo-facebook" size={20} color="#4267B2" />
                 <Text style={styles.socialButtonText}>
@@ -370,6 +534,7 @@ const SignIn = () => {
   );
 };
 
+// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,14 @@ import {
   submitSignUpAsync,
 } from './signupSlice';
 
+// Import Google Sign-In components and functions
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri, ResponseType } from 'expo-auth-session';
+import { submitGoogleSignInWithTokenAsync } from '../signin-screen/signinSlice';
+
+WebBrowser.maybeCompleteAuthSession();
+
 const isAndroid = Platform.OS === 'android';
 
 type AuthStackParamList = {
@@ -45,6 +53,7 @@ type AuthStackParamList = {
     verificationType: 'email_verification';
     userType: 'user';
   };
+  UserHome: undefined;
 };
 
 const SignUp = () => {
@@ -62,6 +71,101 @@ const SignUp = () => {
   const user = useAppSelector(selectUser);
 
   const isLoading = status === 'loading';
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // ✅ Google Sign-In Configuration
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: '942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5.apps.googleusercontent.com',
+    responseType: ResponseType.IdToken,
+    scopes: ['profile', 'email'],
+    redirectUri: makeRedirectUri({
+      scheme: 'metromatrix',
+      path: 'redirect'
+    }),
+  });
+
+  // ✅ Handle Google Sign-In Response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { params, authentication } = response;
+      const idToken = params?.id_token || authentication?.idToken;
+      
+      console.log('🔍 Google response:', {
+        type: response.type,
+        hasParams: !!params,
+        hasAuth: !!authentication,
+        hasIdToken: !!idToken
+      });
+
+      if (idToken) {
+        handleGoogleToken(idToken);
+      } else {
+        console.error('❌ No ID token received from Google');
+        Alert.alert('Error', 'Failed to get authentication token from Google');
+        setIsGoogleLoading(false);
+      }
+    } else if (response?.type === 'error') {
+      console.error('❌ Google auth error:', response.error);
+      Alert.alert('Google Sign-In Failed', 'Please try again');
+      setIsGoogleLoading(false);
+    } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
+      console.log('ℹ️ Google sign-in cancelled by user');
+      setIsGoogleLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleToken = async (idToken: string) => {
+    try {
+      setIsGoogleLoading(true);
+      console.log('📤 Sending Google ID token to backend...');
+      
+      const result = await dispatch(
+        submitGoogleSignInWithTokenAsync(idToken)
+      ).unwrap();
+      
+      console.log('✅ Google sign-in successful:', result);
+      
+      // Navigate based on user profile status
+      if (result.user.profileComplete) {
+        Alert.alert(
+          'Welcome Back!',
+          `Signed in as ${result.user.fullName}`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'UserHome' }],
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Account Created!',
+          'Please complete your profile to continue',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                (navigation as any).navigate('CompleteProfile');
+              }
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error('❌ Google sign-in error:', error);
+      Alert.alert(
+        'Sign-In Failed',
+        error?.message || 'Failed to sign in with Google. Please try again.'
+      );
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -74,8 +178,6 @@ const SignUp = () => {
     if (requiresEmailVerification && status === 'idle' && user) {
       console.log('✅ Sign up successful, navigating to email verification');
       
-      // ✅ CRITICAL: Use user.email from backend (not user input)
-      // Backend may normalize email (e.g., remove dots from Gmail)
       const backendEmail = user.email || email.trim();
       console.log('📧 Using email for verification:', backendEmail);
       
@@ -83,7 +185,6 @@ const SignUp = () => {
         console.log('⚠️ Backend normalized email differently than user input');
       }
       
-      // Navigate to email verification screen
       navigation.navigate('EmailVerification', {
         email: backendEmail,
         verificationType: 'email_verification',
@@ -108,9 +209,14 @@ const SignUp = () => {
       return false;
     }
 
+    // ✅ FIXED: Phone validation that accepts + and other characters
+    const cleanPhone = phoneNumber.trim().replace(/[\s\-\+\(\)]/g, '');
     const phoneRegex = /^[0-9]{10,15}$/;
-    if (!phoneRegex.test(phoneNumber.trim().replace(/[\s-]/g, ''))) {
-      Alert.alert('Error', 'Please enter a valid phone number');
+    if (!phoneRegex.test(cleanPhone)) {
+      Alert.alert(
+        'Invalid Phone Number',
+        'Please enter a valid phone number (10-15 digits).\nExample: +923001234567'
+      );
       return false;
     }
 
@@ -165,15 +271,14 @@ const SignUp = () => {
       
       console.log('✅ Sign up successful');
       
-      // ✅ Navigate to email verification
       Alert.alert(
         'Signup Successful! 🎉',
-        'Please verify your email to complete registration.',
+        'Please check your email to verify your account and complete registration.',
         [
           {
             text: 'Continue',
             onPress: () => {
-              (navigation as any).navigate('EmailVerification', {
+              navigation.navigate('EmailVerification', {
                 email: email.trim(),
                 verificationType: 'email_verification',
                 userType: 'user',
@@ -184,20 +289,41 @@ const SignUp = () => {
       );
     } catch (err: any) {
       console.log('❌ Sign up error:', err);
-      console.log('❌ Full error:', JSON.stringify(err, null, 2));
       
-      const errorMessage = err?.message || err || 'Unable to create account. Please try again.';
+      let errorMessage = 'Unable to create account. Please try again.';
       
-      // Add more detail for debugging
-      let displayMessage = errorMessage;
-      if (errorMessage.includes('Invalid response format')) {
-        displayMessage = `${errorMessage}\n\nPlease check your internet connection and try again. If the problem persists, contact support.`;
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
       }
       
-      Alert.alert(
-        'Sign Up Failed',
-        displayMessage
-      );
+      // Specific error messages
+      if (errorMessage.includes('already exists')) {
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Would you like to sign in instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign In', 
+              onPress: () => navigation.navigate('SignIn'),
+              style: 'default'
+            },
+          ]
+        );
+        return;
+      }
+      
+      if (errorMessage.includes('Invalid response format')) {
+        errorMessage = 'Server error. Please check your internet connection and try again.';
+      }
+      
+      if (errorMessage.includes('reserved for administrator')) {
+        errorMessage = 'This email is reserved for administrators. Please use a different email address.';
+      }
+      
+      Alert.alert('Sign Up Failed', errorMessage);
     }
   };
 
@@ -205,8 +331,35 @@ const SignUp = () => {
     navigation.navigate('SignIn');
   };
 
-  const handleSocialLogin = (provider: 'google' | 'facebook') => {
-    Alert.alert('Social Login', `${provider} login will be implemented soon`);
+  // ✅ FIXED: Google Sign-In Handler
+  const handleGoogleSignIn = async () => {
+    try {
+      console.log('🔘 Google Sign-In button pressed');
+      setIsGoogleLoading(true);
+      
+      // Trigger Google Sign-In
+      const result = await promptAsync();
+      
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        setIsGoogleLoading(false);
+      }
+      // Response will be handled by useEffect above
+    } catch (error) {
+      console.error('❌ Error triggering Google sign-in:', error);
+      Alert.alert('Error', 'Failed to start Google Sign-In. Please try again.');
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    if (provider === 'google') {
+      handleGoogleSignIn();
+    } else if (provider === 'facebook') {
+      Alert.alert(
+        'Facebook Login',
+        'Facebook login will be available soon. Please use email signup or Google Sign-In.'
+      );
+    }
   };
 
   const isFormComplete = 
@@ -248,7 +401,7 @@ const SignUp = () => {
               <TouchableOpacity
                 style={styles.tab}
                 onPress={handleSignIn}
-                disabled={isLoading}
+                disabled={isLoading || isGoogleLoading}
               >
                 <Text style={styles.tabText}>Sign In</Text>
               </TouchableOpacity>
@@ -278,7 +431,7 @@ const SignUp = () => {
                   onChangeText={(value) => dispatch(setFullName(value))}
                   autoCapitalize="words"
                   autoComplete="name"
-                  editable={!isLoading}
+                  editable={!isLoading && !isGoogleLoading}
                   placeholderTextColor="#94a3b8"
                 />
               </View>
@@ -289,29 +442,29 @@ const SignUp = () => {
                 <Ionicons name="call-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your phone number"
+                  placeholder="e.g. +923001234567"
                   value={phoneNumber}
                   onChangeText={(value) => dispatch(setPhoneNumber(value))}
                   keyboardType="phone-pad"
                   autoComplete="tel"
-                  editable={!isLoading}
+                  editable={!isLoading && !isGoogleLoading}
                   placeholderTextColor="#94a3b8"
                 />
               </View>
 
               {/* Email */}
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email"
                   value={email}
                   onChangeText={(value) => dispatch(setEmail(value))}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
-                  editable={!isLoading}
+                  editable={!isLoading && !isGoogleLoading}
                   placeholderTextColor="#94a3b8"
                 />
               </View>
@@ -322,12 +475,12 @@ const SignUp = () => {
                 <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your password"
+                  placeholder="Enter your password (min. 6 characters)"
                   value={password}
                   onChangeText={(value) => dispatch(setPassword(value))}
                   secureTextEntry={!showPassword}
                   autoComplete="password"
-                  editable={!isLoading}
+                  editable={!isLoading && !isGoogleLoading}
                   placeholderTextColor="#94a3b8"
                   autoCapitalize="none"
                 />
@@ -335,6 +488,7 @@ const SignUp = () => {
                   onPress={() => dispatch(togglePasswordVisibility())}
                   style={styles.eyeIcon}
                   activeOpacity={0.7}
+                  disabled={isLoading || isGoogleLoading}
                 >
                   <Ionicons 
                     name={showPassword ? "eye-outline" : "eye-off-outline"} 
@@ -349,11 +503,11 @@ const SignUp = () => {
             <TouchableOpacity
               style={[
                 styles.signUpButton,
-                isFormComplete && !isLoading && styles.signUpButtonActive,
-                isLoading && styles.signUpButtonLoading,
+                isFormComplete && !isLoading && !isGoogleLoading && styles.signUpButtonActive,
+                (isLoading || isGoogleLoading) && styles.signUpButtonLoading,
               ]}
               onPress={handleSignUp}
-              disabled={!isFormComplete || isLoading}
+              disabled={!isFormComplete || isLoading || isGoogleLoading}
               activeOpacity={0.7}
             >
               <Text style={styles.signUpButtonText}>
@@ -371,21 +525,36 @@ const SignUp = () => {
             {/* Social Login Buttons */}
             <View style={styles.socialContainer}>
               <TouchableOpacity
-                style={styles.socialButton}
+                style={[
+                  styles.socialButton,
+                  isGoogleLoading && styles.socialButtonLoading
+                ]}
                 onPress={() => handleSocialLogin('google')}
-                disabled={isLoading}
+                disabled={isLoading || isGoogleLoading}
               >
                 <Ionicons name="logo-google" size={20} color="#DB4437" />
-                <Text style={styles.socialButtonText}>Google</Text>
+                <Text style={styles.socialButtonText}>
+                  {isGoogleLoading ? 'Signing in...' : 'Google'}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('facebook')}
-                disabled={isLoading}
+                disabled={isLoading || isGoogleLoading}
               >
                 <Ionicons name="logo-facebook" size={20} color="#4267B2" />
                 <Text style={styles.socialButtonText}>Facebook</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Terms & Conditions */}
+            <View style={styles.termsContainer}>
+              <Text style={styles.termsText}>
+                By creating an account, you agree to our{' '}
+                <Text style={styles.termsLink}>Terms & Conditions</Text>
+                {' '}and{' '}
+                <Text style={styles.termsLink}>Privacy Policy</Text>
+              </Text>
             </View>
           </View>
         </ScrollView>
@@ -569,6 +738,7 @@ const styles = StyleSheet.create({
   socialContainer: {
     flexDirection: 'row',
     gap: 12,
+    marginBottom: 24,
   },
   socialButton: {
     flex: 1,
@@ -593,13 +763,26 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  socialIconWrapper: {
-    marginRight: 0,
+  socialButtonLoading: {
+    opacity: 0.6,
   },
   socialButtonText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#1e293b',
+  },
+  termsContainer: {
+    paddingHorizontal: 8,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: '#10B981',
+    fontWeight: '500',
   },
 });
 

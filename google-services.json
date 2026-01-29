@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "942315940095",
+    "project_id": "metromatrix-c44c6",
+    "storage_bucket": "metromatrix-c44c6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942315940095:android:b39a34e5f836c9460204ca",
+        "android_client_info": {
+          "package_name": "com.metromatrix.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "942315940095-a1upulvv9gc7q265d3ce3bcv6t63q111.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.metromatrix.app",
+            "certificate_hash": "f43536886942f6388522f9e3262fb6b56fa8b24e"
+          }
+        },
+        {
+          "client_id": "942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmIk-MngvpR0lLuu-FEML60qdIiRNPXpY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "942315940095-h2cnrp1f9o3gji37a6e988c5upvbqjno.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.metromatrix.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

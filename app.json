@@ -1,17 +1,7 @@
 {
   "expo": {
-    "name": "my-app",
-    "slug": "my-app",
-    "scheme": "myapp",
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.testing.myapp",
-      "googleServicesFile": "./google-services.json"
-    },
+    "name": "MetroMatrix",
+    "slug": "MetroMatrix",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,38 +14,60 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.testing.myapp",
+      "bundleIdentifier": "com.metromatrix.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.241889899830-98e4ctinvki8akmb5qtrcnsr02iv8col"
+              "com.googleusercontent.apps.YOUR_IOS_REVERSED_CLIENT_ID"
             ]
           },
           {
             "CFBundleURLSchemes": [
-              "fb2277966629368711"
+              "fbYOUR_FACEBOOK_APP_ID"
             ]
           }
         ],
-        "FacebookAppID": "2277966629368711",
-        "FacebookDisplayName": "MetroMatrix"
+        "FacebookAppID": "YOUR_FACEBOOK_APP_ID",
+        "FacebookDisplayName": "MetroMatrix",
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
+          },
+          {
+            "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
+          }
+        ]
       }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.metromatrix.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "metromatrix",
     "plugins": [
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       [
         "react-native-fbsdk-next",
         {
-          "appID": "2277966629368711",
-          "clientToken": "b4ca5891df6414d095cc27abfe52c6ae",
+          "appID": "YOUR_FACEBOOK_APP_ID",
+          "clientToken": "YOUR_FACEBOOK_CLIENT_TOKEN",
           "displayName": "MetroMatrix",
-          "scheme": "fb2277966629368711",
+          "scheme": "fbYOUR_FACEBOOK_APP_ID",
           "advertiserIDCollectionEnabled": false,
           "autoLogAppEventsEnabled": false,
           "isAutoInitEnabled": true
@@ -64,8 +76,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "2a9de85e-0293-4fbd-93b0-89aefb5e65e4"
+        "projectId": "355dd811-9b86-484a-b123-2071335b6495"
       }
-    }
+    },
+    "owner": "muhammadubaid"
   }
 }
