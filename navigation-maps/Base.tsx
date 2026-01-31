@@ -26,19 +26,33 @@ import AdminDashboardScreen from "../screens/admin/admin-dashboard/adminDashboar
 import ProviderManagementScreen from "../screens/admin/provider-management/providerManagementScreen";
 import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewScreen";
 import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
+import ServiceProvidersAdminScreen from "../screens/admin/providers/service-providers/tabs/index";
 
 import ProviderWaitingScreen from "../screens/provider-waiting/providerWaitingScreen";
 import ProviderApprovalPendingScreen from "../screens/authentication-screens/provider-approval-pending/providerApprovalPendingScreen";
 
 // Home Screens
 import UserHomeScreen from "../screens/user-home/userHome";
-import ProviderHomeScreen from "../screens/provider-home/ProviderHome";
+import HomeServiceProviderLayout from "../screens/providers/homeservice/tabs/index";
 
 // User Service Screens
 import HomeServiceLayout from "../screens/user/homeservice/tabs/layout";
 import ProvidersScreen from "../screens/user/homeservice/service-providers/ProvidersScreen";
 import ProviderProfileScreen from "../screens/user/homeservice/provider-profile/providerProfile";
 import BookingScreen from "../screens/user/homeservice/Booking/bookingScreen";
+import BookConfirmationScreen from "../screens/user/homeservice/book-confirmation/bookConfirmation";
+import LiveTrackingScreen from "../screens/user/homeservice/live-tracking/liveTracking";
+import ServiceStatusScreen from "../screens/user/homeservice/service-status/serviceStatus";
+import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
+import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
+
+// Provider Job Flow Screens
+import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
+import NavigationMapScreen from "../screens/providers/homeservice/map-screen/map";
+import JobInProgressScreen from "../screens/providers/homeservice/job-InProgress/jobInProgress";
+import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-screen/awaitingScreen";
+import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
+import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
 
 // Route names enum for type safety
 export const BaseRouteNames = {
@@ -64,19 +78,25 @@ export const BaseRouteNames = {
   ProviderReviewScreen: "ProviderReview",
   PendingReview: "PendingReview",
   UserManagementScreen: "UserManagement",
+  ServiceProviders: "ServiceProviders",
   
   // Provider Approval
   ProviderApprovalPending: "ProviderApprovalPending",
   
   // Home Screens
   UserHome: "UserHome",
-  ProviderHome: "ProviderHome",
+  HomeServiceProviderDashboard: "HomeServiceProviderDashboard",
   
   // User Service Screens
   HomeServiceLayout: "HomeServiceLayout",
   ProvidersScreen: "ProvidersScreen",
   ProviderProfileScreen: "ProviderProfile",
   BookingScreen: "BookingScreen",
+  BookConfirmationScreen: "BookConfirmation",
+  LiveTrackingScreen: "liveTracking",
+  ServiceStatusScreen: "serviceStatus",
+  PaymentScreen: "PaymentScreen",
+  ReviewRatingScreen: "ReviewRating",
   
   // Other screens (to be added)
   Logout: "Logout",
@@ -87,6 +107,14 @@ export const BaseRouteNames = {
   ResetPasswordScreen: "ResetPassword",
 
   ProviderWaitingScreen: "ProviderWaiting",
+  
+  // Provider Job Flow Screens
+  JobDetail: "JobDetail",
+  NavigationMap: "NavigationMap",
+  JobInProgress: "JobInProgress",
+  AwaitingApproval: "AwaitingApproval",
+  PaymentRequest: "PaymentRequest",
+  JobCompletion: "JobCompletion",
 } as const;
 
 export type BaseRouteName = typeof BaseRouteNames[keyof typeof BaseRouteNames];
@@ -111,13 +139,18 @@ export type RootStackParamList = {
   
   // Home Screens
   UserHome: undefined;
-  ProviderHome: undefined;
+  HomeServiceProviderDashboard: undefined;
   
   // User Service Screens
   HomeServiceLayout: undefined;
   ProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; selectedServices?: string[] };
   ProviderProfile: { id: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   BookingScreen: { providerId: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  BookConfirmation: { category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  liveTracking: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  serviceStatus: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  PaymentScreen: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; paymentData?: any };
+  ReviewRating: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; serviceData?: any };
   
   // Verification
   VerifySuccess: {
@@ -132,6 +165,7 @@ export type RootStackParamList = {
   ProviderReview: { providerId: string };
   PendingReview: undefined;
   UserManagement: undefined;
+  ServiceProviders: undefined;
 
   // Other
   Logout: undefined;
@@ -141,6 +175,14 @@ export type RootStackParamList = {
   ResetPassword: { email: string; resetToken: string; userType?: 'user' | 'provider' };
   ProviderWaiting: { providerId: string };
   ProviderApprovalPending: { providerId?: string };
+  
+  // Provider Job Flow
+  JobDetail: { job?: any };
+  NavigationMap: undefined;
+  JobInProgress: undefined;
+  AwaitingApproval: undefined;
+  PaymentRequest: undefined;
+  JobCompletion: undefined;
 };
 
 // Route interface
@@ -309,6 +351,13 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
+    component: ServiceProvidersAdminScreen,
+    title: BaseRouteNames.ServiceProviders,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
     component: ProviderApprovalPendingScreen,
     title: BaseRouteNames.ProviderApprovalPending,
     options: {
@@ -323,8 +372,8 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: ProviderHomeScreen,
-    title: BaseRouteNames.ProviderHome,
+    component: HomeServiceProviderLayout,
+    title: BaseRouteNames.HomeServiceProviderDashboard,
     options: {
       headerShown: false,
     }
@@ -355,6 +404,95 @@ export const BaseRoutes: IRoute[] = [
   {
     component: BookingScreen,
     title: BaseRouteNames.BookingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: BookConfirmationScreen,
+    title: BaseRouteNames.BookConfirmationScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: LiveTrackingScreen,
+    title: BaseRouteNames.LiveTrackingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ServiceStatusScreen,
+    title: BaseRouteNames.ServiceStatusScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: PaymentScreen,
+    title: BaseRouteNames.PaymentScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ReviewRatingScreen,
+    title: BaseRouteNames.ReviewRatingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  // Provider Job Flow Routes
+  {
+    component: JobDetailScreen,
+    title: BaseRouteNames.JobDetail,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: NavigationMapScreen,
+    title: BaseRouteNames.NavigationMap,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: JobInProgressScreen,
+    title: BaseRouteNames.JobInProgress,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: AwaitingApprovalScreen,
+    title: BaseRouteNames.AwaitingApproval,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderPaymentRequestScreen,
+    title: BaseRouteNames.PaymentRequest,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: JobCompletionScreen,
+    title: BaseRouteNames.JobCompletion,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

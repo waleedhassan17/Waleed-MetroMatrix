@@ -12,6 +12,8 @@ import {
   Dimensions,
   Platform,
   Image,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -43,6 +45,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_GAP = 12;
 const HORIZONTAL_PADDING = 16;
 const CARD_WIDTH = (SCREEN_WIDTH - (HORIZONTAL_PADDING * 2) - CARD_GAP) / 2;
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
 
 // Get safe area insets
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -101,6 +104,9 @@ const COLORS = {
   // Shadows
   shadow: 'rgba(15, 23, 42, 0.08)',
   shadowDark: 'rgba(15, 23, 42, 0.12)',
+  
+  // Drawer
+  drawerOverlay: 'rgba(15, 23, 42, 0.5)',
 };
 
 // Gradient configurations
@@ -112,6 +118,54 @@ const GRADIENTS = {
   blue: ['#6366f1', '#818cf8'] as const,
   teal: ['#14b8a6', '#2dd4bf'] as const,
 };
+
+// ============================================
+// SIDEBAR MENU ITEMS
+// ============================================
+
+interface SidebarMenuItem {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+  color: string;
+  description?: string;
+}
+
+const SIDEBAR_MENU_ITEMS: SidebarMenuItem[] = [
+  {
+    id: 'service_providers',
+    label: 'Service Providers',
+    icon: 'construct',
+    route: 'ServiceProviders',
+    color: '#8b5cf6',
+    description: 'Manage home services',
+  },
+  {
+    id: 'doctors',
+    label: 'Doctors',
+    icon: 'medkit',
+    route: 'Doctors',
+    color: '#10b981',
+    description: 'Medical professionals',
+  },
+  {
+    id: 'vendors',
+    label: 'Vendors',
+    icon: 'storefront',
+    route: 'Vendors',
+    color: '#f59e0b',
+    description: 'Product suppliers',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: 'settings',
+    route: 'Settings',
+    color: '#64748b',
+    description: 'App configuration',
+  },
+];
 
 // ============================================
 // HELPER FUNCTIONS
@@ -192,6 +246,213 @@ const useAnimatedCounter = (targetValue: number, duration: number = 1000, delay:
   }, [targetValue, duration, delay]);
 
   return displayValue;
+};
+
+// ============================================
+// SIDEBAR DRAWER COMPONENT
+// ============================================
+
+interface SidebarDrawerProps {
+  isVisible: boolean;
+  onClose: () => void;
+  admin: any;
+  onNavigate: (route: string) => void;
+}
+
+const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
+  isVisible,
+  onClose,
+  admin,
+  onNavigate,
+}) => {
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isVisible) {
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 65,
+          friction: 11,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -DRAWER_WIDTH,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isVisible]);
+
+  const handleMenuItemPress = (route: string) => {
+    onClose();
+    setTimeout(() => {
+      onNavigate(route);
+    }, 300);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={isVisible}
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View style={styles.drawerContainer}>
+        {/* Overlay */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View 
+            style={[
+              styles.drawerOverlay,
+              { opacity: overlayOpacity }
+            ]} 
+          />
+        </TouchableWithoutFeedback>
+
+        {/* Drawer Content */}
+        <Animated.View 
+          style={[
+            styles.drawerContent,
+            { transform: [{ translateX: slideAnim }] }
+          ]}
+        >
+          {/* Drawer Header */}
+          <LinearGradient
+            colors={['#6366f1', '#8b5cf6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.drawerHeader}
+          >
+            <View style={styles.drawerHeaderTop}>
+              <TouchableOpacity 
+                onPress={onClose}
+                style={styles.drawerCloseBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={24} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.drawerProfileSection}>
+              {admin?.avatar ? (
+                <Image
+                  source={{ uri: admin.avatar }}
+                  style={styles.drawerAvatar}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.drawerAvatarPlaceholder}>
+                  <Text style={styles.drawerAvatarText}>
+                    {getInitials(admin?.fullName || 'Admin')}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.drawerProfileInfo}>
+                <Text style={styles.drawerProfileName} numberOfLines={1}>
+                  {admin?.fullName || 'Administrator'}
+                </Text>
+                <Text style={styles.drawerProfileEmail} numberOfLines={1}>
+                  {admin?.email || 'admin@example.com'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Decorative elements */}
+            <View style={styles.drawerHeaderDecor1} />
+            <View style={styles.drawerHeaderDecor2} />
+          </LinearGradient>
+
+          {/* Menu Items */}
+          <ScrollView 
+            style={styles.drawerMenu}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.drawerMenuContent}
+          >
+            <Text style={styles.drawerSectionTitle}>MANAGEMENT</Text>
+            
+            {SIDEBAR_MENU_ITEMS.map((item, index) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.drawerMenuItem}
+                onPress={() => handleMenuItemPress(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.drawerMenuIconBg, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon} size={22} color={item.color} />
+                </View>
+                <View style={styles.drawerMenuTextContainer}>
+                  <Text style={styles.drawerMenuLabel}>{item.label}</Text>
+                  {item.description && (
+                    <Text style={styles.drawerMenuDescription}>{item.description}</Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+              </TouchableOpacity>
+            ))}
+
+            {/* Divider */}
+            <View style={styles.drawerDivider} />
+
+            {/* Additional Options */}
+            <Text style={styles.drawerSectionTitle}>QUICK ACTIONS</Text>
+            
+            <TouchableOpacity
+              style={styles.drawerMenuItem}
+              onPress={() => handleMenuItemPress('PendingReview')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.drawerMenuIconBg, { backgroundColor: COLORS.warning + '15' }]}>
+                <Ionicons name="time" size={22} color={COLORS.warning} />
+              </View>
+              <View style={styles.drawerMenuTextContainer}>
+                <Text style={styles.drawerMenuLabel}>Pending Reviews</Text>
+                <Text style={styles.drawerMenuDescription}>Approve or reject</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.drawerMenuItem}
+              onPress={() => handleMenuItemPress('UserManagement')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.drawerMenuIconBg, { backgroundColor: COLORS.info + '15' }]}>
+                <Ionicons name="people" size={22} color={COLORS.info} />
+              </View>
+              <View style={styles.drawerMenuTextContainer}>
+                <Text style={styles.drawerMenuLabel}>User Management</Text>
+                <Text style={styles.drawerMenuDescription}>All platform users</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Drawer Footer */}
+          <View style={styles.drawerFooter}>
+            <Text style={styles.drawerFooterText}>Admin Panel v1.0</Text>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
 };
 
 // ============================================
@@ -826,9 +1087,12 @@ const LoadingSkeleton: React.FC = () => {
       
       {/* Header Skeleton */}
       <View style={styles.header}>
-        <View>
-          <Animated.View style={[styles.skeletonLine, { width: 200, height: 26, opacity: pulseAnim }]} />
-          <Animated.View style={[styles.skeletonLine, { width: 160, height: 14, marginTop: 8, opacity: pulseAnim }]} />
+        <View style={styles.headerLeft}>
+          <Animated.View style={[styles.skeletonCircle, { width: 40, height: 40, opacity: pulseAnim }]} />
+        </View>
+        <View style={styles.headerCenter}>
+          <Animated.View style={[styles.skeletonLine, { width: 140, height: 22, opacity: pulseAnim }]} />
+          <Animated.View style={[styles.skeletonLine, { width: 100, height: 12, marginTop: 6, opacity: pulseAnim }]} />
         </View>
         <View style={styles.headerRight}>
           <Animated.View style={[styles.skeletonCircle, { opacity: pulseAnim }]} />
@@ -873,6 +1137,7 @@ const AdminDashboardScreen: React.FC = () => {
   const isLoading = useAppSelector(selectIsLoading);
   
   const [refreshing, setRefreshing] = useState(false);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(-20)).current;
 
@@ -910,6 +1175,18 @@ const AdminDashboardScreen: React.FC = () => {
     await loadDashboardData();
     setRefreshing(false);
   }, [loadDashboardData]);
+
+  const toggleDrawer = useCallback(() => {
+    setIsDrawerVisible(prev => !prev);
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setIsDrawerVisible(false);
+  }, []);
+
+  const handleNavigate = useCallback((route: string) => {
+    (navigation as any).navigate(route);
+  }, [navigation]);
 
   const navigateToUsers = useCallback(() => {
     (navigation as any).navigate('UserManagement');
@@ -955,23 +1232,41 @@ const AdminDashboardScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
       
+      {/* Sidebar Drawer */}
+      <SidebarDrawer
+        isVisible={isDrawerVisible}
+        onClose={closeDrawer}
+        admin={admin}
+        onNavigate={handleNavigate}
+      />
+      
       {/* Header */}
       <View style={styles.header}>
+        {/* Left - Menu Button */}
         <View style={styles.headerLeft}>
-          <Text style={styles.dashboardTitle}>Admin Dashboard</Text>
-          <Text style={styles.greeting}>
-            {getGreeting()}, {admin?.fullName || 'Admin'}
-          </Text>
-          <Text style={styles.date}>{formatDate()}</Text>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={toggleDrawer}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="menu" size={26} color={COLORS.text.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Center - Title & Date */}
+        <View style={styles.headerCenter}>
+          <Text style={styles.dashboardTitle}>Dashboard</Text>
+          <Text style={styles.headerSubtitle}>{formatDate()}</Text>
         </View>
         
+        {/* Right - Actions */}
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={navigateToNotifications}
             activeOpacity={0.7}
           >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.text.primary} />
+            <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
             {pendingCount > 0 && (
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationBadgeText}>
@@ -1000,6 +1295,17 @@ const AdminDashboardScreen: React.FC = () => {
               </View>
             )}
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Greeting Card */}
+      <View style={styles.greetingCard}>
+        <View style={styles.greetingContent}>
+          <Text style={styles.greetingText}>{getGreeting()},</Text>
+          <Text style={styles.greetingName}>{admin?.fullName || 'Administrator'}</Text>
+        </View>
+        <View style={styles.greetingIconContainer}>
+          <Ionicons name="sparkles" size={24} color={COLORS.primary} />
         </View>
       </View>
 
@@ -1101,8 +1407,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: HORIZONTAL_PADDING,
-    paddingTop: STATUS_BAR_HEIGHT + 16,
-    paddingBottom: 20,
+    paddingTop: STATUS_BAR_HEIGHT + 12,
+    paddingBottom: 12,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1119,58 +1425,66 @@ const styles = StyleSheet.create({
     }),
   },
   headerLeft: {
+    width: 46,
+    alignItems: 'flex-start',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
   },
   dashboardTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#6366F1',
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text.primary,
     letterSpacing: -0.3,
-    marginBottom: 4,
   },
-  greeting: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text.secondary,
-    letterSpacing: -0.2,
-    marginBottom: 2,
-  },
-  date: {
-    fontSize: 13,
+  headerSubtitle: {
+    fontSize: 12,
     color: COLORS.text.tertiary,
     fontWeight: '500',
+    marginTop: 2,
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 10,
     alignItems: 'center',
   },
   profileButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#6366F1',
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.25,
         shadowRadius: 6,
       },
       android: {
-        elevation: 6,
+        elevation: 4,
       },
     }),
   },
   profileImage: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
   },
   profilePlaceholder: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1178,28 +1492,28 @@ const styles = StyleSheet.create({
     borderColor: '#818CF8',
   },
   profileInitials: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#ffffff',
     textTransform: 'uppercase',
   },
   headerIconBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: '#F1F5F9',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
   },
   notificationBadge: {
     position: 'absolute',
     top: 2,
     right: 2,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1212,12 +1526,230 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
   },
 
+  // Greeting Card
+  greetingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: HORIZONTAL_PADDING,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '20',
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  greetingContent: {
+    flex: 1,
+  },
+  greetingText: {
+    fontSize: 14,
+    color: COLORS.text.secondary,
+    fontWeight: '500',
+  },
+  greetingName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginTop: 2,
+  },
+  greetingIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Drawer Styles
+  drawerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  drawerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.drawerOverlay,
+  },
+  drawerContent: {
+    width: DRAWER_WIDTH,
+    height: '100%',
+    backgroundColor: COLORS.surface,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 16,
+      },
+    }),
+  },
+  drawerHeader: {
+    paddingTop: STATUS_BAR_HEIGHT + 16,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  drawerHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 20,
+  },
+  drawerCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  drawerProfileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  drawerAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  drawerAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  drawerAvatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  drawerProfileInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  drawerProfileName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  drawerProfileEmail: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  drawerHeaderDecor1: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  drawerHeaderDecor2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  drawerMenu: {
+    flex: 1,
+  },
+  drawerMenuContent: {
+    paddingVertical: 20,
+  },
+  drawerSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.text.tertiary,
+    letterSpacing: 1,
+    marginLeft: 20,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  drawerMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginHorizontal: 12,
+    marginBottom: 4,
+    borderRadius: 14,
+  },
+  drawerMenuIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  drawerMenuTextContainer: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  drawerMenuLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    marginBottom: 2,
+  },
+  drawerMenuDescription: {
+    fontSize: 12,
+    color: COLORS.text.tertiary,
+    fontWeight: '500',
+  },
+  drawerDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 20,
+    marginVertical: 16,
+  },
+  drawerFooter: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  drawerFooterText: {
+    fontSize: 12,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+
   // Scroll View
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 24,
   },
 
@@ -1629,8 +2161,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   skeletonCircle: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     backgroundColor: COLORS.border,
   },

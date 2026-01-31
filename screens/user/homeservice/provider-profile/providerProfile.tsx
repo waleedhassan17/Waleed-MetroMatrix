@@ -13,7 +13,7 @@ import {
   Platform,
   FlatList,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -76,11 +76,11 @@ export default function ProviderProfileScreen() {
   const isLoading = useSelector((state: RootState) => state.providerProfile?.isLoading) as boolean;
   const selectedTab = useSelector((state: RootState) => state.providerProfile?.selectedTab) as string;
 
-  // Animation references
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const scaleAnim = useRef(new Animated.Value(0.98)).current;
-  const heroImageAnim = useRef(new Animated.Value(0)).current;
+  // Animation references - initialize to visible state for loading view
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const heroImageAnim = useRef(new Animated.Value(1)).current;
 
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
 
@@ -106,34 +106,56 @@ export default function ProviderProfileScreen() {
     dispatch(setSelectedTab(tab));
   }, [dispatch]);
 
-  useEffect(() => {
-    dispatch(fetchProviderById({ providerId: id, category }) as any);
+  // Track animations ref for cleanup
+  const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
 
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroImageAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [id, category]);
+  // Run animations and fetch data when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      // Set initial animation values when screen gains focus
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
+      scaleAnim.setValue(0.98);
+      heroImageAnim.setValue(0);
+
+      // Fetch data on focus
+      dispatch(fetchProviderById({ providerId: id, category }) as any);
+
+      // Start animations
+      animationsRef.current = Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroImageAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]);
+      animationsRef.current.start();
+
+      // Cleanup: only stop animations, don't reset values
+      return () => {
+        if (animationsRef.current) {
+          animationsRef.current.stop();
+        }
+      };
+    }, [id, category, dispatch])
+  );
 
   // Early return AFTER all hooks
   if (!provider) {

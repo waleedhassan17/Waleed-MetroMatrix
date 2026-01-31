@@ -64,6 +64,11 @@ const UNAUTHENTICATED_ENDPOINTS = [
   'auth/resend-verification',
   'auth/provider/resend-verification',
   'verify-email',
+  // ✅ Social Auth Endpoints (NO AUTH)
+  'auth/google-signup',
+  'auth/google-login',
+  'auth/facebook-signup',
+  'auth/facebook-login',
   // ✅ CRITICAL: Provider submission endpoints (NO AUTH)
   'admin/provider-submissions',
   'provider/approval-status',

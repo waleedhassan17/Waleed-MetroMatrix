@@ -23,6 +23,7 @@ import {
   selectPassword,
   selectShowPassword,
   selectStatus,
+  selectSocialSignupStatus,
   selectError,
   selectRequiresEmailVerification,
   selectUser,
@@ -33,7 +34,15 @@ import {
   togglePasswordVisibility,
   clearError,
   submitSignUpAsync,
+  submitGoogleSignUpAsync,
+  submitFacebookSignUpAsync,
 } from './signupSlice';
+import {
+  useGoogleAuth,
+  useFacebookAuth,
+  processGoogleResponse,
+  processFacebookResponse,
+} from '../../../utils/social-auth/socialAuthConfig';
 
 // Import Google Sign-In components and functions
 import * as Google from 'expo-auth-session/providers/google';
@@ -70,9 +79,11 @@ const SignUp = () => {
   const password = useAppSelector(selectPassword);
   const showPassword = useAppSelector(selectShowPassword);
   const status = useAppSelector(selectStatus);
+  const socialSignupStatus = useAppSelector(selectSocialSignupStatus);
   const error = useAppSelector(selectError);
   const requiresEmailVerification = useAppSelector(selectRequiresEmailVerification);
   const user = useAppSelector(selectUser);
+
 
   const isLoading = status === 'loading';
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -179,11 +190,114 @@ const SignUp = () => {
     }
   };
 
+
   useEffect(() => {
     if (error) {
       dispatch(clearError());
     }
   }, [fullName, phoneNumber, email, password, dispatch]);
+
+  // Handle Google auth response
+  useEffect(() => {
+    if (googleResponse) {
+      const result = processGoogleResponse(googleResponse);
+      
+      if (result.type === 'success' && result.idToken) {
+        console.log('✅ Google auth successful, calling signup API');
+        handleGoogleSignupWithToken(result.idToken);
+      } else if (result.type === 'cancel') {
+        console.log('ℹ️ Google sign-in was cancelled');
+      } else if (result.type === 'error') {
+        Alert.alert('Google Sign Up Failed', result.error || 'Unknown error occurred');
+      }
+    }
+  }, [googleResponse]);
+
+  // Handle Facebook auth response
+  useEffect(() => {
+    if (facebookResponse) {
+      const result = processFacebookResponse(facebookResponse);
+      
+      if (result.type === 'success' && result.accessToken) {
+        console.log('✅ Facebook auth successful, calling signup API');
+        handleFacebookSignupWithToken(result.accessToken);
+      } else if (result.type === 'cancel') {
+        console.log('ℹ️ Facebook sign-in was cancelled');
+      } else if (result.type === 'error') {
+        Alert.alert('Facebook Sign Up Failed', result.error || 'Unknown error occurred');
+      }
+    }
+  }, [facebookResponse]);
+
+  // Google signup with token
+  const handleGoogleSignupWithToken = async (idToken: string) => {
+    try {
+      const result = await dispatch(submitGoogleSignUpAsync({ idToken })).unwrap();
+      
+      console.log('✅ Google signup successful');
+      
+      const welcomeMessage = result.isNewUser 
+        ? 'Account created successfully via Google!'
+        : 'Logged in successfully via Google!';
+      
+      Alert.alert('Success', welcomeMessage, [
+        {
+          text: 'Continue',
+          onPress: () => {
+            try {
+              (navigation as any).navigate('UserHome');
+            } catch (navigationError) {
+              (navigation as any).reset({
+                index: 0,
+                routes: [{ name: 'UserHome' }],
+              });
+            }
+          },
+        },
+      ]);
+    } catch (err: any) {
+      console.error('❌ Google signup error:', err);
+      Alert.alert(
+        'Google Sign Up Failed',
+        err || 'Unable to sign up with Google. Please try again.'
+      );
+    }
+  };
+
+  // Facebook signup with token
+  const handleFacebookSignupWithToken = async (accessToken: string) => {
+    try {
+      const result = await dispatch(submitFacebookSignUpAsync({ accessToken })).unwrap();
+      
+      console.log('✅ Facebook signup successful');
+      
+      const welcomeMessage = result.isNewUser 
+        ? 'Account created successfully via Facebook!'
+        : 'Logged in successfully via Facebook!';
+      
+      Alert.alert('Success', welcomeMessage, [
+        {
+          text: 'Continue',
+          onPress: () => {
+            try {
+              (navigation as any).navigate('UserHome');
+            } catch (navigationError) {
+              (navigation as any).reset({
+                index: 0,
+                routes: [{ name: 'UserHome' }],
+              });
+            }
+          },
+        },
+      ]);
+    } catch (err: any) {
+      console.error('❌ Facebook signup error:', err);
+      Alert.alert(
+        'Facebook Sign Up Failed',
+        err || 'Unable to sign up with Facebook. Please try again.'
+      );
+    }
+  };
 
   // Navigate to email verification after successful signup
   useEffect(() => {
@@ -439,6 +553,7 @@ const SignUp = () => {
       }
     } finally {
       setIsFacebookLoading(false);
+
     }
   };
 

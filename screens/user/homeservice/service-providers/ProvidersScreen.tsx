@@ -14,7 +14,7 @@ import {
   Image,
   FlatList,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -99,6 +99,10 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Reset animations first
+    slideAnim.setValue(60);
+    opacityAnim.setValue(0);
+
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -113,7 +117,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [item.id]); // Re-run when item changes
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -327,10 +331,10 @@ export default function ProvidersScreen() {
 
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // Animation references
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const headerSlideAnim = useRef(new Animated.Value(-50)).current;
+  // Animation references - initialize to visible state for loading view
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = useRef(new Animated.Value(0)).current;
   const searchFocusAnim = useRef(new Animated.Value(0)).current;
 
   const serviceConfig = useMemo(() => 
@@ -338,40 +342,61 @@ export default function ProvidersScreen() {
     [serviceType]
   );
 
-  useEffect(() => {
-    switch (serviceType) {
-      case 'electricians':
-        dispatch(fetchElectricians() as any);
-        break;
-      case 'plumbers':
-        dispatch(fetchPlumbers() as any);
-        break;
-      case 'ac-repairers':
-      default:
-        dispatch(fetchACRepairers() as any);
-        break;
-    }
+  // Track animations ref for cleanup
+  const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
 
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-      Animated.spring(headerSlideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [serviceType]);
+  // Run animations and fetch data when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      // Set initial animation values when screen gains focus
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
+      headerSlideAnim.setValue(-50);
+
+      // Fetch data on focus
+      switch (serviceType) {
+        case 'electricians':
+          dispatch(fetchElectricians() as any);
+          break;
+        case 'plumbers':
+          dispatch(fetchPlumbers() as any);
+          break;
+        case 'ac-repairers':
+        default:
+          dispatch(fetchACRepairers() as any);
+          break;
+      }
+
+      // Start animations
+      animationsRef.current = Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+        Animated.spring(headerSlideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]);
+      animationsRef.current.start();
+
+      // Cleanup: only stop animations, don't reset values
+      return () => {
+        if (animationsRef.current) {
+          animationsRef.current.stop();
+        }
+      };
+    }, [serviceType, dispatch])
+  );
 
   const handleBackPress = useCallback(() => {
     navigation.goBack();

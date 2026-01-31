@@ -27,6 +27,30 @@ import serviceProvidersReducer from "../screens/user/homeservice/service-provide
 import homeReducer from "../screens/user/homeservice/tabs/home-screen/homeSlice";
 import providerProfileReducer from "../screens/user/homeservice/provider-profile/providerProfileSlice";
 import bookingReducer from "../screens/user/homeservice/Booking/bookingScreenSlice";
+import bookConfirmationReducer from "../screens/user/homeservice/book-confirmation/bookConfirmationSlice";
+import liveTrackingReducer from "../screens/user/homeservice/live-tracking/liveTrackingSlice";
+import serviceStatusReducer from "../screens/user/homeservice/service-status/serviceSlice";
+import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSlice";
+import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
+
+// Provider HomeService slices
+import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
+import providerJobsReducer from "../screens/providers/homeservice/tabs/jobs/jobSlice";
+import providerEarningsReducer from "../screens/providers/homeservice/tabs/earnings/earningSlice";
+import providerHomeProfileReducer from "../screens/providers/homeservice/profie-screen/profileSlice";
+
+// Provider Job Flow slices
+import jobDetailReducer from "../screens/providers/homeservice/jobdetail-screen/jobDetailSlice";
+import navigationMapReducer from "../screens/providers/homeservice/map-screen/mapSlice";
+import jobInProgressReducer from "../screens/providers/homeservice/job-InProgress/jobInProgressSlice";
+import awaitingApprovalReducer from "../screens/providers/homeservice/awaiting-screen/awaitingScreenSlice";
+import paymentRequestReducer from "../screens/providers/homeservice/payment-screen/paymentRequestSlice";
+import jobCompletionReducer from "../screens/providers/homeservice/job-completion/jobCompletionSlice";
+
+// Admin Service Providers slices
+import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
+import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
+import adminServiceProvidersAnalyticsReducer from "../screens/admin/providers/service-providers/tabs/analytics/analyticsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -56,6 +80,27 @@ export const store = configureStore({
     home: homeReducer,
     providerProfile: providerProfileReducer,
     booking: bookingReducer,
+    bookConfirmation: bookConfirmationReducer,
+    liveTracking: liveTrackingReducer,
+    serviceStatus: serviceStatusReducer,
+    payment: paymentReducer,
+    reviewRating: reviewRatingReducer,
+    // Provider HomeService reducers
+    dashboard: providerDashboardReducer,
+    jobs: providerJobsReducer,
+    earnings: providerEarningsReducer,
+    profile: providerHomeProfileReducer,
+    // Provider Job Flow reducers
+    jobDetail: jobDetailReducer,
+    navigationMap: navigationMapReducer,
+    jobInProgress: jobInProgressReducer,
+    awaitingApproval: awaitingApprovalReducer,
+    paymentRequest: paymentRequestReducer,
+    jobCompletion: jobCompletionReducer,
+    // Admin Service Providers reducers
+    adminSPDashboard: adminServiceProvidersDashboardReducer,
+    adminSPBookings: adminServiceProvidersBookingsReducer,
+    adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
   },
 });
 

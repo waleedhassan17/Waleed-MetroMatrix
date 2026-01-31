@@ -341,13 +341,13 @@ export const signInSlice = createAppSlice({
 
     // ✅ UPDATED: Google OAuth Sign In (Now uses REAL implementation)
     submitGoogleSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
+      async ({ idToken }: { idToken: string }, { rejectWithValue }) => {
         console.log('📤 Google sign in started');
 
         try {
-          // ✅ Call the REAL Google OAuth implementation
-          const result = await googleOAuthLogin();
-          console.log('🔥 Google sign in result:', JSON.stringify(result, null, 2));
+
+          const result = await googleOAuthLogin(idToken);
+          console.log('📥 Google sign in result:', JSON.stringify(result, null, 2));
 
           // Save to storage
           if (result.accessToken) {
@@ -398,13 +398,14 @@ export const signInSlice = createAppSlice({
 
     // ✅ UPDATED: Facebook OAuth Sign In (Now uses REAL implementation)
     submitFacebookSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
+      async ({ accessToken }: { accessToken: string }, { rejectWithValue }) => {
         console.log('📤 Facebook sign in started');
 
         try {
-          // ✅ Call the REAL Facebook OAuth implementation
-          const result = await facebookOAuthLogin();
-          console.log('🔥 Facebook sign in result:', JSON.stringify(result, null, 2));
+
+          const result = await facebookOAuthLogin(accessToken);
+          console.log('📥 Facebook sign in result:', JSON.stringify(result, null, 2));
+
 
           // Save to storage
           if (result.accessToken) {

@@ -36,6 +36,12 @@ import {
   submitGoogleSignInWithTokenAsync,  // ✅ NEW: For web Google auth
   submitFacebookSignInWithTokenAsync, // ✅ NEW: For web Facebook auth
 } from './signinSlice';
+import {
+  useGoogleAuth,
+  useFacebookAuth,
+  processGoogleResponse,
+  processFacebookResponse,
+} from '../../../utils/social-auth/socialAuthConfig';
 
 // ✅ Import expo-auth-session for Web
 import * as Google from 'expo-auth-session/providers/google';
@@ -57,6 +63,10 @@ const SignIn = () => {
   const status = useAppSelector(selectStatus);
   const socialLoginStatus = useAppSelector(selectSocialLoginStatus);
   const error = useAppSelector(selectError);
+
+  // Social auth hooks
+  const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady } = useGoogleAuth();
+  const { response: facebookResponse, promptAsync: promptFacebookAsync, isReady: isFacebookReady } = useFacebookAuth();
 
   const isLoading = status === 'loading' || socialLoginStatus === 'loading';
 
@@ -80,6 +90,7 @@ const SignIn = () => {
       dispatch(clearError());
     }
   }, [email, password]);
+
 
 // ✅ Handle Google Sign-In response (WEB ONLY)
 useEffect(() => {
@@ -183,6 +194,7 @@ useEffect(() => {
       Alert.alert('Error', `Facebook sign-in failed: ${fbResponse.error?.message || 'Unknown error'}`);
     }
   }, [fbResponse]);
+
 
   const validateForm = () => {
     if (!email.trim()) {

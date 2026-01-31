@@ -138,19 +138,19 @@ export default function ProviderSignInScreen() {
       ).unwrap();
       console.log('✅ Sign in successful:', result);
       
-      // Navigate to ProviderHome after successful login
+      // Navigate to HomeServiceProviderDashboard after successful login
       Alert.alert('Success', 'Welcome back!', [
         {
           text: 'Continue',
           onPress: () => {
             try {
-              console.log('🏠 Navigating to ProviderHome');
-              (navigation as any).navigate('ProviderHome');
+              console.log('🏠 Navigating to HomeServiceProviderDashboard');
+              (navigation as any).navigate('HomeServiceProviderDashboard');
             } catch (navigationError) {
               console.log('⚠️ Navigation error, using reset:', navigationError);
               (navigation as any).reset({
                 index: 0,
-                routes: [{ name: 'ProviderHome' }],
+                routes: [{ name: 'HomeServiceProviderDashboard' }],
               });
             }
           },

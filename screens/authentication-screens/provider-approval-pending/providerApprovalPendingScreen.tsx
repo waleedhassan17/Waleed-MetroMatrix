@@ -133,7 +133,7 @@ const ProviderApprovalPendingScreen: React.FC = () => {
             onPress: () => {
               (navigation as any).reset({
                 index: 0,
-                routes: [{ name: 'ProviderHome' }],
+                routes: [{ name: 'HomeServiceProviderDashboard' }],
               });
             },
           },

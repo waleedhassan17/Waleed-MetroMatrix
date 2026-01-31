@@ -131,8 +131,8 @@ export const AppContainer: React.FC = () => {
     
     // Check authentication based on user type
     if (userType === 'provider' && currentProvider) {
-      console.log('➡️ Navigating to ProviderHome (authenticated provider)');
-      return BaseRouteNames.ProviderHome;
+      console.log('➡️ Navigating to HomeServiceProviderDashboard (authenticated provider)');
+      return BaseRouteNames.HomeServiceProviderDashboard;
     } else if (userType === 'user' && currentUser) {
       console.log('➡️ Navigating to UserHome (authenticated user)');
       return BaseRouteNames.UserHome;
