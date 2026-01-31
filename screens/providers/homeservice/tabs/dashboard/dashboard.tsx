@@ -16,6 +16,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Home,
   Briefcase,
@@ -42,6 +44,13 @@ import {
 } from './dashboardSlice';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
+import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
+
+type RootStackParamList = {
+  JobDetail: { job?: JobData };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width } = Dimensions.get('window');
 
@@ -85,6 +94,7 @@ const theme = {
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+  const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const {
     profile,
@@ -137,6 +147,30 @@ export default function Dashboard() {
       { text: 'Decline', style: 'destructive', onPress: () => dispatch(rejectJob(jobId)) },
     ]);
   }, [dispatch]);
+
+  const handleNavigateToJob = useCallback((job: any) => {
+    // Transform dashboard job to JobData format
+    const jobData: JobData = {
+      id: job.id,
+      serviceType: job.title,
+      category: job.category,
+      customerName: job.customer,
+      customerPhone: job.phone || 'N/A',
+      customerImage: job.customerAvatar,
+      address: job.location,
+      city: job.location.split(',').pop()?.trim() || '',
+      date: job.date,
+      time: job.time,
+      estimatedPrice: job.price,
+      coordinates: {
+        latitude: 31.5204, // Default coordinates - should come from job data
+        longitude: 74.3587,
+      },
+    };
+    
+    dispatch(setJobDetail(jobData));
+    navigation.navigate('JobDetail', { job: jobData });
+  }, [dispatch, navigation]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -354,7 +388,10 @@ export default function Dashboard() {
                         <MessageSquare size={16} color={theme.colors.primary} />
                         <Text style={styles.secondaryBtnText}>Message</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.primaryBtn}>
+                      <TouchableOpacity 
+                        style={styles.primaryBtn}
+                        onPress={() => handleNavigateToJob(job)}
+                      >
                         <MapPin size={16} color={theme.colors.text.inverse} />
                         <Text style={styles.primaryBtnText}>Navigate</Text>
                       </TouchableOpacity>

@@ -46,6 +46,14 @@ import ServiceStatusScreen from "../screens/user/homeservice/service-status/serv
 import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
 import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
 
+// Provider Job Flow Screens
+import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
+import NavigationMapScreen from "../screens/providers/homeservice/map-screen/map";
+import JobInProgressScreen from "../screens/providers/homeservice/job-InProgress/jobInProgress";
+import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-screen/awaitingScreen";
+import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
+import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
+
 // Route names enum for type safety
 export const BaseRouteNames = {
   // Onboarding
@@ -99,6 +107,14 @@ export const BaseRouteNames = {
   ResetPasswordScreen: "ResetPassword",
 
   ProviderWaitingScreen: "ProviderWaiting",
+  
+  // Provider Job Flow Screens
+  JobDetail: "JobDetail",
+  NavigationMap: "NavigationMap",
+  JobInProgress: "JobInProgress",
+  AwaitingApproval: "AwaitingApproval",
+  PaymentRequest: "PaymentRequest",
+  JobCompletion: "JobCompletion",
 } as const;
 
 export type BaseRouteName = typeof BaseRouteNames[keyof typeof BaseRouteNames];
@@ -159,6 +175,14 @@ export type RootStackParamList = {
   ResetPassword: { email: string; resetToken: string; userType?: 'user' | 'provider' };
   ProviderWaiting: { providerId: string };
   ProviderApprovalPending: { providerId?: string };
+  
+  // Provider Job Flow
+  JobDetail: { job?: any };
+  NavigationMap: undefined;
+  JobInProgress: undefined;
+  AwaitingApproval: undefined;
+  PaymentRequest: undefined;
+  JobCompletion: undefined;
 };
 
 // Route interface
@@ -420,6 +444,55 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ReviewRatingScreen,
     title: BaseRouteNames.ReviewRatingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  // Provider Job Flow Routes
+  {
+    component: JobDetailScreen,
+    title: BaseRouteNames.JobDetail,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: NavigationMapScreen,
+    title: BaseRouteNames.NavigationMap,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: JobInProgressScreen,
+    title: BaseRouteNames.JobInProgress,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: AwaitingApprovalScreen,
+    title: BaseRouteNames.AwaitingApproval,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderPaymentRequestScreen,
+    title: BaseRouteNames.PaymentRequest,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: JobCompletionScreen,
+    title: BaseRouteNames.JobCompletion,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

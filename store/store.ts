@@ -39,6 +39,14 @@ import providerJobsReducer from "../screens/providers/homeservice/tabs/jobs/jobS
 import providerEarningsReducer from "../screens/providers/homeservice/tabs/earnings/earningSlice";
 import providerHomeProfileReducer from "../screens/providers/homeservice/profie-screen/profileSlice";
 
+// Provider Job Flow slices
+import jobDetailReducer from "../screens/providers/homeservice/jobdetail-screen/jobDetailSlice";
+import navigationMapReducer from "../screens/providers/homeservice/map-screen/mapSlice";
+import jobInProgressReducer from "../screens/providers/homeservice/job-InProgress/jobInProgressSlice";
+import awaitingApprovalReducer from "../screens/providers/homeservice/awaiting-screen/awaitingScreenSlice";
+import paymentRequestReducer from "../screens/providers/homeservice/payment-screen/paymentRequestSlice";
+import jobCompletionReducer from "../screens/providers/homeservice/job-completion/jobCompletionSlice";
+
 // Admin Service Providers slices
 import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
 import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
@@ -82,6 +90,13 @@ export const store = configureStore({
     jobs: providerJobsReducer,
     earnings: providerEarningsReducer,
     profile: providerHomeProfileReducer,
+    // Provider Job Flow reducers
+    jobDetail: jobDetailReducer,
+    navigationMap: navigationMapReducer,
+    jobInProgress: jobInProgressReducer,
+    awaitingApproval: awaitingApprovalReducer,
+    paymentRequest: paymentRequestReducer,
+    jobCompletion: jobCompletionReducer,
     // Admin Service Providers reducers
     adminSPDashboard: adminServiceProvidersDashboardReducer,
     adminSPBookings: adminServiceProvidersBookingsReducer,
