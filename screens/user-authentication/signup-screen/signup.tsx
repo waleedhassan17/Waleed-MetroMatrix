@@ -41,6 +41,10 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, ResponseType } from 'expo-auth-session';
 import { submitGoogleSignInWithTokenAsync } from '../signin-screen/signinSlice';
 
+// ✅ FACEBOOK: Import Facebook authentication
+import { initializeFacebook } from '../../../networks/authcalls/facebookAuth';
+import { submitFacebookSignUpAsync } from './signupSlice';
+
 WebBrowser.maybeCompleteAuthSession();
 
 const isAndroid = Platform.OS === 'android';
@@ -72,6 +76,7 @@ const SignUp = () => {
 
   const isLoading = status === 'loading';
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isFacebookLoading, setIsFacebookLoading] = useState(false); // ✅ FACEBOOK: Add loading state
 
   // ✅ Google Sign-In Configuration
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -113,6 +118,13 @@ const SignUp = () => {
       setIsGoogleLoading(false);
     }
   }, [response]);
+
+  // ✅ FACEBOOK: Initialize Facebook SDK on mount
+  useEffect(() => {
+    initializeFacebook().catch(error => {
+      console.error('❌ Facebook SDK initialization failed:', error);
+    });
+  }, []);
 
   const handleGoogleToken = async (idToken: string) => {
     try {
@@ -355,10 +367,78 @@ const SignUp = () => {
     if (provider === 'google') {
       handleGoogleSignIn();
     } else if (provider === 'facebook') {
-      Alert.alert(
-        'Facebook Login',
-        'Facebook login will be available soon. Please use email signup or Google Sign-In.'
-      );
+      handleFacebookSignUp(); // ✅ FACEBOOK: Call Facebook handler
+    }
+  };
+
+  // ✅ FACEBOOK: Facebook Sign-Up Handler
+  const handleFacebookSignUp = async () => {
+    try {
+      setIsFacebookLoading(true);
+      console.log('🔘 Facebook Sign-Up button pressed');
+      
+      const result = await dispatch(submitFacebookSignUpAsync()).unwrap();
+      
+      console.log('✅ Facebook sign-up successful:', result);
+      
+      // Navigate based on profile status
+      if (result.user.profileComplete) {
+        Alert.alert(
+          'Account Created! 🎉',
+          'Your account has been created successfully.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'UserHome' }],
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Complete Your Profile',
+          'Please add your phone number to continue',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                (navigation as any).navigate('CompleteProfile');
+              }
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error('❌ Facebook sign-up error:', error);
+      
+      // Handle specific errors
+      if (error?.message?.includes('already exists')) {
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Would you like to sign in instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign In', 
+              onPress: () => navigation.navigate('SignIn'),
+            },
+          ]
+        );
+      } else if (error?.message?.includes('cancelled')) {
+        // User cancelled, just log it
+        console.log('ℹ️ Facebook sign-up cancelled by user');
+      } else {
+        Alert.alert(
+          'Sign-Up Failed',
+          error?.message || 'Failed to sign up with Facebook. Please try again.'
+        );
+      }
+    } finally {
+      setIsFacebookLoading(false);
     }
   };
 
@@ -530,7 +610,7 @@ const SignUp = () => {
                   isGoogleLoading && styles.socialButtonLoading
                 ]}
                 onPress={() => handleSocialLogin('google')}
-                disabled={isLoading || isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || isFacebookLoading} // ✅ FACEBOOK: Also disable Google when Facebook loading
               >
                 <Ionicons name="logo-google" size={20} color="#DB4437" />
                 <Text style={styles.socialButtonText}>
@@ -538,12 +618,17 @@ const SignUp = () => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.socialButton}
+                style={[
+                  styles.socialButton,
+                  isFacebookLoading && styles.socialButtonLoading // ✅ FACEBOOK: Add loading style
+                ]}
                 onPress={() => handleSocialLogin('facebook')}
-                disabled={isLoading || isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || isFacebookLoading} // ✅ FACEBOOK: Disable when loading
               >
                 <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-                <Text style={styles.socialButtonText}>Facebook</Text>
+                <Text style={styles.socialButtonText}>
+                  {isFacebookLoading ? 'Signing in...' : 'Facebook'} 
+                </Text>
               </TouchableOpacity>
             </View>
 

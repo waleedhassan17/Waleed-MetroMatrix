@@ -1,0 +1,24 @@
+App id: 2277966629368711
+app secret: 371ab081b5c57c84778b125db742a9c6
+client token: b4ca5891df6414d095cc27abfe52c6ae
+key hash: 9DU2iGlC9jiFIvnjJi+2tW+osk4=
+
+heroku config:set FACEBOOK_APP_ID=2277966629368711 --app metromatrix-api
+heroku config:set FACEBOOK_APP_SECRET=371ab081b5c57c84778b125db742a9c6 --app metromatrix-api
+heroku config:set FACEBOOK_CALLBACK_URL=https://metromatrix-api-2e35f5f074df.herokuapp.com/api/auth/facebook/callback --app metromatrix-api
+
+find google heroliu shztc
+
+firebase callback
+https://metromatrix-c44c6.firebaseapp.com/__/auth/handler
+
+add app domains  localhost
+   metromatrix-api-2e35f5f074df.herokuapp.com
+
+
+Add Valid OAuth Redirect URIs:
+   http://localhost:19006/
+   http://localhost:8081/
+   https://metromatrix-api-2e35f5f074df.herokuapp.com/api/auth/facebook/callback
+   fb2277966629368711://authorize
+

@@ -40,7 +40,7 @@ export const AUTH_CONFIG: AuthConfig = {
   GOOGLE_IOS_CLIENT_ID: '942315940095-h2cnrp1f9o3gji37a6e988c5upvbqjno.apps.googleusercontent.com',
   
   // Facebook App ID
-  FACEBOOK_APP_ID: 'YOUR_FACEBOOK_APP_ID',
+  FACEBOOK_APP_ID: '2277966629368711',
 };
 
 /**

@@ -20,17 +20,23 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.YOUR_IOS_REVERSED_CLIENT_ID"
+              "com.googleusercontent.apps.942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5"
             ]
           },
           {
             "CFBundleURLSchemes": [
-              "fbYOUR_FACEBOOK_APP_ID"
+              "fb2277966629368711"
             ]
           }
         ],
-        "FacebookAppID": "YOUR_FACEBOOK_APP_ID",
+        "FacebookAppID": "2277966629368711",
         "FacebookDisplayName": "MetroMatrix",
+        "LSApplicationQueriesSchemes": [
+          "fbapi",
+          "fb-messenger-share-api",
+          "fbauth2",
+          "fbshareextension"
+        ],
         "SKAdNetworkItems": [
           {
             "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
@@ -58,16 +64,29 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "metromatrix",
+    "facebookScheme": "fb2277966629368711",
+    "facebookAppId": "2277966629368711",
+    "facebookDisplayName": "MetroMatrix",
+    "facebookAutoLogAppEventsEnabled": false,
+    "facebookAdvertiserIDCollectionEnabled": false,
     "plugins": [
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       [
+        "expo-facebook",
+        {
+          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you.",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false
+        }
+      ],
+      [
         "react-native-fbsdk-next",
         {
-          "appID": "YOUR_FACEBOOK_APP_ID",
-          "clientToken": "YOUR_FACEBOOK_CLIENT_TOKEN",
+          "appID": "2277966629368711",
+          "clientToken": "b4ca5891df6414d095cc27abfe52c6ae",
           "displayName": "MetroMatrix",
-          "scheme": "fbYOUR_FACEBOOK_APP_ID",
+          "scheme": "fb2277966629368711",
           "advertiserIDCollectionEnabled": false,
           "autoLogAppEventsEnabled": false,
           "isAutoInitEnabled": true

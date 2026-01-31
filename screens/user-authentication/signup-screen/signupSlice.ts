@@ -8,6 +8,9 @@ import {
   saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
 
+// ✅ FACEBOOK: Import Facebook authentication
+import { facebookSignup } from '../../../networks/authcalls/facebookAuth';
+
 // ✅ Admin emails that CANNOT register as regular users
 const ADMIN_EMAILS = [
   'waleedhassansfd@gmail.com',
@@ -222,6 +225,65 @@ export const signUpSlice = createAppSlice({
         },
       }
     ),
+
+    // ✅ FACEBOOK: Facebook Sign-Up Async Thunk
+    submitFacebookSignUpAsync: create.asyncThunk(
+      async (_, { rejectWithValue }) => {
+        console.log('📤 submitFacebookSignUpAsync started');
+
+        try {
+          // Call Facebook signup service
+          const result = await facebookSignup('user');
+          
+          console.log('🔥 Facebook sign-up result:', {
+            success: result.success,
+            isNewUser: result.isNewUser,
+            email: result.user.email,
+            hasToken: !!result.accessToken,
+          });
+
+          // Save temp credentials for potential later use
+          console.log('💾 Saving temp credentials...');
+          await saveData('tempEmail', result.user.email);
+          await saveData('tempUserType', 'user');
+          console.log('✅ Temp credentials saved');
+          
+          return {
+            ...result,
+            requiresEmailVerification: false, // Facebook accounts are pre-verified
+          };
+        } catch (error: any) {
+          console.log('❌ Facebook sign-up error:', error.message);
+          return rejectWithValue(error.message || 'Facebook sign-up failed');
+        }
+      },
+      {
+        pending: (state) => {
+          console.log('⏳ Facebook sign-up pending...');
+          state.status = 'loading';
+          state.error = '';
+        },
+        fulfilled: (state, action) => {
+          console.log('✅ Facebook sign-up fulfilled');
+          console.log('👤 New user:', action.payload.user.email);
+          
+          state.status = 'idle';
+          state.user = action.payload.user;
+          state.accessToken = action.payload.accessToken;
+          state.refreshToken = action.payload.refreshToken;
+          state.requiresEmailVerification = false; // Facebook pre-verified
+          state.error = '';
+          
+          console.log('💾 User data saved in state');
+          console.log('📧 Email verification NOT required (Facebook account)');
+        },
+        rejected: (state, action) => {
+          console.log('❌ Facebook sign-up rejected:', action.payload);
+          state.status = 'failed';
+          state.error = (action.payload as string) || 'Facebook sign-up failed';
+        },
+      }
+    ),
   }),
 
   selectors: {
@@ -258,6 +320,7 @@ export const {
   clearError,
   resetSignUp,
   submitSignUpAsync,
+  submitFacebookSignUpAsync, // ✅ FACEBOOK: Export Facebook sign-up action
 } = signUpSlice.actions;
 
 export const {
