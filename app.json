@@ -2,6 +2,7 @@
   "expo": {
     "name": "MetroMatrix",
     "slug": "MetroMatrix",
+    "owner": "waleed17",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +14,39 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.metromatrix.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.942315940095-h2cnrp1f9o3gji37a6e988c5upvbqjno"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "fb2277966629368711"
+            ]
+          }
+        ],
+        "FacebookAppID": "2277966629368711",
+        "FacebookDisplayName": "MetroMatrix",
+        "LSApplicationQueriesSchemes": [
+          "fbapi",
+          "fb-messenger-share-api",
+          "fbauth2",
+          "fbshareextension"
+        ],
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
+          },
+          {
+            "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,14 +54,50 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.metromatrix.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "scheme": "metromatrix",
+    "facebookScheme": "fb2277966629368711",
+    "facebookAppId": "2277966629368711",
+    "facebookDisplayName": "MetroMatrix",
+    "facebookAutoLogAppEventsEnabled": false,
+    "facebookAdvertiserIDCollectionEnabled": false,
     "plugins": [
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-facebook",
+        {
+          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you.",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false
+        }
+      ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "2277966629368711",
+          "clientToken": "b4ca5891df6414d095cc27abfe52c6ae",
+          "displayName": "MetroMatrix",
+          "scheme": "fb2277966629368711",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false,
+          "isAutoInitEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "adc7a05f-5e99-4a99-b6e4-58ac28a97b7e"
+      }
+    }
   }
 }

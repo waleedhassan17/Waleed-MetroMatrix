@@ -5,6 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Platform, ActivityIndicator, View, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../hooks/useReduxHooks";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth } from "../../firebaseConfig";
 
 import { BaseRouteNames } from "../../navigation-maps/Base";
 import BaseNavigator from "../../navigators/BaseNavigator";
@@ -80,6 +82,26 @@ export const AppContainer: React.FC = () => {
     initializeApp();
   }, [initializeApp]);
 
+  // 🔥 Firebase Auth State Listener - VERY IMPORTANT
+  // This listens for Firebase authentication state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        console.log('🔥 Firebase user authenticated:', firebaseUser.email);
+        console.log('🔥 Firebase UID:', firebaseUser.uid);
+        // Firebase user is authenticated
+        // You can dispatch actions here if needed to update Redux state
+        // For example: dispatch(setFirebaseUser(firebaseUser));
+      } else {
+        console.log('🔥 Firebase user signed out');
+        // User is signed out from Firebase
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [dispatch]);
+
   // Handle FCM token for push notifications
   useEffect(() => {
     const persistDeviceToken = async () => {
@@ -154,7 +176,7 @@ export const AppContainer: React.FC = () => {
 
   const initialRoute = getInitialRoute();
 
-  // ✅ Deep linking configuration for email verification
+  // ✅ Deep linking configuration for email verification and OAuth
   const linking = {
     prefixes: ['metromatrix://', 'https://metromatrix.com', 'https://*.metromatrix.com'],
     config: {
@@ -165,7 +187,7 @@ export const AppContainer: React.FC = () => {
             token: (token: string) => token,
           },
         },
-        // ✅ NEW: Handle verify-success with tokens from backend
+        // ✅ Handle verify-success with tokens from backend
         VerifySuccess: {
           path: 'verify-success',
           parse: {
@@ -179,6 +201,19 @@ export const AppContainer: React.FC = () => {
           parse: {
             token: (token: string) => token,
           },
+        },
+        // ✅ OAuth callback routes for Google/Facebook sign-in
+        SignIn: {
+          path: 'auth/google',
+        },
+        ProviderSignIn: {
+          path: 'auth/provider/google',
+        },
+        UserHome: {
+          path: 'home',
+        },
+        HomeServiceProviderDashboard: {
+          path: 'provider/dashboard',
         },
       },
     },

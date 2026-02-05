@@ -197,7 +197,7 @@ export default function ProviderProfileScreen() {
               <Ionicons name="share-outline" size={20} color="#64748B" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.8}>
-              <Ionicons name="heart-outline" size={20} color="#64748B" />
+              <Ionicons name="heart-outline" size={20} color={serviceConfig.accentColor} />
             </TouchableOpacity>
           </View>
         </View>

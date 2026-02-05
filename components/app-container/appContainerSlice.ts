@@ -127,13 +127,32 @@ export const appContainerSlice = createAppSlice({
     // Fetch current user/provider
     fetchMe: create.asyncThunk(
       async (_, { getState }) => {
-        const state = getState() as { appContainerSlice: appContainerSliceState };
+        const state = getState() as { appContainer: appContainerSliceState };
         const storedUserType = await getData(KeyForStorage.userType);
         
         // Validate and use userType
-        const userType = state.appContainerSlice.userType || 
+        const userType = state.appContainer?.userType || 
                         (storedUserType === "provider" ? "provider" : "user");
         
+        // ============================================
+        // 🧪 TEST MODE - API COMMENTED OUT (START)
+        // ============================================
+        // REMOVE THIS SECTION AND UNCOMMENT ORIGINAL API CODE BELOW TO RESTORE
+        
+        console.log('🧪 TEST MODE: Skipping me() API call');
+        
+        // Return mock data instead of calling API
+        return {
+          data: null,
+          userType: userType as "user" | "provider",
+        };
+        
+        // ============================================
+        // 🧪 TEST MODE - API COMMENTED OUT (END)
+        // ============================================
+        // REMOVE ABOVE SECTION AND UNCOMMENT BELOW TO RESTORE
+        
+        /* ORIGINAL API CODE - COMMENTED OUT
         // Call appropriate API based on user type
         const result = await me(userType === "provider" ? "provider" : "user");
         
@@ -141,6 +160,7 @@ export const appContainerSlice = createAppSlice({
           data: result,
           userType: userType as "user" | "provider",
         };
+        */
       },
       {
         pending: (state) => {
@@ -149,14 +169,17 @@ export const appContainerSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.status = "idle";
           
-          if (action.payload.userType === "provider") {
-            // Type assertion since we know it's ProviderInfo when userType is "provider"
-            state.currentProvider = action.payload.data as ProviderInfo;
-            state.currentUser = null;
-          } else {
-            // Type assertion since we know it's UserInfo when userType is "user"
-            state.currentUser = action.payload.data as UserInfo;
-            state.currentProvider = null;
+          // 🧪 TEST MODE: Handle null data from mocked API
+          if (action.payload.data) {
+            if (action.payload.userType === "provider") {
+              // Type assertion since we know it's ProviderInfo when userType is "provider"
+              state.currentProvider = action.payload.data as ProviderInfo;
+              state.currentUser = null;
+            } else {
+              // Type assertion since we know it's UserInfo when userType is "user"
+              state.currentUser = action.payload.data as UserInfo;
+              state.currentProvider = null;
+            }
           }
           
           state.userType = action.payload.userType;
@@ -174,12 +197,18 @@ export const appContainerSlice = createAppSlice({
     // Persist FCM token
     persistFcmTokenAction: create.asyncThunk(
       async ({ fcmToken, deviceType }: { fcmToken: string; deviceType: string }) => {
+        // 🧪 TEST MODE: Skip FCM token API call
+        console.log('🧪 TEST MODE: Skipping persistFcmToken API call');
+        return { success: true };
+        
+        /* ORIGINAL API CODE - COMMENTED OUT
         return await persistFcmToken(fcmToken, deviceType);
+        */
       },
       {
         pending: (state) => {},
         fulfilled: (state, action) => {
-          console.log("FCM token persisted successfully");
+          console.log("FCM token persisted successfully (test mode)");
         },
         rejected: (state, error) => {
           console.log("Failed to persist FCM token", error);

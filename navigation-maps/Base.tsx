@@ -45,6 +45,9 @@ import LiveTrackingScreen from "../screens/user/homeservice/live-tracking/liveTr
 import ServiceStatusScreen from "../screens/user/homeservice/service-status/serviceStatus";
 import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
 import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
+import QuickSearchScreen from "../screens/user/homeservice/quick-search/QuickSearchScreen";
+import SearchProvidersScreen from "../screens/user/homeservice/search-providers/searchProviders";
+import ProviderChatScreen from "../screens/user/homeservice/providers-chat/providersChatScreen";
 
 // Provider Job Flow Screens
 import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
@@ -97,6 +100,9 @@ export const BaseRouteNames = {
   ServiceStatusScreen: "serviceStatus",
   PaymentScreen: "PaymentScreen",
   ReviewRatingScreen: "ReviewRating",
+  QuickSearchScreen: "QuickSearchScreen",
+  SearchingProvidersScreen: "SearchingProvidersScreen",
+  ProviderChatScreen: "ProviderChatScreen",
   
   // Other screens (to be added)
   Logout: "Logout",
@@ -151,6 +157,9 @@ export type RootStackParamList = {
   serviceStatus: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   PaymentScreen: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; paymentData?: any };
   ReviewRating: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; serviceData?: any };
+  QuickSearchScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  SearchingProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
+  ProviderChatScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
   
   // Verification
   VerifySuccess: {
@@ -444,6 +453,31 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ReviewRatingScreen,
     title: BaseRouteNames.ReviewRatingScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  // Quick Search Flow Routes
+  {
+    component: QuickSearchScreen,
+    title: BaseRouteNames.QuickSearchScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: SearchProvidersScreen,
+    title: BaseRouteNames.SearchingProvidersScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderChatScreen,
+    title: BaseRouteNames.ProviderChatScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

@@ -32,6 +32,9 @@ import liveTrackingReducer from "../screens/user/homeservice/live-tracking/liveT
 import serviceStatusReducer from "../screens/user/homeservice/service-status/serviceSlice";
 import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSlice";
 import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
+import quickSearchReducer from "../screens/user/homeservice/quick-search/quicksearchSlice";
+import searchProvidersReducer from "../screens/user/homeservice/search-providers/searchProvidersSlice";
+import providerChatReducer from "../screens/user/homeservice/providers-chat/providersChatSlice";
 
 // Provider HomeService slices
 import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
@@ -85,6 +88,10 @@ export const store = configureStore({
     serviceStatus: serviceStatusReducer,
     payment: paymentReducer,
     reviewRating: reviewRatingReducer,
+    // Quick Search Flow reducers
+    quickSearchForm: quickSearchReducer,
+    searchingProviders: searchProvidersReducer,
+    providerChat: providerChatReducer,
     // Provider HomeService reducers
     dashboard: providerDashboardReducer,
     jobs: providerJobsReducer,

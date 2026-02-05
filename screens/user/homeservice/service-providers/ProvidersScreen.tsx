@@ -12,7 +12,7 @@ import {
   Platform,
   TextInput,
   Image,
-  FlatList,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -78,6 +78,14 @@ const SERVICE_CONFIG: Record<string, {
   },
 };
 
+// Sort options for filter modal
+const SORT_OPTIONS: { label: string; value: SortOption; icon: string }[] = [
+  { label: 'Top Rated', value: 'rating', icon: 'star' },
+  { label: 'Most Reviews', value: 'reviews', icon: 'chatbubbles' },
+  { label: 'Experience', value: 'experience', icon: 'ribbon' },
+  { label: 'Lowest Price', value: 'price', icon: 'pricetag' },
+];
+
 // Enhanced Provider Card Component
 interface ProviderCardProps {
   item: Provider;
@@ -85,6 +93,8 @@ interface ProviderCardProps {
   serviceConfig: typeof SERVICE_CONFIG[string];
   onPress: (id: string) => void;
   onBookNow: (id: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
 }
 
 const ProviderCard: React.FC<ProviderCardProps> = ({
@@ -93,13 +103,14 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   serviceConfig,
   onPress,
   onBookNow,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Reset animations first
     slideAnim.setValue(60);
     opacityAnim.setValue(0);
 
@@ -117,7 +128,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [item.id]); // Re-run when item changes
+  }, [item.id]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -148,7 +159,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
       ]}
     >
       <View style={styles.cardTouchable}>
-        {/* Card Background Gradient Accent */}
         <LinearGradient
           colors={[`${serviceConfig.accentColor}08`, 'transparent']}
           start={{ x: 1, y: 0 }}
@@ -156,7 +166,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           style={styles.cardBackgroundGradient}
         />
 
-        {/* Top Accent Line */}
         <LinearGradient
           colors={serviceConfig.gradient as [string, string]}
           start={{ x: 0, y: 0 }}
@@ -165,7 +174,19 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
         />
 
         <View style={styles.cardInner}>
-          {/* Profile Section - Touchable to navigate to profile */}
+          {/* Favorite Button */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => onToggleFavorite?.(item.id)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavorite ? serviceConfig.accentColor : '#94A3B8'}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={styles.profileSection}
             onPress={() => onPress(item.id)}
@@ -173,7 +194,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
             onPressOut={handlePressOut}
             activeOpacity={0.9}
           >
-            {/* Profile Image with Ring */}
             <View style={styles.profileImageWrapper}>
               <LinearGradient
                 colors={serviceConfig.gradient as [string, string]}
@@ -184,20 +204,17 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                 </View>
               </LinearGradient>
               
-              {/* Verified Badge */}
               {item.verified && (
                 <View style={[styles.verifiedBadge, { backgroundColor: serviceConfig.accentColor }]}>
                   <Ionicons name="checkmark" size={10} color="#ffffff" />
                 </View>
               )}
               
-              {/* Online Status */}
               <View style={styles.onlineStatus}>
-                <View style={styles.onlineDot} />
+                <View style={[styles.onlineDot, { backgroundColor: item.available ? '#10B981' : '#94A3B8' }]} />
               </View>
             </View>
 
-            {/* Provider Info */}
             <View style={styles.providerInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.providerName}>{item.name}</Text>
@@ -208,7 +225,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                 )}
               </View>
 
-              {/* Experience Badge */}
               <View style={[styles.experienceBadge, { backgroundColor: `${serviceConfig.accentColor}12` }]}>
                 <Feather name="award" size={12} color={serviceConfig.accentColor} />
                 <Text style={[styles.experienceText, { color: serviceConfig.accentColor }]}>
@@ -216,7 +232,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                 </Text>
               </View>
 
-              {/* Rating Section */}
               <View style={styles.ratingSection}>
                 <View style={styles.ratingContainer}>
                   <LinearGradient
@@ -230,21 +245,17 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                 </View>
               </View>
 
-              {/* Specialty Tags */}
               <Text style={styles.specialtyText}>{serviceConfig.specialty}</Text>
             </View>
           </TouchableOpacity>
 
-          {/* Elegant Divider */}
           <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
             <View style={[styles.dividerDot, { backgroundColor: serviceConfig.accentColor }]} />
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Bottom Section */}
           <View style={styles.bottomSection}>
-            {/* Price */}
             <View style={styles.priceSection}>
               <Text style={styles.priceLabel}>Starting from</Text>
               <View style={styles.priceRow}>
@@ -253,12 +264,10 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
               </View>
             </View>
 
-            {/* Action Buttons */}
             <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={[styles.iconButton, styles.chatButton]}
                 activeOpacity={0.8}
-                onPress={() => {}}
               >
                 <Ionicons name="chatbubble-outline" size={18} color={serviceConfig.accentColor} />
               </TouchableOpacity>
@@ -266,7 +275,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
               <TouchableOpacity 
                 style={[styles.iconButton, styles.callButton]}
                 activeOpacity={0.8}
-                onPress={() => {}}
               >
                 <Ionicons name="call-outline" size={18} color="#10B981" />
               </TouchableOpacity>
@@ -289,7 +297,6 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
             </View>
           </View>
 
-          {/* Status Footer - Also touchable to navigate to profile */}
           <TouchableOpacity 
             style={styles.statusFooter}
             onPress={() => onPress(item.id)}
@@ -298,19 +305,119 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
             <View style={styles.statusLeft}>
               <View style={styles.availableBadge}>
                 <View style={styles.pulsingDot}>
-                  <View style={styles.pulsingDotInner} />
+                  <View style={[styles.pulsingDotInner, { backgroundColor: item.available ? '#10B981' : '#94A3B8' }]} />
                 </View>
-                <Text style={styles.availableText}>Available Now</Text>
+                <Text style={[styles.availableText, { color: item.available ? '#10B981' : '#94A3B8' }]}>
+                  {item.available ? 'Available Now' : 'Busy'}
+                </Text>
               </View>
             </View>
             <View style={styles.responseContainer}>
               <Feather name="zap" size={12} color="#94A3B8" />
-              <Text style={styles.responseText}>~10 min response</Text>
+              <Text style={styles.responseText}>{item.responseTime} response</Text>
             </View>
           </TouchableOpacity>
         </View>
       </View>
     </Animated.View>
+  );
+};
+
+// Filter Modal Component
+interface FilterModalProps {
+  visible: boolean;
+  onClose: () => void;
+  selectedSort: SortOption;
+  onSelectSort: (sort: SortOption) => void;
+  accentColor: string;
+}
+
+const FilterModal: React.FC<FilterModalProps> = ({
+  visible,
+  onClose,
+  selectedSort,
+  onSelectSort,
+  accentColor,
+}) => {
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 65,
+        friction: 11,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: height,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <Animated.View 
+          style={[
+            styles.filterModalContainer,
+            { transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <TouchableOpacity activeOpacity={1}>
+            <View style={styles.filterModalHandle} />
+            <Text style={styles.filterModalTitle}>Sort By</Text>
+            
+            {SORT_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.filterOption,
+                  selectedSort === option.value && { backgroundColor: `${accentColor}12` },
+                ]}
+                onPress={() => {
+                  onSelectSort(option.value);
+                  onClose();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.filterOptionIcon,
+                  { backgroundColor: selectedSort === option.value ? `${accentColor}20` : '#F1F5F9' },
+                ]}>
+                  <Ionicons 
+                    name={option.icon as any} 
+                    size={18} 
+                    color={selectedSort === option.value ? accentColor : '#64748B'} 
+                  />
+                </View>
+                <Text style={[
+                  styles.filterOptionText,
+                  selectedSort === option.value && { color: accentColor, fontWeight: '600' },
+                ]}>
+                  {option.label}
+                </Text>
+                {selectedSort === option.value && (
+                  <Ionicons name="checkmark-circle" size={22} color={accentColor} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
   );
 };
 
@@ -328,10 +435,13 @@ export default function ProvidersScreen() {
   const providers = useSelector((state: RootState) => selectFilteredProviders(state)) as Provider[];
   const isLoading = useSelector((state: RootState) => selectIsLoading(state)) as boolean;
   const searchQuery = useSelector((state: RootState) => selectSearchQuery(state)) as string;
+  const selectedSort = useSelector((state: RootState) => selectSelectedSort(state)) as SortOption;
 
   const [searchFocused, setSearchFocused] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  // Animation references - initialize to visible state for loading view
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const headerSlideAnim = useRef(new Animated.Value(0)).current;
@@ -342,18 +452,14 @@ export default function ProvidersScreen() {
     [serviceType]
   );
 
-  // Track animations ref for cleanup
   const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  // Run animations and fetch data when screen gains focus
   useFocusEffect(
     useCallback(() => {
-      // Set initial animation values when screen gains focus
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
       headerSlideAnim.setValue(-50);
 
-      // Fetch data on focus
       switch (serviceType) {
         case 'electricians':
           dispatch(fetchElectricians() as any);
@@ -367,7 +473,6 @@ export default function ProvidersScreen() {
           break;
       }
 
-      // Start animations
       animationsRef.current = Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -389,7 +494,6 @@ export default function ProvidersScreen() {
       ]);
       animationsRef.current.start();
 
-      // Cleanup: only stop animations, don't reset values
       return () => {
         if (animationsRef.current) {
           animationsRef.current.stop();
@@ -403,7 +507,7 @@ export default function ProvidersScreen() {
   }, [navigation]);
 
   const handleProviderPress = useCallback((providerId: string) => {
-    // @ts-ignore - Route may not be defined yet
+    // @ts-ignore
     navigation.navigate('ProviderProfile', { 
       id: providerId, 
       category: serviceType as 'electricians' | 'plumbers' | 'ac-repairers'
@@ -411,12 +515,27 @@ export default function ProvidersScreen() {
   }, [navigation, serviceType]);
 
   const handleBookNow = useCallback((providerId: string) => {
-    // @ts-ignore - Route may not be defined yet
+    // @ts-ignore
     navigation.navigate('BookingScreen', { 
       providerId: providerId, 
       category: serviceType as 'electricians' | 'plumbers' | 'ac-repairers'
     });
   }, [navigation, serviceType]);
+
+  const handleQuickSearch = useCallback(() => {
+    // @ts-ignore
+    navigation.navigate('QuickSearchScreen', {
+      serviceType: serviceType,
+    });
+  }, [navigation, serviceType]);
+
+  const handleToggleFavorite = useCallback((providerId: string) => {
+    setFavorites(prev => 
+      prev.includes(providerId) 
+        ? prev.filter(id => id !== providerId)
+        : [...prev, providerId]
+    );
+  }, []);
 
   const handleSearchFocus = () => {
     setSearchFocused(true);
@@ -442,7 +561,18 @@ export default function ProvidersScreen() {
     dispatch(setSearchQuery(text));
   }, [dispatch]);
 
-  // Calculate stats
+  const handleSortChange = useCallback((sort: SortOption) => {
+    dispatch(setSelectedSort(sort));
+  }, [dispatch]);
+
+  // Filter providers based on favorites view
+  const displayedProviders = useMemo(() => {
+    if (showFavoritesOnly) {
+      return providers.filter(p => favorites.includes(p.id));
+    }
+    return providers;
+  }, [providers, favorites, showFavoritesOnly]);
+
   const stats = useMemo(() => {
     const total = providers.length;
     const avgRating = providers.length > 0 
@@ -479,24 +609,17 @@ export default function ProvidersScreen() {
             </TouchableOpacity>
 
             <View style={styles.titleContainer}>
-              <View style={styles.titleRow}>
-                <View style={[styles.titleIconBg, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-                  <Ionicons name={serviceConfig.icon as any} size={16} color={serviceConfig.accentColor} />
-                </View>
-                <Text style={styles.headerTitle}>All {serviceConfig.title}</Text>
-              </View>
-              <Text style={styles.headerSubtitle}>
-                {providers.length} {serviceConfig.subtitle}
-              </Text>
+              <Text style={styles.headerTitle}>All {serviceConfig.title}</Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.8}>
-              <Ionicons name="options-outline" size={20} color="#64748B" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.8}>
-              <Ionicons name="heart-outline" size={20} color="#64748B" />
+            <TouchableOpacity 
+              style={styles.headerIconButton} 
+              activeOpacity={0.8}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <Ionicons name="filter" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
         </View>
@@ -537,7 +660,7 @@ export default function ProvidersScreen() {
 
         <TextInput
           style={styles.searchInput}
-          placeholder={`Search ${serviceConfig.title.toLowerCase()} by name...`}
+          placeholder={`Search ${serviceConfig.title.toLowerCase()}...`}
           placeholderTextColor="#94A3B8"
           value={searchQuery}
           onChangeText={handleSearchChange}
@@ -557,6 +680,60 @@ export default function ProvidersScreen() {
           </TouchableOpacity>
         )}
       </Animated.View>
+    </Animated.View>
+  );
+
+  // Quick Search and Favorites Buttons
+  const renderActionButtons = () => (
+    <Animated.View
+      style={[
+        styles.actionButtonsContainer,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.quickSearchButton}
+        onPress={handleQuickSearch}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={serviceConfig.gradient as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.quickSearchGradient}
+        >
+          <Ionicons name="flash" size={20} color="#FFFFFF" />
+          <Text style={styles.quickSearchText}>Quick Search</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.favoritesButton,
+          showFavoritesOnly && styles.favoritesButtonActive,
+          { shadowColor: serviceConfig.accentColor },
+        ]}
+        onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={showFavoritesOnly ? serviceConfig.gradient as [string, string] : (serviceConfig.lightGradient as [string, string])}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.favoritesGradient}
+        >
+          <Ionicons 
+            name={showFavoritesOnly ? 'heart' : 'heart-outline'} 
+            size={22} 
+            color={showFavoritesOnly ? '#FFFFFF' : serviceConfig.accentColor} 
+          />
+          {favorites.length > 0 && (
+            <View style={styles.favoritesBadge}>
+              <Text style={[styles.favoritesBadgeText, { color: serviceConfig.accentColor }]}>{favorites.length}</Text>
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
     </Animated.View>
   );
 
@@ -615,16 +792,6 @@ export default function ProvidersScreen() {
     </Animated.View>
   );
 
-  const renderProviderCard = ({ item, index }: { item: Provider; index: number }) => (
-    <ProviderCard
-      item={item}
-      index={index}
-      serviceConfig={serviceConfig}
-      onPress={handleProviderPress}
-      onBookNow={handleBookNow}
-    />
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -641,27 +808,54 @@ export default function ProvidersScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {renderSearchSection()}
+        {renderActionButtons()}
         {renderStatsBar()}
 
         <View style={styles.listContainer}>
           <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>Available Experts</Text>
-            <View style={styles.sortButton}>
-              <Text style={styles.sortText}>Top Rated</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748B" />
-            </View>
+            <Text style={styles.listTitle}>
+              {showFavoritesOnly ? 'Favorites' : 'Available Providers'}
+            </Text>
+            <Text style={styles.listCount}>{displayedProviders.length} found</Text>
           </View>
 
-          <FlatList
-            data={providers}
-            renderItem={renderProviderCard}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          />
+          {displayedProviders.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons 
+                name={showFavoritesOnly ? 'heart-outline' : 'search-outline'} 
+                size={48} 
+                color="#CBD5E1" 
+              />
+              <Text style={styles.emptyStateText}>
+                {showFavoritesOnly 
+                  ? 'No favorites yet. Tap the heart icon to add providers to your favorites.'
+                  : 'No providers found. Try a different search term.'}
+              </Text>
+            </View>
+          ) : (
+            displayedProviders.map((provider, index) => (
+              <ProviderCard
+                key={provider.id}
+                item={provider}
+                index={index}
+                serviceConfig={serviceConfig}
+                onPress={handleProviderPress}
+                onBookNow={handleBookNow}
+                isFavorite={favorites.includes(provider.id)}
+                onToggleFavorite={handleToggleFavorite}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
+
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        selectedSort={selectedSort}
+        onSelectSort={handleSortChange}
+        accentColor={serviceConfig.accentColor}
+      />
     </SafeAreaView>
   );
 }
@@ -671,34 +865,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-
-  // Header Styles
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
   header: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
   },
   headerGradient: {
-    paddingTop: isAndroid ? 16 : 8,
-    paddingBottom: 16,
+    paddingTop: isAndroid ? StatusBar.currentHeight : 0,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -706,43 +892,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    marginRight: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   titleContainer: {
     flex: 1,
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: -0.3,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
   },
   titleIconBg: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    justifyContent: 'center',
   },
   headerSubtitle: {
     fontSize: 13,
-    fontFamily: Fonts.medium,
     color: '#64748B',
-    marginLeft: 38,
+    marginTop: 2,
   },
   headerRight: {
     flexDirection: 'row',
@@ -750,63 +932,43 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerIconButton: {
-    width: 42,
-    height: 42,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'center',
   },
-
-  // Content
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-
-  // Search Section
   searchSection: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   searchContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchIconBg: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    fontFamily: Fonts.medium,
-    color: '#0F172A',
+    color: '#1E293B',
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   clearButton: {
@@ -817,163 +979,220 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  // Stats Bar
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  quickSearchButton: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  quickSearchGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  quickSearchText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  favoritesButton: {
+    width: 56,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  favoritesButtonActive: {
+    shadowColor: '#EF4444',
+  },
+  favoritesGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    position: 'relative',
+  },
+  favoritesBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  favoritesBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
   statsBar: {
-    marginHorizontal: 20,
-    marginBottom: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statsGradient: {
     flexDirection: 'row',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'space-around',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
   },
   statItem: {
     alignItems: 'center',
     flex: 1,
   },
   statIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   statNumber: {
-    fontSize: 22,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   statLabel: {
     fontSize: 11,
-    fontFamily: Fonts.medium,
     color: '#64748B',
     marginTop: 2,
   },
   statDivider: {
-    height: 60,
+    height: 40,
     justifyContent: 'center',
-    paddingHorizontal: 4,
   },
   statDividerLine: {
     width: 1,
     height: '100%',
     backgroundColor: '#E2E8F0',
   },
-
-  // List
   listContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
   listHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   listTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 4,
-  },
-  sortText: {
-    fontSize: 13,
-    fontFamily: Fonts.medium,
+  listCount: {
+    fontSize: 14,
     color: '#64748B',
   },
-  listContent: {
-    gap: 16,
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
   },
-
-  // Provider Card
+  emptyStateText: {
+    fontSize: 15,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 22,
+  },
   providerCard: {
+    marginBottom: 16,
+    borderRadius: 20,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
   },
   cardTouchable: {
-    overflow: 'hidden',
+    position: 'relative',
   },
   cardBackgroundGradient: {
     position: 'absolute',
     top: 0,
+    left: 0,
     right: 0,
-    width: 200,
-    height: 200,
-    borderBottomLeftRadius: 100,
+    bottom: 0,
   },
   cardTopAccent: {
     height: 4,
     width: '100%',
   },
   cardInner: {
-    padding: 20,
+    padding: 16,
   },
-
-  // Profile Section
+  favoriteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   profileSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
   },
   profileImageWrapper: {
-    marginRight: 16,
+    position: 'relative',
+    marginRight: 14,
   },
   profileImageRing: {
     width: 72,
     height: 72,
-    borderRadius: 24,
+    borderRadius: 36,
     padding: 3,
   },
   profileImageInner: {
     flex: 1,
-    borderRadius: 21,
+    borderRadius: 33,
     overflow: 'hidden',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F1F5F9',
   },
   profileImage: {
     width: '100%',
@@ -981,108 +1200,98 @@ const styles = StyleSheet.create({
   },
   verifiedBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    bottom: 0,
+    right: 0,
     width: 22,
     height: 22,
     borderRadius: 11,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    justifyContent: 'center',
+    borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   onlineStatus: {
     position: 'absolute',
-    top: 0,
-    right: 0,
+    top: 2,
+    right: 2,
     width: 16,
     height: 16,
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   onlineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#10B981',
   },
   providerInfo: {
     flex: 1,
+    paddingRight: 32,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 6,
   },
   providerName: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.3,
-    marginRight: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   verifiedTextBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F0FDF4',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 4,
   },
   experienceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 6,
-    marginBottom: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+    marginBottom: 8,
   },
   experienceText: {
     fontSize: 12,
-    fontFamily: Fonts.semiBold,
+    fontWeight: '600',
   },
   ratingSection: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   ratingGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     gap: 4,
   },
   ratingText: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontWeight: '700',
     color: '#92400E',
   },
   reviewsText: {
     fontSize: 13,
-    fontFamily: Fonts.medium,
     color: '#64748B',
+    marginLeft: 6,
   },
   specialtyText: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    color: '#64748B',
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
   },
-
-  // Divider
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginVertical: 14,
   },
   dividerLine: {
     flex: 1,
@@ -1095,24 +1304,18 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     marginHorizontal: 12,
   },
-
-  // Bottom Section
   bottomSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
   },
   priceSection: {
-    alignItems: 'flex-start',
+    flex: 1,
   },
   priceLabel: {
-    fontSize: 11,
-    fontFamily: Fonts.medium,
+    fontSize: 12,
     color: '#94A3B8',
     marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   priceRow: {
     flexDirection: 'row',
@@ -1120,70 +1323,57 @@ const styles = StyleSheet.create({
   },
   priceCurrency: {
     fontSize: 14,
-    fontFamily: Fonts.semiBold,
+    fontWeight: '600',
     color: '#64748B',
     marginRight: 2,
   },
   priceValue: {
-    fontSize: 24,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1,
+    justifyContent: 'center',
   },
   chatButton: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#E0F2FE',
+    backgroundColor: '#F1F5F9',
   },
   callButton: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#DCFCE7',
+    backgroundColor: '#ECFDF5',
   },
   bookButton: {
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
   },
   bookButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 6,
   },
   bookButtonText: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
-
-  // Status Footer
   statusFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   statusLeft: {
     flexDirection: 'row',
@@ -1192,30 +1382,24 @@ const styles = StyleSheet.create({
   availableBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
     gap: 6,
   },
   pulsingDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#BBF7D0',
-    justifyContent: 'center',
+    backgroundColor: '#D1FAE5',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   pulsingDotInner: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
   },
   availableText: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    color: '#059669',
+    fontSize: 13,
+    fontWeight: '600',
   },
   responseContainer: {
     flexDirection: 'row',
@@ -1224,7 +1408,55 @@ const styles = StyleSheet.create({
   },
   responseText: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
     color: '#94A3B8',
+  },
+  // Filter Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  filterModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+  },
+  filterModalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  filterModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  filterOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  filterOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#334155',
   },
 });

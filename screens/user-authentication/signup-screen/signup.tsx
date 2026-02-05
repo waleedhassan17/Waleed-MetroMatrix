@@ -72,7 +72,7 @@ const SignUp = () => {
   const user = useAppSelector(selectUser);
 
   // Social auth hooks
-  const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady } = useGoogleAuth();
+  const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady, isNative } = useGoogleAuth();
   const { response: facebookResponse, promptAsync: promptFacebookAsync, isReady: isFacebookReady } = useFacebookAuth();
 
   const isLoading = status === 'loading' || socialSignupStatus === 'loading';
@@ -86,6 +86,7 @@ const SignUp = () => {
   // Handle Google auth response
   useEffect(() => {
     if (googleResponse) {
+      console.log('📥 Received Google auth response:', googleResponse?.type);
       const result = processGoogleResponse(googleResponse);
       
       if (result.type === 'success' && result.idToken) {
@@ -120,27 +121,13 @@ const SignUp = () => {
     try {
       const result = await dispatch(submitGoogleSignUpAsync({ idToken })).unwrap();
       
-      console.log('✅ Google signup successful');
+      console.log('✅ Google signup successful, navigating to UserHome');
       
-      const welcomeMessage = result.isNewUser 
-        ? 'Account created successfully via Google!'
-        : 'Logged in successfully via Google!';
-      
-      Alert.alert('Success', welcomeMessage, [
-        {
-          text: 'Continue',
-          onPress: () => {
-            try {
-              (navigation as any).navigate('UserHome');
-            } catch (navigationError) {
-              (navigation as any).reset({
-                index: 0,
-                routes: [{ name: 'UserHome' }],
-              });
-            }
-          },
-        },
-      ]);
+      // Navigate directly to UserHome using reset for clean navigation stack
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'UserHome' }],
+      });
     } catch (err: any) {
       console.error('❌ Google signup error:', err);
       Alert.alert(
@@ -255,6 +242,20 @@ const SignUp = () => {
   };
 
   const handleSignUp = async () => {
+    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
+    console.log('🧪 TEST MODE: Navigating directly to UserHome without API');
+    
+    try {
+      (navigation as any).navigate('UserHome');
+    } catch (navigationError) {
+      console.log('⚠️ Navigation error, using reset:', navigationError);
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'UserHome' }],
+      });
+    }
+    
+    /* ORIGINAL API CODE - COMMENTED OUT
     console.log('🔘 handleSignUp called');
     console.log('Form values:', { fullName, phoneNumber, email, hasPassword: !!password });
     
@@ -315,6 +316,7 @@ const SignUp = () => {
         displayMessage
       );
     }
+    */
   };
 
   const handleSignIn = () => {
@@ -322,6 +324,20 @@ const SignUp = () => {
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
+    console.log(`🧪 TEST MODE: ${provider} signup - Navigating directly to UserHome without API`);
+    
+    try {
+      (navigation as any).navigate('UserHome');
+    } catch (navigationError) {
+      console.log('⚠️ Navigation error, using reset:', navigationError);
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'UserHome' }],
+      });
+    }
+    
+    /* ORIGINAL API CODE - COMMENTED OUT
     if (error) {
       dispatch(clearError());
     }
@@ -333,10 +349,26 @@ const SignUp = () => {
       }
       
       try {
-        await promptGoogleAsync();
-      } catch (err) {
+        // For native SDK (dev builds/production), handle response directly
+        if (isNative) {
+          const result = await promptGoogleAsync() as any;
+          console.log('📥 Native Google Sign-In result:', result);
+          
+          if (result && result.type === 'success' && result.idToken) {
+            console.log('✅ Native Google auth successful, calling signup API');
+            handleGoogleSignupWithToken(result.idToken);
+          } else if (result && result.type === 'cancel') {
+            console.log('ℹ️ Google sign-in was cancelled');
+          } else if (result && result.type === 'error') {
+            Alert.alert('Google Sign Up Failed', String(result.error) || 'Unknown error occurred');
+          }
+        } else {
+          // For Expo Go, use expo-auth-session (response handled by useEffect)
+          await promptGoogleAsync();
+        }
+      } catch (err: any) {
         console.error('Error prompting Google auth:', err);
-        Alert.alert('Error', 'Failed to start Google Sign-In');
+        Alert.alert('Error', err.message || 'Failed to start Google Sign-In');
       }
     } else {
       if (!isFacebookReady) {
@@ -351,6 +383,7 @@ const SignUp = () => {
         Alert.alert('Error', 'Failed to start Facebook Sign-In');
       }
     }
+    */
   };
 
   const isFormComplete = 
