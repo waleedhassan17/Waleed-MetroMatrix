@@ -21,13 +21,9 @@ import { Colors } from '../../../../../constants/Colors';
 import { Fonts } from '../../../../../constants/Fonts';
 import {
   setSingleCategory,
-  selectCategories,
-  selectSelectedCategories,
-  selectPromotions,
-  selectActivePromoIndex,
   setActivePromoIndex,
-  selectIsRefreshing,
   refreshHomeData,
+  fetchHomeData,
   ServiceCategory,
   Promotion,
 } from './homeSlice';
@@ -258,11 +254,11 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  const categories = useSelector((state: RootState) => selectCategories(state)) as ServiceCategory[];
-  const selectedCategories = useSelector((state: RootState) => selectSelectedCategories(state)) as string[];
-  const promotions = useSelector((state: RootState) => selectPromotions(state)) as Promotion[];
-  const activePromoIndex = useSelector((state: RootState) => selectActivePromoIndex(state)) as number;
-  const isRefreshing = useSelector((state: RootState) => selectIsRefreshing(state)) as boolean;
+  const categories = useSelector((state: RootState) => state.home.categories) as ServiceCategory[];
+  const selectedCategories = useSelector((state: RootState) => state.home.selectedCategories) as string[];
+  const promotions = useSelector((state: RootState) => state.home.promotions) as Promotion[];
+  const activePromoIndex = useSelector((state: RootState) => state.home.activePromoIndex) as number;
+  const isRefreshing = useSelector((state: RootState) => state.home.isRefreshing) as boolean;
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const continueButtonAnim = useRef(new Animated.Value(0)).current;
@@ -275,6 +271,11 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // Fetch home data on mount
+  useEffect(() => {
+    dispatch(fetchHomeData() as any);
+  }, [dispatch]);
 
   useEffect(() => {
     Animated.spring(continueButtonAnim, {

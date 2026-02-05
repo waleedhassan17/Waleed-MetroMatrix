@@ -1,4 +1,12 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import {
+  fetchPaymentData,
+  processPayment as processPaymentApi,
+} from '../../../../networks/serviceProviders/paymentNetwork';
+import {
+  paymentDataSerializer,
+} from '../../../../serializers/serviceProviders/paymentSerializer';
 
 // Types
 export type PaymentMethodType = 'jazzcash' | 'easypaisa' | 'cash' | 'card' | null;
@@ -117,165 +125,145 @@ const initialState: PaymentState = {
   ],
 };
 
-// Mock data for different categories
-const MOCK_RECIPIENTS: Record<ServiceCategory, PaymentRecipient> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    phone: '+92 300 1234567',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    service: 'Electrical Services',
-    category: 'electricians',
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    phone: '+92 300 9876543',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    service: 'Plumbing Services',
-    category: 'plumbers',
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    phone: '+92 300 5551234',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    service: 'AC Repair Services',
-    category: 'ac-repairers',
-  },
+// Helper to map API payment data to local format
+const mapApiPaymentToLocal = (apiData: ReturnType<typeof paymentDataSerializer>) => {
+  const recipient: PaymentRecipient = {
+    id: apiData.recipient.id,
+    name: apiData.recipient.name,
+    phone: '',
+    image: apiData.recipient.image,
+    service: apiData.details.service,
+    category: 'electricians' as ServiceCategory,
+  };
+
+  const paymentDetails: PaymentDetails = {
+    invoiceId: apiData.details.invoiceId,
+    bookingId: apiData.details.bookingId,
+    description: apiData.details.description,
+    originalAmount: apiData.details.amount,
+    customAmount: null,
+    dueDate: 'Today',
+    serviceDate: new Date().toISOString(),
+  };
+
+  return { recipient, paymentDetails };
 };
-
-const MOCK_PAYMENT_DETAILS: Record<ServiceCategory, Omit<PaymentDetails, 'bookingId'>> = {
-  electricians: {
-    invoiceId: 'INV-EL-001234',
-    description: 'Electrical wiring repair and circuit breaker inspection',
-    originalAmount: 4500,
-    customAmount: null,
-    dueDate: 'Today',
-    serviceDate: new Date().toLocaleDateString(),
-  },
-  plumbers: {
-    invoiceId: 'INV-PL-001235',
-    description: 'Pipe leak repair and bathroom fixture installation',
-    originalAmount: 3200,
-    customAmount: null,
-    dueDate: 'Today',
-    serviceDate: new Date().toLocaleDateString(),
-  },
-  'ac-repairers': {
-    invoiceId: 'INV-AC-001236',
-    description: 'AC gas refilling, filter cleaning and cooling optimization',
-    originalAmount: 5000,
-    customAmount: null,
-    dueDate: 'Today',
-    serviceDate: new Date().toLocaleDateString(),
-  },
-};
-
-// Async Thunks
-export const initializePayment = createAsyncThunk(
-  'payment/initialize',
-  async ({
-    bookingId,
-    category,
-    amount,
-  }: {
-    bookingId: string;
-    category: ServiceCategory;
-    amount?: number;
-  }) => {
-    // Simulate API call
-    return new Promise<{
-      recipient: PaymentRecipient;
-      paymentDetails: PaymentDetails;
-    }>((resolve) => {
-      setTimeout(() => {
-        const recipient = MOCK_RECIPIENTS[category];
-        const details = MOCK_PAYMENT_DETAILS[category];
-
-        resolve({
-          recipient,
-          paymentDetails: {
-            ...details,
-            bookingId,
-            originalAmount: amount || details.originalAmount,
-          },
-        });
-      }, 600);
-    });
-  }
-);
-
-export const processPayment = createAsyncThunk(
-  'payment/process',
-  async ({
-    bookingId,
-    amount,
-    method,
-  }: {
-    bookingId: string;
-    amount: number;
-    method: PaymentMethodType;
-  }) => {
-    // Simulate payment processing
-    return new Promise<{
-      transactionId: string;
-      timestamp: string;
-      receiptUrl: string;
-      status: 'completed';
-    }>((resolve, reject) => {
-      setTimeout(() => {
-        // Simulate occasional payment failure (10% chance)
-        if (Math.random() < 0.1) {
-          reject(new Error('Payment processing failed. Please try again.'));
-          return;
-        }
-
-        resolve({
-          transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-          timestamp: new Date().toISOString(),
-          receiptUrl: `https://receipts.example.com/r/${bookingId}`,
-          status: 'completed',
-        });
-      }, 2000);
-    });
-  }
-);
-
-export const verifyPayment = createAsyncThunk(
-  'payment/verify',
-  async ({ transactionId }: { transactionId: string }) => {
-    return new Promise<{ verified: boolean }>((resolve) => {
-      setTimeout(() => {
-        resolve({ verified: true });
-      }, 500);
-    });
-  }
-);
 
 // Slice
-const paymentSlice = createSlice({
+const paymentSlice = createAppSlice({
   name: 'payment',
   initialState,
-  reducers: {
-    setSelectedMethod: (state, action: PayloadAction<PaymentMethodType>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    initializePayment: create.asyncThunk(
+      async (
+        params: { bookingId: string; category: ServiceCategory; amount?: number },
+        { rejectWithValue }
+      ) => {
+        const response = await fetchPaymentData(params.bookingId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to initialize payment');
+        }
+        const serialized = paymentDataSerializer(response.data);
+        const mapped = mapApiPaymentToLocal(serialized);
+        if (params.amount) {
+          mapped.paymentDetails.originalAmount = params.amount;
+        }
+        return mapped;
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.recipient = action.payload.recipient;
+          state.paymentDetails = action.payload.paymentDetails;
+          state.transaction.amount = action.payload.paymentDetails.originalAmount;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    processPayment: create.asyncThunk(
+      async (
+        params: { bookingId: string; amount: number; method: PaymentMethodType },
+        { rejectWithValue }
+      ) => {
+        const response = await processPaymentApi({
+          bookingId: params.bookingId,
+          amount: params.amount,
+          method: params.method || 'cash',
+        });
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Payment processing failed');
+        }
+        return {
+          transactionId: response.data.transactionId,
+          timestamp: response.data.paidAt,
+          receiptUrl: '',
+          status: 'completed' as const,
+        };
+      },
+      {
+        pending: (state) => {
+          state.isProcessing = true;
+          state.paymentStatus = 'processing';
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isProcessing = false;
+          state.paymentStatus = 'completed';
+          state.transaction.transactionId = action.payload.transactionId;
+          state.transaction.timestamp = action.payload.timestamp;
+          state.transaction.receiptUrl = action.payload.receiptUrl;
+        },
+        rejected: (state, action) => {
+          state.isProcessing = false;
+          state.paymentStatus = 'failed';
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    verifyPayment: create.asyncThunk(
+      async (params: { transactionId: string }) => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return { verified: true };
+      },
+      {
+        fulfilled: () => {
+          // Payment verified successfully
+        },
+      }
+    ),
+
+    // Sync reducers
+    setSelectedMethod: create.reducer((state, action: PayloadAction<PaymentMethodType>) => {
       state.selectedMethod = action.payload;
       state.transaction.method = action.payload;
-    },
-    setCustomAmount: (state, action: PayloadAction<number | null>) => {
+    }),
+
+    setCustomAmount: create.reducer((state, action: PayloadAction<number | null>) => {
       if (state.paymentDetails) {
         state.paymentDetails.customAmount = action.payload;
         state.transaction.amount = action.payload || state.paymentDetails.originalAmount;
       }
-    },
-    toggleCustomAmount: (state) => {
+    }),
+
+    toggleCustomAmount: create.reducer((state) => {
       state.useCustomAmount = !state.useCustomAmount;
       if (!state.useCustomAmount && state.paymentDetails) {
         state.paymentDetails.customAmount = null;
         state.transaction.amount = state.paymentDetails.originalAmount;
       }
-    },
-    resetPaymentState: (state) => {
+    }),
+
+    resetPaymentState: create.reducer((state) => {
       state.recipient = null;
       state.paymentDetails = null;
       state.transaction = initialState.transaction;
@@ -283,64 +271,40 @@ const paymentSlice = createSlice({
       state.useCustomAmount = false;
       state.paymentStatus = 'idle';
       state.error = null;
-    },
-    clearPaymentError: (state) => {
+    }),
+
+    clearPaymentError: create.reducer((state) => {
       state.error = null;
-    },
-    setPaymentMethodEnabled: (
-      state,
-      action: PayloadAction<{ methodId: PaymentMethodType; enabled: boolean }>
-    ) => {
-      const method = state.paymentMethods.find((m) => m.id === action.payload.methodId);
-      if (method) {
-        method.enabled = action.payload.enabled;
+    }),
+
+    setPaymentMethodEnabled: create.reducer(
+      (state, action: PayloadAction<{ methodId: PaymentMethodType; enabled: boolean }>) => {
+        const method = state.paymentMethods.find((m) => m.id === action.payload.methodId);
+        if (method) {
+          method.enabled = action.payload.enabled;
+        }
       }
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Initialize payment
-      .addCase(initializePayment.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(initializePayment.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.recipient = action.payload.recipient;
-        state.paymentDetails = action.payload.paymentDetails;
-        state.transaction.amount = action.payload.paymentDetails.originalAmount;
-      })
-      .addCase(initializePayment.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || 'Failed to initialize payment';
-      })
-      // Process payment
-      .addCase(processPayment.pending, (state) => {
-        state.isProcessing = true;
-        state.paymentStatus = 'processing';
-        state.error = null;
-      })
-      .addCase(processPayment.fulfilled, (state, action) => {
-        state.isProcessing = false;
-        state.paymentStatus = 'completed';
-        state.transaction.transactionId = action.payload.transactionId;
-        state.transaction.timestamp = action.payload.timestamp;
-        state.transaction.receiptUrl = action.payload.receiptUrl;
-      })
-      .addCase(processPayment.rejected, (state, action) => {
-        state.isProcessing = false;
-        state.paymentStatus = 'failed';
-        state.error = action.error.message || 'Payment failed';
-      })
-      // Verify payment
-      .addCase(verifyPayment.fulfilled, (state) => {
-        // Payment verified successfully
-      });
+    ),
+  }),
+  selectors: {
+    selectRecipient: (state) => state.recipient,
+    selectPaymentDetails: (state) => state.paymentDetails,
+    selectTransaction: (state) => state.transaction,
+    selectSelectedMethod: (state) => state.selectedMethod,
+    selectUseCustomAmount: (state) => state.useCustomAmount,
+    selectPaymentStatus: (state) => state.paymentStatus,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsProcessing: (state) => state.isProcessing,
+    selectError: (state) => state.error,
+    selectPaymentMethods: (state) => state.paymentMethods,
   },
 });
 
 // Actions
 export const {
+  initializePayment,
+  processPayment,
+  verifyPayment,
   setSelectedMethod,
   setCustomAmount,
   toggleCustomAmount,
@@ -350,6 +314,20 @@ export const {
 } = paymentSlice.actions;
 
 // Selectors
+export const {
+  selectRecipient,
+  selectPaymentDetails,
+  selectTransaction,
+  selectSelectedMethod,
+  selectUseCustomAmount,
+  selectPaymentStatus,
+  selectIsLoading,
+  selectIsProcessing,
+  selectError,
+  selectPaymentMethods,
+} = paymentSlice.selectors;
+
+// Computed Selectors
 export const selectPaymentAmount = (state: { payment?: PaymentState }) => {
   const paymentState = state.payment;
   if (!paymentState?.paymentDetails) return 0;

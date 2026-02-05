@@ -5,7 +5,7 @@ import { retrieveData, KeyForStorage } from "../../utils/storage_utils/storageUt
 import { ProfileCompletionData } from "../../models/user";
 
 // API Base URL
-const API_BASE_URL = 'https://metromatrix-api-2e35f5f074df.herokuapp.com/api';
+const API_BASE_URL = 'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api';
 
 // Error codes from backend
 export const UPLOAD_ERROR_CODES = {

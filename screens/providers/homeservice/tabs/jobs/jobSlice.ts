@@ -1,23 +1,27 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../../store/createAppSlice';
 import type { RootState } from '../../../../../store/store';
+import { Job as ApiJob, JobStats as ApiJobStats, Pagination } from '../../../../../models/serviceProviders';
+import { jobListSerializer, paginationSerializer } from '../../../../../serializers/serviceProviders';
+import { fetchProviderJobs, acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';
 
 // Types
-export type JobStatus = 'upcoming' | 'active' | 'completed' | 'cancelled';
+export type JobStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'today';
 export type JobPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Job {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   category: string;
   status: JobStatus;
-  priority: JobPriority;
+  priority?: JobPriority;
   customer: {
-    id: string;
+    id?: string;
     name: string;
     avatar: string | null;
     phone: string;
-    rating: number;
+    rating?: number;
   };
   location: {
     address: string;
@@ -30,17 +34,18 @@ export interface Job {
   schedule: {
     date: string;
     time: string;
-    duration: number; // in minutes
+    duration?: number;
   };
   pricing: {
     amount: number;
     currency: string;
-    isPaid: boolean;
+    isPaid?: boolean;
   };
   rating?: number;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  specialInstructions?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface JobStats {
@@ -58,296 +63,280 @@ interface JobsState {
   currentFilter: 'all' | JobStatus;
   searchQuery: string;
   stats: JobStats;
+  pagination: Pagination;
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
 }
 
 const initialState: JobsState = {
-  jobs: [
-    {
-      id: '1',
-      title: 'AC Installation',
-      description: 'Install new 1.5 ton split AC in bedroom',
-      category: 'hvac',
-      status: 'upcoming',
-      priority: 'high',
-      customer: {
-        id: 'c1',
-        name: 'Ahmed Khan',
-        avatar: null,
-        phone: '+92 300 1234567',
-        rating: 4.5,
-      },
-      location: {
-        address: 'House 45, Street 12',
-        city: 'DHA Phase 5, Lahore',
-      },
-      schedule: {
-        date: '2025-01-26',
-        time: '10:00 AM',
-        duration: 120,
-      },
-      pricing: {
-        amount: 8500,
-        currency: 'PKR',
-        isPaid: false,
-      },
-      createdAt: '2025-01-24T10:00:00Z',
-      updatedAt: '2025-01-24T10:00:00Z',
-    },
-    {
-      id: '2',
-      title: 'Pipe Leak Repair',
-      description: 'Fix leaking pipe in bathroom',
-      category: 'plumbing',
-      status: 'active',
-      priority: 'urgent',
-      customer: {
-        id: 'c2',
-        name: 'Sara Ali',
-        avatar: null,
-        phone: '+92 301 9876543',
-        rating: 4.8,
-      },
-      location: {
-        address: 'Apartment 302, Block C',
-        city: 'Gulberg III, Lahore',
-      },
-      schedule: {
-        date: '2025-01-25',
-        time: '2:30 PM',
-        duration: 60,
-      },
-      pricing: {
-        amount: 3200,
-        currency: 'PKR',
-        isPaid: false,
-      },
-      createdAt: '2025-01-23T14:00:00Z',
-      updatedAt: '2025-01-25T14:30:00Z',
-    },
-    {
-      id: '3',
-      title: 'Electrical Wiring Check',
-      description: 'Complete house wiring inspection and repair',
-      category: 'electrical',
-      status: 'completed',
-      priority: 'medium',
-      customer: {
-        id: 'c3',
-        name: 'Usman Sheikh',
-        avatar: null,
-        phone: '+92 302 5555555',
-        rating: 4.2,
-      },
-      location: {
-        address: 'House 78, Block F',
-        city: 'Model Town, Lahore',
-      },
-      schedule: {
-        date: '2025-01-24',
-        time: '11:00 AM',
-        duration: 180,
-      },
-      pricing: {
-        amount: 5500,
-        currency: 'PKR',
-        isPaid: true,
-      },
-      rating: 5,
-      createdAt: '2025-01-22T09:00:00Z',
-      updatedAt: '2025-01-24T15:00:00Z',
-    },
-    {
-      id: '4',
-      title: 'Deep House Cleaning',
-      description: 'Full house deep cleaning service',
-      category: 'cleaning',
-      status: 'completed',
-      priority: 'low',
-      customer: {
-        id: 'c4',
-        name: 'Fatima Malik',
-        avatar: null,
-        phone: '+92 303 7777777',
-        rating: 4.9,
-      },
-      location: {
-        address: 'Villa 12, Phase 6',
-        city: 'Johar Town, Lahore',
-      },
-      schedule: {
-        date: '2025-01-23',
-        time: '9:00 AM',
-        duration: 240,
-      },
-      pricing: {
-        amount: 6000,
-        currency: 'PKR',
-        isPaid: true,
-      },
-      rating: 4,
-      createdAt: '2025-01-20T10:00:00Z',
-      updatedAt: '2025-01-23T14:00:00Z',
-    },
-    {
-      id: '5',
-      title: 'Garden Maintenance',
-      description: 'Monthly garden maintenance and landscaping',
-      category: 'gardening',
-      status: 'cancelled',
-      priority: 'low',
-      customer: {
-        id: 'c5',
-        name: 'Bilal Ahmed',
-        avatar: null,
-        phone: '+92 304 8888888',
-        rating: 4.0,
-      },
-      location: {
-        address: 'House 90, Sector C',
-        city: 'Bahria Town, Lahore',
-      },
-      schedule: {
-        date: '2025-01-27',
-        time: '8:00 AM',
-        duration: 180,
-      },
-      pricing: {
-        amount: 4500,
-        currency: 'PKR',
-        isPaid: false,
-      },
-      notes: 'Customer cancelled due to travel plans',
-      createdAt: '2025-01-21T11:00:00Z',
-      updatedAt: '2025-01-24T16:00:00Z',
-    },
-  ],
+  jobs: [],
   currentFilter: 'all',
   searchQuery: '',
   stats: {
-    total: 5,
+    total: 0,
     available: 0,
-    today: 1,
-    upcoming: 1,
-    active: 1,
-    completed: 2,
-    cancelled: 1,
+    today: 0,
+    upcoming: 0,
+    active: 0,
+    completed: 0,
+    cancelled: 0,
+  },
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 15,
+    hasNext: false,
+    hasPrevious: false,
   },
   loading: false,
+  refreshing: false,
   error: null,
 };
 
-// Async Thunks
-export const fetchJobs = createAsyncThunk(
-  'jobs/fetchJobs',
-  async (_, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return initialState.jobs;
-    } catch (error) {
-      return rejectWithValue('Failed to fetch jobs');
-    }
-  }
-);
+// Helper to map API job to local Job type
+const mapApiJobToLocal = (apiJob: ApiJob): Job => ({
+  id: apiJob.id,
+  title: apiJob.title,
+  description: apiJob.serviceType,
+  category: apiJob.category,
+  status: apiJob.status as JobStatus,
+  customer: {
+    name: apiJob.customer,
+    avatar: apiJob.customerAvatar || null,
+    phone: apiJob.customerPhone || '',
+  },
+  location: {
+    address: apiJob.location,
+    city: apiJob.city || '',
+    coordinates: apiJob.coordinates ? {
+      lat: apiJob.coordinates.latitude,
+      lng: apiJob.coordinates.longitude,
+    } : undefined,
+  },
+  schedule: {
+    date: apiJob.date,
+    time: apiJob.time,
+  },
+  pricing: {
+    amount: apiJob.price,
+    currency: 'PKR',
+  },
+  specialInstructions: apiJob.specialInstructions,
+});
 
-export const acceptJob = createAsyncThunk(
-  'jobs/acceptJob',
-  async (jobId: string, { getState, rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const state = getState() as { jobs: JobsState };
-      const job = state.jobs.jobs.find((j) => j.id === jobId);
-      if (!job) throw new Error('Job not found');
-      return { ...job, status: 'upcoming' as JobStatus };
-    } catch (error) {
-      return rejectWithValue('Failed to accept job');
-    }
-  }
-);
-
-export const rejectJob = createAsyncThunk(
-  'jobs/rejectJob',
-  async (jobId: string, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return jobId;
-    } catch (error) {
-      return rejectWithValue('Failed to reject job');
-    }
-  }
-);
-
-const jobsSlice = createSlice({
+// Slice using createAppSlice
+const jobsSlice = createAppSlice({
   name: 'jobs',
   initialState,
-  reducers: {
-    setFilter: (state, action: PayloadAction<'all' | JobStatus>) => {
-      state.currentFilter = action.payload;
-    },
-    setSearchQuery: (state, action: PayloadAction<string>) => {
-      state.searchQuery = action.payload;
-    },
-    updateJobStatus: (
-      state,
-      action: PayloadAction<{ id: string; status: JobStatus }>
-    ) => {
-      const job = state.jobs.find((j) => j.id === action.payload.id);
-      if (job) {
-        const oldStatus = job.status;
-        job.status = action.payload.status;
-        job.updatedAt = new Date().toISOString();
+  reducers: (create) => ({
+    // Fetch jobs
+    fetchJobs: create.asyncThunk(
+      async (params: { status?: string; page?: number } | void, { rejectWithValue }) => {
+        const response = await fetchProviderJobs({
+          status: params?.status,
+          page: params?.page || 1,
+          limit: 15,
+        });
 
-        // Update stats
-        if (oldStatus !== action.payload.status) {
-          state.stats[oldStatus]--;
-          state.stats[action.payload.status]++;
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to fetch jobs');
+        }
+
+        const { jobs, stats, pagination } = response.data;
+        return {
+          jobs: jobs.map(mapApiJobToLocal),
+          stats: {
+            total: stats.total,
+            available: 0,
+            today: stats.today,
+            upcoming: stats.upcoming,
+            active: 0,
+            completed: stats.completed,
+            cancelled: stats.cancelled || 0,
+          },
+          pagination: paginationSerializer(pagination),
+        };
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          state.jobs = action.payload.jobs;
+          state.stats = action.payload.stats;
+          state.pagination = action.payload.pagination;
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string || 'Failed to fetch jobs';
+        },
+      }
+    ),
+
+    // Refresh jobs
+    refreshJobs: create.asyncThunk(
+      async (_, { getState, rejectWithValue }) => {
+        const state = (getState() as any).jobs as JobsState;
+        const status = state.currentFilter === 'all' ? undefined : state.currentFilter;
+        
+        const response = await fetchProviderJobs({
+          status,
+          page: 1,
+          limit: 15,
+        });
+
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to refresh jobs');
+        }
+
+        const { jobs, stats, pagination } = response.data;
+        return {
+          jobs: jobs.map(mapApiJobToLocal),
+          stats: {
+            total: stats.total,
+            available: 0,
+            today: stats.today,
+            upcoming: stats.upcoming,
+            active: 0,
+            completed: stats.completed,
+            cancelled: stats.cancelled || 0,
+          },
+          pagination: paginationSerializer(pagination),
+        };
+      },
+      {
+        pending: (state) => {
+          state.refreshing = true;
+        },
+        fulfilled: (state, action) => {
+          state.refreshing = false;
+          state.jobs = action.payload.jobs;
+          state.stats = action.payload.stats;
+          state.pagination = action.payload.pagination;
+        },
+        rejected: (state) => {
+          state.refreshing = false;
+        },
+      }
+    ),
+
+    // Accept job
+    acceptJob: create.asyncThunk(
+      async (jobId: string, { getState, rejectWithValue }) => {
+        const response = await acceptJobApi(jobId);
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to accept job');
+        }
+
+        const state = (getState() as any).jobs as JobsState;
+        const job = state.jobs.find((j) => j.id === jobId);
+        if (!job) {
+          return rejectWithValue('Job not found');
+        }
+        
+        return { ...job, status: 'upcoming' as JobStatus };
+      },
+      {
+        fulfilled: (state, action) => {
+          const index = state.jobs.findIndex((j) => j.id === action.payload.id);
+          if (index !== -1) {
+            state.jobs[index] = action.payload;
+            state.stats.upcoming++;
+          }
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string || 'Failed to accept job';
+        },
+      }
+    ),
+
+    // Reject job
+    rejectJob: create.asyncThunk(
+      async (jobId: string, { rejectWithValue }) => {
+        const response = await rejectJobApi(jobId);
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to reject job');
+        }
+
+        return jobId;
+      },
+      {
+        fulfilled: (state, action) => {
+          state.jobs = state.jobs.filter((j) => j.id !== action.payload);
+          state.stats.total--;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string || 'Failed to reject job';
+        },
+      }
+    ),
+
+    // Sync reducers
+    setFilter: create.reducer((state, action: PayloadAction<'all' | JobStatus>) => {
+      state.currentFilter = action.payload;
+    }),
+
+    setSearchQuery: create.reducer((state, action: PayloadAction<string>) => {
+      state.searchQuery = action.payload;
+    }),
+
+    updateJobStatus: create.reducer(
+      (state, action: PayloadAction<{ id: string; status: JobStatus }>) => {
+        const job = state.jobs.find((j) => j.id === action.payload.id);
+        if (job) {
+          const oldStatus = job.status;
+          job.status = action.payload.status;
+
+          // Update stats
+          if (oldStatus !== action.payload.status) {
+            if (oldStatus in state.stats) {
+              (state.stats as any)[oldStatus]--;
+            }
+            if (action.payload.status in state.stats) {
+              (state.stats as any)[action.payload.status]++;
+            }
+          }
         }
       }
-    },
-    addJobRating: (
-      state,
-      action: PayloadAction<{ id: string; rating: number }>
-    ) => {
-      const job = state.jobs.find((j) => j.id === action.payload.id);
-      if (job) {
-        job.rating = action.payload.rating;
+    ),
+
+    addJobRating: create.reducer(
+      (state, action: PayloadAction<{ id: string; rating: number }>) => {
+        const job = state.jobs.find((j) => j.id === action.payload.id);
+        if (job) {
+          job.rating = action.payload.rating;
+        }
       }
-    },
-    clearError: (state) => {
+    ),
+
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchJobs.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchJobs.fulfilled, (state, action) => {
-        state.loading = false;
-        state.jobs = action.payload;
-      })
-      .addCase(fetchJobs.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(acceptJob.fulfilled, (state, action) => {
-        const index = state.jobs.findIndex((j) => j.id === action.payload.id);
-        if (index !== -1) {
-          state.jobs[index] = action.payload;
-          state.stats.upcoming++;
-        }
-      })
-      .addCase(rejectJob.fulfilled, (state, action) => {
-        state.jobs = state.jobs.filter((j) => j.id !== action.payload);
-        state.stats.total--;
-      });
+    }),
+  }),
+  selectors: {
+    selectAllJobs: (state) => state.jobs,
+    selectCurrentFilter: (state) => state.currentFilter,
+    selectSearchQuery: (state) => state.searchQuery,
+    selectJobsStats: (state) => state.stats,
+    selectJobsPagination: (state) => state.pagination,
+    selectJobsLoading: (state) => state.loading,
+    selectJobsRefreshing: (state) => state.refreshing,
+    selectJobsError: (state) => state.error,
   },
 });
 
 // Actions
 export const {
+  fetchJobs,
+  refreshJobs,
+  acceptJob,
+  rejectJob,
   setFilter,
   setSearchQuery,
   updateJobStatus,
@@ -356,12 +345,16 @@ export const {
 } = jobsSlice.actions;
 
 // Selectors
-export const selectAllJobs = (state: RootState) => state.jobs.jobs;
-export const selectCurrentFilter = (state: RootState) => state.jobs.currentFilter;
-export const selectSearchQuery = (state: RootState) => state.jobs.searchQuery;
-export const selectJobsStats = (state: RootState) => state.jobs.stats;
-export const selectJobsLoading = (state: RootState) => state.jobs.loading;
-export const selectJobsError = (state: RootState) => state.jobs.error;
+export const {
+  selectAllJobs,
+  selectCurrentFilter,
+  selectSearchQuery,
+  selectJobsStats,
+  selectJobsPagination,
+  selectJobsLoading,
+  selectJobsRefreshing,
+  selectJobsError,
+} = jobsSlice.selectors;
 
 // Computed selectors
 export const selectFilteredJobs = (state: RootState) => {

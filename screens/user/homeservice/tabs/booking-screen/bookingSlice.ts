@@ -1,6 +1,17 @@
 // Bookings Slice - Redux state management for home service bookings
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../../store/createAppSlice';
 import type { RootState } from '../../../../../store/store';
+import {
+  fetchUserBookings,
+  updateUserBookingStatus,
+  cancelUserBooking,
+  rateUserBooking,
+  UserBooking,
+} from '../../../../../networks/serviceProviders/userNetwork';
+import {
+  createBooking as createBookingApi,
+} from '../../../../../networks/serviceProviders/bookingNetwork';
 
 // Types
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'upcoming' | 'completed' | 'cancelled';
@@ -32,46 +43,6 @@ export interface BookingFilter {
   dateFrom?: string;
   dateTo?: string;
 }
-
-// Mock Data for testing
-const mockBookings: Booking[] = [
-  {
-    id: 'b1',
-    serviceId: 's1',
-    serviceName: 'AC Repair',
-    serviceImage: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd',
-    categoryType: 'maintenance',
-    providerId: 'p1',
-    providerName: 'Ahmad Khan',
-    providerAvatar: 'https://i.pravatar.cc/100?img=1',
-    status: 'completed',
-    date: '2026-01-10',
-    time: '10:00 AM',
-    address: '123 Main St, Islamabad',
-    price: 2500,
-    rating: 5,
-    review: 'Excellent service!',
-    createdAt: '2026-01-10T10:00:00Z',
-    updatedAt: '2026-01-10T12:00:00Z',
-  },
-  {
-    id: 'b2',
-    serviceId: 's2',
-    serviceName: 'Plumbing',
-    serviceImage: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7',
-    categoryType: 'maintenance',
-    providerId: 'p2',
-    providerName: 'Usman Ali',
-    providerAvatar: 'https://i.pravatar.cc/100?img=2',
-    status: 'upcoming',
-    date: '2026-01-15',
-    time: '2:00 PM',
-    address: '456 Park Ave, Lahore',
-    price: 1800,
-    createdAt: '2026-01-11T08:00:00Z',
-    updatedAt: '2026-01-11T08:00:00Z',
-  },
-];
 
 // State Interface
 interface BookingsState {
@@ -125,240 +96,285 @@ const initialState: BookingsState = {
   },
 };
 
-// Async Thunks
-export const fetchBookings = createAsyncThunk<Booking[], BookingFilter | undefined>(
-  'homeServiceBookings/fetchBookings',
-  async (filter, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      let filteredBookings = [...mockBookings];
-      
-      if (filter?.status) {
-        filteredBookings = filteredBookings.filter((b: Booking) => b.status === filter.status);
-      }
-      
-      // Sort by date
-      filteredBookings.sort((a: Booking, b: Booking) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      return filteredBookings;
-    } catch (error) {
-      return rejectWithValue('Failed to fetch bookings');
-    }
-  }
-);
-
-export const createBooking = createAsyncThunk<Booking, Partial<Booking>>(
-  'homeServiceBookings/createBooking',
-  async (bookingData, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newBooking: Booking = {
-        id: `b${Date.now()}`,
-        serviceId: bookingData.serviceId || '',
-        serviceName: bookingData.serviceName || '',
-        serviceImage: bookingData.serviceImage || '',
-        categoryType: bookingData.categoryType || 'maintenance',
-        providerId: bookingData.providerId || '',
-        providerName: bookingData.providerName || '',
-        providerAvatar: bookingData.providerAvatar || '',
-        status: 'pending',
-        date: bookingData.date || '',
-        time: bookingData.time || '',
-        address: bookingData.address || '',
-        price: bookingData.price || 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      return newBooking;
-    } catch (error) {
-      return rejectWithValue('Failed to create booking');
-    }
-  }
-);
-
-export const updateBookingStatus = createAsyncThunk<
-  { bookingId: string; status: BookingStatus },
-  { bookingId: string; status: BookingStatus }
->(
-  'homeServiceBookings/updateBookingStatus',
-  async ({ bookingId, status }, { rejectWithValue }) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return { bookingId, status };
-    } catch (error) {
-      return rejectWithValue('Failed to update booking');
-    }
-  }
-);
-
-export const cancelBooking = createAsyncThunk<string, string>(
-  'homeServiceBookings/cancelBooking',
-  async (bookingId, { rejectWithValue }) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return bookingId;
-    } catch (error) {
-      return rejectWithValue('Failed to cancel booking');
-    }
-  }
-);
-
-export const rateBooking = createAsyncThunk<
-  { bookingId: string; rating: number; review?: string },
-  { bookingId: string; rating: number; review?: string }
->(
-  'homeServiceBookings/rateBooking',
-  async ({ bookingId, rating, review }, { rejectWithValue }) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return { bookingId, rating, review };
-    } catch (error) {
-      return rejectWithValue('Failed to rate booking');
-    }
-  }
-);
+// Helper to map API booking to local format
+const mapApiBookingToLocal = (apiBooking: UserBooking): Booking => ({
+  id: apiBooking.id,
+  serviceId: apiBooking.serviceId,
+  serviceName: apiBooking.serviceName,
+  serviceImage: apiBooking.serviceImage,
+  categoryType: apiBooking.categoryType as CategoryType,
+  providerId: apiBooking.providerId,
+  providerName: apiBooking.providerName,
+  providerAvatar: apiBooking.providerAvatar,
+  status: apiBooking.status,
+  date: apiBooking.date,
+  time: apiBooking.time,
+  address: apiBooking.address,
+  price: apiBooking.price,
+  rating: apiBooking.rating,
+  review: apiBooking.review,
+  createdAt: apiBooking.createdAt,
+  updatedAt: apiBooking.updatedAt,
+});
 
 // Slice
-const homeServiceBookingsSlice = createSlice({
+const homeServiceBookingsSlice = createAppSlice({
   name: 'homeServiceBookings',
   initialState,
-  reducers: {
-    setSelectedBooking: (state, action: PayloadAction<Booking | null>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    fetchBookings: create.asyncThunk(
+      async (filter: BookingFilter | undefined, { rejectWithValue }) => {
+        try {
+          const response = await fetchUserBookings({
+            status: filter?.status,
+          });
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to fetch bookings.');
+          }
+          return response.data.map(mapApiBookingToLocal);
+        } catch (error) {
+          return rejectWithValue('Failed to fetch bookings.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.loading.fetch = true;
+          state.error.fetch = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading.fetch = false;
+          state.bookings = action.payload;
+          state.pagination.total = action.payload.length;
+        },
+        rejected: (state, action) => {
+          state.loading.fetch = false;
+          state.error.fetch = action.payload as string;
+        },
+      }
+    ),
+
+    createBooking: create.asyncThunk(
+      async (bookingData: Partial<Booking>, { rejectWithValue }) => {
+        try {
+          const response = await createBookingApi({
+            providerId: bookingData.providerId || '',
+            serviceId: bookingData.serviceId || '',
+            scheduledDate: bookingData.date || '',
+            scheduledTime: bookingData.time || '',
+            address: bookingData.address || '',
+            coordinates: { latitude: 31.4504, longitude: 73.1350 },
+            notes: '',
+          });
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to create booking.');
+          }
+          
+          const newBooking: Booking = {
+            id: response.data?.bookingId || `b${Date.now()}`,
+            serviceId: bookingData.serviceId || '',
+            serviceName: bookingData.serviceName || '',
+            serviceImage: bookingData.serviceImage || '',
+            categoryType: bookingData.categoryType || 'maintenance',
+            providerId: bookingData.providerId || '',
+            providerName: bookingData.providerName || '',
+            providerAvatar: bookingData.providerAvatar || '',
+            status: 'pending',
+            date: bookingData.date || '',
+            time: bookingData.time || '',
+            address: bookingData.address || '',
+            price: bookingData.price || 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          return newBooking;
+        } catch (error) {
+          return rejectWithValue('Failed to create booking.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.loading.create = true;
+          state.error.create = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading.create = false;
+          state.bookings.unshift(action.payload);
+          state.pagination.total += 1;
+        },
+        rejected: (state, action) => {
+          state.loading.create = false;
+          state.error.create = action.payload as string;
+        },
+      }
+    ),
+
+    updateBookingStatus: create.asyncThunk(
+      async (
+        params: { bookingId: string; status: BookingStatus },
+        { rejectWithValue }
+      ) => {
+        try {
+          const response = await updateUserBookingStatus(params.bookingId, params.status);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to update booking.');
+          }
+          return params;
+        } catch (error) {
+          return rejectWithValue('Failed to update booking.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.loading.update = true;
+          state.error.update = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading.update = false;
+          const { bookingId, status } = action.payload;
+          const booking = state.bookings.find((b) => b.id === bookingId);
+          if (booking) {
+            booking.status = status;
+            booking.updatedAt = new Date().toISOString();
+          }
+          if (state.selectedBooking?.id === bookingId) {
+            state.selectedBooking.status = status;
+          }
+        },
+        rejected: (state, action) => {
+          state.loading.update = false;
+          state.error.update = action.payload as string;
+        },
+      }
+    ),
+
+    cancelBooking: create.asyncThunk(
+      async (bookingId: string, { rejectWithValue }) => {
+        try {
+          const response = await cancelUserBooking(bookingId);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to cancel booking.');
+          }
+          return bookingId;
+        } catch (error) {
+          return rejectWithValue('Failed to cancel booking.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.loading.cancel = true;
+          state.error.cancel = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading.cancel = false;
+          const bookingId = action.payload;
+          const booking = state.bookings.find((b) => b.id === bookingId);
+          if (booking) {
+            booking.status = 'cancelled';
+            booking.updatedAt = new Date().toISOString();
+          }
+          if (state.selectedBooking?.id === bookingId) {
+            state.selectedBooking.status = 'cancelled';
+          }
+        },
+        rejected: (state, action) => {
+          state.loading.cancel = false;
+          state.error.cancel = action.payload as string;
+        },
+      }
+    ),
+
+    rateBooking: create.asyncThunk(
+      async (
+        params: { bookingId: string; rating: number; review?: string },
+        { rejectWithValue }
+      ) => {
+        try {
+          const response = await rateUserBooking(
+            params.bookingId,
+            params.rating,
+            params.review
+          );
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to rate booking.');
+          }
+          return params;
+        } catch (error) {
+          return rejectWithValue('Failed to rate booking.');
+        }
+      },
+      {
+        fulfilled: (state, action) => {
+          const { bookingId, rating, review } = action.payload;
+          const booking = state.bookings.find((b) => b.id === bookingId);
+          if (booking) {
+            booking.rating = rating;
+            booking.review = review;
+            booking.updatedAt = new Date().toISOString();
+          }
+          if (state.selectedBooking?.id === bookingId) {
+            state.selectedBooking.rating = rating;
+            state.selectedBooking.review = review;
+          }
+        },
+      }
+    ),
+
+    // Sync reducers
+    setSelectedBooking: create.reducer((state, action: PayloadAction<Booking | null>) => {
       state.selectedBooking = action.payload;
-    },
-    setActiveFilter: (state, action: PayloadAction<BookingStatus | 'all'>) => {
+    }),
+
+    setActiveFilter: create.reducer((state, action: PayloadAction<BookingStatus | 'all'>) => {
       state.activeFilter = action.payload;
-    },
-    setFilter: (state, action: PayloadAction<BookingFilter>) => {
+    }),
+
+    setFilter: create.reducer((state, action: PayloadAction<BookingFilter>) => {
       state.filter = { ...state.filter, ...action.payload };
-    },
-    clearFilter: (state) => {
+    }),
+
+    clearFilter: create.reducer((state) => {
       state.filter = {};
       state.activeFilter = 'all';
-    },
-    clearErrors: (state) => {
+    }),
+
+    clearErrors: create.reducer((state) => {
       state.error = {
         fetch: null,
         create: null,
         update: null,
         cancel: null,
       };
-    },
-    resetPagination: (state) => {
+    }),
+
+    resetPagination: create.reducer((state) => {
       state.pagination = {
         page: 1,
         limit: 10,
         total: 0,
         hasMore: false,
       };
-    },
-  },
-  extraReducers: (builder) => {
-    // Fetch Bookings
-    builder
-      .addCase(fetchBookings.pending, (state) => {
-        state.loading.fetch = true;
-        state.error.fetch = null;
-      })
-      .addCase(fetchBookings.fulfilled, (state, action) => {
-        state.loading.fetch = false;
-        state.bookings = action.payload;
-        state.pagination.total = action.payload.length;
-      })
-      .addCase(fetchBookings.rejected, (state, action) => {
-        state.loading.fetch = false;
-        state.error.fetch = action.payload as string;
-      });
-    
-    // Create Booking
-    builder
-      .addCase(createBooking.pending, (state) => {
-        state.loading.create = true;
-        state.error.create = null;
-      })
-      .addCase(createBooking.fulfilled, (state, action) => {
-        state.loading.create = false;
-        state.bookings.unshift(action.payload);
-        state.pagination.total += 1;
-      })
-      .addCase(createBooking.rejected, (state, action) => {
-        state.loading.create = false;
-        state.error.create = action.payload as string;
-      });
-    
-    // Update Booking Status
-    builder
-      .addCase(updateBookingStatus.pending, (state) => {
-        state.loading.update = true;
-        state.error.update = null;
-      })
-      .addCase(updateBookingStatus.fulfilled, (state, action) => {
-        state.loading.update = false;
-        const { bookingId, status } = action.payload;
-        const booking = state.bookings.find((b: Booking) => b.id === bookingId);
-        if (booking) {
-          booking.status = status;
-          booking.updatedAt = new Date().toISOString();
-        }
-        if (state.selectedBooking?.id === bookingId) {
-          state.selectedBooking.status = status;
-        }
-      })
-      .addCase(updateBookingStatus.rejected, (state, action) => {
-        state.loading.update = false;
-        state.error.update = action.payload as string;
-      });
-    
-    // Cancel Booking
-    builder
-      .addCase(cancelBooking.pending, (state) => {
-        state.loading.cancel = true;
-        state.error.cancel = null;
-      })
-      .addCase(cancelBooking.fulfilled, (state, action) => {
-        state.loading.cancel = false;
-        const bookingId = action.payload;
-        const booking = state.bookings.find((b: Booking) => b.id === bookingId);
-        if (booking) {
-          booking.status = 'cancelled';
-          booking.updatedAt = new Date().toISOString();
-        }
-        if (state.selectedBooking?.id === bookingId) {
-          state.selectedBooking.status = 'cancelled';
-        }
-      })
-      .addCase(cancelBooking.rejected, (state, action) => {
-        state.loading.cancel = false;
-        state.error.cancel = action.payload as string;
-      });
-    
-    // Rate Booking
-    builder
-      .addCase(rateBooking.fulfilled, (state, action) => {
-        const { bookingId, rating, review } = action.payload;
-        const booking = state.bookings.find((b: Booking) => b.id === bookingId);
-        if (booking) {
-          booking.rating = rating;
-          booking.review = review;
-          booking.updatedAt = new Date().toISOString();
-        }
-        if (state.selectedBooking?.id === bookingId) {
-          state.selectedBooking.rating = rating;
-          state.selectedBooking.review = review;
-        }
-      });
+    }),
+  }),
+  selectors: {
+    selectHomeServiceBookings: (state) => state.bookings,
+    selectSelectedBooking: (state) => state.selectedBooking,
+    selectActiveFilter: (state) => state.activeFilter,
+    selectBookingsFilter: (state) => state.filter,
+    selectBookingsLoading: (state) => state.loading,
+    selectBookingsError: (state) => state.error,
+    selectBookingsPagination: (state) => state.pagination,
   },
 });
 
 // Actions
 export const {
+  fetchBookings,
+  createBooking,
+  updateBookingStatus,
+  cancelBooking,
+  rateBooking,
   setSelectedBooking,
   setActiveFilter,
   setFilter,
@@ -368,13 +384,15 @@ export const {
 } = homeServiceBookingsSlice.actions;
 
 // Selectors
-export const selectHomeServiceBookings = (state: RootState) => state.homeServiceBookings.bookings;
-export const selectSelectedBooking = (state: RootState) => state.homeServiceBookings.selectedBooking;
-export const selectActiveFilter = (state: RootState) => state.homeServiceBookings.activeFilter;
-export const selectBookingsFilter = (state: RootState) => state.homeServiceBookings.filter;
-export const selectBookingsLoading = (state: RootState) => state.homeServiceBookings.loading;
-export const selectBookingsError = (state: RootState) => state.homeServiceBookings.error;
-export const selectBookingsPagination = (state: RootState) => state.homeServiceBookings.pagination;
+export const {
+  selectHomeServiceBookings,
+  selectSelectedBooking,
+  selectActiveFilter,
+  selectBookingsFilter,
+  selectBookingsLoading,
+  selectBookingsError,
+  selectBookingsPagination,
+} = homeServiceBookingsSlice.selectors;
 
 // Computed Selectors
 export const selectFilteredBookings = (state: RootState) => {

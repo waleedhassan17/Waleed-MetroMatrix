@@ -127,20 +127,6 @@ export default function ProviderSignInScreen() {
   };
 
   const handleSignIn = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     if (!validateForm()) return;
 
     try {
@@ -173,55 +159,24 @@ export default function ProviderSignInScreen() {
     } catch (error) {
       console.error('❌ Sign in error:', error);
     }
-    */
   };
 
   const handleGoogleSignIn = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Google signin - Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     try {
       await dispatch(submitProviderGoogleSignInAsync()).unwrap();
       console.log('📋 Provider info available:', { providerType, providerSubType });
     } catch (error) {
       console.error('❌ Google sign in error:', error);
     }
-    */
   };
 
   const handleFacebookSignIn = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Facebook signin - Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     try {
       await dispatch(submitProviderFacebookSignInAsync()).unwrap();
       console.log('📋 Provider info available:', { providerType, providerSubType });
     } catch (error) {
       console.error('❌ Facebook sign in error:', error);
     }
-    */
   };
 
 

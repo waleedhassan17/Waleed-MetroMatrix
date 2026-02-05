@@ -1,4 +1,7 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import { fetchTrackingData } from '../../../../networks/serviceProviders/trackingNetwork';
+import { trackingDataSerializer } from '../../../../serializers/serviceProviders/trackingSerializer';
 
 // Types
 export interface Coordinates {
@@ -67,123 +70,6 @@ const initialState: LiveTrackingState = {
   bookingId: null,
 };
 
-// Mock provider data by category
-const MOCK_PROVIDERS: Record<string, ProviderTrackingInfo> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    phone: '+923001234567',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    service: 'Electrical Services',
-    specialty: 'Wiring & Installation Specialist',
-    rating: 4.8,
-    reviews: 189,
-    experience: '10+ years',
-    verified: true,
-    category: 'electricians',
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    phone: '+923009876543',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    service: 'Plumbing Services',
-    specialty: 'Pipe Fitting & Leak Repairs',
-    rating: 4.9,
-    reviews: 245,
-    experience: '8+ years',
-    verified: true,
-    category: 'plumbers',
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    phone: '+923005551234',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    service: 'AC Repair Services',
-    specialty: 'AC Installation & Cooling Expert',
-    rating: 4.7,
-    reviews: 167,
-    experience: '6+ years',
-    verified: true,
-    category: 'ac-repairers',
-  },
-};
-
-// Async Thunks
-export const initializeTracking = createAsyncThunk(
-  'liveTracking/initialize',
-  async ({ 
-    bookingId, 
-    category 
-  }: { 
-    bookingId: string; 
-    category: 'electricians' | 'plumbers' | 'ac-repairers';
-  }) => {
-    // Simulate API call to get tracking data
-    return new Promise<{
-      provider: ProviderTrackingInfo;
-      providerLocation: Coordinates;
-      bookingId: string;
-    }>((resolve) => {
-      setTimeout(() => {
-        const provider = MOCK_PROVIDERS[category] || MOCK_PROVIDERS['ac-repairers'];
-        resolve({
-          provider,
-          providerLocation: {
-            latitude: 31.4554, // Slightly offset from user
-            longitude: 73.1400,
-          },
-          bookingId,
-        });
-      }, 800);
-    });
-  }
-);
-
-export const updateProviderLocation = createAsyncThunk(
-  'liveTracking/updateProviderLocation',
-  async ({ bookingId }: { bookingId: string }) => {
-    // Simulate API call to get updated provider location
-    return new Promise<Coordinates>((resolve) => {
-      setTimeout(() => {
-        // Simulate movement towards user
-        resolve({
-          latitude: 31.4520 + Math.random() * 0.002,
-          longitude: 73.1370 + Math.random() * 0.002,
-        });
-      }, 500);
-    });
-  }
-);
-
-export const fetchRouteInfo = createAsyncThunk(
-  'liveTracking/fetchRoute',
-  async ({ 
-    origin, 
-    destination 
-  }: { 
-    origin: Coordinates; 
-    destination: Coordinates;
-  }) => {
-    // Simulate route calculation
-    return new Promise<RouteInfo>((resolve) => {
-      setTimeout(() => {
-        const distance = calculateDistance(origin, destination);
-        const durationMinutes = Math.max(1, Math.round((distance / 25) * 60));
-        
-        resolve({
-          coordinates: [origin, destination],
-          distance: `${distance.toFixed(1)} km`,
-          distanceValue: distance * 1000,
-          duration: `${durationMinutes} min${durationMinutes > 1 ? 's' : ''}`,
-          durationValue: durationMinutes * 60,
-        });
-      }, 300);
-    });
-  }
-);
-
 // Helper function to calculate distance
 const calculateDistance = (point1: Coordinates, point2: Coordinates): number => {
   const R = 6371; // Earth's radius in kilometers
@@ -199,44 +85,183 @@ const calculateDistance = (point1: Coordinates, point2: Coordinates): number => 
 
 const deg2rad = (deg: number): number => deg * (Math.PI/180);
 
+// Helper to map API tracking data to local format
+const mapApiTrackingToLocal = (apiData: ReturnType<typeof trackingDataSerializer>) => {
+  const provider: ProviderTrackingInfo = {
+    id: apiData.provider.id,
+    name: apiData.provider.name,
+    phone: apiData.provider.phone,
+    image: apiData.provider.image,
+    service: apiData.provider.service,
+    specialty: apiData.provider.specialty || '',
+    rating: apiData.provider.rating,
+    reviews: apiData.provider.reviews,
+    experience: apiData.provider.experience,
+    verified: apiData.provider.verified,
+    category: apiData.provider.category as ProviderTrackingInfo['category'],
+  };
+
+  const providerLocation: Coordinates = {
+    latitude: apiData.providerLocation.latitude,
+    longitude: apiData.providerLocation.longitude,
+  };
+
+  const route: RouteInfo = apiData.route ? {
+    coordinates: apiData.route.coordinates,
+    distance: apiData.route.distance,
+    distanceValue: apiData.route.distanceValue,
+    duration: apiData.route.duration,
+    durationValue: apiData.route.durationValue,
+  } : {
+    coordinates: [],
+    distance: '0 km',
+    distanceValue: 0,
+    duration: '0 min',
+    durationValue: 0,
+  };
+
+  const trackingStatus: TrackingStatus = {
+    status: apiData.trackingStatus.status as TrackingStatus['status'],
+    message: apiData.trackingStatus.message,
+    timestamp: apiData.trackingStatus.timestamp,
+  };
+
+  return { provider, providerLocation, route, trackingStatus };
+};
+
 // Slice
-const liveTrackingSlice = createSlice({
+const liveTrackingSlice = createAppSlice({
   name: 'liveTracking',
   initialState,
-  reducers: {
-    setUserLocation: (state, action: PayloadAction<Coordinates>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    initializeTracking: create.asyncThunk(
+      async (
+        params: { bookingId: string; category: 'electricians' | 'plumbers' | 'ac-repairers' },
+        { rejectWithValue }
+      ) => {
+        const response = await fetchTrackingData(params.bookingId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to initialize tracking');
+        }
+        const serialized = trackingDataSerializer(response.data);
+        return { ...mapApiTrackingToLocal(serialized), bookingId: params.bookingId };
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.provider = action.payload.provider;
+          state.providerLocation = action.payload.providerLocation;
+          state.route = action.payload.route;
+          state.trackingStatus = action.payload.trackingStatus;
+          state.bookingId = action.payload.bookingId;
+          state.isTracking = true;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    updateProviderLocation: create.asyncThunk(
+      async (params: { bookingId: string }, { rejectWithValue }) => {
+        const response = await fetchTrackingData(params.bookingId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to update location');
+        }
+        const serialized = trackingDataSerializer(response.data);
+        return {
+          latitude: serialized.providerLocation.latitude,
+          longitude: serialized.providerLocation.longitude,
+        } as Coordinates;
+      },
+      {
+        fulfilled: (state, action) => {
+          state.providerLocation = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    fetchRouteInfo: create.asyncThunk(
+      async (
+        params: { origin: Coordinates; destination: Coordinates },
+        { rejectWithValue }
+      ) => {
+        try {
+          const distance = calculateDistance(params.origin, params.destination);
+          const durationMinutes = Math.max(1, Math.round((distance / 25) * 60));
+          
+          return {
+            coordinates: [params.origin, params.destination],
+            distance: `${distance.toFixed(1)} km`,
+            distanceValue: distance * 1000,
+            duration: `${durationMinutes} min${durationMinutes > 1 ? 's' : ''}`,
+            durationValue: durationMinutes * 60,
+          } as RouteInfo;
+        } catch (error) {
+          return rejectWithValue('Failed to fetch route');
+        }
+      },
+      {
+        fulfilled: (state, action) => {
+          state.route = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setUserLocation: create.reducer((state, action: PayloadAction<Coordinates>) => {
       state.userLocation = action.payload;
-    },
-    setProviderLocation: (state, action: PayloadAction<Coordinates>) => {
+    }),
+
+    setProviderLocation: create.reducer((state, action: PayloadAction<Coordinates>) => {
       state.providerLocation = action.payload;
-    },
-    setTrackingStatus: (state, action: PayloadAction<TrackingStatus>) => {
+    }),
+
+    setTrackingStatus: create.reducer((state, action: PayloadAction<TrackingStatus>) => {
       state.trackingStatus = action.payload;
-    },
-    setLocationPermission: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setLocationPermission: create.reducer((state, action: PayloadAction<boolean>) => {
       state.hasLocationPermission = action.payload;
-    },
-    setLocationError: (state, action: PayloadAction<string | null>) => {
+    }),
+
+    setLocationError: create.reducer((state, action: PayloadAction<string | null>) => {
       state.locationError = action.payload;
-    },
-    setIsTracking: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setIsTracking: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isTracking = action.payload;
-    },
-    updateStatusToNearby: (state) => {
+    }),
+
+    updateStatusToNearby: create.reducer((state) => {
       state.trackingStatus = {
         status: 'nearby',
         message: 'Provider is nearby',
         timestamp: new Date().toISOString(),
       };
-    },
-    updateStatusToArrived: (state) => {
+    }),
+
+    updateStatusToArrived: create.reducer((state) => {
       state.trackingStatus = {
         status: 'arrived',
         message: 'Provider has arrived',
         timestamp: new Date().toISOString(),
       };
-    },
-    clearTrackingState: (state) => {
+    }),
+
+    clearTrackingState: create.reducer((state) => {
       state.provider = null;
       state.providerLocation = null;
       state.userLocation = null;
@@ -246,39 +271,28 @@ const liveTrackingSlice = createSlice({
       state.locationError = null;
       state.error = null;
       state.bookingId = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Initialize tracking
-      .addCase(initializeTracking.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(initializeTracking.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.provider = action.payload.provider;
-        state.providerLocation = action.payload.providerLocation;
-        state.bookingId = action.payload.bookingId;
-        state.isTracking = true;
-      })
-      .addCase(initializeTracking.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || 'Failed to initialize tracking';
-      })
-      // Update provider location
-      .addCase(updateProviderLocation.fulfilled, (state, action) => {
-        state.providerLocation = action.payload;
-      })
-      // Fetch route info
-      .addCase(fetchRouteInfo.fulfilled, (state, action) => {
-        state.route = action.payload;
-      });
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectProviderLocation: (state) => state.providerLocation,
+    selectUserLocation: (state) => state.userLocation,
+    selectRoute: (state) => state.route,
+    selectTrackingStatus: (state) => state.trackingStatus,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsTracking: (state) => state.isTracking,
+    selectHasLocationPermission: (state) => state.hasLocationPermission,
+    selectLocationError: (state) => state.locationError,
+    selectError: (state) => state.error,
+    selectBookingId: (state) => state.bookingId,
   },
 });
 
 // Actions
 export const {
+  initializeTracking,
+  updateProviderLocation,
+  fetchRouteInfo,
   setUserLocation,
   setProviderLocation,
   setTrackingStatus,
@@ -290,7 +304,22 @@ export const {
   clearTrackingState,
 } = liveTrackingSlice.actions;
 
-// Selectors - use optional chaining for RootState compatibility
+// Selectors
+export const {
+  selectProvider,
+  selectProviderLocation,
+  selectUserLocation,
+  selectRoute,
+  selectTrackingStatus,
+  selectIsLoading,
+  selectIsTracking,
+  selectHasLocationPermission,
+  selectLocationError,
+  selectError,
+  selectBookingId,
+} = liveTrackingSlice.selectors;
+
+// Computed Selectors
 export const selectIsProviderNearby = (state: { liveTracking?: LiveTrackingState }) => {
   const trackingState = state.liveTracking;
   if (!trackingState) return false;

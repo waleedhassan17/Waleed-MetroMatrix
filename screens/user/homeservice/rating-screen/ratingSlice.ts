@@ -1,4 +1,12 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import {
+  fetchReviewData,
+  submitReview as submitReviewApi,
+} from '../../../../networks/serviceProviders/reviewNetwork';
+import {
+  reviewDataSerializer,
+} from '../../../../serializers/serviceProviders/reviewSerializer';
 
 // Types
 export type ServiceCategory = 'electricians' | 'plumbers' | 'ac-repairers';
@@ -82,79 +90,6 @@ const initialState: ReviewRatingState = {
   ],
 };
 
-// Mock data for different categories
-const MOCK_PROVIDERS: Record<ServiceCategory, ServiceProviderReview> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    phone: '+92 300 1234567',
-    service: 'Electrical Services',
-    category: 'electricians',
-    verified: true,
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    phone: '+92 300 9876543',
-    service: 'Plumbing Services',
-    category: 'plumbers',
-    verified: true,
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    phone: '+92 300 5551234',
-    service: 'AC Repair Services',
-    category: 'ac-repairers',
-    verified: true,
-  },
-};
-
-const MOCK_SERVICE_DETAILS: Record<ServiceCategory, Omit<CompletedServiceDetails, 'bookingId'>> = {
-  electricians: {
-    invoiceId: 'INV-EL-001234',
-    description: 'Electrical wiring repair and circuit breaker inspection',
-    duration: '2-3 hours',
-    completedAt: new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }),
-    serviceDate: 'Today',
-    totalAmount: 4500,
-    paymentStatus: 'paid',
-  },
-  plumbers: {
-    invoiceId: 'INV-PL-001235',
-    description: 'Pipe leak repair and bathroom fixture installation',
-    duration: '1-2 hours',
-    completedAt: new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }),
-    serviceDate: 'Today',
-    totalAmount: 3200,
-    paymentStatus: 'paid',
-  },
-  'ac-repairers': {
-    invoiceId: 'INV-AC-001236',
-    description: 'AC gas refilling, filter cleaning and cooling optimization',
-    duration: '1-2 hours',
-    completedAt: new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }),
-    serviceDate: 'Today',
-    totalAmount: 5000,
-    paymentStatus: 'paid',
-  },
-};
-
 // Rating feedback messages
 export const RATING_MESSAGES: Record<number, { title: string; subtitle: string; emoji: string }> = {
   1: {
@@ -184,87 +119,126 @@ export const RATING_MESSAGES: Record<number, { title: string; subtitle: string; 
   },
 };
 
-// Async Thunks
-export const initializeReview = createAsyncThunk(
-  'reviewRating/initialize',
-  async ({
-    bookingId,
-    category,
-  }: {
-    bookingId: string;
-    category: ServiceCategory;
-  }) => {
-    // Simulate API call
-    return new Promise<{
-      provider: ServiceProviderReview;
-      serviceDetails: CompletedServiceDetails;
-    }>((resolve) => {
-      setTimeout(() => {
-        const provider = MOCK_PROVIDERS[category];
-        const details = MOCK_SERVICE_DETAILS[category];
+// Helper to map API review data to local format
+const mapApiReviewToLocal = (apiData: ReturnType<typeof reviewDataSerializer>) => {
+  const provider: ServiceProviderReview = {
+    id: apiData.provider.id,
+    name: apiData.provider.name,
+    image: apiData.provider.image,
+    phone: '',
+    service: apiData.serviceDetails.type,
+    category: apiData.provider.category as ServiceCategory,
+    verified: true,
+  };
 
-        resolve({
-          provider,
-          serviceDetails: {
-            ...details,
-            bookingId,
-          },
-        });
-      }, 600);
-    });
-  }
-);
+  const serviceDetails: CompletedServiceDetails = {
+    bookingId: '',
+    invoiceId: '',
+    description: apiData.serviceDetails.description,
+    duration: '',
+    completedAt: apiData.serviceDetails.completedAt,
+    serviceDate: apiData.serviceDetails.completedAt,
+    totalAmount: apiData.serviceDetails.amount,
+    paymentStatus: 'paid' as CompletedServiceDetails['paymentStatus'],
+  };
 
-export const submitReview = createAsyncThunk(
-  'reviewRating/submit',
-  async ({
-    bookingId,
-    providerId,
-    review,
-  }: {
-    bookingId: string;
-    providerId: string;
-    review: ReviewData;
-  }) => {
-    // Simulate API call
-    return new Promise<ReviewSubmissionResult>((resolve, reject) => {
-      setTimeout(() => {
-        // Simulate occasional submission failure (5% chance)
-        if (Math.random() < 0.05) {
-          reject(new Error('Failed to submit review. Please try again.'));
-          return;
-        }
-
-        // Calculate reward points based on review completeness
-        let rewardPoints = 10; // Base points
-        if (review.feedback.length > 50) rewardPoints += 5;
-        if (review.tags.length >= 3) rewardPoints += 5;
-        if (review.wouldRecommend !== null) rewardPoints += 5;
-        if (review.photos.length > 0) rewardPoints += 10;
-
-        resolve({
-          reviewId: `REV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-          submittedAt: new Date().toISOString(),
-          rewardPoints,
-          message: 'Thank you for your feedback! Your review helps other users.',
-        });
-      }, 2000);
-    });
-  }
-);
+  return { provider, serviceDetails };
+};
 
 // Slice
-const reviewRatingSlice = createSlice({
+const reviewRatingSlice = createAppSlice({
   name: 'reviewRating',
   initialState,
-  reducers: {
-    setRating: (state, action: PayloadAction<number>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    initializeReview: create.asyncThunk(
+      async (
+        params: { bookingId: string; category: ServiceCategory },
+        { rejectWithValue }
+      ) => {
+        const response = await fetchReviewData(params.bookingId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to load review data');
+        }
+        const serialized = reviewDataSerializer(response.data);
+        return mapApiReviewToLocal(serialized);
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.provider = action.payload.provider;
+          state.serviceDetails = action.payload.serviceDetails;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    submitReview: create.asyncThunk(
+      async (
+        params: { bookingId: string; providerId: string; review: ReviewData },
+        { rejectWithValue }
+      ) => {
+        const response = await submitReviewApi({
+          bookingId: params.bookingId,
+          providerId: params.providerId,
+          rating: params.review.rating,
+          feedback: params.review.feedback,
+          tags: params.review.tags,
+        });
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to submit review');
+        }
+        
+        // Calculate reward points based on review completeness
+        let rewardPoints = 10;
+        if (params.review.feedback.length > 50) rewardPoints += 5;
+        if (params.review.tags.length >= 3) rewardPoints += 5;
+        if (params.review.wouldRecommend !== null) rewardPoints += 5;
+        if (params.review.photos.length > 0) rewardPoints += 10;
+
+        return {
+          reviewId: response.data.id,
+          submittedAt: response.data.createdAt,
+          rewardPoints,
+          message: 'Thank you for your feedback! Your review helps other users.',
+        } as ReviewSubmissionResult;
+      },
+      {
+        pending: (state) => {
+          state.isSubmitting = true;
+          state.submissionStatus = 'submitting';
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isSubmitting = false;
+          state.submissionStatus = 'submitted';
+          state.submissionResult = action.payload;
+        },
+        rejected: (state, action) => {
+          state.isSubmitting = false;
+          state.submissionStatus = 'failed';
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setRating: create.reducer((state, action: PayloadAction<number>) => {
       state.review.rating = action.payload;
-    },
-    setFeedback: (state, action: PayloadAction<string>) => {
+    }),
+
+    setFeedback: create.reducer((state, action: PayloadAction<string>) => {
       state.review.feedback = action.payload;
-    },
-    toggleTag: (state, action: PayloadAction<string>) => {
+    }),
+
+    toggleTag: create.reducer((state, action: PayloadAction<string>) => {
       const tag = action.payload;
       const index = state.review.tags.indexOf(tag);
       if (index === -1) {
@@ -272,67 +246,52 @@ const reviewRatingSlice = createSlice({
       } else {
         state.review.tags.splice(index, 1);
       }
-    },
-    setWouldRecommend: (state, action: PayloadAction<boolean | null>) => {
+    }),
+
+    setWouldRecommend: create.reducer((state, action: PayloadAction<boolean | null>) => {
       state.review.wouldRecommend = action.payload;
-    },
-    addPhoto: (state, action: PayloadAction<string>) => {
+    }),
+
+    addPhoto: create.reducer((state, action: PayloadAction<string>) => {
       if (state.review.photos.length < 5) {
         state.review.photos.push(action.payload);
       }
-    },
-    removePhoto: (state, action: PayloadAction<number>) => {
+    }),
+
+    removePhoto: create.reducer((state, action: PayloadAction<number>) => {
       state.review.photos.splice(action.payload, 1);
-    },
-    resetReviewState: (state) => {
+    }),
+
+    resetReviewState: create.reducer((state) => {
       state.provider = null;
       state.serviceDetails = null;
       state.review = initialState.review;
       state.submissionStatus = 'idle';
       state.submissionResult = null;
       state.error = null;
-    },
-    clearReviewError: (state) => {
+    }),
+
+    clearReviewError: create.reducer((state) => {
       state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Initialize review
-      .addCase(initializeReview.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(initializeReview.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.provider = action.payload.provider;
-        state.serviceDetails = action.payload.serviceDetails;
-      })
-      .addCase(initializeReview.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || 'Failed to load review data';
-      })
-      // Submit review
-      .addCase(submitReview.pending, (state) => {
-        state.isSubmitting = true;
-        state.submissionStatus = 'submitting';
-        state.error = null;
-      })
-      .addCase(submitReview.fulfilled, (state, action) => {
-        state.isSubmitting = false;
-        state.submissionStatus = 'submitted';
-        state.submissionResult = action.payload;
-      })
-      .addCase(submitReview.rejected, (state, action) => {
-        state.isSubmitting = false;
-        state.submissionStatus = 'failed';
-        state.error = action.error.message || 'Failed to submit review';
-      });
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectServiceDetails: (state) => state.serviceDetails,
+    selectReview: (state) => state.review,
+    selectSubmissionStatus: (state) => state.submissionStatus,
+    selectSubmissionResult: (state) => state.submissionResult,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsSubmitting: (state) => state.isSubmitting,
+    selectError: (state) => state.error,
+    selectAvailableTags: (state) => state.availableTags,
   },
 });
 
 // Actions
 export const {
+  initializeReview,
+  submitReview,
   setRating,
   setFeedback,
   toggleTag,
@@ -344,6 +303,19 @@ export const {
 } = reviewRatingSlice.actions;
 
 // Selectors
+export const {
+  selectProvider,
+  selectServiceDetails,
+  selectReview,
+  selectSubmissionStatus,
+  selectSubmissionResult,
+  selectIsLoading,
+  selectIsSubmitting,
+  selectError,
+  selectAvailableTags,
+} = reviewRatingSlice.selectors;
+
+// Computed Selectors
 export const selectRatingMessage = (state: { reviewRating?: ReviewRatingState }) => {
   const rating = state.reviewRating?.review.rating || 0;
   return RATING_MESSAGES[rating] || null;

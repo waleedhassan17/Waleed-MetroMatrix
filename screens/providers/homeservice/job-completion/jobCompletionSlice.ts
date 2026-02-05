@@ -1,4 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import { submitJobCompletion, fetchJobCompletionData } from '../../../../networks/serviceProviders/jobNetwork';
 
 export interface JobCompletionState {
   jobId: string;
@@ -42,96 +44,178 @@ const initialState: JobCompletionState = {
   error: null,
 };
 
-const jobCompletionSlice = createSlice({
+const jobCompletionSlice = createAppSlice({
   name: 'jobCompletion',
   initialState,
-  reducers: {
-    // Set job completion data
-    setJobCompletionData: (state, action: PayloadAction<{
-      jobId: string;
-      serviceType: string;
-      customerName: string;
-      actualDuration: number | null;
-      earnings: number;
-      paymentMethod: 'online' | 'cash';
-      transactionId: string | null;
-    }>) => {
-      state.jobId = action.payload.jobId;
-      state.serviceType = action.payload.serviceType;
-      state.customerName = action.payload.customerName;
-      state.actualDuration = action.payload.actualDuration;
-      state.earnings = action.payload.earnings;
-      state.paymentMethod = action.payload.paymentMethod;
-      state.transactionId = action.payload.transactionId;
-      state.completedAt = new Date().toISOString();
-      state.isCompleted = true;
-    },
+  reducers: (create) => ({
+    // Async Thunks
+    fetchJobCompletionDataAsync: create.asyncThunk(
+      async (jobId: string, { rejectWithValue }) => {
+        try {
+          const response = await fetchJobCompletionData(jobId);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to fetch completion data.');
+          }
+          return response.data;
+        } catch (error) {
+          return rejectWithValue('Failed to fetch completion data.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.jobId = action.payload.jobId;
+          state.serviceType = action.payload.serviceType;
+          state.customerName = action.payload.customerName;
+          state.actualDuration = action.payload.actualDuration;
+          state.earnings = action.payload.earnings;
+          state.paymentMethod = action.payload.paymentMethod;
+          state.transactionId = action.payload.transactionId;
+          state.completedAt = new Date().toISOString();
+          state.isCompleted = true;
+          state.stats = action.payload.stats;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
 
-    // Set rating from customer
-    setRating: (state, action: PayloadAction<number>) => {
+    submitCompletionAsync: create.asyncThunk(
+      async (jobId: string, { rejectWithValue }) => {
+        try {
+          const response = await submitJobCompletion(jobId);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to submit completion.');
+          }
+          return response.data.completed;
+        } catch (error) {
+          return rejectWithValue('Failed to submit completion.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+        },
+        fulfilled: (state) => {
+          state.isLoading = false;
+          state.isCompleted = true;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setJobCompletionData: create.reducer(
+      (
+        state,
+        action: PayloadAction<{
+          jobId: string;
+          serviceType: string;
+          customerName: string;
+          actualDuration: number | null;
+          earnings: number;
+          paymentMethod: 'online' | 'cash';
+          transactionId: string | null;
+        }>
+      ) => {
+        state.jobId = action.payload.jobId;
+        state.serviceType = action.payload.serviceType;
+        state.customerName = action.payload.customerName;
+        state.actualDuration = action.payload.actualDuration;
+        state.earnings = action.payload.earnings;
+        state.paymentMethod = action.payload.paymentMethod;
+        state.transactionId = action.payload.transactionId;
+        state.completedAt = new Date().toISOString();
+        state.isCompleted = true;
+      }
+    ),
+
+    setRating: create.reducer((state, action: PayloadAction<number>) => {
       state.rating = action.payload;
-      // Update average rating (simplified calculation)
-      state.stats.averageRating = 
+      state.stats.averageRating =
         (state.stats.averageRating * state.stats.totalJobsDone + action.payload) /
         (state.stats.totalJobsDone + 1);
-    },
+    }),
 
-    // Set review from customer
-    setReview: (state, action: PayloadAction<string>) => {
+    setReview: create.reducer((state, action: PayloadAction<string>) => {
       state.review = action.payload;
-    },
+    }),
 
-    // Update stats
-    updateStats: (state, action: PayloadAction<{
-      totalJobsDone?: number;
-      averageRating?: number;
-      levelProgress?: number;
-    }>) => {
-      if (action.payload.totalJobsDone !== undefined) {
-        state.stats.totalJobsDone = action.payload.totalJobsDone;
+    updateStats: create.reducer(
+      (
+        state,
+        action: PayloadAction<{
+          totalJobsDone?: number;
+          averageRating?: number;
+          levelProgress?: number;
+        }>
+      ) => {
+        if (action.payload.totalJobsDone !== undefined) {
+          state.stats.totalJobsDone = action.payload.totalJobsDone;
+        }
+        if (action.payload.averageRating !== undefined) {
+          state.stats.averageRating = action.payload.averageRating;
+        }
+        if (action.payload.levelProgress !== undefined) {
+          state.stats.levelProgress = action.payload.levelProgress;
+        }
       }
-      if (action.payload.averageRating !== undefined) {
-        state.stats.averageRating = action.payload.averageRating;
-      }
-      if (action.payload.levelProgress !== undefined) {
-        state.stats.levelProgress = action.payload.levelProgress;
-      }
-    },
+    ),
 
-    // Increment jobs done count
-    incrementJobsDone: (state) => {
+    incrementJobsDone: create.reducer((state) => {
       state.stats.totalJobsDone += 1;
-      // Increase level progress
       state.stats.levelProgress = Math.min(100, state.stats.levelProgress + 5);
-    },
+    }),
 
-    // Mark as fully completed (after animations, etc.)
-    markFullyCompleted: (state) => {
+    markFullyCompleted: create.reducer((state) => {
       state.isCompleted = true;
-    },
+    }),
 
-    // Set loading state
-    setLoading: (state, action: PayloadAction<boolean>) => {
+    setLoading: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
-    },
+    }),
 
-    // Set error
-    setError: (state, action: PayloadAction<string>) => {
+    setError: create.reducer((state, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.isLoading = false;
-    },
+    }),
 
-    // Clear error
-    clearError: (state) => {
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
+    }),
 
-    // Reset job completion state
-    resetJobCompletion: () => initialState,
+    resetJobCompletion: create.reducer(() => initialState),
+  }),
+  selectors: {
+    selectJobId: (state) => state.jobId,
+    selectServiceType: (state) => state.serviceType,
+    selectCustomerName: (state) => state.customerName,
+    selectActualDuration: (state) => state.actualDuration,
+    selectEarnings: (state) => state.earnings,
+    selectPaymentMethod: (state) => state.paymentMethod,
+    selectTransactionId: (state) => state.transactionId,
+    selectCompletedAt: (state) => state.completedAt,
+    selectRating: (state) => state.rating,
+    selectReview: (state) => state.review,
+    selectIsCompleted: (state) => state.isCompleted,
+    selectStats: (state) => state.stats,
+    selectIsLoading: (state) => state.isLoading,
+    selectError: (state) => state.error,
   },
 });
 
 export const {
+  fetchJobCompletionDataAsync,
+  submitCompletionAsync,
   setJobCompletionData,
   setRating,
   setReview,
@@ -143,5 +227,22 @@ export const {
   clearError,
   resetJobCompletion,
 } = jobCompletionSlice.actions;
+
+export const {
+  selectJobId,
+  selectServiceType,
+  selectCustomerName,
+  selectActualDuration,
+  selectEarnings,
+  selectPaymentMethod,
+  selectTransactionId,
+  selectCompletedAt,
+  selectRating,
+  selectReview,
+  selectIsCompleted,
+  selectStats,
+  selectIsLoading,
+  selectError,
+} = jobCompletionSlice.selectors;
 
 export default jobCompletionSlice.reducer;

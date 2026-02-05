@@ -402,7 +402,7 @@ export default function ProviderProfileScreen() {
           >
             <Ionicons name="briefcase-outline" size={20} color="#F59E0B" />
           </LinearGradient>
-          <Text style={styles.statNumber}>{provider.jobsCompleted}+</Text>
+          <Text style={styles.statNumber}>{provider.completedJobs}+</Text>
           <Text style={styles.statLabel}>Jobs Done</Text>
         </View>
       </LinearGradient>

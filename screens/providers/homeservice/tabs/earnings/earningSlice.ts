@@ -1,5 +1,9 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../../store/createAppSlice';
 import type { RootState } from '../../../../../store/store';
+import { fetchProviderEarnings, requestPayout as requestPayoutApi } from '../../../../../networks/serviceProviders/earningsNetwork';
+import { earningsDataSerializer } from '../../../../../serializers/serviceProviders';
+import type { EarningsData } from '../../../../../models/serviceProviders';
 
 // Types
 export interface MonthlyData {
@@ -57,71 +61,23 @@ interface EarningsState {
 
 const initialState: EarningsState = {
   stats: {
-    totalEarnings: 145600,
-    thisMonthEarnings: 34200,
-    pendingPayouts: 12400,
-    completedJobsCount: 87,
-    avgRating: 4.8,
-    monthlyGrowth: 15.3,
-    weeklyEarnings: 8500,
-    todayEarnings: 1500,
+    totalEarnings: 0,
+    thisMonthEarnings: 0,
+    pendingPayouts: 0,
+    completedJobsCount: 0,
+    avgRating: 0,
+    monthlyGrowth: 0,
+    weeklyEarnings: 0,
+    todayEarnings: 0,
   },
-  monthlyData: [
-    { month: 'Aug', amount: 18500, jobs: 12, year: 2024 },
-    { month: 'Sep', amount: 22100, jobs: 15, year: 2024 },
-    { month: 'Oct', amount: 28400, jobs: 18, year: 2024 },
-    { month: 'Nov', amount: 31200, jobs: 21, year: 2024 },
-    { month: 'Dec', amount: 26800, jobs: 16, year: 2024 },
-    { month: 'Jan', amount: 34200, jobs: 19, year: 2025 },
-  ],
-  recentPayments: [
-    {
-      id: '1',
-      amount: 8500,
-      date: '2025-01-24',
-      status: 'completed',
-      description: 'AC Installation - Khan Residence',
-      type: 'earning',
-      category: 'job_payment',
-      transactionId: 'TXN-2025-001',
-    },
-    {
-      id: '2',
-      amount: 3200,
-      date: '2025-01-23',
-      status: 'pending',
-      description: 'Plumbing Repair - Office Complex',
-      type: 'earning',
-      category: 'job_payment',
-      transactionId: 'TXN-2025-002',
-    },
-    {
-      id: '3',
-      amount: 5000,
-      date: '2025-01-22',
-      status: 'processing',
-      description: 'Payout to Bank Account',
-      type: 'payout',
-      category: 'manual_payout',
-      transactionId: 'TXN-2025-003',
-    },
-    {
-      id: '4',
-      amount: 2800,
-      date: '2025-01-20',
-      status: 'completed',
-      description: 'Electrical Work - Ahmed House',
-      type: 'earning',
-      category: 'job_payment',
-      transactionId: 'TXN-2025-004',
-    },
-  ],
+  monthlyData: [],
+  recentPayments: [],
   performanceMetrics: {
-    avgRating: 4.8,
-    onTimeRate: 96,
-    statusTier: 'Gold',
-    repeatCustomerRate: 78,
-    responseTime: 15,
+    avgRating: 0,
+    onTimeRate: 0,
+    statusTier: 'Bronze',
+    repeatCustomerRate: 0,
+    responseTime: 0,
   },
   selectedPeriod: 'monthly',
   loading: false,
@@ -134,141 +90,202 @@ const initialState: EarningsState = {
   },
 };
 
-// Async Thunks
-export const fetchEarningsData = createAsyncThunk(
-  'earnings/fetchData',
-  async (_, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+// Helper function to map API earnings data to local format
+const mapApiEarningsToLocal = (apiData: EarningsData) => {
+  const stats: EarningsStats = {
+    totalEarnings: apiData.stats.totalEarnings,
+    thisMonthEarnings: apiData.stats.thisMonthEarnings,
+    pendingPayouts: apiData.stats.pendingPayouts,
+    completedJobsCount: apiData.stats.completedJobsCount,
+    avgRating: apiData.performance?.avgRating || 0,
+    monthlyGrowth: apiData.stats.monthlyGrowth,
+    weeklyEarnings: 0, // Not in API, calculate if needed
+    todayEarnings: 0, // Not in API, calculate if needed
+  };
 
-      return {
-        stats: initialState.stats,
-        monthlyData: initialState.monthlyData,
-        recentPayments: initialState.recentPayments,
-        performanceMetrics: initialState.performanceMetrics,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to fetch earnings data');
-    }
-  }
-);
+  const monthlyData: MonthlyData[] = apiData.monthlyData.map((item) => ({
+    month: item.month,
+    amount: item.amount,
+    jobs: item.jobs,
+    year: new Date().getFullYear(),
+  }));
 
-export const fetchPaymentHistory = createAsyncThunk(
-  'earnings/fetchPaymentHistory',
-  async (_filters: { page: number; limit: number }, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return initialState.recentPayments;
-    } catch (error) {
-      return rejectWithValue('Failed to fetch payment history');
-    }
-  }
-);
+  const recentPayments: Payment[] = apiData.recentPayments.map((t) => ({
+    id: t.id,
+    amount: t.amount,
+    date: t.date,
+    status: t.status as Payment['status'],
+    description: t.description,
+    type: t.type as Payment['type'],
+    category: undefined,
+    transactionId: undefined,
+  }));
 
-export const requestPayout = createAsyncThunk(
-  'earnings/requestPayout',
-  async (amount: number, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+  const performanceMetrics: PerformanceMetrics = {
+    avgRating: apiData.performance?.avgRating || 0,
+    onTimeRate: apiData.performance?.onTimeRate || 0,
+    statusTier: (apiData.performance?.statusTier as PerformanceMetrics['statusTier']) || 'Bronze',
+    repeatCustomerRate: apiData.performance?.repeatCustomerRate || 0,
+    responseTime: 0, // Not in API
+  };
 
-      const newPayout: Payment = {
-        id: `payout-${Date.now()}`,
-        amount,
-        date: new Date().toISOString().split('T')[0],
-        status: 'processing',
-        description: 'Payout request',
-        type: 'payout',
-        category: 'manual_payout',
-        transactionId: `TXN-${Date.now()}`,
-      };
+  return { stats, monthlyData, recentPayments, performanceMetrics };
+};
 
-      return newPayout;
-    } catch (error) {
-      return rejectWithValue('Failed to request payout');
-    }
-  }
-);
-
-const earningsSlice = createSlice({
+const earningsSlice = createAppSlice({
   name: 'earnings',
   initialState,
-  reducers: {
-    setPeriod: (state, action: PayloadAction<EarningsState['selectedPeriod']>) => {
-      state.selectedPeriod = action.payload;
-    },
-    setFilters: (state, action: PayloadAction<Partial<EarningsState['filters']>>) => {
-      state.filters = { ...state.filters, ...action.payload };
-    },
-    clearFilters: (state) => {
-      state.filters = initialState.filters;
-    },
-    updatePaymentStatus: (
-      state,
-      action: PayloadAction<{ id: string; status: Payment['status'] }>
-    ) => {
-      const payment = state.recentPayments.find((p) => p.id === action.payload.id);
-      if (payment) {
-        payment.status = action.payload.status;
+  reducers: (create) => ({
+    // Async Thunks
+    fetchEarningsData: create.asyncThunk(
+      async (_params: void, { rejectWithValue }) => {
+        const response = await fetchProviderEarnings();
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to fetch earnings data');
+        }
+        const serialized = earningsDataSerializer(response.data);
+        return mapApiEarningsToLocal(serialized);
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          state.stats = action.payload.stats;
+          state.monthlyData = action.payload.monthlyData;
+          state.recentPayments = action.payload.recentPayments;
+          state.performanceMetrics = action.payload.performanceMetrics;
+          state.lastUpdated = new Date().toISOString();
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string;
+        },
       }
-    },
-    addPayment: (state, action: PayloadAction<Payment>) => {
-      state.recentPayments.unshift(action.payload);
+    ),
 
+    refreshEarnings: create.asyncThunk(
+      async (_params: void, { rejectWithValue }) => {
+        const response = await fetchProviderEarnings();
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to refresh earnings');
+        }
+        const serialized = earningsDataSerializer(response.data);
+        return mapApiEarningsToLocal(serialized);
+      },
+      {
+        pending: (state) => {
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.stats = action.payload.stats;
+          state.monthlyData = action.payload.monthlyData;
+          state.recentPayments = action.payload.recentPayments;
+          state.performanceMetrics = action.payload.performanceMetrics;
+          state.lastUpdated = new Date().toISOString();
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    requestPayout: create.asyncThunk(
+      async (params: { amount: number; method: string }, { rejectWithValue }) => {
+        const response = await requestPayoutApi({
+          amount: params.amount,
+          method: params.method,
+        });
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to request payout');
+        }
+        const payment: Payment = {
+          id: response.data.payoutId,
+          amount: params.amount,
+          date: new Date().toISOString(),
+          status: response.data.status as Payment['status'],
+          description: 'Payout request',
+          type: 'payout',
+          category: 'manual_payout',
+          transactionId: response.data.payoutId,
+        };
+        return { payment, amount: params.amount };
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          state.recentPayments.unshift(action.payload.payment);
+          state.stats.pendingPayouts -= action.payload.amount;
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setPeriod: create.reducer(
+      (state, action: PayloadAction<EarningsState['selectedPeriod']>) => {
+        state.selectedPeriod = action.payload;
+      }
+    ),
+
+    setFilters: create.reducer(
+      (state, action: PayloadAction<Partial<EarningsState['filters']>>) => {
+        state.filters = { ...state.filters, ...action.payload };
+      }
+    ),
+
+    clearFilters: create.reducer((state) => {
+      state.filters = initialState.filters;
+    }),
+
+    updatePaymentStatus: create.reducer(
+      (state, action: PayloadAction<{ id: string; status: Payment['status'] }>) => {
+        const payment = state.recentPayments.find((p) => p.id === action.payload.id);
+        if (payment) {
+          payment.status = action.payload.status;
+        }
+      }
+    ),
+
+    addPayment: create.reducer((state, action: PayloadAction<Payment>) => {
+      state.recentPayments.unshift(action.payload);
       if (action.payload.type === 'earning' && action.payload.status === 'completed') {
         state.stats.totalEarnings += action.payload.amount;
         state.stats.thisMonthEarnings += action.payload.amount;
       }
-    },
-    clearError: (state) => {
+    }),
+
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchEarningsData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchEarningsData.fulfilled, (state, action) => {
-        state.loading = false;
-        state.stats = action.payload.stats;
-        state.monthlyData = action.payload.monthlyData;
-        state.recentPayments = action.payload.recentPayments;
-        state.performanceMetrics = action.payload.performanceMetrics;
-        state.lastUpdated = new Date().toISOString();
-      })
-      .addCase(fetchEarningsData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(fetchPaymentHistory.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(fetchPaymentHistory.fulfilled, (state, action) => {
-        state.loading = false;
-        state.recentPayments = action.payload;
-      })
-      .addCase(fetchPaymentHistory.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(requestPayout.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(requestPayout.fulfilled, (state, action) => {
-        state.loading = false;
-        state.recentPayments.unshift(action.payload);
-        state.stats.pendingPayouts -= action.payload.amount;
-      })
-      .addCase(requestPayout.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      });
+    }),
+  }),
+  selectors: {
+    selectEarningsStats: (state) => state.stats,
+    selectMonthlyData: (state) => state.monthlyData,
+    selectRecentPayments: (state) => state.recentPayments,
+    selectPerformanceMetrics: (state) => state.performanceMetrics,
+    selectSelectedPeriod: (state) => state.selectedPeriod,
+    selectEarningsLoading: (state) => state.loading,
+    selectEarningsError: (state) => state.error,
+    selectEarningsFilters: (state) => state.filters,
+    selectLastUpdated: (state) => state.lastUpdated,
   },
 });
 
 // Actions
 export const {
+  fetchEarningsData,
+  refreshEarnings,
+  requestPayout,
   setPeriod,
   setFilters,
   clearFilters,
@@ -278,16 +295,19 @@ export const {
 } = earningsSlice.actions;
 
 // Selectors
-export const selectEarningsStats = (state: RootState) => state.earnings.stats;
-export const selectMonthlyData = (state: RootState) => state.earnings.monthlyData;
-export const selectRecentPayments = (state: RootState) => state.earnings.recentPayments;
-export const selectPerformanceMetrics = (state: RootState) => state.earnings.performanceMetrics;
-export const selectSelectedPeriod = (state: RootState) => state.earnings.selectedPeriod;
-export const selectEarningsLoading = (state: RootState) => state.earnings.loading;
-export const selectEarningsError = (state: RootState) => state.earnings.error;
-export const selectEarningsFilters = (state: RootState) => state.earnings.filters;
+export const {
+  selectEarningsStats,
+  selectMonthlyData,
+  selectRecentPayments,
+  selectPerformanceMetrics,
+  selectSelectedPeriod,
+  selectEarningsLoading,
+  selectEarningsError,
+  selectEarningsFilters,
+  selectLastUpdated,
+} = earningsSlice.selectors;
 
-// Computed selectors
+// Computed selectors (need RootState access)
 export const selectFilteredPayments = (state: RootState) => {
   const { recentPayments, filters } = state.earnings;
 

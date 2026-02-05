@@ -1,4 +1,16 @@
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../../store/createAppSlice';
+import {
+  fetchUserProfile,
+  updateUserProfile,
+  updateUserAvatar,
+  addUserAddress,
+  deleteUserAddress,
+  logoutUser,
+  UserProfile as ApiUserProfile,
+  UserAddress as ApiUserAddress,
+  UserPaymentMethod as ApiUserPaymentMethod,
+} from '../../../../../networks/serviceProviders/userNetwork';
 
 // Types
 export interface UserProfile {
@@ -47,65 +59,10 @@ interface ProfileState {
   error: string | null;
 }
 
-// Mock Data
-const mockUser: UserProfile = {
-  id: 'user-1',
-  name: 'Muhammad Ali',
-  email: 'muhammad.ali@email.com',
-  phone: '+92 300 1234567',
-  avatar: 'https://i.pravatar.cc/200?img=68',
-  isPremium: true,
-  stats: {
-    bookings: 12,
-    reviews: 8,
-    points: 240,
-  },
-};
-
-const mockAddresses: Address[] = [
-  {
-    id: 'addr-1',
-    label: 'Home',
-    address: '123 Main Street, Gulberg III',
-    city: 'Lahore',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    label: 'Office',
-    address: '456 Business Park, DHA Phase 5',
-    city: 'Lahore',
-    isDefault: false,
-  },
-];
-
-const mockPaymentMethods: PaymentMethod[] = [
-  {
-    id: 'pay-1',
-    type: 'card',
-    label: 'Visa',
-    lastFour: '4242',
-    isDefault: true,
-  },
-  {
-    id: 'pay-2',
-    type: 'card',
-    label: 'Mastercard',
-    lastFour: '8888',
-    isDefault: false,
-  },
-  {
-    id: 'pay-3',
-    type: 'wallet',
-    label: 'JazzCash',
-    isDefault: false,
-  },
-];
-
 const initialState: ProfileState = {
-  user: mockUser,
-  addresses: mockAddresses,
-  paymentMethods: mockPaymentMethods,
+  user: null,
+  addresses: [],
+  paymentMethods: [],
   preferences: {
     notifications: true,
     darkMode: false,
@@ -116,184 +73,239 @@ const initialState: ProfileState = {
   error: null,
 };
 
-// Async Thunks
-export const fetchProfile = createAsyncThunk(
-  'profile/fetchProfile',
-  async (_, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return {
-        user: mockUser,
-        addresses: mockAddresses,
-        paymentMethods: mockPaymentMethods,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to fetch profile');
-    }
-  }
-);
+// Helpers to map API types to local types
+const mapApiUserToLocal = (apiUser: ApiUserProfile): UserProfile => ({
+  id: apiUser.id,
+  name: apiUser.name,
+  email: apiUser.email,
+  phone: apiUser.phone,
+  avatar: apiUser.avatar,
+  isPremium: apiUser.isPremium,
+  stats: apiUser.stats,
+});
 
-export const updateProfile = createAsyncThunk(
-  'profile/updateProfile',
-  async (userData: Partial<UserProfile>, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return userData;
-    } catch (error) {
-      return rejectWithValue('Failed to update profile');
-    }
-  }
-);
+const mapApiAddressToLocal = (apiAddr: ApiUserAddress): Address => ({
+  id: apiAddr.id,
+  label: apiAddr.label,
+  address: apiAddr.address,
+  city: apiAddr.city,
+  isDefault: apiAddr.isDefault,
+});
 
-export const updateAvatar = createAsyncThunk(
-  'profile/updateAvatar',
-  async (avatarUri: string, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return avatarUri;
-    } catch (error) {
-      return rejectWithValue('Failed to update avatar');
-    }
-  }
-);
+const mapApiPaymentMethodToLocal = (apiMethod: ApiUserPaymentMethod): PaymentMethod => ({
+  id: apiMethod.id,
+  type: apiMethod.type,
+  label: apiMethod.label,
+  lastFour: apiMethod.lastFour,
+  isDefault: apiMethod.isDefault,
+});
 
-export const addAddress = createAsyncThunk(
-  'profile/addAddress',
-  async (address: Omit<Address, 'id'>, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return {
-        ...address,
-        id: `addr-${Date.now()}`,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to add address');
-    }
-  }
-);
-
-export const deleteAddress = createAsyncThunk(
-  'profile/deleteAddress',
-  async (addressId: string, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return addressId;
-    } catch (error) {
-      return rejectWithValue('Failed to delete address');
-    }
-  }
-);
-
-export const logout = createAsyncThunk(
-  'profile/logout',
-  async (_, { rejectWithValue }) => {
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return true;
-    } catch (error) {
-      return rejectWithValue('Failed to logout');
-    }
-  }
-);
-
-const profileSlice = createSlice({
+const profileSlice = createAppSlice({
   name: 'profile',
   initialState,
-  reducers: {
-    toggleNotifications: (state) => {
+  reducers: (create) => ({
+    // Async Thunks
+    fetchProfile: create.asyncThunk(
+      async (_, { rejectWithValue }) => {
+        try {
+          const response = await fetchUserProfile();
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to fetch profile.');
+          }
+          return {
+            user: mapApiUserToLocal(response.data.user),
+            addresses: response.data.addresses.map(mapApiAddressToLocal),
+            paymentMethods: response.data.paymentMethods.map(mapApiPaymentMethodToLocal),
+          };
+        } catch (error) {
+          return rejectWithValue('Failed to fetch profile.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.user = action.payload.user;
+          state.addresses = action.payload.addresses;
+          state.paymentMethods = action.payload.paymentMethods;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    updateProfile: create.asyncThunk(
+      async (userData: Partial<UserProfile>, { rejectWithValue }) => {
+        try {
+          const response = await updateUserProfile(userData);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to update profile.');
+          }
+          return mapApiUserToLocal(response.data);
+        } catch (error) {
+          return rejectWithValue('Failed to update profile.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isUpdating = true;
+        },
+        fulfilled: (state, action) => {
+          state.isUpdating = false;
+          if (state.user) {
+            state.user = { ...state.user, ...action.payload };
+          }
+        },
+        rejected: (state, action) => {
+          state.isUpdating = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    updateAvatar: create.asyncThunk(
+      async (avatarUri: string, { rejectWithValue }) => {
+        try {
+          const response = await updateUserAvatar(avatarUri);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to update avatar.');
+          }
+          return response.data.avatar;
+        } catch (error) {
+          return rejectWithValue('Failed to update avatar.');
+        }
+      },
+      {
+        fulfilled: (state, action) => {
+          if (state.user) {
+            state.user.avatar = action.payload;
+          }
+        },
+      }
+    ),
+
+    addAddress: create.asyncThunk(
+      async (address: Omit<Address, 'id'>, { rejectWithValue }) => {
+        try {
+          const response = await addUserAddress(address);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to add address.');
+          }
+          return mapApiAddressToLocal(response.data);
+        } catch (error) {
+          return rejectWithValue('Failed to add address.');
+        }
+      },
+      {
+        fulfilled: (state, action) => {
+          state.addresses.push(action.payload);
+        },
+      }
+    ),
+
+    deleteAddress: create.asyncThunk(
+      async (addressId: string, { rejectWithValue }) => {
+        try {
+          const response = await deleteUserAddress(addressId);
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to delete address.');
+          }
+          return addressId;
+        } catch (error) {
+          return rejectWithValue('Failed to delete address.');
+        }
+      },
+      {
+        fulfilled: (state, action) => {
+          state.addresses = state.addresses.filter(
+            (addr) => addr.id !== action.payload
+          );
+        },
+      }
+    ),
+
+    logout: create.asyncThunk(
+      async (_, { rejectWithValue }) => {
+        try {
+          const response = await logoutUser();
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to logout.');
+          }
+          return true;
+        } catch (error) {
+          return rejectWithValue('Failed to logout.');
+        }
+      },
+      {
+        fulfilled: (state) => {
+          state.user = null;
+          state.addresses = [];
+          state.paymentMethods = [];
+        },
+      }
+    ),
+
+    // Sync reducers
+    toggleNotifications: create.reducer((state) => {
       state.preferences.notifications = !state.preferences.notifications;
-    },
-    toggleDarkMode: (state) => {
+    }),
+
+    toggleDarkMode: create.reducer((state) => {
       state.preferences.darkMode = !state.preferences.darkMode;
-    },
-    setLanguage: (state, action: PayloadAction<'en' | 'ur'>) => {
+    }),
+
+    setLanguage: create.reducer((state, action: PayloadAction<'en' | 'ur'>) => {
       state.preferences.language = action.payload;
-    },
-    setDefaultAddress: (state, action: PayloadAction<string>) => {
+    }),
+
+    setDefaultAddress: create.reducer((state, action: PayloadAction<string>) => {
       state.addresses = state.addresses.map((addr) => ({
         ...addr,
         isDefault: addr.id === action.payload,
       }));
-    },
-    setDefaultPaymentMethod: (state, action: PayloadAction<string>) => {
+    }),
+
+    setDefaultPaymentMethod: create.reducer((state, action: PayloadAction<string>) => {
       state.paymentMethods = state.paymentMethods.map((method) => ({
         ...method,
         isDefault: method.id === action.payload,
       }));
-    },
-    clearError: (state) => {
+    }),
+
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
-    resetProfile: (state) => {
+    }),
+
+    resetProfile: create.reducer((state) => {
       state.user = null;
       state.addresses = [];
       state.paymentMethods = [];
       state.preferences = initialState.preferences;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Fetch Profile
-      .addCase(fetchProfile.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchProfile.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload.user;
-        state.addresses = action.payload.addresses;
-        state.paymentMethods = action.payload.paymentMethods;
-      })
-      .addCase(fetchProfile.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      })
-      // Update Profile
-      .addCase(updateProfile.pending, (state) => {
-        state.isUpdating = true;
-      })
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        state.isUpdating = false;
-        if (state.user) {
-          state.user = { ...state.user, ...action.payload };
-        }
-      })
-      .addCase(updateProfile.rejected, (state, action) => {
-        state.isUpdating = false;
-        state.error = action.payload as string;
-      })
-      // Update Avatar
-      .addCase(updateAvatar.fulfilled, (state, action) => {
-        if (state.user) {
-          state.user.avatar = action.payload;
-        }
-      })
-      // Add Address
-      .addCase(addAddress.fulfilled, (state, action) => {
-        state.addresses.push(action.payload);
-      })
-      // Delete Address
-      .addCase(deleteAddress.fulfilled, (state, action) => {
-        state.addresses = state.addresses.filter(
-          (addr) => addr.id !== action.payload
-        );
-      })
-      // Logout
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.addresses = [];
-        state.paymentMethods = [];
-      });
+    }),
+  }),
+  selectors: {
+    selectUser: (state) => state.user,
+    selectAddresses: (state) => state.addresses,
+    selectPaymentMethods: (state) => state.paymentMethods,
+    selectPreferences: (state) => state.preferences,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsUpdating: (state) => state.isUpdating,
+    selectProfileError: (state) => state.error,
   },
 });
 
 export const {
+  fetchProfile,
+  updateProfile,
+  updateAvatar,
+  addAddress,
+  deleteAddress,
+  logout,
   toggleNotifications,
   toggleDarkMode,
   setLanguage,
@@ -303,30 +315,22 @@ export const {
   resetProfile,
 } = profileSlice.actions;
 
-// Selectors
-export const selectUser = (state: { profile: ProfileState }) =>
-  state.profile.user;
+export const {
+  selectUser,
+  selectAddresses,
+  selectPaymentMethods,
+  selectPreferences,
+  selectIsLoading,
+  selectIsUpdating,
+  selectProfileError,
+} = profileSlice.selectors;
 
-export const selectAddresses = (state: { profile: ProfileState }) =>
-  state.profile.addresses;
-
+// Computed selectors
 export const selectDefaultAddress = (state: { profile: ProfileState }) =>
   state.profile.addresses.find((addr) => addr.isDefault);
 
-export const selectPaymentMethods = (state: { profile: ProfileState }) =>
-  state.profile.paymentMethods;
-
 export const selectDefaultPaymentMethod = (state: { profile: ProfileState }) =>
   state.profile.paymentMethods.find((method) => method.isDefault);
-
-export const selectPreferences = (state: { profile: ProfileState }) =>
-  state.profile.preferences;
-
-export const selectIsLoading = (state: { profile: ProfileState }) =>
-  state.profile.isLoading;
-
-export const selectIsUpdating = (state: { profile: ProfileState }) =>
-  state.profile.isUpdating;
 
 export const selectUserStats = (state: { profile: ProfileState }) =>
   state.profile.user?.stats;

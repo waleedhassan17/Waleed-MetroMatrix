@@ -16,7 +16,7 @@ export const testAPIConnection = async () => {
     };
 
     const response = await axios.post(
-      'https://metromatrix-api-2e35f5f074df.herokuapp.com/api/auth/register',
+      'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api/auth/register',
       testData,
       {
         headers: {

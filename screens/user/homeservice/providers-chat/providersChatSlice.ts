@@ -1,4 +1,15 @@
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import {
+  fetchChatData,
+  sendChatMessage,
+} from '../../../../networks/serviceProviders/chatNetwork';
+import {
+  createBooking,
+} from '../../../../networks/serviceProviders/bookingNetwork';
+import {
+  chatDataSerializer,
+} from '../../../../serializers/serviceProviders/chatSerializer';
 
 // Types
 export interface ChatMessage {
@@ -101,330 +112,343 @@ const initialState: ProviderChatState = {
   error: null,
 };
 
-// Async Thunks
+// Helper to map API chat data to local format
+const mapApiChatToLocal = (apiData: ReturnType<typeof chatDataSerializer>) => {
+  const provider: ProviderInfo = {
+    id: apiData.participants.provider.id,
+    name: apiData.participants.provider.name,
+    image: apiData.participants.provider.image || '',
+    rating: 0,
+    reviews: 0,
+    experience: '',
+    specialty: '',
+    phone: '',
+    isOnline: true,
+  };
 
-// Initialize chat
-export const initializeChat = createAsyncThunk(
-  'providerChat/initializeChat',
-  async (
-    params: {
-      provider: ProviderInfo;
-      jobDetails: JobDetails;
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      // Simulate API call to initialize/load chat
-      await new Promise((resolve) => setTimeout(resolve, 300));
+  const messages: ChatMessage[] = apiData.messages.map((msg) => ({
+    id: msg.id,
+    senderId: msg.sender === 'user' ? 'user' : apiData.participants.provider.id,
+    senderType: msg.sender as ChatMessage['senderType'],
+    text: msg.text,
+    timestamp: msg.timestamp,
+    status: msg.status as ChatMessage['status'],
+    messageType: 'text' as ChatMessage['messageType'],
+    imageUrl: undefined,
+  }));
 
-      // Create initial system message
-      const initialMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        senderId: 'system',
-        senderType: 'provider',
-        text: `You are now connected with ${params.provider.name}. Discuss your job requirements and confirm booking when ready.`,
-        timestamp: new Date().toISOString(),
-        status: 'delivered',
-        messageType: 'system',
-      };
-
-      return {
-        provider: params.provider,
-        jobDetails: params.jobDetails,
-        initialMessage,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to initialize chat.');
-    }
-  }
-);
-
-// Send message
-export const sendMessage = createAsyncThunk(
-  'providerChat/sendMessage',
-  async (text: string, { getState, dispatch, rejectWithValue }) => {
-    try {
-      const state = getState() as { providerChat: ProviderChatState };
-      
-      if (!text.trim()) {
-        return rejectWithValue('Message cannot be empty.');
-      }
-
-      // Create user message
-      const userMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        senderId: 'user',
-        senderType: 'user',
-        text: text.trim(),
-        timestamp: new Date().toISOString(),
-        status: 'sending',
-        messageType: 'text',
-      };
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Simulate provider typing after user sends message
-      setTimeout(() => {
-        dispatch(setProviderTyping(true));
-        
-        // Simulate provider response after typing
-        setTimeout(() => {
-          dispatch(setProviderTyping(false));
-          
-          const randomResponse = AUTO_RESPONSES[Math.floor(Math.random() * AUTO_RESPONSES.length)];
-          const providerMessage: ChatMessage = {
-            id: `msg-${Date.now()}`,
-            senderId: state.providerChat.provider?.id || 'provider',
-            senderType: 'provider',
-            text: randomResponse,
-            timestamp: new Date().toISOString(),
-            status: 'delivered',
-            messageType: 'text',
-          };
-          
-          dispatch(addMessage(providerMessage));
-        }, 2000 + Math.random() * 2000); // Random delay 2-4 seconds
-      }, 1000);
-
-      return {
-        ...userMessage,
-        status: 'sent' as const,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to send message.');
-    }
-  }
-);
-
-// Confirm booking
-export const confirmBooking = createAsyncThunk(
-  'providerChat/confirmBooking',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { providerChat: ProviderChatState };
-      const { provider, jobDetails } = state.providerChat;
-
-      if (!provider || !jobDetails) {
-        return rejectWithValue('Missing provider or job details.');
-      }
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const booking: BookingDetails = {
-        id: `booking-${Date.now()}`,
-        providerId: provider.id,
-        providerName: provider.name,
-        jobDetails,
-        status: 'confirmed',
-        confirmedAt: new Date().toISOString(),
-      };
-
-      // Create system message for booking confirmation
-      const confirmationMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        senderId: 'system',
-        senderType: 'provider',
-        text: `🎉 Booking confirmed! ${provider.name} will arrive at your location as scheduled. You can contact them directly if needed.`,
-        timestamp: new Date().toISOString(),
-        status: 'delivered',
-        messageType: 'system',
-      };
-
-      return {
-        booking,
-        confirmationMessage,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to confirm booking.');
-    }
-  }
-);
-
-// Cancel booking
-export const cancelBooking = createAsyncThunk(
-  'providerChat/cancelBooking',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { providerChat: ProviderChatState };
-      
-      if (!state.providerChat.booking) {
-        return rejectWithValue('No booking to cancel.');
-      }
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      return state.providerChat.booking.id;
-    } catch (error) {
-      return rejectWithValue('Failed to cancel booking.');
-    }
-  }
-);
-
-// Call provider
-export const callProvider = createAsyncThunk(
-  'providerChat/callProvider',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { providerChat: ProviderChatState };
-      
-      if (!state.providerChat.provider?.phone) {
-        return rejectWithValue('Provider phone number not available.');
-      }
-
-      // In real app, would initiate phone call
-      return state.providerChat.provider.phone;
-    } catch (error) {
-      return rejectWithValue('Failed to initiate call.');
-    }
-  }
-);
+  return { provider, messages };
+};
 
 // Slice
-const providerChatSlice = createSlice({
+const providerChatSlice = createAppSlice({
   name: 'providerChat',
   initialState,
-  reducers: {
-    // Set provider info
-    setProvider: (state, action: PayloadAction<ProviderInfo>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    initializeChat: create.asyncThunk(
+      async (
+        params: { provider: ProviderInfo; jobDetails: JobDetails },
+        { rejectWithValue }
+      ) => {
+        try {
+          const response = await fetchChatData(params.provider.id);
+          
+          // Create initial system message
+          const initialMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            senderId: 'system',
+            senderType: 'provider',
+            text: `You are now connected with ${params.provider.name}. Discuss your job requirements and confirm booking when ready.`,
+            timestamp: new Date().toISOString(),
+            status: 'delivered',
+            messageType: 'system',
+          };
+
+          if (response.success && response.data) {
+            const serialized = chatDataSerializer(response.data);
+            const { messages } = mapApiChatToLocal(serialized);
+            return {
+              provider: params.provider,
+              jobDetails: params.jobDetails,
+              messages: [initialMessage, ...messages],
+            };
+          }
+
+          return {
+            provider: params.provider,
+            jobDetails: params.jobDetails,
+            messages: [initialMessage],
+          };
+        } catch (error) {
+          return rejectWithValue('Failed to initialize chat.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.provider = action.payload.provider;
+          state.jobDetails = action.payload.jobDetails;
+          state.messages = action.payload.messages;
+          state.isBookingConfirmed = false;
+          state.showBookingBanner = true;
+          state.booking = null;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    sendMessageAsync: create.asyncThunk(
+      async (text: string, { getState, dispatch, rejectWithValue }) => {
+        try {
+          const state = getState() as { providerChat: ProviderChatState };
+          
+          if (!text.trim()) {
+            return rejectWithValue('Message cannot be empty.');
+          }
+
+          const userMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            senderId: 'user',
+            senderType: 'user',
+            text: text.trim(),
+            timestamp: new Date().toISOString(),
+            status: 'sending',
+            messageType: 'text',
+          };
+
+          // Send to API
+          const response = await sendChatMessage({
+            bookingId: state.providerChat.provider?.id || '',
+            message: text.trim(),
+          });
+
+          // Simulate provider typing after user sends message
+          setTimeout(() => {
+            dispatch(providerChatSlice.actions.setProviderTyping(true));
+            
+            setTimeout(() => {
+              dispatch(providerChatSlice.actions.setProviderTyping(false));
+              
+              const randomResponse = AUTO_RESPONSES[Math.floor(Math.random() * AUTO_RESPONSES.length)];
+              const providerMessage: ChatMessage = {
+                id: `msg-${Date.now()}`,
+                senderId: state.providerChat.provider?.id || 'provider',
+                senderType: 'provider',
+                text: randomResponse,
+                timestamp: new Date().toISOString(),
+                status: 'delivered',
+                messageType: 'text',
+              };
+              
+              dispatch(providerChatSlice.actions.addMessage(providerMessage));
+            }, 2000 + Math.random() * 2000);
+          }, 1000);
+
+          return {
+            ...userMessage,
+            status: 'sent' as const,
+          };
+        } catch (error) {
+          return rejectWithValue('Failed to send message.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isSending = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isSending = false;
+          const exists = state.messages.find((m) => m.id === action.payload.id);
+          if (!exists) {
+            state.messages.push(action.payload);
+          }
+        },
+        rejected: (state, action) => {
+          state.isSending = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    confirmBookingAsync: create.asyncThunk(
+      async (_, { getState, rejectWithValue }) => {
+        try {
+          const state = getState() as { providerChat: ProviderChatState };
+          const { provider, jobDetails } = state.providerChat;
+
+          if (!provider || !jobDetails) {
+            return rejectWithValue('Missing provider or job details.');
+          }
+
+          const response = await createBooking({
+            providerId: provider.id,
+            selectedDate: jobDetails.scheduledDate || new Date().toISOString().split('T')[0],
+            selectedTime: jobDetails.scheduledTime || '10:00',
+            addressId: 'default-address',
+            instructions: jobDetails.description,
+          });
+
+          if (!response.success) {
+            return rejectWithValue(response.message || 'Failed to confirm booking.');
+          }
+
+          const booking: BookingDetails = {
+            id: response.data?.bookingId || `booking-${Date.now()}`,
+            providerId: provider.id,
+            providerName: provider.name,
+            jobDetails,
+            status: 'confirmed',
+            confirmedAt: new Date().toISOString(),
+          };
+
+          const confirmationMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            senderId: 'system',
+            senderType: 'provider',
+            text: `🎉 Booking confirmed! ${provider.name} will arrive at your location as scheduled. You can contact them directly if needed.`,
+            timestamp: new Date().toISOString(),
+            status: 'delivered',
+            messageType: 'system',
+          };
+
+          return { booking, confirmationMessage };
+        } catch (error) {
+          return rejectWithValue('Failed to confirm booking.');
+        }
+      },
+      {
+        pending: (state) => {
+          state.isConfirmingBooking = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isConfirmingBooking = false;
+          state.booking = action.payload.booking;
+          state.isBookingConfirmed = true;
+          state.showBookingBanner = false;
+          state.showConfirmationModal = false;
+          state.messages.push(action.payload.confirmationMessage);
+        },
+        rejected: (state, action) => {
+          state.isConfirmingBooking = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    cancelBookingAsync: create.asyncThunk(
+      async (_, { getState, rejectWithValue }) => {
+        try {
+          const state = getState() as { providerChat: ProviderChatState };
+          
+          if (!state.providerChat.booking) {
+            return rejectWithValue('No booking to cancel.');
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          return state.providerChat.booking.id;
+        } catch (error) {
+          return rejectWithValue('Failed to cancel booking.');
+        }
+      },
+      {
+        fulfilled: (state) => {
+          state.booking = null;
+          state.isBookingConfirmed = false;
+          state.showBookingBanner = true;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setProvider: create.reducer((state, action: PayloadAction<ProviderInfo>) => {
       state.provider = action.payload;
-    },
+    }),
 
-    // Set job details
-    setJobDetails: (state, action: PayloadAction<JobDetails>) => {
+    setJobDetails: create.reducer((state, action: PayloadAction<JobDetails>) => {
       state.jobDetails = action.payload;
-    },
+    }),
 
-    // Add message
-    addMessage: (state, action: PayloadAction<ChatMessage>) => {
+    addMessage: create.reducer((state, action: PayloadAction<ChatMessage>) => {
       const exists = state.messages.find((m) => m.id === action.payload.id);
       if (!exists) {
         state.messages.push(action.payload);
       }
-    },
+    }),
 
-    // Update message status
-    updateMessageStatus: (
-      state,
-      action: PayloadAction<{ messageId: string; status: ChatMessage['status'] }>
-    ) => {
-      const message = state.messages.find((m) => m.id === action.payload.messageId);
-      if (message) {
-        message.status = action.payload.status;
+    updateMessageStatus: create.reducer(
+      (state, action: PayloadAction<{ messageId: string; status: ChatMessage['status'] }>) => {
+        const message = state.messages.find((m) => m.id === action.payload.messageId);
+        if (message) {
+          message.status = action.payload.status;
+        }
       }
-    },
+    ),
 
-    // Set provider typing
-    setProviderTyping: (state, action: PayloadAction<boolean>) => {
+    setProviderTyping: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isProviderTyping = action.payload;
-    },
+    }),
 
-    // Show/hide booking banner
-    setShowBookingBanner: (state, action: PayloadAction<boolean>) => {
+    setShowBookingBanner: create.reducer((state, action: PayloadAction<boolean>) => {
       state.showBookingBanner = action.payload;
-    },
+    }),
 
-    // Show/hide confirmation modal
-    setShowConfirmationModal: (state, action: PayloadAction<boolean>) => {
+    setShowConfirmationModal: create.reducer((state, action: PayloadAction<boolean>) => {
       state.showConfirmationModal = action.payload;
-    },
+    }),
 
-    // Dismiss booking banner
-    dismissBookingBanner: (state) => {
+    dismissBookingBanner: create.reducer((state) => {
       state.showBookingBanner = false;
-    },
+    }),
 
-    // Clear error
-    clearError: (state) => {
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
+    }),
 
-    // Reset chat state
-    resetChat: () => initialState,
+    resetChat: create.reducer(() => initialState),
 
-    // Mark all messages as read
-    markAllAsRead: (state) => {
+    markAllAsRead: create.reducer((state) => {
       state.messages.forEach((message) => {
         if (message.senderType === 'provider' && message.status !== 'read') {
           message.status = 'read';
         }
       });
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Initialize chat
-      .addCase(initializeChat.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(initializeChat.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.provider = action.payload.provider;
-        state.jobDetails = action.payload.jobDetails;
-        state.messages = [action.payload.initialMessage];
-        state.isBookingConfirmed = false;
-        state.showBookingBanner = true;
-        state.booking = null;
-      })
-      .addCase(initializeChat.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-      })
-
-      // Send message
-      .addCase(sendMessage.pending, (state) => {
-        state.isSending = true;
-        state.error = null;
-      })
-      .addCase(sendMessage.fulfilled, (state, action) => {
-        state.isSending = false;
-        // Add user message to the list
-        const exists = state.messages.find((m) => m.id === action.payload.id);
-        if (!exists) {
-          state.messages.push(action.payload);
-        }
-      })
-      .addCase(sendMessage.rejected, (state, action) => {
-        state.isSending = false;
-        state.error = action.payload as string;
-      })
-
-      // Confirm booking
-      .addCase(confirmBooking.pending, (state) => {
-        state.isConfirmingBooking = true;
-        state.error = null;
-      })
-      .addCase(confirmBooking.fulfilled, (state, action) => {
-        state.isConfirmingBooking = false;
-        state.booking = action.payload.booking;
-        state.isBookingConfirmed = true;
-        state.showBookingBanner = false;
-        state.showConfirmationModal = false;
-        // Add confirmation message
-        state.messages.push(action.payload.confirmationMessage);
-      })
-      .addCase(confirmBooking.rejected, (state, action) => {
-        state.isConfirmingBooking = false;
-        state.error = action.payload as string;
-      })
-
-      // Cancel booking
-      .addCase(cancelBooking.fulfilled, (state) => {
-        state.booking = null;
-        state.isBookingConfirmed = false;
-        state.showBookingBanner = true;
-      })
-      .addCase(cancelBooking.rejected, (state, action) => {
-        state.error = action.payload as string;
-      });
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectJobDetails: (state) => state.jobDetails,
+    selectMessages: (state) => state.messages,
+    selectIsProviderTyping: (state) => state.isProviderTyping,
+    selectBooking: (state) => state.booking,
+    selectIsBookingConfirmed: (state) => state.isBookingConfirmed,
+    selectShowBookingBanner: (state) => state.showBookingBanner,
+    selectShowConfirmationModal: (state) => state.showConfirmationModal,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsSending: (state) => state.isSending,
+    selectIsConfirmingBooking: (state) => state.isConfirmingBooking,
+    selectChatError: (state) => state.error,
   },
 });
 
 // Actions
 export const {
+  initializeChat,
+  sendMessageAsync,
+  confirmBookingAsync,
+  cancelBookingAsync,
   setProvider,
   setJobDetails,
   addMessage,
@@ -438,43 +462,28 @@ export const {
   markAllAsRead,
 } = providerChatSlice.actions;
 
+// Legacy action aliases for backward compatibility
+export const sendMessage = sendMessageAsync;
+export const confirmBooking = confirmBookingAsync;
+export const cancelBooking = cancelBookingAsync;
+
 // Selectors
-export const selectProvider = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.provider;
+export const {
+  selectProvider,
+  selectJobDetails,
+  selectMessages,
+  selectIsProviderTyping,
+  selectBooking,
+  selectIsBookingConfirmed,
+  selectShowBookingBanner,
+  selectShowConfirmationModal,
+  selectIsLoading,
+  selectIsSending,
+  selectIsConfirmingBooking,
+  selectChatError,
+} = providerChatSlice.selectors;
 
-export const selectJobDetails = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.jobDetails;
-
-export const selectMessages = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.messages;
-
-export const selectIsProviderTyping = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.isProviderTyping;
-
-export const selectBooking = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.booking;
-
-export const selectIsBookingConfirmed = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.isBookingConfirmed;
-
-export const selectShowBookingBanner = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.showBookingBanner;
-
-export const selectShowConfirmationModal = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.showConfirmationModal;
-
-export const selectIsLoading = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.isLoading;
-
-export const selectIsSending = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.isSending;
-
-export const selectIsConfirmingBooking = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.isConfirmingBooking;
-
-export const selectChatError = (state: { providerChat: ProviderChatState }) =>
-  state.providerChat.error;
-
+// Computed selectors
 export const selectUnreadCount = (state: { providerChat: ProviderChatState }) =>
   state.providerChat.messages.filter(
     (m) => m.senderType === 'provider' && m.status !== 'read'

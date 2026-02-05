@@ -1,4 +1,12 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import {
+  fetchProviderProfile,
+  updateProviderProfile,
+  updateProviderOnlineStatus,
+} from '../../../../networks/serviceProviders/providerNetwork';
+import { providerDetailsSerializer } from '../../../../serializers/serviceProviders';
+import type { ProviderDetails } from '../../../../models/serviceProviders';
 
 export interface Provider {
   id: string;
@@ -31,24 +39,24 @@ export interface ProviderProfileState {
 
 const initialState: ProviderProfileState = {
   provider: {
-    id: '1',
-    name: 'Waleed Hassan',
-    email: 'waleed@gmail.com',
-    category: 'Service Provider',
-    location: 'Lahore, Punjab',
+    id: '',
+    name: '',
+    email: '',
+    category: '',
+    location: '',
     profileImage: null,
-    jobsDone: 247,
-    rating: 4.8,
-    earnings: '45K',
-    reviews: 189,
-    points: 240,
-    membershipLevel: 'Verified Professional',
-    isVerified: true,
-    joinedDate: '2023-01-15',
-    phone: '+92 300 1234567',
-    bio: 'Professional service provider with 5+ years of experience',
+    jobsDone: 0,
+    rating: 0,
+    earnings: '0',
+    reviews: 0,
+    points: 0,
+    membershipLevel: '',
+    isVerified: false,
+    joinedDate: '',
+    phone: '',
+    bio: '',
   },
-  isAvailable: true,
+  isAvailable: false,
   notificationsEnabled: true,
   isDarkMode: false,
   isUrdu: false,
@@ -56,44 +64,157 @@ const initialState: ProviderProfileState = {
   error: null,
 };
 
-const providerProfileSlice = createSlice({
+// Helper function to map API provider to local format
+const mapApiProviderToLocal = (apiData: ProviderDetails): Provider => ({
+  id: apiData.id,
+  name: apiData.name,
+  email: apiData.email,
+  category: apiData.category,
+  location: apiData.address,
+  profileImage: apiData.image,
+  jobsDone: apiData.completedJobs,
+  rating: apiData.rating,
+  earnings: '0K', // Will be fetched from earnings API
+  reviews: apiData.reviews,
+  points: 0, // Will be fetched separately if needed
+  membershipLevel: apiData.verified ? 'Verified Professional' : 'Standard',
+  isVerified: apiData.verified,
+  joinedDate: apiData.createdAt,
+  phone: apiData.phoneNumber,
+  bio: apiData.bio,
+});
+
+const providerProfileSlice = createAppSlice({
   name: 'providerProfile',
   initialState,
-  reducers: {
-    setProvider: (state, action: PayloadAction<Provider>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    fetchProfile: create.asyncThunk(
+      async (_params: void, { rejectWithValue }) => {
+        const response = await fetchProviderProfile();
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to fetch profile');
+        }
+        const serialized = providerDetailsSerializer(response.data);
+        return {
+          provider: mapApiProviderToLocal(serialized),
+          isAvailable: serialized.isOnline,
+        };
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          state.provider = action.payload.provider;
+          state.isAvailable = action.payload.isAvailable;
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    updateProfile: create.asyncThunk(
+      async (params: { updates: Partial<Provider> }, { rejectWithValue }) => {
+        const response = await updateProviderProfile({
+          name: params.updates.name,
+          phoneNumber: params.updates.phone,
+          bio: params.updates.bio,
+          address: params.updates.location,
+          image: params.updates.profileImage || undefined,
+        });
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to update profile');
+        }
+        return params.updates;
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          state.provider = { ...state.provider, ...action.payload };
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    updateAvailability: create.asyncThunk(
+      async (params: { isOnline: boolean }, { rejectWithValue }) => {
+        const response = await updateProviderOnlineStatus(params.isOnline);
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to update availability');
+        }
+        return params.isOnline;
+      },
+      {
+        pending: (state) => {
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isAvailable = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setProvider: create.reducer((state, action: PayloadAction<Provider>) => {
       state.provider = action.payload;
-    },
-    updateProvider: (state, action: PayloadAction<Partial<Provider>>) => {
+    }),
+
+    updateProvider: create.reducer((state, action: PayloadAction<Partial<Provider>>) => {
       state.provider = { ...state.provider, ...action.payload };
-    },
-    updateProfileImage: (state, action: PayloadAction<string>) => {
+    }),
+
+    updateProfileImage: create.reducer((state, action: PayloadAction<string>) => {
       state.provider.profileImage = action.payload;
-    },
-    toggleAvailability: (state) => {
+    }),
+
+    toggleAvailability: create.reducer((state) => {
       state.isAvailable = !state.isAvailable;
-    },
-    setAvailability: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setAvailability: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isAvailable = action.payload;
-    },
-    toggleNotifications: (state) => {
+    }),
+
+    toggleNotifications: create.reducer((state) => {
       state.notificationsEnabled = !state.notificationsEnabled;
-    },
-    setNotifications: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setNotifications: create.reducer((state, action: PayloadAction<boolean>) => {
       state.notificationsEnabled = action.payload;
-    },
-    toggleDarkMode: (state) => {
+    }),
+
+    toggleDarkMode: create.reducer((state) => {
       state.isDarkMode = !state.isDarkMode;
-    },
-    setDarkMode: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setDarkMode: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isDarkMode = action.payload;
-    },
-    toggleLanguage: (state) => {
+    }),
+
+    toggleLanguage: create.reducer((state) => {
       state.isUrdu = !state.isUrdu;
-    },
-    setLanguage: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setLanguage: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isUrdu = action.payload;
-    },
-    updateJobStats: (state, action: PayloadAction<{ 
+    }),
+
+    updateJobStats: create.reducer((state, action: PayloadAction<{ 
       jobsDone?: number; 
       rating?: number; 
       earnings?: string; 
@@ -115,20 +236,35 @@ const providerProfileSlice = createSlice({
       if (action.payload.points !== undefined) {
         state.provider.points = action.payload.points;
       }
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
+    }),
+
+    setLoading: create.reducer((state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
+    }),
+
+    setError: create.reducer((state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
-    },
-    resetProfile: () => {
+    }),
+
+    resetProfile: create.reducer(() => {
       return initialState;
-    },
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectIsAvailable: (state) => state.isAvailable,
+    selectNotificationsEnabled: (state) => state.notificationsEnabled,
+    selectIsDarkMode: (state) => state.isDarkMode,
+    selectIsUrdu: (state) => state.isUrdu,
+    selectLoading: (state) => state.loading,
+    selectError: (state) => state.error,
   },
 });
 
 export const {
+  fetchProfile,
+  updateProfile,
+  updateAvailability,
   setProvider,
   updateProvider,
   updateProfileImage,
@@ -147,20 +283,15 @@ export const {
 } = providerProfileSlice.actions;
 
 // Selectors
-export const selectProvider = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.provider;
-export const selectIsAvailable = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.isAvailable;
-export const selectNotificationsEnabled = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.notificationsEnabled;
-export const selectIsDarkMode = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.isDarkMode;
-export const selectIsUrdu = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.isUrdu;
-export const selectLoading = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.loading;
-export const selectError = (state: { providerProfile: ProviderProfileState }) => 
-  state.providerProfile.error;
+export const {
+  selectProvider,
+  selectIsAvailable,
+  selectNotificationsEnabled,
+  selectIsDarkMode,
+  selectIsUrdu,
+  selectLoading,
+  selectError,
+} = providerProfileSlice.selectors;
 
 export type RootState = {
   providerProfile: ProviderProfileState;

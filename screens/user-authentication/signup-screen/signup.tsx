@@ -242,20 +242,6 @@ const SignUp = () => {
   };
 
   const handleSignUp = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Navigating directly to UserHome without API');
-    
-    try {
-      (navigation as any).navigate('UserHome');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'UserHome' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     console.log('🔘 handleSignUp called');
     console.log('Form values:', { fullName, phoneNumber, email, hasPassword: !!password });
     
@@ -316,7 +302,6 @@ const SignUp = () => {
         displayMessage
       );
     }
-    */
   };
 
   const handleSignIn = () => {
@@ -324,20 +309,6 @@ const SignUp = () => {
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log(`🧪 TEST MODE: ${provider} signup - Navigating directly to UserHome without API`);
-    
-    try {
-      (navigation as any).navigate('UserHome');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'UserHome' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     if (error) {
       dispatch(clearError());
     }
@@ -383,7 +354,6 @@ const SignUp = () => {
         Alert.alert('Error', 'Failed to start Facebook Sign-In');
       }
     }
-    */
   };
 
   const isFormComplete = 

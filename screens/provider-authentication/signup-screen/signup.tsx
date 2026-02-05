@@ -165,20 +165,6 @@ export default function ProviderSignUpScreen() {
   };
 
   const handleSignUp = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     console.log('🔘 Provider handleSignUp called');
     console.log('Form values:', { 
       fullName, 
@@ -216,24 +202,9 @@ export default function ProviderSignUpScreen() {
       console.log('❌ Provider sign up error:', err);
       // Error alert is already handled by the error useEffect
     }
-    */
   };
 
   const handleGoogleSignUp = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Google signup - Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     console.log('🔘 Google sign up called');
     
     try {
@@ -247,24 +218,9 @@ export default function ProviderSignUpScreen() {
       console.error('❌ Google sign up error:', err);
       // Error alert is already handled by the error useEffect
     }
-    */
   };
 
   const handleFacebookSignUp = async () => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log('🧪 TEST MODE: Facebook signup - Navigating directly to HomeServiceProviderDashboard without API');
-    
-    try {
-      (navigation as any).navigate('HomeServiceProviderDashboard');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'HomeServiceProviderDashboard' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     console.log('🔘 Facebook sign up called');
     
     try {
@@ -278,7 +234,6 @@ export default function ProviderSignUpScreen() {
       console.error('❌ Facebook sign up error:', err);
       // Error alert is already handled by the error useEffect
     }
-    */
   };
 
   const handleSignInPress = () => {

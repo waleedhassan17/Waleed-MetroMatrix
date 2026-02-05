@@ -16,7 +16,7 @@ import type {
 } from '../../models/admin';
 
 // API Configuration - using centralized base URL from network.ts
-export const API_URL = 'https://metromatrix-api-2e35f5f074df.herokuapp.com/api';
+export const API_URL = 'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api';
 
 // ============================================
 // HELPER FUNCTIONS

@@ -1,8 +1,15 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../../store/createAppSlice';
 import type { RootState } from '../../../../../store/store';
+import { DashboardData, DashboardJob } from '../../../../../models/serviceProviders';
+import { dashboardDataSerializer, dashboardJobSerializer } from '../../../../../serializers/serviceProviders';
+import { fetchProviderDashboard } from '../../../../../networks/serviceProviders/dashboardNetwork';
+import { updateProviderOnlineStatus } from '../../../../../networks/serviceProviders/providerNetwork';
+import { acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';
 
-// Types
+// Types - keeping local types for backward compatibility
 export interface DashboardProfile {
+  id?: string;
   name: string;
   avatar: string | null;
   rating: number;
@@ -21,16 +28,16 @@ export interface DashboardInsight {
   id: string;
   title: string;
   value: string;
-  change: number;
-  isPositive: boolean;
-  icon: string;
-  bgColor: string;
+  change?: number;
+  isPositive?: boolean;
+  icon?: string;
+  bgColor?: string;
   color: string;
   trend: 'up' | 'down';
-  subtitle: string;
+  subtitle?: string;
 }
 
-export interface DashboardJob {
+export interface DashboardJobLocal {
   id: string;
   title: string;
   customer: string;
@@ -38,7 +45,7 @@ export interface DashboardJob {
   time: string;
   date: string;
   location: string;
-  status: 'scheduled' | 'in_progress' | 'available' | 'completed';
+  status: 'scheduled' | 'in_progress' | 'available' | 'completed' | 'pending' | 'confirmed';
   price: number;
   category: string;
   phone?: string;
@@ -46,26 +53,29 @@ export interface DashboardJob {
 
 export interface RecentActivity {
   id: string;
-  type: 'job_completed' | 'booking' | 'payment' | 'review';
-  title: string;
-  description: string;
+  type: 'job_completed' | 'booking' | 'payment' | 'review' | string;
+  title?: string;
+  message?: string;
+  description?: string;
   time: string;
   amount?: number;
-  color: string;
-  status: 'Completed' | 'Pending' | 'In Progress';
+  color?: string;
+  status?: 'Completed' | 'Pending' | 'In Progress';
 }
 
 interface DashboardState {
   profile: DashboardProfile;
   stats: DashboardStats;
   insights: DashboardInsight[];
-  todayJobs: DashboardJob[];
-  availableJobs: DashboardJob[];
-  upcomingJobs: DashboardJob[];
+  todayJobs: DashboardJobLocal[];
+  availableJobs: DashboardJobLocal[];
+  upcomingJobs: DashboardJobLocal[];
   recentActivity: RecentActivity[];
   jobs: {
-    today: DashboardJob[];
-    available: DashboardJob[];
+    today: DashboardJobLocal[];
+    available: DashboardJobLocal[];
+    pending: DashboardJobLocal[];
+    upcoming: DashboardJobLocal[];
   };
   activeTab: 'today' | 'available';
   loading: boolean;
@@ -75,170 +85,28 @@ interface DashboardState {
 
 const initialState: DashboardState = {
   profile: {
-    name: 'Waleed Hassan',
+    name: '',
     avatar: null,
-    rating: 4.8,
-    isOnline: true,
-    isPro: true,
-    unreadNotifications: 3,
+    rating: 0,
+    isOnline: false,
+    isPro: false,
+    unreadNotifications: 0,
   },
   stats: {
-    todayJobs: 3,
-    weekJobs: 18,
-    completionRate: 98,
+    todayJobs: 0,
+    weekJobs: 0,
+    completionRate: 0,
   },
-  insights: [
-    {
-      id: '1',
-      title: 'Earnings',
-      value: 'Rs 8,500',
-      change: 12,
-      isPositive: true,
-      icon: 'trending-up',
-      bgColor: '#ECFDF5',
-      color: '#059669',
-      trend: 'up',
-      subtitle: 'vs last week',
-    },
-    {
-      id: '2',
-      title: 'Response',
-      value: '15 min',
-      change: -8,
-      isPositive: true,
-      icon: 'clock',
-      bgColor: '#EFF6FF',
-      color: '#3B82F6',
-      trend: 'down',
-      subtitle: 'avg response time',
-    },
-    {
-      id: '3',
-      title: 'Rating',
-      value: '4.8',
-      change: 2,
-      isPositive: true,
-      icon: 'star',
-      bgColor: '#FFFBEB',
-      color: '#F59E0B',
-      trend: 'up',
-      subtitle: 'customer rating',
-    },
-    {
-      id: '4',
-      title: 'Repeat',
-      value: '78%',
-      change: 5,
-      isPositive: true,
-      icon: 'users',
-      bgColor: '#EDE9FE',
-      color: '#8B5CF6',
-      trend: 'up',
-      subtitle: 'repeat customers',
-    },
-  ],
-  todayJobs: [
-    {
-      id: '1',
-      title: 'AC Installation',
-      customer: 'Ahmed Khan',
-      customerAvatar: null,
-      time: '10:00 AM',
-      date: 'Today',
-      location: 'DHA Phase 5, Lahore',
-      status: 'scheduled',
-      price: 8500,
-      category: 'HVAC',
-      phone: '+92 300 1234567',
-    },
-    {
-      id: '2',
-      title: 'Pipe Leak Repair',
-      customer: 'Sara Ali',
-      customerAvatar: null,
-      time: '2:30 PM',
-      date: 'Today',
-      location: 'Gulberg III, Lahore',
-      status: 'in_progress',
-      price: 3200,
-      category: 'Plumbing',
-      phone: '+92 301 9876543',
-    },
-    {
-      id: '3',
-      title: 'Electrical Wiring',
-      customer: 'Usman Sheikh',
-      customerAvatar: null,
-      time: '5:00 PM',
-      date: 'Today',
-      location: 'Model Town, Lahore',
-      status: 'scheduled',
-      price: 5500,
-      category: 'Electrical',
-      phone: '+92 302 5555555',
-    },
-  ],
-  availableJobs: [
-    {
-      id: '4',
-      title: 'Water Heater Installation',
-      customer: 'Fatima Malik',
-      customerAvatar: null,
-      time: '11:00 AM',
-      date: 'Tomorrow',
-      location: 'Johar Town, Lahore',
-      status: 'available',
-      price: 6000,
-      category: 'Plumbing',
-    },
-    {
-      id: '5',
-      title: 'AC Service',
-      customer: 'Bilal Ahmed',
-      customerAvatar: null,
-      time: '3:00 PM',
-      date: 'Tomorrow',
-      location: 'Bahria Town, Lahore',
-      status: 'available',
-      price: 2500,
-      category: 'HVAC',
-    },
-  ],
+  insights: [],
+  todayJobs: [],
+  availableJobs: [],
   upcomingJobs: [],
-  recentActivity: [
-    {
-      id: '1',
-      type: 'job_completed',
-      title: 'Job Completed',
-      description: 'Plumbing repair at Cantt',
-      time: '2 hours ago',
-      amount: 4500,
-      color: '#059669',
-      status: 'Completed',
-    },
-    {
-      id: '2',
-      type: 'booking',
-      title: 'New Booking',
-      description: 'AC Installation confirmed',
-      time: '4 hours ago',
-      color: '#3B82F6',
-      status: 'Pending',
-    },
-    {
-      id: '3',
-      type: 'payment',
-      title: 'Payment Received',
-      description: 'Electrical work payment',
-      time: 'Yesterday',
-      amount: 3200,
-      color: '#8B5CF6',
-      status: 'Completed',
-    },
-  ],
+  recentActivity: [],
   jobs: {
     today: [],
     available: [],
+    pending: [],
+    upcoming: [],
   },
   activeTab: 'today',
   loading: false,
@@ -246,183 +114,282 @@ const initialState: DashboardState = {
   error: null,
 };
 
-// Async Thunks
-export const fetchDashboardData = createAsyncThunk(
-  'dashboard/fetchData',
-  async (_, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return {
-        profile: initialState.profile,
-        stats: initialState.stats,
-        insights: initialState.insights,
-        todayJobs: initialState.todayJobs,
-        availableJobs: initialState.availableJobs,
-        recentActivity: initialState.recentActivity,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to fetch dashboard data');
-    }
-  }
-);
+// Helper to map API response to local types
+const mapDashboardData = (data: DashboardData): Partial<DashboardState> => {
+  const mapJob = (job: DashboardJob): DashboardJobLocal => ({
+    id: job.id,
+    title: job.title,
+    customer: job.customer,
+    customerAvatar: job.customerAvatar || null,
+    time: job.time,
+    date: job.date,
+    location: job.location,
+    status: job.status as DashboardJobLocal['status'],
+    price: job.price,
+    category: job.category,
+    phone: job.phone,
+  });
 
-export const refreshDashboard = createAsyncThunk(
-  'dashboard/refresh',
-  async (_, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return {
-        profile: initialState.profile,
-        stats: initialState.stats,
-        insights: initialState.insights,
-        todayJobs: initialState.todayJobs,
-        availableJobs: initialState.availableJobs,
-        recentActivity: initialState.recentActivity,
-      };
-    } catch (error) {
-      return rejectWithValue('Failed to refresh dashboard');
-    }
-  }
-);
+  return {
+    profile: {
+      id: data.profile.id,
+      name: data.profile.name,
+      avatar: data.profile.avatar || null,
+      rating: data.profile.rating,
+      isOnline: data.profile.isOnline,
+      isPro: data.profile.isPro,
+      unreadNotifications: data.profile.unreadNotifications,
+    },
+    stats: data.stats,
+    insights: data.insights.map((i) => ({
+      id: i.id,
+      title: i.title,
+      value: i.value,
+      color: i.color,
+      trend: i.trend,
+      bgColor: i.bgColor,
+    })),
+    todayJobs: (data.jobs.today || []).map(mapJob),
+    availableJobs: (data.jobs.pending || []).map(mapJob),
+    upcomingJobs: (data.jobs.upcoming || []).map(mapJob),
+    recentActivity: data.recentActivity.map((a) => ({
+      id: a.id,
+      type: a.type,
+      message: a.message,
+      time: a.time,
+    })),
+  };
+};
 
-export const acceptJob = createAsyncThunk(
-  'dashboard/acceptJob',
-  async (jobId: string, { getState, rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const state = getState() as { dashboard: DashboardState };
-      const job = state.dashboard.availableJobs.find((j) => j.id === jobId);
-      if (!job) throw new Error('Job not found');
-      return { ...job, status: 'scheduled' as const };
-    } catch (error) {
-      return rejectWithValue('Failed to accept job');
-    }
-  }
-);
-
-export const rejectJob = createAsyncThunk(
-  'dashboard/rejectJob',
-  async (jobId: string, { rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return jobId;
-    } catch (error) {
-      return rejectWithValue('Failed to reject job');
-    }
-  }
-);
-
-const dashboardSlice = createSlice({
+// Slice using createAppSlice
+const dashboardSlice = createAppSlice({
   name: 'dashboard',
   initialState,
-  reducers: {
-    setActiveTab: (state, action: PayloadAction<'today' | 'available'>) => {
+  reducers: (create) => ({
+    // Fetch dashboard data
+    fetchDashboardData: create.asyncThunk(
+      async (_, { rejectWithValue }) => {
+        const response = await fetchProviderDashboard();
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to fetch dashboard data');
+        }
+
+        return dashboardDataSerializer(response.data);
+      },
+      {
+        pending: (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.loading = false;
+          const mapped = mapDashboardData(action.payload);
+          Object.assign(state, mapped);
+          state.jobs = {
+            today: state.todayJobs,
+            available: state.availableJobs,
+            pending: state.availableJobs,
+            upcoming: state.upcomingJobs,
+          };
+        },
+        rejected: (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string || 'Failed to fetch dashboard data';
+        },
+      }
+    ),
+
+    // Refresh dashboard
+    refreshDashboard: create.asyncThunk(
+      async (_, { rejectWithValue }) => {
+        const response = await fetchProviderDashboard();
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to refresh dashboard');
+        }
+
+        return dashboardDataSerializer(response.data);
+      },
+      {
+        pending: (state) => {
+          state.refreshing = true;
+        },
+        fulfilled: (state, action) => {
+          state.refreshing = false;
+          const mapped = mapDashboardData(action.payload);
+          Object.assign(state, mapped);
+          state.jobs = {
+            today: state.todayJobs,
+            available: state.availableJobs,
+            pending: state.availableJobs,
+            upcoming: state.upcomingJobs,
+          };
+        },
+        rejected: (state) => {
+          state.refreshing = false;
+        },
+      }
+    ),
+
+    // Accept job
+    acceptJob: create.asyncThunk(
+      async (jobId: string, { getState, rejectWithValue }) => {
+        const response = await acceptJobApi(jobId);
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to accept job');
+        }
+
+        const state = (getState() as any).dashboard as DashboardState;
+        const job = state.availableJobs.find((j) => j.id === jobId);
+        if (!job) {
+          return rejectWithValue('Job not found');
+        }
+        
+        return { ...job, status: 'scheduled' as const };
+      },
+      {
+        fulfilled: (state, action) => {
+          state.availableJobs = state.availableJobs.filter(
+            (job) => job.id !== action.payload.id
+          );
+          state.todayJobs.push(action.payload);
+          state.jobs = {
+            today: state.todayJobs,
+            available: state.availableJobs,
+            pending: state.availableJobs,
+            upcoming: state.upcomingJobs,
+          };
+          state.stats.todayJobs += 1;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string || 'Failed to accept job';
+        },
+      }
+    ),
+
+    // Reject job
+    rejectJob: create.asyncThunk(
+      async (jobId: string, { rejectWithValue }) => {
+        const response = await rejectJobApi(jobId);
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to reject job');
+        }
+
+        return jobId;
+      },
+      {
+        fulfilled: (state, action) => {
+          state.availableJobs = state.availableJobs.filter(
+            (job) => job.id !== action.payload
+          );
+          state.jobs = {
+            today: state.todayJobs,
+            available: state.availableJobs,
+            pending: state.availableJobs,
+            upcoming: state.upcomingJobs,
+          };
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string || 'Failed to reject job';
+        },
+      }
+    ),
+
+    // Toggle online status
+    toggleOnlineStatus: create.asyncThunk(
+      async (_, { getState, rejectWithValue }) => {
+        const state = (getState() as any).dashboard as DashboardState;
+        const newStatus = !state.profile.isOnline;
+        
+        const response = await updateProviderOnlineStatus(newStatus);
+        
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to update status');
+        }
+
+        return newStatus;
+      },
+      {
+        fulfilled: (state, action) => {
+          state.profile.isOnline = action.payload;
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string || 'Failed to update status';
+        },
+      }
+    ),
+
+    // Sync reducers
+    setActiveTab: create.reducer((state, action: PayloadAction<'today' | 'available'>) => {
       state.activeTab = action.payload;
-    },
-    updateProfile: (state, action: PayloadAction<Partial<DashboardProfile>>) => {
+    }),
+
+    updateProfile: create.reducer((state, action: PayloadAction<Partial<DashboardProfile>>) => {
       state.profile = { ...state.profile, ...action.payload };
-    },
-    toggleOnlineStatus: (state) => {
-      state.profile.isOnline = !state.profile.isOnline;
-    },
-    markNotificationsRead: (state) => {
+    }),
+
+    markNotificationsRead: create.reducer((state) => {
       state.profile.unreadNotifications = 0;
-    },
-    addActivity: (state, action: PayloadAction<RecentActivity>) => {
+    }),
+
+    addActivity: create.reducer((state, action: PayloadAction<RecentActivity>) => {
       state.recentActivity.unshift(action.payload);
       if (state.recentActivity.length > 10) {
         state.recentActivity.pop();
       }
-    },
-    clearError: (state) => {
+    }),
+
+    clearError: create.reducer((state) => {
       state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchDashboardData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchDashboardData.fulfilled, (state, action) => {
-        state.loading = false;
-        state.profile = action.payload.profile;
-        state.stats = action.payload.stats;
-        state.insights = action.payload.insights;
-        state.todayJobs = action.payload.todayJobs;
-        state.availableJobs = action.payload.availableJobs;
-        state.recentActivity = action.payload.recentActivity;
-        state.jobs = {
-          today: action.payload.todayJobs,
-          available: action.payload.availableJobs,
-        };
-      })
-      .addCase(fetchDashboardData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(refreshDashboard.pending, (state) => {
-        state.refreshing = true;
-      })
-      .addCase(refreshDashboard.fulfilled, (state, action) => {
-        state.refreshing = false;
-        state.profile = action.payload.profile;
-        state.stats = action.payload.stats;
-        state.insights = action.payload.insights;
-        state.todayJobs = action.payload.todayJobs;
-        state.availableJobs = action.payload.availableJobs;
-        state.recentActivity = action.payload.recentActivity;
-        state.jobs = {
-          today: action.payload.todayJobs,
-          available: action.payload.availableJobs,
-        };
-      })
-      .addCase(refreshDashboard.rejected, (state) => {
-        state.refreshing = false;
-      })
-      .addCase(acceptJob.fulfilled, (state, action) => {
-        state.availableJobs = state.availableJobs.filter(
-          (job) => job.id !== action.payload.id
-        );
-        state.todayJobs.push(action.payload);
-        state.jobs = {
-          today: state.todayJobs,
-          available: state.availableJobs,
-        };
-        state.stats.todayJobs += 1;
-      })
-      .addCase(rejectJob.fulfilled, (state, action) => {
-        state.availableJobs = state.availableJobs.filter(
-          (job) => job.id !== action.payload
-        );
-        state.jobs = {
-          today: state.todayJobs,
-          available: state.availableJobs,
-        };
-      });
+    }),
+  }),
+  selectors: {
+    selectDashboardProfile: (state) => state.profile,
+    selectDashboardStats: (state) => state.stats,
+    selectDashboardInsights: (state) => state.insights,
+    selectTodayJobs: (state) => state.todayJobs,
+    selectAvailableJobs: (state) => state.availableJobs,
+    selectUpcomingJobs: (state) => state.upcomingJobs,
+    selectRecentActivity: (state) => state.recentActivity,
+    selectActiveTab: (state) => state.activeTab,
+    selectDashboardLoading: (state) => state.loading,
+    selectDashboardRefreshing: (state) => state.refreshing,
+    selectDashboardError: (state) => state.error,
+    selectJobs: (state) => state.jobs,
   },
 });
 
 // Actions
 export const {
+  fetchDashboardData,
+  refreshDashboard,
+  acceptJob,
+  rejectJob,
+  toggleOnlineStatus,
   setActiveTab,
   updateProfile,
-  toggleOnlineStatus,
   markNotificationsRead,
   addActivity,
   clearError,
 } = dashboardSlice.actions;
 
 // Selectors
-export const selectDashboardProfile = (state: RootState) => state.dashboard.profile;
-export const selectDashboardStats = (state: RootState) => state.dashboard.stats;
-export const selectDashboardInsights = (state: RootState) => state.dashboard.insights;
-export const selectTodayJobs = (state: RootState) => state.dashboard.todayJobs;
-export const selectAvailableJobs = (state: RootState) => state.dashboard.availableJobs;
-export const selectRecentActivity = (state: RootState) => state.dashboard.recentActivity;
-export const selectActiveTab = (state: RootState) => state.dashboard.activeTab;
-export const selectDashboardLoading = (state: RootState) => state.dashboard.loading;
-export const selectDashboardRefreshing = (state: RootState) => state.dashboard.refreshing;
-export const selectDashboardError = (state: RootState) => state.dashboard.error;
+export const {
+  selectDashboardProfile,
+  selectDashboardStats,
+  selectDashboardInsights,
+  selectTodayJobs,
+  selectAvailableJobs,
+  selectUpcomingJobs,
+  selectRecentActivity,
+  selectActiveTab,
+  selectDashboardLoading,
+  selectDashboardRefreshing,
+  selectDashboardError,
+  selectJobs,
+} = dashboardSlice.selectors;
 
 export default dashboardSlice.reducer;

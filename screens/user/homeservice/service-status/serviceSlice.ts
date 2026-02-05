@@ -1,4 +1,8 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import { fetchServiceStatus as fetchServiceStatusApi } from '../../../../networks/serviceProviders/serviceStatusNetwork';
+import { processPayment } from '../../../../networks/serviceProviders/paymentNetwork';
+import { serviceStatusSerializer } from '../../../../serializers/serviceProviders/serviceStatusSerializer';
 
 // Types
 export interface ServiceProviderInfo {
@@ -67,234 +71,182 @@ const initialState: ServiceStatusState = {
   error: null,
 };
 
-// Mock data by category
-const MOCK_PROVIDERS: Record<string, ServiceProviderInfo> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    phone: '+923001234567',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    service: 'Electrical Services',
-    specialty: 'Wiring & Installation Specialist',
-    rating: 4.8,
-    reviews: 189,
-    experience: '10+ years',
+// Helper to map API service status to local format
+const mapApiServiceStatusToLocal = (apiData: ReturnType<typeof serviceStatusSerializer>) => {
+  const provider: ServiceProviderInfo = {
+    id: apiData.provider.id,
+    name: apiData.provider.name,
+    phone: apiData.provider.phone,
+    image: apiData.provider.image,
+    service: apiData.serviceDetails.type,
+    specialty: '',
+    rating: 0,
+    reviews: 0,
+    experience: '',
     verified: true,
-    category: 'electricians',
-    startTime: '10:30 AM',
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    phone: '+923009876543',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    service: 'Plumbing Services',
-    specialty: 'Pipe Fitting & Leak Repairs',
-    rating: 4.9,
-    reviews: 245,
-    experience: '8+ years',
-    verified: true,
-    category: 'plumbers',
-    startTime: '11:00 AM',
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    phone: '+923005551234',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    service: 'AC Repair Services',
-    specialty: 'AC Installation & Cooling Expert',
-    rating: 4.7,
-    reviews: 167,
-    experience: '6+ years',
-    verified: true,
-    category: 'ac-repairers',
-    startTime: '09:45 AM',
-  },
+    category: 'electricians' as ServiceProviderInfo['category'],
+    startTime: apiData.serviceDetails.startedAt,
+  };
+
+  const serviceDetails: ServiceDetails = {
+    bookingId: apiData.bookingId,
+    invoiceId: '',
+    description: apiData.serviceDetails.description,
+    estimatedDuration: apiData.serviceDetails.estimatedDuration,
+    suggestedAmount: apiData.serviceDetails.suggestedAmount,
+    serviceDate: apiData.serviceDetails.startedAt,
+    startedAt: apiData.serviceDetails.startedAt,
+    completedAt: '',
+  };
+
+  return { provider, serviceDetails };
 };
 
-const MOCK_SERVICE_DETAILS: Record<string, Omit<ServiceDetails, 'bookingId'>> = {
-  electricians: {
-    invoiceId: 'INV-EL-001234',
-    description: 'Electrical wiring repair and circuit breaker inspection',
-    estimatedDuration: '2-3 hours',
-    suggestedAmount: 4500,
-    serviceDate: 'Today',
-    startedAt: '10:30 AM',
-    completedAt: null,
-  },
-  plumbers: {
-    invoiceId: 'INV-PL-001235',
-    description: 'Pipe leak repair and bathroom fixture installation',
-    estimatedDuration: '1-2 hours',
-    suggestedAmount: 3200,
-    serviceDate: 'Today',
-    startedAt: '11:00 AM',
-    completedAt: null,
-  },
-  'ac-repairers': {
-    invoiceId: 'INV-AC-001236',
-    description: 'AC gas refilling, filter cleaning and cooling optimization',
-    estimatedDuration: '1-2 hours',
-    suggestedAmount: 5000,
-    serviceDate: 'Today',
-    startedAt: '09:45 AM',
-    completedAt: null,
-  },
-};
+// Slice
+const serviceStatusSlice = createAppSlice({
+  name: 'serviceStatus',
+  initialState,
+  reducers: (create) => ({
+    // Async Thunks
+    fetchServiceStatus: create.asyncThunk(
+      async (
+        params: { bookingId: string; category: 'electricians' | 'plumbers' | 'ac-repairers' },
+        { rejectWithValue }
+      ) => {
+        const response = await fetchServiceStatusApi(params.bookingId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to fetch service status');
+        }
+        const serialized = serviceStatusSerializer(response.data);
+        return mapApiServiceStatusToLocal(serialized);
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.provider = action.payload.provider;
+          state.serviceDetails = action.payload.serviceDetails;
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
 
-// Async Thunks
-export const fetchServiceStatus = createAsyncThunk(
-  'serviceStatus/fetchStatus',
-  async ({ 
-    bookingId, 
-    category 
-  }: { 
-    bookingId: string; 
-    category: 'electricians' | 'plumbers' | 'ac-repairers';
-  }) => {
-    // Simulate API call
-    return new Promise<{
-      provider: ServiceProviderInfo;
-      serviceDetails: ServiceDetails;
-    }>((resolve) => {
-      setTimeout(() => {
-        const provider = MOCK_PROVIDERS[category] || MOCK_PROVIDERS['ac-repairers'];
-        const details = MOCK_SERVICE_DETAILS[category] || MOCK_SERVICE_DETAILS['ac-repairers'];
-        
-        resolve({
-          provider,
-          serviceDetails: {
-            ...details,
-            bookingId,
-          },
-        });
-      }, 800);
-    });
-  }
-);
-
-export const markServiceCompleted = createAsyncThunk(
-  'serviceStatus/markCompleted',
-  async ({ bookingId }: { bookingId: string }) => {
-    // Simulate API call
-    return new Promise<{ completedAt: string }>((resolve) => {
-      setTimeout(() => {
-        resolve({
+    markServiceCompleted: create.asyncThunk(
+      async (params: { bookingId: string }) => {
+        // Simulate API call for marking service complete
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return {
           completedAt: new Date().toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
           }),
-        });
-      }, 500);
-    });
-  }
-);
+        };
+      },
+      {
+        pending: (state) => {
+          state.isSubmitting = true;
+        },
+        fulfilled: (state, action) => {
+          state.isSubmitting = false;
+          state.serviceStatus = 'completed';
+          if (state.serviceDetails) {
+            state.serviceDetails.completedAt = action.payload.completedAt;
+          }
+        },
+        rejected: (state, action) => {
+          state.isSubmitting = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
 
-export const submitPayment = createAsyncThunk(
-  'serviceStatus/submitPayment',
-  async ({ 
-    bookingId, 
-    amount, 
-    method 
-  }: { 
-    bookingId: string; 
-    amount: number; 
-    method: 'cash' | 'jazzcash' | 'easypaisa' | 'card';
-  }) => {
-    // Simulate API call
-    return new Promise<{ 
-      transactionId: string; 
-      status: 'completed' 
-    }>((resolve) => {
-      setTimeout(() => {
-        resolve({
-          transactionId: `TXN-${Date.now()}`,
-          status: 'completed',
+    submitPayment: create.asyncThunk(
+      async (
+        params: { bookingId: string; amount: number; method: 'cash' | 'jazzcash' | 'easypaisa' | 'card' },
+        { rejectWithValue }
+      ) => {
+        const response = await processPayment({
+          bookingId: params.bookingId,
+          amount: params.amount,
+          method: params.method,
         });
-      }, 1500);
-    });
-  }
-);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Payment failed');
+        }
+        return {
+          transactionId: response.data.transactionId,
+          status: 'completed' as const,
+        };
+      },
+      {
+        pending: (state) => {
+          state.isSubmitting = true;
+          state.payment.status = 'processing';
+        },
+        fulfilled: (state, action) => {
+          state.isSubmitting = false;
+          state.payment.status = 'completed';
+          state.payment.transactionId = action.payload.transactionId;
+          state.serviceStatus = 'payment_completed';
+        },
+        rejected: (state, action) => {
+          state.isSubmitting = false;
+          state.payment.status = 'failed';
+          state.error = action.payload as string;
+        },
+      }
+    ),
 
-// Slice
-const serviceStatusSlice = createSlice({
-  name: 'serviceStatus',
-  initialState,
-  reducers: {
-    setPaymentAmount: (state, action: PayloadAction<number>) => {
+    // Sync reducers
+    setPaymentAmount: create.reducer((state, action: PayloadAction<number>) => {
       state.payment.amount = action.payload;
-    },
-    setPaymentMethod: (state, action: PayloadAction<'cash' | 'jazzcash' | 'easypaisa' | 'card' | null>) => {
-      state.payment.method = action.payload;
-    },
-    setServiceStatus: (state, action: PayloadAction<ServiceStatusType>) => {
+    }),
+
+    setPaymentMethod: create.reducer(
+      (state, action: PayloadAction<'cash' | 'jazzcash' | 'easypaisa' | 'card' | null>) => {
+        state.payment.method = action.payload;
+      }
+    ),
+
+    setServiceStatus: create.reducer((state, action: PayloadAction<ServiceStatusType>) => {
       state.serviceStatus = action.payload;
-    },
-    clearServiceStatusState: (state) => {
+    }),
+
+    clearServiceStatusState: create.reducer((state) => {
       state.provider = null;
       state.serviceDetails = null;
       state.payment = initialState.payment;
       state.serviceStatus = 'checking';
       state.error = null;
-    },
-    resetPayment: (state) => {
+    }),
+
+    resetPayment: create.reducer((state) => {
       state.payment = initialState.payment;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Fetch service status
-      .addCase(fetchServiceStatus.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchServiceStatus.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.provider = action.payload.provider;
-        state.serviceDetails = action.payload.serviceDetails;
-      })
-      .addCase(fetchServiceStatus.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || 'Failed to fetch service status';
-      })
-      // Mark service completed
-      .addCase(markServiceCompleted.pending, (state) => {
-        state.isSubmitting = true;
-      })
-      .addCase(markServiceCompleted.fulfilled, (state, action) => {
-        state.isSubmitting = false;
-        state.serviceStatus = 'completed';
-        if (state.serviceDetails) {
-          state.serviceDetails.completedAt = action.payload.completedAt;
-        }
-      })
-      .addCase(markServiceCompleted.rejected, (state, action) => {
-        state.isSubmitting = false;
-        state.error = action.error.message || 'Failed to mark service as completed';
-      })
-      // Submit payment
-      .addCase(submitPayment.pending, (state) => {
-        state.isSubmitting = true;
-        state.payment.status = 'processing';
-      })
-      .addCase(submitPayment.fulfilled, (state, action) => {
-        state.isSubmitting = false;
-        state.payment.status = 'completed';
-        state.payment.transactionId = action.payload.transactionId;
-        state.serviceStatus = 'payment_completed';
-      })
-      .addCase(submitPayment.rejected, (state, action) => {
-        state.isSubmitting = false;
-        state.payment.status = 'failed';
-        state.error = action.error.message || 'Payment failed';
-      });
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectServiceDetails: (state) => state.serviceDetails,
+    selectPayment: (state) => state.payment,
+    selectServiceStatusValue: (state) => state.serviceStatus,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsSubmitting: (state) => state.isSubmitting,
+    selectError: (state) => state.error,
   },
 });
 
 // Actions
 export const {
+  fetchServiceStatus,
+  markServiceCompleted,
+  submitPayment,
   setPaymentAmount,
   setPaymentMethod,
   setServiceStatus,
@@ -302,7 +254,18 @@ export const {
   resetPayment,
 } = serviceStatusSlice.actions;
 
-// Selectors - use type assertion for RootState compatibility
+// Selectors
+export const {
+  selectProvider,
+  selectServiceDetails,
+  selectPayment,
+  selectServiceStatusValue,
+  selectIsLoading,
+  selectIsSubmitting,
+  selectError,
+} = serviceStatusSlice.selectors;
+
+// Computed Selectors
 export const selectIsPaymentReady = (state: { serviceStatus?: ServiceStatusState }) => {
   const serviceStatusState = state.serviceStatus;
   if (!serviceStatusState) return false;

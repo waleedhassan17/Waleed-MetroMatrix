@@ -1,4 +1,12 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction } from '@reduxjs/toolkit';
+import { createAppSlice } from '../../../../store/createAppSlice';
+import {
+  fetchBookingData as fetchBookingDataApi,
+  createBooking,
+} from '../../../../networks/serviceProviders/bookingNetwork';
+import {
+  bookingDataSerializer,
+} from '../../../../serializers/serviceProviders/bookingSerializer';
 
 // Types
 export interface SavedAddress {
@@ -80,232 +88,198 @@ const initialState: BookingState = {
   bookingConfirmation: null,
 };
 
-// Mock data
-const MOCK_ADDRESSES: SavedAddress[] = [
-  {
-    id: '1',
-    label: 'Home',
-    address: '123 Main Street, Downtown, Faisalabad',
-    icon: 'home',
-    isDefault: true,
-    coordinates: { latitude: 31.4504, longitude: 73.1350 },
-  },
-  {
-    id: '2',
-    label: 'Office',
-    address: '456 Business Plaza, Canal Road, Faisalabad',
-    icon: 'building',
-    isDefault: false,
-    coordinates: { latitude: 31.4279, longitude: 73.0758 },
-  },
-  {
-    id: '3',
-    label: 'Parents Home',
-    address: '789 Garden Town, Lahore Road, Faisalabad',
-    icon: 'home',
-    isDefault: false,
-    coordinates: { latitude: 31.4187, longitude: 73.0791 },
-  },
-];
+// Helper to map API data to local format
+const mapApiBookingDataToLocal = (apiData: ReturnType<typeof bookingDataSerializer>) => {
+  const provider: ProviderInfo = {
+    id: apiData.provider.id,
+    name: apiData.provider.name,
+    image: apiData.provider.image,
+    service: apiData.provider.service,
+    specialty: apiData.provider.specialty || '',
+    rating: apiData.provider.rating,
+    reviews: apiData.provider.reviews,
+    experience: apiData.provider.experience,
+    verified: apiData.provider.verified,
+    isOnline: apiData.provider.isOnline,
+    responseTime: apiData.provider.responseTime,
+    basePrice: apiData.provider.basePrice,
+    category: apiData.provider.category as ProviderInfo['category'],
+  };
 
-const MOCK_TIME_SLOTS: TimeSlot[] = [
-  { id: '1', time: '09:00 AM', available: true, period: 'morning' },
-  { id: '2', time: '10:00 AM', available: true, period: 'morning' },
-  { id: '3', time: '11:00 AM', available: false, period: 'morning' },
-  { id: '4', time: '12:00 PM', available: true, period: 'afternoon' },
-  { id: '5', time: '02:00 PM', available: true, period: 'afternoon' },
-  { id: '6', time: '03:00 PM', available: true, period: 'afternoon' },
-  { id: '7', time: '04:00 PM', available: true, period: 'afternoon' },
-  { id: '8', time: '05:00 PM', available: true, period: 'evening' },
-  { id: '9', time: '06:00 PM', available: false, period: 'evening' },
-  { id: '10', time: '07:00 PM', available: true, period: 'evening' },
-];
+  const addresses: SavedAddress[] = apiData.addresses.map((addr) => ({
+    id: addr.id,
+    label: addr.label,
+    address: addr.address,
+    icon: addr.icon as SavedAddress['icon'],
+    isDefault: addr.isDefault,
+    coordinates: addr.coordinates,
+  }));
 
-const MOCK_PROVIDERS: Record<string, ProviderInfo> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    service: 'Electrical Services',
-    specialty: 'Wiring & Installation Specialist',
-    rating: 4.8,
-    reviews: 189,
-    experience: '10+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~15 min',
-    basePrice: 3000,
-    category: 'electricians',
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    service: 'Plumbing Services',
-    specialty: 'Pipe Fitting & Leak Repairs',
-    rating: 4.9,
-    reviews: 245,
-    experience: '8+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~10 min',
-    basePrice: 2500,
-    category: 'plumbers',
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    service: 'AC Repair Services',
-    specialty: 'AC Installation & Cooling Expert',
-    rating: 4.7,
-    reviews: 167,
-    experience: '6+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~20 min',
-    basePrice: 3500,
-    category: 'ac-repairers',
-  },
+  const timeSlots: TimeSlot[] = apiData.timeSlots.map((slot, index) => ({
+    id: slot.id || `slot-${index}`,
+    time: slot.time,
+    available: slot.available,
+    period: slot.period as TimeSlot['period'],
+  }));
+
+  return { provider, addresses, timeSlots };
 };
 
-// Async Thunks
-export const fetchBookingData = createAsyncThunk(
-  'booking/fetchData',
-  async ({ providerId, category }: { providerId: string; category: 'electricians' | 'plumbers' | 'ac-repairers' }) => {
-    // Simulate API call
-    return new Promise<{
-      provider: ProviderInfo;
-      addresses: SavedAddress[];
-      timeSlots: TimeSlot[];
-    }>((resolve) => {
-      setTimeout(() => {
-        const provider = MOCK_PROVIDERS[category] || MOCK_PROVIDERS.plumbers;
-        resolve({
-          provider: { ...provider, id: providerId },
-          addresses: MOCK_ADDRESSES,
-          timeSlots: MOCK_TIME_SLOTS,
-        });
-      }, 800);
-    });
-  }
-);
-
-export const submitBooking = createAsyncThunk(
-  'booking/submit',
-  async (bookingDetails: BookingDetails) => {
-    // Simulate API call
-    return new Promise<{ bookingId: string; status: 'confirmed' }>((resolve) => {
-      setTimeout(() => {
-        resolve({
-          bookingId: `BK-${Date.now()}`,
-          status: 'confirmed',
-        });
-      }, 1500);
-    });
-  }
-);
-
-export const addNewAddress = createAsyncThunk(
-  'booking/addAddress',
-  async (address: Omit<SavedAddress, 'id'>) => {
-    // Simulate API call
-    return new Promise<SavedAddress>((resolve) => {
-      setTimeout(() => {
-        resolve({
-          ...address,
-          id: `addr-${Date.now()}`,
-        });
-      }, 500);
-    });
-  }
-);
-
 // Slice
-const bookingSlice = createSlice({
+const bookingSlice = createAppSlice({
   name: 'booking',
   initialState,
-  reducers: {
-    setSelectedDate: (state, action: PayloadAction<string>) => {
+  reducers: (create) => ({
+    // Async Thunks
+    fetchBookingData: create.asyncThunk(
+      async (
+        params: { providerId: string; category: 'electricians' | 'plumbers' | 'ac-repairers' },
+        { rejectWithValue }
+      ) => {
+        const response = await fetchBookingDataApi(params.providerId);
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to fetch booking data');
+        }
+        const serialized = bookingDataSerializer(response.data);
+        return mapApiBookingDataToLocal(serialized);
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isLoading = false;
+          state.provider = action.payload.provider;
+          state.savedAddresses = action.payload.addresses;
+          state.timeSlots = action.payload.timeSlots;
+          const defaultAddr = action.payload.addresses.find((addr) => addr.isDefault);
+          if (defaultAddr) {
+            state.selectedAddress = defaultAddr;
+          }
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    submitBooking: create.asyncThunk(
+      async (bookingDetails: BookingDetails, { rejectWithValue }) => {
+        const response = await createBooking({
+          providerId: bookingDetails.providerId,
+          selectedDate: bookingDetails.selectedDate,
+          selectedTime: bookingDetails.selectedTime,
+          addressId: bookingDetails.selectedAddress?.id || '',
+          instructions: bookingDetails.instructions,
+        });
+        if (!response.success || !response.data) {
+          return rejectWithValue(response.message || 'Failed to submit booking');
+        }
+        return {
+          bookingId: response.data.bookingId,
+          status: 'confirmed' as const,
+        };
+      },
+      {
+        pending: (state) => {
+          state.isSubmitting = true;
+          state.error = null;
+        },
+        fulfilled: (state, action) => {
+          state.isSubmitting = false;
+          state.bookingConfirmation = {
+            bookingId: action.payload.bookingId,
+            status: action.payload.status,
+          };
+        },
+        rejected: (state, action) => {
+          state.isSubmitting = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    addNewAddress: create.asyncThunk(
+      async (address: Omit<SavedAddress, 'id'>, { rejectWithValue }) => {
+        // Simulate API call for adding address
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return {
+          ...address,
+          id: `addr-${Date.now()}`,
+        } as SavedAddress;
+      },
+      {
+        fulfilled: (state, action) => {
+          state.savedAddresses.push(action.payload);
+        },
+        rejected: (state, action) => {
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Sync reducers
+    setSelectedDate: create.reducer((state, action: PayloadAction<string>) => {
       state.selectedDate = action.payload;
-    },
-    setSelectedTime: (state, action: PayloadAction<string>) => {
+    }),
+
+    setSelectedTime: create.reducer((state, action: PayloadAction<string>) => {
       state.selectedTime = action.payload;
-    },
-    setSelectedAddress: (state, action: PayloadAction<SavedAddress | null>) => {
+    }),
+
+    setSelectedAddress: create.reducer((state, action: PayloadAction<SavedAddress | null>) => {
       state.selectedAddress = action.payload;
-    },
-    setInstructions: (state, action: PayloadAction<string>) => {
+    }),
+
+    setInstructions: create.reducer((state, action: PayloadAction<string>) => {
       state.instructions = action.payload;
-    },
-    clearBookingState: (state) => {
+    }),
+
+    clearBookingState: create.reducer((state) => {
       state.selectedDate = '';
       state.selectedTime = '';
       state.selectedAddress = null;
       state.instructions = '';
       state.bookingConfirmation = null;
       state.error = null;
-    },
-    setDefaultAddress: (state) => {
+    }),
+
+    setDefaultAddress: create.reducer((state) => {
       const defaultAddr = state.savedAddresses.find((addr) => addr.isDefault);
       if (defaultAddr) {
         state.selectedAddress = defaultAddr;
       }
-    },
-    updateAddressDefault: (state, action: PayloadAction<string>) => {
+    }),
+
+    updateAddressDefault: create.reducer((state, action: PayloadAction<string>) => {
       state.savedAddresses = state.savedAddresses.map((addr) => ({
         ...addr,
         isDefault: addr.id === action.payload,
       }));
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Fetch booking data
-      .addCase(fetchBookingData.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(fetchBookingData.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.provider = action.payload.provider;
-        state.savedAddresses = action.payload.addresses;
-        state.timeSlots = action.payload.timeSlots;
-        // Set default address
-        const defaultAddr = action.payload.addresses.find((addr) => addr.isDefault);
-        if (defaultAddr) {
-          state.selectedAddress = defaultAddr;
-        }
-      })
-      .addCase(fetchBookingData.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.error.message || 'Failed to fetch booking data';
-      })
-      // Submit booking
-      .addCase(submitBooking.pending, (state) => {
-        state.isSubmitting = true;
-        state.error = null;
-      })
-      .addCase(submitBooking.fulfilled, (state, action) => {
-        state.isSubmitting = false;
-        state.bookingConfirmation = {
-          bookingId: action.payload.bookingId,
-          status: action.payload.status,
-        };
-      })
-      .addCase(submitBooking.rejected, (state, action) => {
-        state.isSubmitting = false;
-        state.error = action.error.message || 'Failed to submit booking';
-      })
-      // Add new address
-      .addCase(addNewAddress.fulfilled, (state, action) => {
-        state.savedAddresses.push(action.payload);
-      });
+    }),
+  }),
+  selectors: {
+    selectProvider: (state) => state.provider,
+    selectSavedAddresses: (state) => state.savedAddresses,
+    selectTimeSlots: (state) => state.timeSlots,
+    selectSelectedDate: (state) => state.selectedDate,
+    selectSelectedTime: (state) => state.selectedTime,
+    selectSelectedAddress: (state) => state.selectedAddress,
+    selectInstructions: (state) => state.instructions,
+    selectIsLoading: (state) => state.isLoading,
+    selectIsSubmitting: (state) => state.isSubmitting,
+    selectError: (state) => state.error,
+    selectBookingConfirmation: (state) => state.bookingConfirmation,
   },
 });
 
 // Actions
 export const {
+  fetchBookingData,
+  submitBooking,
+  addNewAddress,
   setSelectedDate,
   setSelectedTime,
   setSelectedAddress,
@@ -316,6 +290,21 @@ export const {
 } = bookingSlice.actions;
 
 // Selectors
+export const {
+  selectProvider,
+  selectSavedAddresses,
+  selectTimeSlots,
+  selectSelectedDate,
+  selectSelectedTime,
+  selectSelectedAddress,
+  selectInstructions,
+  selectIsLoading,
+  selectIsSubmitting,
+  selectError,
+  selectBookingConfirmation,
+} = bookingSlice.selectors;
+
+// Computed Selectors
 export const selectIsFormValid = (state: { booking: BookingState }) => {
   const { selectedDate, selectedTime, selectedAddress } = state.booking;
   return Boolean(selectedDate && selectedTime && selectedAddress);

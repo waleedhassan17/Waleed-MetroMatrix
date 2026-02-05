@@ -181,49 +181,6 @@ const SignIn = () => {
   };
 
   const handleSignIn = async () => {
-    // ============================================
-    // 🧪 TEST MODE - HARDCODED LOGIN (START)
-    // ============================================
-    // REMOVE THIS SECTION AND UNCOMMENT ORIGINAL API CODE BELOW TO RESTORE
-    
-    console.log('🧪 TEST MODE: Checking hardcoded credentials');
-    
-    // Hardcoded admin credentials for testing
-    const ADMIN_EMAIL = 'waleedhassansfd@gmail.com';
-    const ADMIN_PASSWORD = '123456';
-    
-    if (email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD) {
-      // Admin login
-      console.log('🔐 TEST MODE: Admin credentials matched, navigating to AdminDashboard');
-      try {
-        (navigation as any).navigate('AdminDashboard');
-      } catch (navigationError) {
-        console.log('⚠️ Navigation error, using reset:', navigationError);
-        (navigation as any).reset({
-          index: 0,
-          routes: [{ name: 'AdminDashboard' }],
-        });
-      }
-    } else {
-      // Regular user login - navigate to UserHome
-      console.log('🧪 TEST MODE: Navigating directly to UserHome without API');
-      try {
-        (navigation as any).navigate('UserHome');
-      } catch (navigationError) {
-        console.log('⚠️ Navigation error, using reset:', navigationError);
-        (navigation as any).reset({
-          index: 0,
-          routes: [{ name: 'UserHome' }],
-        });
-      }
-    }
-    
-    // ============================================
-    // 🧪 TEST MODE - HARDCODED LOGIN (END)
-    // ============================================
-    // REMOVE ABOVE SECTION AND UNCOMMENT BELOW TO RESTORE
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     if (error) {
       dispatch(clearError());
     }
@@ -287,24 +244,9 @@ const SignIn = () => {
         err || 'Please check your credentials and try again.'
       );
     }
-    */
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-    // API COMMENTED OUT FOR TESTING - Direct navigation without API call
-    console.log(`🧪 TEST MODE: ${provider} login - Navigating directly to UserHome without API`);
-    
-    try {
-      (navigation as any).navigate('UserHome');
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error, using reset:', navigationError);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'UserHome' }],
-      });
-    }
-    
-    /* ORIGINAL API CODE - COMMENTED OUT
     if (error) {
       dispatch(clearError());
     }
@@ -350,7 +292,6 @@ const SignIn = () => {
         Alert.alert('Error', 'Failed to start Facebook Sign-In');
       }
     }
-    */
   };
 
   const handleForgotPassword = () => {
