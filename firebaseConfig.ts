@@ -1,5 +1,8 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
+//@ts-ignore - getReactNativePersistence exists at runtime in RN bundle
+import { getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDR0ZrvsGGP_nVy0-nyqoRmouNbm8UbX8g",
@@ -12,6 +15,12 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+// Initialize Auth with AsyncStorage persistence so auth state survives app restarts
+const auth = getApps().length > 1
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 
 export { app, auth };
