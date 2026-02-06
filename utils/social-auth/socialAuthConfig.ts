@@ -3,7 +3,16 @@ import * as Facebook from 'expo-auth-session/providers/facebook';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 import { makeRedirectUri } from 'expo-auth-session';
-import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential, UserCredential } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithCredential,
+  fetchSignInMethodsForEmail,
+  linkWithCredential,
+  signInWithEmailAndPassword,
+  UserCredential,
+  AuthCredential,
+} from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import Constants from 'expo-constants';
 
@@ -25,6 +34,22 @@ if (!isExpoGo) {
     isErrorWithCode = nativeGoogleSignIn.isErrorWithCode;
   } catch (e) {
     console.log('Native Google Sign-In not available');
+  }
+}
+
+// Conditionally import native Facebook SDK (only works in dev builds, not Expo Go)
+let LoginManagerNative: any = null;
+let FBAccessToken: any = null;
+let FBProfile: any = null;
+
+if (!isExpoGo) {
+  try {
+    const fbsdk = require('react-native-fbsdk-next');
+    LoginManagerNative = fbsdk.LoginManager;
+    FBAccessToken = fbsdk.AccessToken;
+    FBProfile = fbsdk.Profile;
+  } catch (e) {
+    console.log('Native Facebook SDK not available');
   }
 }
 
@@ -66,6 +91,23 @@ export interface SocialAuthResult {
   type: 'success' | 'cancel' | 'error';
   idToken?: string;      // For Google
   accessToken?: string;  // For Facebook/Google
+  error?: string;
+}
+
+/**
+ * Interface for Facebook native SDK auth result with profile data
+ */
+export interface FacebookProfileResult {
+  type: 'success' | 'cancel' | 'error';
+  accessToken?: string;
+  profile?: {
+    userID: string;
+    name: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    imageURL?: string;
+  };
   error?: string;
 }
 
@@ -221,6 +263,60 @@ export const useFacebookAuth = () => {
 };
 
 /**
+ * Native Facebook Sign-In using react-native-fbsdk-next
+ * Uses LoginManager, AccessToken, and Profile to get user data
+ * This works in development builds and production, NOT in Expo Go
+ */
+export const signInWithFacebookNativeSDK = async (): Promise<FacebookProfileResult> => {
+  if (!LoginManagerNative) {
+    console.log('⚠️ Native Facebook SDK not available (running in Expo Go?)');
+    return {
+      type: 'error',
+      error: 'Native Facebook SDK is not available in Expo Go. Please use a development build.',
+    };
+  }
+
+  try {
+    console.log('📱 Starting native Facebook Sign-In...');
+
+    const result = await LoginManagerNative.logInWithPermissions(['public_profile', 'email']);
+
+    if (result.isCancelled) {
+      console.log('ℹ️ Facebook sign-in was cancelled');
+      return { type: 'cancel', error: 'Facebook sign-in was cancelled' };
+    }
+
+    console.log('✅ Facebook login successful, getting access token...');
+    const tokenData = await FBAccessToken.getCurrentAccessToken();
+
+    if (!tokenData) {
+      return { type: 'error', error: 'No access token received from Facebook' };
+    }
+
+    console.log('✅ Access token received, getting profile...');
+    const currentProfile = await FBProfile.getCurrentProfile();
+
+    console.log('✅ Facebook profile:', currentProfile);
+
+    return {
+      type: 'success',
+      accessToken: tokenData.accessToken,
+      profile: currentProfile ? {
+        userID: currentProfile.userID,
+        name: currentProfile.name || '',
+        firstName: currentProfile.firstName || undefined,
+        lastName: currentProfile.lastName || undefined,
+        email: currentProfile.email || undefined,
+        imageURL: currentProfile.imageURL || undefined,
+      } : undefined,
+    };
+  } catch (error: any) {
+    console.error('❌ Native Facebook Sign-In error:', error);
+    return { type: 'error', error: error.message || 'Facebook sign-in failed' };
+  }
+};
+
+/**
  * Process Google auth response
  * Handles response from useIdTokenAuthRequest which returns id_token in params
  */
@@ -332,8 +428,40 @@ export const firebaseSignInWithGoogle = async (idToken: string): Promise<UserCre
 };
 
 /**
+ * Custom error for account-exists-with-different-credential
+ */
+export class AccountExistsWithDifferentCredentialError extends Error {
+  email: string;
+  existingProviders: string[];
+  pendingCredential: AuthCredential | null;
+
+  constructor(email: string, existingProviders: string[], pendingCredential: AuthCredential | null) {
+    const providerNames = existingProviders.map(p => {
+      if (p === 'password') return 'Email/Password';
+      if (p === 'google.com') return 'Google';
+      if (p === 'facebook.com') return 'Facebook';
+      return p;
+    });
+    super(
+      `This email (${email}) is already associated with ${providerNames.join(', ')}. ` +
+      `Please sign in with ${providerNames[0] || 'your original method'} first, then link your Facebook account from settings.`
+    );
+    this.name = 'AccountExistsWithDifferentCredentialError';
+    this.email = email;
+    this.existingProviders = existingProviders;
+    this.pendingCredential = pendingCredential;
+  }
+}
+
+/**
  * Firebase Facebook Sign-In with credential
- * Use this to authenticate directly with Firebase using the Facebook access token
+ * Use this to authenticate directly with Firebase using the Facebook access token.
+ * 
+ * Handles the auth/account-exists-with-different-credential error:
+ * - If Google is the existing provider, automatically triggers Google sign-in,
+ *   links the Facebook credential, and returns the user credential.
+ * - For other providers, throws AccountExistsWithDifferentCredentialError
+ *   so the UI can guide the user.
  */
 export const firebaseSignInWithFacebook = async (accessToken: string): Promise<UserCredential> => {
   try {
@@ -343,6 +471,99 @@ export const firebaseSignInWithFacebook = async (accessToken: string): Promise<U
     return userCredential;
   } catch (error: any) {
     console.error('❌ Firebase Facebook sign-in error:', error);
+
+    // Handle account-exists-with-different-credential
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      const email = error.customData?.email || '';
+      console.log('⚠️ Account exists with different credential for email:', email);
+
+      let existingProviders: string[] = [];
+      try {
+        existingProviders = await fetchSignInMethodsForEmail(auth, email);
+        console.log('📋 Existing providers for email:', existingProviders);
+      } catch (fetchError) {
+        console.error('❌ Error fetching sign-in methods:', fetchError);
+      }
+
+      // Get the pending Facebook credential for linking
+      const pendingCredential = FacebookAuthProvider.credentialFromError(error);
+
+      // AUTO-LINK: If Google is the existing provider, sign in with Google and link Facebook
+      if (existingProviders.includes('google.com') && GoogleSignin) {
+        console.log('🔗 Attempting auto-link: Google sign-in + Facebook credential linking...');
+        try {
+          // Step 1: Sign in with Google natively to get idToken
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+          const googleResponse = await GoogleSignin.signIn();
+
+          if (isSuccessResponse && isSuccessResponse(googleResponse) && googleResponse.data?.idToken) {
+            const googleCredential = GoogleAuthProvider.credential(googleResponse.data.idToken);
+            const googleUserCredential = await signInWithCredential(auth, googleCredential);
+            console.log('✅ Google sign-in successful for linking:', googleUserCredential.user.email);
+
+            // Step 2: Link Facebook credential to the Google account
+            if (pendingCredential && googleUserCredential.user) {
+              try {
+                const linkedResult = await linkWithCredential(googleUserCredential.user, pendingCredential);
+                console.log('✅ Facebook credential linked to Google account successfully');
+                return linkedResult;
+              } catch (linkError: any) {
+                // If already linked or provider-already-linked, just return the Google credential
+                if (linkError.code === 'auth/provider-already-linked') {
+                  console.log('ℹ️ Facebook already linked to this account');
+                  return googleUserCredential;
+                }
+                console.warn('⚠️ Could not link Facebook credential, but Google sign-in succeeded:', linkError.message);
+                return googleUserCredential;
+              }
+            }
+
+            // Even without linking, sign-in with Google succeeded for the same email
+            return googleUserCredential;
+          } else {
+            console.log('❌ Google sign-in cancelled or failed during auto-link');
+          }
+        } catch (googleError: any) {
+          console.error('❌ Auto-link Google sign-in failed:', googleError.message);
+          // Fall through to throw the error so UI can handle it
+        }
+      }
+
+      throw new AccountExistsWithDifferentCredentialError(
+        email,
+        existingProviders,
+        pendingCredential,
+      );
+    }
+
+    throw error;
+  }
+};
+
+/**
+ * Link Facebook credential to an existing Firebase account.
+ * Call this after the user has signed in with their existing provider.
+ * @param accessToken - The Facebook access token to link
+ */
+export const linkFacebookToCurrentUser = async (accessToken: string): Promise<UserCredential | null> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('❌ No current user to link Facebook credential to');
+      return null;
+    }
+
+    const credential = FacebookAuthProvider.credential(accessToken);
+    const result = await linkWithCredential(currentUser, credential);
+    console.log('✅ Facebook credential linked to existing account');
+    return result;
+  } catch (error: any) {
+    // If already linked, that's fine
+    if (error.code === 'auth/provider-already-linked') {
+      console.log('ℹ️ Facebook provider already linked to this account');
+      return null;
+    }
+    console.error('❌ Error linking Facebook credential:', error);
     throw error;
   }
 };

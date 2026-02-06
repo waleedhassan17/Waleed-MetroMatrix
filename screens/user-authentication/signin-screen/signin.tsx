@@ -30,15 +30,15 @@ import {
   clearError,
   submitSignInAsync,
   submitGoogleSignInAsync,
-  submitFacebookSignInAsync,
 } from './signinSlice';
 import {
   useGoogleAuth,
-  useFacebookAuth,
-  processFacebookResponse,
   processGoogleResponse,
   firebaseSignInWithGoogle,
+  firebaseSignInWithFacebook,
+  signInWithFacebookNativeSDK,
   getFirebaseIdToken,
+  AccountExistsWithDifferentCredentialError,
 } from '../../../utils/social-auth/socialAuthConfig';
 import { auth } from '../../../firebaseConfig';
 import { saveData, saveUserInfo, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
@@ -56,9 +56,6 @@ const SignIn = () => {
   const socialLoginStatus = useAppSelector(selectSocialLoginStatus);
   const error = useAppSelector(selectError);
 
-  // Facebook auth hook (still uses expo-auth-session)
-  const { response: facebookResponse, promptAsync: promptFacebookAsync, isReady: isFacebookReady } = useFacebookAuth();
-  
   // Google auth hook (uses native SDK in dev builds, expo-auth-session in Expo Go)
   const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady, isNative } = useGoogleAuth();
 
@@ -69,22 +66,6 @@ const SignIn = () => {
       dispatch(clearError());
     }
   }, [email, password]);
-
-  // Handle Facebook auth response
-  useEffect(() => {
-    if (facebookResponse) {
-      const result = processFacebookResponse(facebookResponse);
-      
-      if (result.type === 'success' && result.accessToken) {
-        console.log('✅ Facebook auth successful, calling login API');
-        handleFacebookLoginWithToken(result.accessToken);
-      } else if (result.type === 'cancel') {
-        console.log('ℹ️ Facebook sign-in was cancelled');
-      } else if (result.type === 'error') {
-        Alert.alert('Facebook Sign In Failed', result.error || 'Unknown error occurred');
-      }
-    }
-  }, [facebookResponse]);
 
   // Handle Google auth response
   useEffect(() => {
@@ -152,37 +133,79 @@ const SignIn = () => {
     }
   };
 
-  // Facebook login with token
-  const handleFacebookLoginWithToken = async (accessToken: string) => {
+  // Facebook login with native SDK (Firebase-only, backend API skipped - same as Google)
+  const handleFacebookLogin = async () => {
     try {
-      const result = await dispatch(submitFacebookSignInAsync({ accessToken })).unwrap();
-      
-      console.log('✅ Facebook login successful');
-      
-      Alert.alert(
-        'Success', 
-        `Welcome! You've successfully signed in with Facebook.`,
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              try {
-                (navigation as any).navigate('UserHome');
-              } catch (navigationError) {
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'UserHome' }],
-                });
-              }
-            },
-          },
-        ]
-      );
+      console.log('📱 Starting native Facebook Sign-In...');
+      const result = await signInWithFacebookNativeSDK();
+
+      if (result.type === 'cancel') {
+        console.log('ℹ️ Facebook sign-in was cancelled');
+        return;
+      }
+
+      if (result.type === 'error' || !result.accessToken) {
+        Alert.alert('Facebook Sign In Failed', result.error || 'Unknown error occurred');
+        return;
+      }
+
+      // Step 1: Authenticate with Firebase using the Facebook access token
+      const userCredential = await firebaseSignInWithFacebook(result.accessToken);
+      const firebaseUser = userCredential.user;
+
+      console.log('✅ Firebase Facebook auth successful:', firebaseUser.email);
+
+      // Step 2: Get Firebase ID token for future backend use
+      const firebaseIdToken = await getFirebaseIdToken();
+
+      // Step 3: Save user data from Firebase + Facebook profile to AsyncStorage
+      const userData = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || result.profile?.email || '',
+        fullName: firebaseUser.displayName || result.profile?.name || '',
+        phoneNumber: firebaseUser.phoneNumber || '',
+        profilePhoto: firebaseUser.photoURL || result.profile?.imageURL || '',
+        profileComplete: false,
+        isVerified: firebaseUser.emailVerified,
+      };
+
+      await saveUserInfo(userData);
+      await saveData(KeyForStorage.userType, 'user');
+      await saveData(KeyForStorage.isAuthenticated, true);
+      if (firebaseIdToken) {
+        await saveData(KeyForStorage.accessToken, firebaseIdToken);
+      }
+
+      console.log('✅ Facebook login successful, navigating to UserHome');
+
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'UserHome' }],
+      });
     } catch (err: any) {
       console.error('❌ Facebook login error:', err);
+
+      if (err instanceof AccountExistsWithDifferentCredentialError) {
+        // Check if only non-Google providers remain (Google auto-link already tried and failed)
+        const nonGoogleProviders = err.existingProviders.filter((p: string) => p !== 'google.com');
+        const providerNames = err.existingProviders.map((p: string) => {
+          if (p === 'password') return 'Email/Password';
+          if (p === 'google.com') return 'Google';
+          if (p === 'facebook.com') return 'Facebook';
+          return p;
+        });
+        Alert.alert(
+          'Account Already Exists',
+          `The email ${err.email} is already registered with ${providerNames.join(', ')}. ` +
+          `Please sign in using ${providerNames[0] || 'your original method'} first, then your Facebook will be automatically linked.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       Alert.alert(
         'Facebook Sign In Failed',
-        err || 'Unable to sign in with Facebook. Please try again.'
+        typeof err === 'string' ? err : (err?.message || 'Unable to sign in with Facebook. Please try again.')
       );
     }
   };
@@ -312,15 +335,10 @@ const SignIn = () => {
         Alert.alert('Error', err.message || 'Failed to start Google Sign-In');
       }
     } else {
-      if (!isFacebookReady) {
-        Alert.alert('Please wait', 'Facebook Sign-In is initializing...');
-        return;
-      }
-      
       try {
-        await promptFacebookAsync();
+        await handleFacebookLogin();
       } catch (err) {
-        console.error('Error prompting Facebook auth:', err);
+        console.error('Error with Facebook auth:', err);
         Alert.alert('Error', 'Failed to start Facebook Sign-In');
       }
     }
