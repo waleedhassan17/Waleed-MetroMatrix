@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.metromatrix.app",
+      "bundleIdentifier": "com.waleed17.MetroMatrix",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
@@ -55,7 +55,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.metromatrix.app",
+      "package": "com.waleed17.MetroMatrix",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.INTERNET"
@@ -74,14 +74,6 @@
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       [
-        "expo-facebook",
-        {
-          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you.",
-          "advertiserIDCollectionEnabled": false,
-          "autoLogAppEventsEnabled": false
-        }
-      ],
-      [
         "react-native-fbsdk-next",
         {
           "appID": "2277966629368711",
@@ -92,7 +84,8 @@
           "autoLogAppEventsEnabled": false,
           "isAutoInitEnabled": true
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ],
     "extra": {
       "eas": {

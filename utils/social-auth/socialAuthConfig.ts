@@ -31,27 +31,32 @@ if (!isExpoGo) {
 // Complete auth session for web browser
 WebBrowser.maybeCompleteAuthSession();
 
-// Google OAuth Client IDs from google-services.json
-// Web Client ID - needed for Firebase auth and getting idToken
-const GOOGLE_WEB_CLIENT_ID = '942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5.apps.googleusercontent.com';
+// Google OAuth Client IDs from android/app/google-services.json
+// Web Client ID (client_type: 3) - required for Firebase auth and idToken
+const GOOGLE_WEB_CLIENT_ID = '1007229712045-hepjj2fjm3laq4amgjt0frij6hu0h8s4.apps.googleusercontent.com';
 
-// Android Client ID - tied to SHA1: F4:35:36:88:69:42:F6:38:85:22:F9:E3:26:2F:B6:B5:6F:A8:B2:4E
-const GOOGLE_ANDROID_CLIENT_ID = '942315940095-a1upulvv9gc7q265d3ce3bcv6t63q111.apps.googleusercontent.com';
+// Android Client ID (client_type: 1) - tied to Android package and SHA1
+const GOOGLE_ANDROID_CLIENT_ID = '1007229712045-82v1qkdr7jt6d6cuuko3q59s16h28b2n.apps.googleusercontent.com';
 
-// iOS Client ID
-const GOOGLE_IOS_CLIENT_ID = '942315940095-h2cnrp1f9o3gji37a6e988c5upvbqjno.apps.googleusercontent.com';
+// iOS Client ID - set when iOS config is available
+const GOOGLE_IOS_CLIENT_ID = '';
 
 // Facebook App ID
 const FACEBOOK_APP_ID = '2277966629368711';
 
 // Configure Google Sign-In for native implementation (only in dev builds)
 if (GoogleSignin && !isExpoGo) {
-  GoogleSignin.configure({
+  const config: Record<string, unknown> = {
     webClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
     offlineAccess: true,
     scopes: ['profile', 'email'],
-  });
+  };
+
+  if (GOOGLE_IOS_CLIENT_ID) {
+    config.iosClientId = GOOGLE_IOS_CLIENT_ID;
+  }
+
+  GoogleSignin.configure(config);
 }
 
 /**

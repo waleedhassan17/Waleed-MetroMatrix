@@ -37,7 +37,11 @@ import {
   useFacebookAuth,
   processFacebookResponse,
   processGoogleResponse,
+  firebaseSignInWithGoogle,
+  getFirebaseIdToken,
 } from '../../../utils/social-auth/socialAuthConfig';
+import { auth } from '../../../firebaseConfig';
+import { saveData, saveUserInfo, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
 
 const isAndroid = Platform.OS === 'android';
 
@@ -99,10 +103,38 @@ const SignIn = () => {
     }
   }, [googleResponse]);
 
-  // Google login with token
+  // Google login with token (Firebase-only, backend API skipped for now)
   const handleGoogleLoginWithToken = async (idToken: string) => {
     try {
-      const result = await dispatch(submitGoogleSignInAsync({ idToken })).unwrap();
+      // Step 1: Authenticate with Firebase using the raw Google token
+      const userCredential = await firebaseSignInWithGoogle(idToken);
+      const firebaseUser = userCredential.user;
+      
+      console.log('✅ Firebase Google auth successful:', firebaseUser.email);
+      
+      // Step 2: Get Firebase ID token for future backend use
+      const firebaseIdToken = await getFirebaseIdToken();
+      
+      // Step 3: Save user data from Firebase to AsyncStorage (skip backend API for now)
+      const userData = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        fullName: firebaseUser.displayName || '',
+        phoneNumber: firebaseUser.phoneNumber || '',
+        profilePhoto: firebaseUser.photoURL || '',
+        profileComplete: false,
+        isVerified: firebaseUser.emailVerified,
+      };
+      
+      await saveUserInfo(userData);
+      await saveData(KeyForStorage.userType, 'user');
+      await saveData(KeyForStorage.isAuthenticated, true);
+      if (firebaseIdToken) {
+        await saveData(KeyForStorage.accessToken, firebaseIdToken);
+      }
+      
+      // TODO: Re-enable backend API call when backend is ready
+      // const result = await dispatch(submitGoogleSignInAsync({ idToken: firebaseIdToken })).unwrap();
       
       console.log('✅ Google login successful, navigating to UserHome');
       
@@ -115,7 +147,7 @@ const SignIn = () => {
       console.error('❌ Google login error:', err);
       Alert.alert(
         'Google Sign In Failed',
-        err || 'Unable to sign in with Google. Please try again.'
+        typeof err === 'string' ? err : (err?.message || 'Unable to sign in with Google. Please try again.')
       );
     }
   };

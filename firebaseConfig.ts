@@ -1,16 +1,17 @@
-// firebaseConfig.ts
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 
-// Firebase config from metromatrix-c44c6 project
 const firebaseConfig = {
-  apiKey: "AIzaSyAmIk-MngvpR0lLuu-FEML60qdIiRNPXpY",
-  authDomain: "metromatrix-c44c6.firebaseapp.com",
-  projectId: "metromatrix-c44c6",
-  storageBucket: "metromatrix-c44c6.firebasestorage.app",
-  messagingSenderId: "942315940095",
-  appId: "1:942315940095:android:b39a34e5f836c9460204ca"
+  apiKey: "AIzaSyDR0ZrvsGGP_nVy0-nyqoRmouNbm8UbX8g",
+  authDomain: "metromatrix-31f9f.firebaseapp.com",
+  projectId: "metromatrix-31f9f",
+  storageBucket: "metromatrix-31f9f.firebasestorage.app",
+  messagingSenderId: "1007229712045",
+  appId: "1:1007229712045:web:87aba36a12808670d87824",
+  measurementId: "G-S8VTDKBZF1"
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+export { app, auth };
