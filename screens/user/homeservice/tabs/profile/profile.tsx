@@ -14,6 +14,7 @@ import {
   Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import {
   User,
   Edit3,
@@ -40,6 +41,8 @@ import {
   Settings,
   Gift,
   Headphones,
+  Wallet,
+  ArrowUpRight,
 } from 'lucide-react-native';
 import { Colors, Gradients, Shadows, BorderRadius, Spacing } from '../../../../../constants/Colors';
 import { Typography } from '../../../../../constants/Fonts';
@@ -460,6 +463,7 @@ const MenuItemComponent: React.FC<MenuItemComponentProps> = ({
 
 // Main Profile Screen Component
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [language, setLanguage] = useState<'en' | 'ur'>('en');
@@ -591,6 +595,33 @@ export default function ProfileScreen() {
               <Text style={styles.rewardsSubtitle}>Complete bookings to earn points</Text>
             </View>
             <ChevronRight size={20} color="#F59E0B" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Wallet Card */}
+        <TouchableOpacity
+          style={styles.walletCard}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('UserWalletScreen')}
+        >
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.walletGradient}
+          >
+            <View style={styles.walletLeft}>
+              <View style={styles.walletIconContainer}>
+                <Wallet size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.walletInfo}>
+                <Text style={styles.walletLabel}>Wallet Balance</Text>
+                <Text style={styles.walletBalance}>Rs 4,250</Text>
+              </View>
+            </View>
+            <View style={styles.walletAction}>
+              <ArrowUpRight size={18} color="rgba(255,255,255,0.9)" />
+            </View>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -904,6 +935,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#B45309',
     marginTop: 2,
+  },
+
+  // Wallet Card
+  walletCard: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  walletGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 18,
+  },
+  walletLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  walletIconContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletInfo: {
+    marginLeft: 14,
+  },
+  walletLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  walletBalance: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  walletAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Menu Sections

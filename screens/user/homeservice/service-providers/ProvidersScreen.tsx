@@ -31,9 +31,9 @@ import {
   fetchElectricians,
   fetchPlumbers,
   fetchACRepairers,
-  Provider,
   SortOption,
 } from './providersSlice';
+import { Provider } from '../../../../models/serviceProviders';
 import { RootState } from '../../../../store/store';
 
 const { width, height } = Dimensions.get('window');
@@ -93,6 +93,8 @@ interface ProviderCardProps {
   serviceConfig: typeof SERVICE_CONFIG[string];
   onPress: (id: string) => void;
   onBookNow: (id: string) => void;
+  onChat: (provider: Provider) => void;
+  onCall: (provider: Provider) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 }
@@ -103,6 +105,8 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   serviceConfig,
   onPress,
   onBookNow,
+  onChat,
+  onCall,
   isFavorite = false,
   onToggleFavorite,
 }) => {
@@ -268,6 +272,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
               <TouchableOpacity 
                 style={[styles.iconButton, styles.chatButton]}
                 activeOpacity={0.8}
+                onPress={() => onChat(item)}
               >
                 <Ionicons name="chatbubble-outline" size={18} color={serviceConfig.accentColor} />
               </TouchableOpacity>
@@ -275,6 +280,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
               <TouchableOpacity 
                 style={[styles.iconButton, styles.callButton]}
                 activeOpacity={0.8}
+                onPress={() => onCall(item)}
               >
                 <Ionicons name="call-outline" size={18} color="#10B981" />
               </TouchableOpacity>
@@ -519,6 +525,38 @@ export default function ProvidersScreen() {
     navigation.navigate('BookingScreen', { 
       providerId: providerId, 
       category: serviceType as 'electricians' | 'plumbers' | 'ac-repairers'
+    });
+  }, [navigation, serviceType]);
+
+  const handleChatPress = useCallback((provider: Provider) => {
+    // @ts-ignore
+    navigation.navigate('ProviderChatScreen', {
+      provider: {
+        id: provider.id,
+        name: provider.name,
+        specialty: provider.specialty,
+        rating: provider.rating,
+        reviews: provider.reviews,
+        image: provider.image,
+        distance: 'N/A',
+      },
+      serviceType: serviceType as 'electricians' | 'plumbers' | 'ac-repairers',
+    });
+  }, [navigation, serviceType]);
+
+  const handleCallPress = useCallback((provider: Provider) => {
+    // @ts-ignore
+    navigation.navigate('CallScreen', {
+      provider: {
+        id: provider.id,
+        name: provider.name,
+        specialty: provider.specialty,
+        rating: provider.rating,
+        reviews: provider.reviews,
+        image: provider.image,
+        phoneNumber: provider.phoneNumber,
+      },
+      serviceType: serviceType as 'electricians' | 'plumbers' | 'ac-repairers',
     });
   }, [navigation, serviceType]);
 
@@ -841,6 +879,8 @@ export default function ProvidersScreen() {
                 serviceConfig={serviceConfig}
                 onPress={handleProviderPress}
                 onBookNow={handleBookNow}
+                onChat={handleChatPress}
+                onCall={handleCallPress}
                 isFavorite={favorites.includes(provider.id)}
                 onToggleFavorite={handleToggleFavorite}
               />

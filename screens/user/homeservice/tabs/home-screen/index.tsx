@@ -537,15 +537,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 26,
-    fontFamily: Fonts.bold,
-    color: Colors.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#10B981',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 13,
-    fontFamily: Fonts.medium,
-    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#666666',
     marginTop: 2,
   },
   notificationButton: {

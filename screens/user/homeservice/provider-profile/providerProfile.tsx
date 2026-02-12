@@ -95,12 +95,36 @@ export default function ProviderProfileScreen() {
   }, [navigation]);
 
   const handleCallPress = useCallback(() => {
-    console.log('Call:', provider?.phoneNumber);
-  }, [provider?.phoneNumber]);
+    // @ts-ignore
+    navigation.navigate('CallScreen', {
+      provider: provider ? {
+        id: provider.id,
+        name: provider.name,
+        specialty: provider.specialty,
+        rating: provider.rating,
+        reviews: provider.reviews,
+        image: provider.image,
+        phoneNumber: provider.phoneNumber,
+      } : undefined,
+      serviceType: category,
+    });
+  }, [navigation, provider, category]);
 
   const handleChatPress = useCallback(() => {
-    console.log('Chat with:', provider?.name);
-  }, [provider?.name]);
+    // @ts-ignore
+    navigation.navigate('ProviderChatScreen', {
+      provider: provider ? {
+        id: provider.id,
+        name: provider.name,
+        specialty: provider.specialty,
+        rating: provider.rating,
+        reviews: provider.reviews,
+        image: provider.image,
+        distance: 'N/A',
+      } : undefined,
+      serviceType: category,
+    });
+  }, [navigation, provider, category]);
 
   const handleTabChange = useCallback((tab: 'overview' | 'reviews' | 'gallery' | 'availability') => {
     dispatch(setSelectedTab(tab));

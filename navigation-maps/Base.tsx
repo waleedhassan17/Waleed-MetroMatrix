@@ -48,6 +48,9 @@ import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating
 import QuickSearchScreen from "../screens/user/homeservice/quick-search/QuickSearchScreen";
 import SearchProvidersScreen from "../screens/user/homeservice/search-providers/searchProviders";
 import ProviderChatScreen from "../screens/user/homeservice/providers-chat/providersChatScreen";
+import CallScreen from "../screens/user/homeservice/call-screen/callScreen";
+import UserWalletScreen from "../screens/user/homeservice/wallet/walletScreen";
+import ProviderWalletScreen from "../screens/providers/homeservice/wallet/providerWalletScreen";
 
 // Provider Job Flow Screens
 import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
@@ -103,6 +106,9 @@ export const BaseRouteNames = {
   QuickSearchScreen: "QuickSearchScreen",
   SearchingProvidersScreen: "SearchingProvidersScreen",
   ProviderChatScreen: "ProviderChatScreen",
+  CallScreen: "CallScreen",
+  UserWalletScreen: "UserWalletScreen",
+  ProviderWalletScreen: "ProviderWalletScreen",
   
   // Other screens (to be added)
   Logout: "Logout",
@@ -160,6 +166,9 @@ export type RootStackParamList = {
   QuickSearchScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
   SearchingProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
   ProviderChatScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
+  CallScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  UserWalletScreen: undefined;
+  ProviderWalletScreen: undefined;
   
   // Verification
   VerifySuccess: {
@@ -478,6 +487,31 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ProviderChatScreen,
     title: BaseRouteNames.ProviderChatScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: CallScreen,
+    title: BaseRouteNames.CallScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_bottom',
+    }
+  },
+  // Wallet Screens
+  {
+    component: UserWalletScreen,
+    title: BaseRouteNames.UserWalletScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderWalletScreen,
+    title: BaseRouteNames.ProviderWalletScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

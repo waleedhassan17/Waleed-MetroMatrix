@@ -244,61 +244,99 @@ const SignIn = () => {
       return;
     }
 
-    try {
-      const result = await dispatch(
-        submitSignInAsync({
-          email: email.trim(),
-          password,
-        })
-      ).unwrap();
+    // ===== STATIC LOGIN - START (Remove from here to "STATIC LOGIN - END" and uncomment "DYNAMIC LOGIN" below to hit real APIs) =====
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
 
-      // Check if admin or user from the result (not from Redux state)
-      const isAdminUser = result.type === 'admin';
-      const loginType = isAdminUser ? 'Admin' : 'User';
-      const welcomeMessage = isAdminUser 
-        ? 'Welcome to Admin Dashboard!' 
-        : 'Welcome back!';
-
-      console.log(`✅ Login successful as ${loginType}`);
-
-      Alert.alert('Success', welcomeMessage, [
+    // Admin hardcoded credentials check
+    if (trimmedEmail === 'waleedhassansfd@gmail.com' && trimmedPassword === 'Waleed@107') {
+      console.log('🔐 Admin credentials matched, navigating to AdminDashboard');
+      Alert.alert('Success', 'Welcome to Admin Dashboard!', [
         {
           text: 'Continue',
           onPress: () => {
-            try {
-              // Navigate based on the result type, not Redux state
-              if (isAdminUser) {
-                console.log('🔐 Admin detected, navigating to AdminDashboard');
-                (navigation as any).navigate('AdminDashboard');
-              } else {
-                console.log('👤 User detected, navigating to UserHome');
-                (navigation as any).navigate('UserHome');
-              }
-            } catch (navigationError) {
-              console.log('⚠️ Navigation error, using reset:', navigationError);
-              // Fallback to reset navigation
-              if (isAdminUser) {
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'AdminDashboard' }],
-                });
-              } else {
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'UserHome' }],
-                });
-              }
-            }
+            (navigation as any).reset({
+              index: 0,
+              routes: [{ name: 'AdminDashboard' }],
+            });
           },
         },
       ]);
-    } catch (err: any) {
-      console.error('❌ Login error:', err);
-      Alert.alert(
-        'Login Failed',
-        err || 'Please check your credentials and try again.'
-      );
+      return;
     }
+
+    // Any other credentials → navigate to UserHome
+    console.log('👤 Static user login, navigating to UserHome');
+    Alert.alert('Success', 'Welcome back!', [
+      {
+        text: 'Continue',
+        onPress: () => {
+          (navigation as any).reset({
+            index: 0,
+            routes: [{ name: 'UserHome' }],
+          });
+        },
+      },
+    ]);
+    // ===== STATIC LOGIN - END =====
+
+    // ===== DYNAMIC LOGIN - START (Uncomment this block to hit real APIs) =====
+    // try {
+    //   const result = await dispatch(
+    //     submitSignInAsync({
+    //       email: email.trim(),
+    //       password,
+    //     })
+    //   ).unwrap();
+    //
+    //   // Check if admin or user from the result (not from Redux state)
+    //   const isAdminUser = result.type === 'admin';
+    //   const loginType = isAdminUser ? 'Admin' : 'User';
+    //   const welcomeMessage = isAdminUser
+    //     ? 'Welcome to Admin Dashboard!'
+    //     : 'Welcome back!';
+    //
+    //   console.log(`✅ Login successful as ${loginType}`);
+    //
+    //   Alert.alert('Success', welcomeMessage, [
+    //     {
+    //       text: 'Continue',
+    //       onPress: () => {
+    //         try {
+    //           // Navigate based on the result type, not Redux state
+    //           if (isAdminUser) {
+    //             console.log('🔐 Admin detected, navigating to AdminDashboard');
+    //             (navigation as any).navigate('AdminDashboard');
+    //           } else {
+    //             console.log('👤 User detected, navigating to UserHome');
+    //             (navigation as any).navigate('UserHome');
+    //           }
+    //         } catch (navigationError) {
+    //           console.log('⚠️ Navigation error, using reset:', navigationError);
+    //           // Fallback to reset navigation
+    //           if (isAdminUser) {
+    //             (navigation as any).reset({
+    //               index: 0,
+    //               routes: [{ name: 'AdminDashboard' }],
+    //             });
+    //           } else {
+    //             (navigation as any).reset({
+    //               index: 0,
+    //               routes: [{ name: 'UserHome' }],
+    //             });
+    //           }
+    //         }
+    //       },
+    //     },
+    //   ]);
+    // } catch (err: any) {
+    //   console.error('❌ Login error:', err);
+    //   Alert.alert(
+    //     'Login Failed',
+    //     err || 'Please check your credentials and try again.'
+    //   );
+    // }
+    // ===== DYNAMIC LOGIN - END =====
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {

@@ -129,36 +129,53 @@ export default function ProviderSignInScreen() {
   const handleSignIn = async () => {
     if (!validateForm()) return;
 
-    try {
-      const result = await dispatch(
-        submitProviderSignInAsync({ 
-          email: email.trim(), 
-          password 
-        })
-      ).unwrap();
-      console.log('✅ Sign in successful:', result);
-      
-      // Navigate to HomeServiceProviderDashboard after successful login
-      Alert.alert('Success', 'Welcome back!', [
-        {
-          text: 'Continue',
-          onPress: () => {
-            try {
-              console.log('🏠 Navigating to HomeServiceProviderDashboard');
-              (navigation as any).navigate('HomeServiceProviderDashboard');
-            } catch (navigationError) {
-              console.log('⚠️ Navigation error, using reset:', navigationError);
-              (navigation as any).reset({
-                index: 0,
-                routes: [{ name: 'HomeServiceProviderDashboard' }],
-              });
-            }
-          },
+    // ===== STATIC LOGIN - START (Remove from here to "STATIC LOGIN - END" and uncomment "DYNAMIC LOGIN" below to hit real APIs) =====
+    console.log('👤 Static provider login, navigating to HomeServiceProviderDashboard');
+    Alert.alert('Success', 'Welcome back!', [
+      {
+        text: 'Continue',
+        onPress: () => {
+          (navigation as any).reset({
+            index: 0,
+            routes: [{ name: 'HomeServiceProviderDashboard' }],
+          });
         },
-      ]);
-    } catch (error) {
-      console.error('❌ Sign in error:', error);
-    }
+      },
+    ]);
+    // ===== STATIC LOGIN - END =====
+
+    // ===== DYNAMIC LOGIN - START (Uncomment this block to hit real APIs) =====
+    // try {
+    //   const result = await dispatch(
+    //     submitProviderSignInAsync({ 
+    //       email: email.trim(), 
+    //       password 
+    //     })
+    //   ).unwrap();
+    //   console.log('✅ Sign in successful:', result);
+    //   
+    //   // Navigate to HomeServiceProviderDashboard after successful login
+    //   Alert.alert('Success', 'Welcome back!', [
+    //     {
+    //       text: 'Continue',
+    //       onPress: () => {
+    //         try {
+    //           console.log('🏠 Navigating to HomeServiceProviderDashboard');
+    //           (navigation as any).navigate('HomeServiceProviderDashboard');
+    //         } catch (navigationError) {
+    //           console.log('⚠️ Navigation error, using reset:', navigationError);
+    //           (navigation as any).reset({
+    //             index: 0,
+    //             routes: [{ name: 'HomeServiceProviderDashboard' }],
+    //           });
+    //         }
+    //       },
+    //     },
+    //   ]);
+    // } catch (error) {
+    //   console.error('❌ Sign in error:', error);
+    // }
+    // ===== DYNAMIC LOGIN - END =====
   };
 
   const handleGoogleSignIn = async () => {

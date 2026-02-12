@@ -36,6 +36,8 @@ import {
   Award,
   Heart,
   Gift,
+  Wallet,
+  ArrowUpRight,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../store/store';
@@ -301,6 +303,33 @@ export default function ProviderProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={22} color="#D97706" />
+        </TouchableOpacity>
+
+        {/* Wallet & Earnings Card */}
+        <TouchableOpacity
+          style={styles.walletCard}
+          activeOpacity={0.9}
+          onPress={() => (navigation as any).navigate('ProviderWalletScreen')}
+        >
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.walletGradient}
+          >
+            <View style={styles.walletLeft}>
+              <View style={styles.walletIconContainer}>
+                <Wallet size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.walletInfo}>
+                <Text style={styles.walletLabel}>Wallet Balance</Text>
+                <Text style={styles.walletBalance}>Rs 28,750</Text>
+              </View>
+            </View>
+            <View style={styles.walletAction}>
+              <ArrowUpRight size={18} color="rgba(255,255,255,0.9)" />
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Account Section */}
@@ -629,6 +658,60 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B45309',
   },
+
+  // Wallet Card
+  walletCard: {
+    marginHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.xxl,
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  walletGradient: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    padding: 18,
+  },
+  walletLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  walletIconContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  walletInfo: {
+    marginLeft: 14,
+  },
+  walletLabel: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  walletBalance: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  walletAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+
   section: {
     marginBottom: theme.spacing.xxl,
     paddingHorizontal: theme.spacing.xl,
