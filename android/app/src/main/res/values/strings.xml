@@ -1,0 +1,8 @@
+<resources>
+  <string name="app_name">MetroMatrix</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+  <string name="facebook_app_id">2277966629368711</string>
+  <string name="facebook_client_token">b4ca5891df6414d095cc27abfe52c6ae</string>
+  <string name="fb_login_protocol_scheme">fb2277966629368711</string>
+</resources>

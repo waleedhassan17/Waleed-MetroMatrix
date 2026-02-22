@@ -1,613 +1,560 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+// screens/user/homeservice/providers-chat/providersChatScreen.tsx
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
+  TextInput,
   TouchableOpacity,
-  Dimensions,
-  Animated,
+  KeyboardAvoidingView,
+  Platform,
   StatusBar,
   SafeAreaView,
-  Platform,
-  TextInput,
   Image,
-  KeyboardAvoidingView,
+  Animated,
+  ActivityIndicator,
   Alert,
-  FlatList,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
-const isAndroid = Platform.OS === 'android';
+import { Colors } from '../../../../constants/Colors';
+import { Fonts } from '../../../../constants/Fonts';
+import { RootState } from '../../../../store/store';
+import {
+  initChatRoom,
+  loadMoreMessages,
+  receiveMessage,
+  addOptimisticMessage,
+  setTyping,
+  clearChat,
+  ChatMessage,
+} from './providersChatSlice';
+import SocketService from '../../../../utils/socketService';
+import { chatNetwork } from '../../../../networks/serviceProviders/chatNetwork';
 
-// Service type configurations
-const SERVICE_CONFIG: Record<string, { 
-  title: string; 
-  gradient: string[];
-  lightGradient: string[];
-  accentColor: string;
-}> = {
-  electricians: {
-    title: 'Electrician',
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-  },
-  plumbers: {
-    title: 'Plumber',
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-  },
-  'ac-repairers': {
-    title: 'AC Repairer',
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-  },
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+const SERVICE_CONFIG: Record<string, { gradient: string[]; accentColor: string; title: string }> = {
+  electricians: { gradient: ['#F59E0B', '#D97706'], accentColor: '#F59E0B', title: 'Electrician' },
+  plumbers: { gradient: ['#3B82F6', '#2563EB'], accentColor: '#3B82F6', title: 'Plumber' },
+  'ac-repairers': { gradient: ['#06B6D4', '#0891B2'], accentColor: '#06B6D4', title: 'AC Repairer' },
 };
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'provider';
-  timestamp: Date;
-  status?: 'sent' | 'delivered' | 'read';
-}
-
-interface Provider {
-  id: string;
-  name: string;
-  specialty: string;
-  rating: number;
-  reviews: number;
-  image: string;
-  distance: string;
-}
-
-type ProviderChatScreenRouteParams = {
-  provider?: Provider;
+type ChatScreenParams = {
+  provider?: {
+    id: string;
+    name: string;
+    specialty: string;
+    rating: number;
+    reviews: number;
+    image: string;
+  };
   serviceType?: 'electricians' | 'plumbers' | 'ac-repairers';
-  jobDescription?: string;
-  location?: string;
 };
 
-export default function ProviderChatScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: ProviderChatScreenRouteParams }, 'params'>>();
+// ─── Message Bubble ───────────────────────────────────────────────────────────
 
-  const { 
-    provider, 
-    serviceType = 'ac-repairers', 
-    jobDescription = '', 
-    location = '' 
-  } = route.params || {};
-  
-  const serviceConfig = SERVICE_CONFIG[serviceType] || SERVICE_CONFIG['ac-repairers'];
+interface MessageBubbleProps {
+  message: ChatMessage;
+  isOwn: boolean;
+  accentColor: string;
+  showAvatar: boolean;
+  providerImage?: string;
+}
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: `Hello! I saw your request for ${serviceConfig.title.toLowerCase()} services. I'm available and ready to help.`,
-      sender: 'provider',
-      timestamp: new Date(Date.now() - 60000),
-      status: 'read',
-    },
-    {
-      id: '2',
-      text: `Your job: "${jobDescription}"\n\nI can reach your location at ${location} within 30 minutes. Would you like to confirm the booking?`,
-      sender: 'provider',
-      timestamp: new Date(Date.now() - 30000),
-      status: 'read',
-    },
-  ]);
-  const [inputText, setInputText] = useState('');
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-
-  const scrollViewRef = useRef<ScrollView>(null);
+const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
+  isOwn,
+  accentColor,
+  showAvatar,
+  providerImage,
+}) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const confirmModalAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, []);
 
-  useEffect(() => {
-    Animated.spring(confirmModalAnim, {
-      toValue: showConfirmModal ? 1 : 0,
-      tension: 65,
-      friction: 11,
-      useNativeDriver: true,
-    }).start();
-  }, [showConfirmModal]);
-
-  const handleBackPress = useCallback(() => {
-    if (isConfirmed) {
-      navigation.goBack();
-    } else {
-      Alert.alert(
-        'Leave Chat',
-        'Are you sure you want to leave? Your conversation will be saved.',
-        [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', onPress: () => navigation.goBack() },
-        ]
-      );
-    }
-  }, [navigation, isConfirmed]);
-
-  const handleSendMessage = useCallback(() => {
-    if (!inputText.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      sender: 'user',
-      timestamp: new Date(),
-      status: 'sent',
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setInputText('');
-
-    // Simulate provider response
-    setTimeout(() => {
-      const response: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Thank you for your message. I'll be there as soon as possible!",
-        sender: 'provider',
-        timestamp: new Date(),
-        status: 'delivered',
-      };
-      setMessages(prev => [...prev, response]);
-    }, 2000);
-  }, [inputText]);
-
-  const handleCall = useCallback(() => {
-    Alert.alert(
-      'Call Provider',
-      `Do you want to call ${provider?.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', onPress: () => console.log('Calling...') },
-      ]
-    );
-  }, [provider]);
-
-  const handleConfirmRequest = useCallback(() => {
-    setShowConfirmModal(true);
-  }, []);
-
-  const handleFinalConfirm = useCallback(() => {
-    setIsConfirmed(true);
-    setShowConfirmModal(false);
-
-    const confirmMessage: Message = {
-      id: Date.now().toString(),
-      text: '✅ Booking Confirmed! The provider is on their way.',
-      sender: 'provider',
-      timestamp: new Date(),
-      status: 'delivered',
-    };
-    setMessages(prev => [...prev, confirmMessage]);
-  }, []);
-
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isUser = item.sender === 'user';
-    return (
-      <Animated.View
-        style={[
-          styles.messageContainer,
-          isUser ? styles.userMessageContainer : styles.providerMessageContainer,
-        ]}
-      >
-        {!isUser && (
-          <Image source={{ uri: provider?.image }} style={styles.messageAvatar} />
-        )}
-        <View
-          style={[
-            styles.messageBubble,
-            isUser 
-              ? [styles.userBubble, { backgroundColor: serviceConfig.accentColor }]
-              : styles.providerBubble,
-          ]}
-        >
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-            {item.text}
-          </Text>
-          <View style={styles.messageFooter}>
-            <Text style={[styles.messageTime, isUser && styles.userMessageTime]}>
-              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            {isUser && item.status && (
-              <Ionicons
-                name={item.status === 'read' ? 'checkmark-done' : 'checkmark'}
-                size={14}
-                color="rgba(255,255,255,0.7)"
-                style={styles.statusIcon}
-              />
-            )}
-          </View>
-        </View>
-      </Animated.View>
-    );
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
   };
 
-  if (!provider) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Provider information not found</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.errorLink, { color: serviceConfig.accentColor }]}>Go Back</Text>
-          </TouchableOpacity>
+  const renderStatusIcon = () => {
+    if (!isOwn) return null;
+    switch (message.status) {
+      case 'read':
+        return <Ionicons name="checkmark-done" size={12} color={accentColor} />;
+      case 'delivered':
+        return <Ionicons name="checkmark-done" size={12} color="#94A3B8" />;
+      default:
+        return <Ionicons name="checkmark" size={12} color="#94A3B8" />;
+    }
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.messageRow,
+        isOwn ? styles.messageRowOwn : styles.messageRowOther,
+        { opacity: fadeAnim },
+      ]}
+    >
+      {!isOwn && (
+        <View style={styles.avatarContainer}>
+          {showAvatar ? (
+            providerImage ? (
+              <Image source={{ uri: providerImage }} style={styles.messageAvatar} />
+            ) : (
+              <View style={[styles.messageAvatarPlaceholder, { backgroundColor: accentColor }]}>
+                <Text style={styles.avatarInitial}>P</Text>
+              </View>
+            )
+          ) : (
+            <View style={styles.avatarSpacer} />
+          )}
         </View>
-      </SafeAreaView>
+      )}
+
+      <View style={[styles.bubbleWrapper, isOwn ? styles.bubbleWrapperOwn : styles.bubbleWrapperOther]}>
+        {message.type === 'call_log' ? (
+          <View style={styles.callLogBubble}>
+            <Ionicons name="call" size={14} color="#64748B" />
+            <Text style={styles.callLogText}>{message.content}</Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.bubble,
+              isOwn
+                ? [styles.bubbleOwn, { backgroundColor: accentColor }]
+                : styles.bubbleOther,
+            ]}
+          >
+            <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextOther]}>
+              {message.content}
+            </Text>
+          </View>
+        )}
+
+        <View style={[styles.messageFooter, isOwn && styles.messageFooterOwn]}>
+          <Text style={styles.messageTime}>{formatTime(message.createdAt)}</Text>
+          {renderStatusIcon()}
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
+// ─── Typing Indicator ─────────────────────────────────────────────────────────
+
+const TypingIndicator: React.FC<{ accentColor: string }> = ({ accentColor }) => {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const bounce = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: -6, duration: 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ])
+      );
+
+    const a1 = bounce(dot1, 0);
+    const a2 = bounce(dot2, 150);
+    const a3 = bounce(dot3, 300);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  return (
+    <View style={styles.typingRow}>
+      <View style={styles.typingBubble}>
+        {[dot1, dot2, dot3].map((anim, i) => (
+          <Animated.View
+            key={i}
+            style={[styles.typingDot, { backgroundColor: accentColor, transform: [{ translateY: anim }] }]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+export default function ProvidersChatScreen() {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<{ params: ChatScreenParams }, 'params'>>();
+  const dispatch = useDispatch();
+
+  const { provider, serviceType = 'electricians' } = route.params || {};
+  const serviceConfig = SERVICE_CONFIG[serviceType] || SERVICE_CONFIG.electricians;
+
+  // Redux state
+  const roomId = useSelector((state: RootState) => state.providersChat?.roomId);
+  const messages = useSelector((state: RootState) => state.providersChat?.messages ?? []);
+  const isLoading = useSelector((state: RootState) => state.providersChat?.isLoading);
+  const isTyping = useSelector((state: RootState) => state.providersChat?.isTyping);
+  const hasMore = useSelector((state: RootState) => state.providersChat?.hasMore);
+  const page = useSelector((state: RootState) => state.providersChat?.page ?? 1);
+  const currentUser = useSelector((state: RootState) => (state as any).auth?.user);
+
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Initialize chat room & socket ───────────────────────────────
+  useEffect(() => {
+    if (!provider?.id) return;
+
+    // Init room + load messages
+    dispatch(initChatRoom({ providerId: provider.id, serviceType }) as any);
+
+    // Connect socket and join room once roomId is available
+    return () => {
+      dispatch(clearChat());
+    };
+  }, [provider?.id, serviceType]);
+
+  // Join socket room once roomId is available
+  useEffect(() => {
+    if (!roomId) return;
+
+    SocketService.joinRoom(roomId);
+    chatNetwork.markAsRead(roomId).catch(() => {}); // mark as read on open
+
+    // Subscribe to incoming messages
+    const unsubMessage = SocketService.onMessage((data) => {
+      if (data.roomId === roomId) {
+        dispatch(receiveMessage(data));
+      }
+    });
+
+    // Subscribe to typing events
+    const unsubTyping = SocketService.onTyping(() => {
+      dispatch(setTyping(true));
+    });
+    const unsubStopTyping = SocketService.onStopTyping(() => {
+      dispatch(setTyping(false));
+    });
+
+    // Emit read status to update sender
+    SocketService.emitRead(roomId);
+
+    return () => {
+      SocketService.leaveRoom(roomId);
+      unsubMessage();
+      unsubTyping();
+      unsubStopTyping();
+    };
+  }, [roomId]);
+
+  // Auto-scroll to bottom on new message
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [messages.length]);
+
+  // ── Send message ─────────────────────────────────────────────────
+  const handleSend = useCallback(() => {
+    const content = inputText.trim();
+    if (!content || !roomId || isSending) return;
+
+    setInputText('');
+    setIsSending(true);
+
+    // Optimistic message
+    const optimistic: ChatMessage = {
+      _id: `optimistic_${Date.now()}`,
+      senderId: currentUser?.id || 'me',
+      senderType: 'User',
+      content,
+      type: 'text',
+      status: 'sent',
+      createdAt: new Date().toISOString(),
+    };
+    dispatch(addOptimisticMessage(optimistic));
+
+    // Send via Socket.IO
+    SocketService.sendMessage(roomId, content);
+    SocketService.emitStopTyping(roomId);
+
+    setIsSending(false);
+  }, [inputText, roomId, isSending, currentUser?.id, dispatch]);
+
+  // ── Typing detection ─────────────────────────────────────────────
+  const handleInputChange = useCallback((text: string) => {
+    setInputText(text);
+    if (!roomId) return;
+
+    SocketService.emitTyping(roomId);
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      SocketService.emitStopTyping(roomId);
+    }, 1500);
+  }, [roomId]);
+
+  // ── Load more (pagination) ────────────────────────────────────────
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || isLoading || !roomId) return;
+    dispatch(loadMoreMessages({ roomId, page: page + 1 }) as any);
+  }, [hasMore, isLoading, roomId, page, dispatch]);
+
+  // ── Navigate to call screen ───────────────────────────────────────
+  const handleCallPress = useCallback(() => {
+    // @ts-ignore
+    navigation.navigate('CallScreen', {
+      provider,
+      serviceType,
+    });
+  }, [navigation, provider, serviceType]);
+
+  // ── Render helpers ────────────────────────────────────────────────
+  const renderMessage = useCallback(({ item, index }: { item: ChatMessage; index: number }) => {
+    const isOwn = item.senderType === 'User';
+    const prevMsg = messages[index - 1];
+    const showAvatar = !isOwn && (!prevMsg || prevMsg.senderType !== item.senderType);
+
+    return (
+      <MessageBubble
+        key={item._id}
+        message={item}
+        isOwn={isOwn}
+        accentColor={serviceConfig.accentColor}
+        showAvatar={showAvatar}
+        providerImage={provider?.image}
+      />
     );
-  }
+  }, [messages, serviceConfig.accentColor, provider?.image]);
+
+  const quickReplies = useMemo(() => [
+    'What is your availability?',
+    'How much will it cost?',
+    'Are you near my location?',
+    'How long will it take?',
+  ], []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
-        translucent={!isAndroid}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          { opacity: fadeAnim },
-        ]}
-      >
-        <LinearGradient
-          colors={['#FFFFFF', '#FAFAFA']}
-          style={styles.headerGradient}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackPress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chevron-back" size={22} color="#1E293B" />
-            </TouchableOpacity>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color="#1E293B" />
+        </TouchableOpacity>
 
-            <TouchableOpacity style={styles.providerHeaderInfo} activeOpacity={0.8}>
-              <View style={styles.providerAvatarContainer}>
-                <Image source={{ uri: provider.image }} style={styles.headerAvatar} />
-                <View style={styles.onlineBadge} />
-              </View>
-              <View style={styles.providerHeaderText}>
-                <Text style={styles.providerHeaderName}>{provider.name}</Text>
-                <View style={styles.providerHeaderMeta}>
-                  <Text style={styles.providerHeaderSpecialty}>{provider.specialty}</Text>
-                  <View style={styles.headerRating}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.headerRatingText}>{provider.rating}</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={handleCall}
-                activeOpacity={0.8}
+        <TouchableOpacity style={styles.headerProfile} activeOpacity={0.8}>
+          <View style={styles.headerAvatarWrapper}>
+            {provider?.image ? (
+              <Image source={{ uri: provider.image }} style={styles.headerAvatar} />
+            ) : (
+              <LinearGradient
+                colors={serviceConfig.gradient as [string, string]}
+                style={styles.headerAvatarPlaceholder}
               >
-                <LinearGradient
-                  colors={['#ECFDF5', '#D1FAE5']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="call" size={18} color="#10B981" />
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#F1F5F9', '#E2E8F0']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="ellipsis-vertical" size={18} color="#64748B" />
-                </LinearGradient>
-              </TouchableOpacity>
+                <Text style={styles.headerAvatarInitial}>
+                  {provider?.name?.[0] || 'P'}
+                </Text>
+              </LinearGradient>
+            )}
+            <View style={styles.onlineIndicator} />
+          </View>
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {provider?.name || 'Service Provider'}
+            </Text>
+            <View style={styles.headerMeta}>
+              <View style={[styles.servicePill, { backgroundColor: `${serviceConfig.accentColor}18` }]}>
+                <Text style={[styles.servicePillText, { color: serviceConfig.accentColor }]}>
+                  {serviceConfig.title}
+                </Text>
+              </View>
+              <Text style={styles.onlineText}>● Online</Text>
             </View>
           </View>
-        </LinearGradient>
-      </Animated.View>
+        </TouchableOpacity>
 
-      {/* Booking Status Banner */}
-      {isConfirmed && (
-        <LinearGradient
-          colors={['#ECFDF5', '#D1FAE5']}
-          style={styles.statusBanner}
+        <TouchableOpacity
+          style={[styles.callHeaderButton, { backgroundColor: `${serviceConfig.accentColor}12` }]}
+          onPress={handleCallPress}
+          activeOpacity={0.8}
         >
-          <View style={styles.statusBannerIcon}>
-            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          </View>
-          <View style={styles.statusBannerText}>
-            <Text style={styles.statusBannerTitle}>Booking Confirmed!</Text>
-            <Text style={styles.statusBannerSubtitle}>Provider is on their way</Text>
-          </View>
-        </LinearGradient>
-      )}
+          <Ionicons name="call" size={20} color={serviceConfig.accentColor} />
+        </TouchableOpacity>
+      </View>
 
+      {/* ── Accent Line ── */}
+      <LinearGradient
+        colors={serviceConfig.gradient as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerAccent}
+      />
+
+      {/* ── Messages ── */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* Messages */}
-        <FlatList
-          ref={scrollViewRef as any}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-        />
-
-        {/* Confirm Request Banner */}
-        {!isConfirmed && (
-          <Animated.View
-            style={[
-              styles.confirmBanner,
-              { opacity: fadeAnim },
-            ]}
-          >
-            <LinearGradient
-              colors={serviceConfig.lightGradient as [string, string]}
-              style={styles.confirmBannerGradient}
-            >
-              <View style={styles.confirmBannerContent}>
-                <View style={[styles.confirmIcon, { backgroundColor: `${serviceConfig.accentColor}20` }]}>
-                  <Ionicons name="checkmark-circle-outline" size={24} color={serviceConfig.accentColor} />
-                </View>
-                <View style={styles.confirmTextContainer}>
-                  <Text style={styles.confirmTitle}>Ready to book?</Text>
-                  <Text style={styles.confirmSubtitle}>Confirm your request with {provider.name}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={handleConfirmRequest}
-                activeOpacity={0.9}
-              >
+        {isLoading && messages.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={serviceConfig.accentColor} />
+            <Text style={styles.loadingText}>Loading messages...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item._id}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.messagesList}
+            onScrollToIndexFailed={() => {}}
+            onStartReached={handleLoadMore}
+            onStartReachedThreshold={0.1}
+            ListHeaderComponent={
+              isLoading && hasMore ? (
+                <ActivityIndicator size="small" color={serviceConfig.accentColor} style={{ margin: 12 }} />
+              ) : null
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
                 <LinearGradient
-                  colors={serviceConfig.gradient as [string, string]}
-                  style={styles.confirmButtonGradient}
+                  colors={[`${serviceConfig.accentColor}18`, `${serviceConfig.accentColor}08`]}
+                  style={styles.emptyIcon}
                 >
-                  <Text style={styles.confirmButtonText}>Confirm</Text>
+                  <Ionicons name="chatbubbles-outline" size={40} color={serviceConfig.accentColor} />
                 </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </Animated.View>
+                <Text style={styles.emptyTitle}>Start the conversation</Text>
+                <Text style={styles.emptySubtitle}>
+                  Message {provider?.name || 'this provider'} about your service needs
+                </Text>
+              </View>
+            }
+            ListFooterComponent={isTyping ? (
+              <TypingIndicator accentColor={serviceConfig.accentColor} />
+            ) : null}
+          />
         )}
 
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={24} color="#64748B" />
-            </TouchableOpacity>
+        {/* ── Quick Replies ── */}
+        {messages.length === 0 && !isLoading && (
+          <View style={styles.quickRepliesContainer}>
+            <Text style={styles.quickRepliesLabel}>Quick messages</Text>
+            <View style={styles.quickRepliesScroll}>
+              {quickReplies.map((reply, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.quickReplyChip, { borderColor: serviceConfig.accentColor }]}
+                  onPress={() => setInputText(reply)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.quickReplyText, { color: serviceConfig.accentColor }]}>
+                    {reply}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
+        {/* ── Input Bar ── */}
+        <View style={styles.inputBar}>
+          <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message..."
               placeholderTextColor="#94A3B8"
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               multiline
-              maxLength={500}
+              maxLength={2000}
+              returnKeyType="default"
             />
-
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                inputText.trim() && { backgroundColor: serviceConfig.accentColor },
-              ]}
-              onPress={handleSendMessage}
-              activeOpacity={0.8}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons
-                name="send"
-                size={18}
-                color={inputText.trim() ? '#FFFFFF' : '#94A3B8'}
-              />
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              { backgroundColor: inputText.trim() ? serviceConfig.accentColor : '#E2E8F0' },
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="send"
+              size={18}
+              color={inputText.trim() ? '#FFFFFF' : '#94A3B8'}
+            />
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            {
-              opacity: confirmModalAnim,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setShowConfirmModal(false)}
-          />
-          <Animated.View
-            style={[
-              styles.confirmModal,
-              {
-                transform: [{
-                  translateY: confirmModalAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  }),
-                }],
-              },
-            ]}
-          >
-            <View style={styles.modalHandle} />
-            
-            <View style={styles.modalHeader}>
-              <LinearGradient
-                colors={serviceConfig.gradient as [string, string]}
-                style={styles.modalIconBg}
-              >
-                <Ionicons name="checkmark-done" size={32} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.modalTitle}>Confirm Booking</Text>
-              <Text style={styles.modalSubtitle}>
-                You're about to book {provider.name} for your service request
-              </Text>
-            </View>
-
-            <View style={styles.modalDetails}>
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="person-outline" size={18} color="#64748B" />
-                </View>
-                <View>
-                  <Text style={styles.modalDetailLabel}>Provider</Text>
-                  <Text style={styles.modalDetailValue}>{provider.name}</Text>
-                </View>
-              </View>
-
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="location-outline" size={18} color="#64748B" />
-                </View>
-                <View style={styles.modalDetailTextContainer}>
-                  <Text style={styles.modalDetailLabel}>Location</Text>
-                  <Text style={styles.modalDetailValue} numberOfLines={2}>{location}</Text>
-                </View>
-              </View>
-
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="document-text-outline" size={18} color="#64748B" />
-                </View>
-                <View style={styles.modalDetailTextContainer}>
-                  <Text style={styles.modalDetailLabel}>Job Description</Text>
-                  <Text style={styles.modalDetailValue} numberOfLines={2}>{jobDescription}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowConfirmModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleFinalConfirm}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={serviceConfig.gradient as [string, string]}
-                  style={styles.modalConfirmGradient}
-                >
-                  <Text style={styles.modalConfirmText}>Confirm Booking</Text>
-                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </Animated.View>
-      )}
     </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#64748B',
-    marginBottom: 12,
-  },
-  errorLink: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  flex: { flex: 1 },
+
+  // Header
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-  },
-  headerGradient: {
-    paddingTop: isAndroid ? StatusBar.currentHeight : 0,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    gap: 12,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
-    marginRight: 8,
-  },
-  providerHeaderInfo: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
   },
-  providerAvatarContainer: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  headerAvatar: {
+  headerProfile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerAvatarWrapper: { width: 44, height: 44, position: 'relative' },
+  headerAvatar: { width: 44, height: 44, borderRadius: 14 },
+  headerAvatarPlaceholder: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  onlineBadge: {
+  headerAvatarInitial: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  onlineIndicator: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 1,
+    right: 1,
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -615,347 +562,158 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
-  providerHeaderText: {
-    flex: 1,
-  },
-  providerHeaderName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  providerHeaderMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
-  },
-  providerHeaderSpecialty: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  headerRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  headerRatingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerActionButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionButtonGradient: {
+  headerInfo: { flex: 1 },
+  headerName: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+  servicePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  servicePillText: { fontSize: 11, fontWeight: '600' },
+  onlineText: { fontSize: 11, color: '#10B981', fontWeight: '500' },
+  callHeaderButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
+    borderRadius: 12,
     justifyContent: 'center',
-  },
-  statusBanner: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
   },
-  statusBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+  headerAccent: { height: 3 },
+
+  // Messages list
+  messagesList: { padding: 16, paddingBottom: 8 },
+
+  // Loading
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: '#64748B' },
+
+  // Empty state
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
     justifyContent: 'center',
-  },
-  statusBannerText: {
-    flex: 1,
-  },
-  statusBannerTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  statusBannerSubtitle: {
-    fontSize: 12,
-    color: '#047857',
-    marginTop: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  messagesContainer: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  messageContainer: {
-    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
-    alignItems: 'flex-end',
   },
-  userMessageContainer: {
-    justifyContent: 'flex-end',
-  },
-  providerMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  messageAvatar: {
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, color: '#94A3B8', textAlign: 'center', maxWidth: 240 },
+
+  // Message rows
+  messageRow: { flexDirection: 'row', marginVertical: 2, alignItems: 'flex-end' },
+  messageRowOwn: { justifyContent: 'flex-end' },
+  messageRowOther: { justifyContent: 'flex-start' },
+
+  // Avatar in messages
+  avatarContainer: { width: 32, marginRight: 8 },
+  messageAvatar: { width: 32, height: 32, borderRadius: 10 },
+  messageAvatarPlaceholder: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  messageBubble: {
-    maxWidth: '75%',
+  avatarInitial: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  avatarSpacer: { width: 32 },
+
+  // Bubble
+  bubbleWrapper: { maxWidth: '72%' },
+  bubbleWrapperOwn: { alignItems: 'flex-end' },
+  bubbleWrapperOther: { alignItems: 'flex-start' },
+  bubble: {
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 18,
+    marginBottom: 3,
   },
-  userBubble: {
-    borderBottomRightRadius: 4,
-  },
-  providerBubble: {
-    backgroundColor: '#FFFFFF',
+  bubbleOwn: { borderBottomRightRadius: 4 },
+  bubbleOther: {
+    backgroundColor: '#F1F5F9',
     borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  messageText: {
-    fontSize: 15,
-    color: '#1E293B',
-    lineHeight: 21,
-  },
-  userMessageText: {
-    color: '#FFFFFF',
-  },
-  messageFooter: {
+  bubbleText: { fontSize: 15, lineHeight: 20 },
+  bubbleTextOwn: { color: '#FFFFFF' },
+  bubbleTextOther: { color: '#1E293B' },
+
+  // Call log bubble
+  callLogBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 4,
-    gap: 4,
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  userMessageTime: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  statusIcon: {
-    marginLeft: 2,
-  },
-  confirmBanner: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  confirmBannerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  confirmBannerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  confirmIcon: {
-    width: 40,
-    height: 40,
+    gap: 6,
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmTextContainer: {
-    flex: 1,
-  },
-  confirmTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  confirmSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  confirmButton: {
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  confirmButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  inputContainer: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 3,
   },
-  inputWrapper: {
+  callLogText: { fontSize: 13, color: '#64748B' },
+
+  // Message footer (time + status)
+  messageFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  messageFooterOwn: { justifyContent: 'flex-end' },
+  messageTime: { fontSize: 11, color: '#94A3B8' },
+
+  // Typing indicator
+  typingRow: { flexDirection: 'row', marginVertical: 4, paddingLeft: 40 },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  typingDot: { width: 8, height: 8, borderRadius: 4 },
+
+  // Quick replies
+  quickRepliesContainer: { paddingHorizontal: 16, paddingBottom: 8 },
+  quickRepliesLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 8 },
+  quickRepliesScroll: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  quickReplyChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    backgroundColor: '#FAFAFA',
+  },
+  quickReplyText: { fontSize: 13, fontWeight: '500' },
+
+  // Input bar
+  inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 24,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 10,
   },
-  attachButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    maxHeight: 120,
   },
   textInput: {
-    flex: 1,
     fontSize: 15,
     color: '#1E293B',
+    padding: 0,
+    margin: 0,
     maxHeight: 100,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  confirmModal: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  modalHeader: {
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  modalDetails: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    gap: 16,
-  },
-  modalDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  modalDetailIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalDetailTextContainer: {
-    flex: 1,
-  },
-  modalDetailLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginBottom: 2,
-  },
-  modalDetailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E293B',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  modalConfirmButton: {
-    flex: 2,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  modalConfirmGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });

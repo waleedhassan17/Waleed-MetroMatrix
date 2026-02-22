@@ -1,59 +1,71 @@
-// ============================================
-// CHAT NETWORK APIs
-// ============================================
+// networks/serviceProviders/chatNetwork.ts
+import { network } from '../network/network'; // your existing network instance
 
-import { ChatData, ChatMessage, ApiResponse } from '../../models/serviceProviders';
-import { apiRequest, USE_DUMMY_DATA } from './config';
+const BASE = '/api/chat';
 
-export async function fetchChatData(
-  bookingId: string
-): Promise<ApiResponse<ChatData>> {
-  if (USE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+export const chatNetwork = {
+  /**
+   * Find or create a chat room between the logged-in user and a provider.
+   */
+  findOrCreateRoom: async (providerId: string, serviceType: string) => {
+    const response = await network.post(`${BASE}/rooms`, { providerId, serviceType });
+    return response.data;
+  },
 
-    return {
-      success: true,
-      data: {
-        bookingId,
-        participants: {
-          user: { id: 'user1', name: 'Current User', image: undefined },
-          provider: { id: '1', name: 'John Smith', image: 'https://randomuser.me/api/portraits/men/1.jpg' },
-        },
-        messages: [
-          { id: '1', text: 'Hello! I\'m on my way to your location.', sender: 'provider', timestamp: new Date(Date.now() - 10 * 60000).toISOString(), status: 'read' },
-          { id: '2', text: 'Great, thank you! How long will you take?', sender: 'user', timestamp: new Date(Date.now() - 8 * 60000).toISOString(), status: 'read' },
-          { id: '3', text: 'I should be there in about 15 minutes.', sender: 'provider', timestamp: new Date(Date.now() - 5 * 60000).toISOString(), status: 'read' },
-        ],
-      },
-      message: 'Chat data fetched',
-    };
-  }
+  /**
+   * Fetch all chat rooms for the current user (inbox).
+   */
+  getChatRooms: async () => {
+    const response = await network.get(`${BASE}/rooms`);
+    return response.data;
+  },
 
-  return apiRequest<ChatData>(`/chat/${bookingId}`);
-}
+  /**
+   * Fetch paginated messages for a room.
+   */
+  getMessages: async (roomId: string, page = 1, limit = 30) => {
+    const response = await network.get(
+      `${BASE}/rooms/${roomId}/messages?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
 
-export async function sendChatMessage(data: {
-  bookingId: string;
-  message: string;
-}): Promise<ApiResponse<ChatMessage>> {
-  if (USE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  /**
+   * Mark all messages in a room as read.
+   */
+  markAsRead: async (roomId: string) => {
+    const response = await network.patch(`${BASE}/rooms/${roomId}/read`, {});
+    return response.data;
+  },
 
-    return {
-      success: true,
-      data: {
-        id: `msg_${Date.now()}`,
-        text: data.message,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
-        status: 'sent',
-      },
-      message: 'Message sent',
-    };
-  }
+  /**
+   * Request an Agora token for voice calling.
+   */
+  generateCallToken: async (channelName: string, uid = 0) => {
+    const response = await network.post(`${BASE}/call/token`, { channelName, uid });
+    return response.data;
+  },
 
-  return apiRequest<ChatMessage>(`/chat/${data.bookingId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({ message: data.message }),
-  });
-}
+  /**
+   * Save a call log after a call ends.
+   */
+  saveCallLog: async (params: {
+    receiverId: string;
+    receiverType: string;
+    channelName: string;
+    status: string;
+    durationSeconds: number;
+    serviceType: string;
+  }) => {
+    const response = await network.post(`${BASE}/call/log`, params);
+    return response.data;
+  },
+
+  /**
+   * Get call history.
+   */
+  getCallLogs: async () => {
+    const response = await network.get(`${BASE}/call/logs`);
+    return response.data;
+  },
+};

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1007229712045",
+    "project_id": "metromatrix-31f9f",
+    "storage_bucket": "metromatrix-31f9f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1007229712045:android:208adceaeff5ad01d87824",
+        "android_client_info": {
+          "package_name": "com.waleed17.MetroMatrix"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1007229712045-hepjj2fjm3laq4amgjt0frij6hu0h8s4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiGFBDf-KmddGy9HmpGF1YoO5-ukR8lFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1007229712045-hepjj2fjm3laq4amgjt0frij6hu0h8s4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

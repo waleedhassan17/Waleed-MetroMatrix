@@ -1,8 +1,8 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Platform, ActivityIndicator, View, Linking } from "react-native";
+import { StyleSheet, Platform, ActivityIndicator, View, Linking, Alert } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../hooks/useReduxHooks";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -31,6 +31,11 @@ import {
   retrieveData,
 } from "../../utils/storage_utils/storageUtils";
 
+// ── NEW imports ───────────────────────────────────────────────────────────────
+import SocketService from "../../utils/socketService";
+import { NavigationContainerRef } from "@react-navigation/native";
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Define colors
 const Black = "#000000";
 const White = "#FFFFFF";
@@ -50,6 +55,10 @@ export const AppContainer: React.FC = () => {
   const onboardingComplete = useAppSelector((state) => state.appContainer.isOnboardingComplete);
   const selectedRole = useAppSelector((state) => state.appContainer.selectedRole);
 
+  // ── NEW: navigation ref so we can navigate from outside components ──────────
+  const navigationRef = useRef<NavigationContainerRef<any>>(null);
+  // ───────────────────────────────────────────────────────────────────────────
+
   // Initialize app and check authentication status
   const initializeApp = useCallback(async () => {
     try {
@@ -67,6 +76,11 @@ export const AppContainer: React.FC = () => {
         // If token exists, fetch user data
         await dispatch(fetchMe()).unwrap();
         console.log('✅ User data fetched');
+
+        // ── NEW: reconnect socket on app restart if already logged in ──────
+        SocketService.connect(token as string);
+        console.log('🔌 Socket reconnected on app restart');
+        // ──────────────────────────────────────────────────────────────────
       } else {
         console.log('ℹ️ No token found');
       }
@@ -82,23 +96,98 @@ export const AppContainer: React.FC = () => {
     initializeApp();
   }, [initializeApp]);
 
+  // ── NEW: Connect socket when user/provider logs in; disconnect on logout ────
+  //
+  // This watches the auth state. When currentUser or currentProvider appears
+  // (after login OR after app restart + fetchMe), we grab the token from storage
+  // and connect. When both are null (logout), we disconnect.
+  //
+  useEffect(() => {
+    const isLoggedIn = !!(currentUser || currentProvider);
+
+    if (isLoggedIn) {
+      // Only connect if not already connected (avoids double-connect)
+      if (!SocketService.isConnected()) {
+        retrieveData(KeyForStorage.accessToken).then((token) => {
+          if (token) {
+            SocketService.connect(token as string);
+            console.log('🔌 Socket connected after login');
+          }
+        });
+      }
+    } else {
+      // User logged out — disconnect socket
+      if (SocketService.isConnected()) {
+        SocketService.disconnect();
+        console.log('🔌 Socket disconnected after logout');
+      }
+    }
+  }, [currentUser, currentProvider]);
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // ── NEW: Global incoming call listener ─────────────────────────────────────
+  //
+  // This is only relevant for PROVIDERS (users initiate calls, providers receive them).
+  // Shows a native Alert with Accept / Decline. On Accept, navigates to CallScreen.
+  //
+  useEffect(() => {
+    if (userType !== 'provider') return; // users don't receive calls here
+
+    const unsubscribe = SocketService.onCallEvent('call:incoming', (data) => {
+      const callerName = data.callerInfo?.name || 'A customer';
+      const serviceType = data.serviceType || 'general';
+
+      Alert.alert(
+        '📞 Incoming Call',
+        `${callerName} is calling`,
+        [
+          {
+            text: 'Decline',
+            style: 'destructive',
+            onPress: () => {
+              SocketService.rejectCall({
+                callerId: data.callerId,
+                callerRole: data.callerRole,
+                channelName: data.channelName,
+              });
+              console.log('📵 Call declined');
+            },
+          },
+          {
+            text: 'Accept',
+            onPress: () => {
+              // Navigate to CallScreen passing the full incoming call data
+              navigationRef.current?.navigate('CallScreen', {
+                serviceType,
+                incomingCallData: {
+                  callerId: data.callerId,
+                  callerRole: data.callerRole,
+                  channelName: data.channelName,
+                  callerInfo: data.callerInfo,
+                },
+              });
+            },
+          },
+        ],
+        { cancelable: false } // prevent dismissing by tapping outside
+      );
+    });
+
+    return () => unsubscribe();
+  }, [userType]); // re-registers if role changes (edge case: same device role switch)
+  // ───────────────────────────────────────────────────────────────────────────
+
   // 🔥 Firebase Auth State Listener - VERY IMPORTANT
-  // This listens for Firebase authentication state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         console.log('🔥 Firebase user authenticated:', firebaseUser.email);
         console.log('🔥 Firebase UID:', firebaseUser.uid);
-        // Firebase user is authenticated
-        // You can dispatch actions here if needed to update Redux state
-        // For example: dispatch(setFirebaseUser(firebaseUser));
       } else {
         console.log('🔥 Firebase user signed out');
-        // User is signed out from Firebase
       }
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [dispatch]);
 
@@ -139,19 +228,16 @@ export const AppContainer: React.FC = () => {
       hasProvider: !!currentProvider,
     });
 
-    // Check onboarding status
     if (!onboardingComplete) {
       console.log('➡️ Navigating to Splash (onboarding not complete)');
       return BaseRouteNames.Splash;
     }
     
-    // Check if role is selected
     if (!selectedRole) {
       console.log('➡️ Navigating to RoleSelection (no role selected)');
       return BaseRouteNames.RoleSelection;
     }
     
-    // Check authentication based on user type
     if (userType === 'provider' && currentProvider) {
       console.log('➡️ Navigating to HomeServiceProviderDashboard (authenticated provider)');
       return BaseRouteNames.HomeServiceProviderDashboard;
@@ -160,7 +246,6 @@ export const AppContainer: React.FC = () => {
       return BaseRouteNames.UserHome;
     }
     
-    // Not authenticated, check role to show appropriate sign in
     if (selectedRole === 'provider') {
       console.log('➡️ Navigating to ProviderSignIn (provider not authenticated)');
       return BaseRouteNames.ProviderSignIn;
@@ -169,25 +254,21 @@ export const AppContainer: React.FC = () => {
       return BaseRouteNames.SignIn;
     }
     
-    // Default to role selection if nothing else matches
     console.log('➡️ Navigating to RoleSelection (default)');
     return BaseRouteNames.RoleSelection;
   };
 
   const initialRoute = getInitialRoute();
 
-  // ✅ Deep linking configuration for email verification and OAuth
+  // ✅ Deep linking configuration
   const linking = {
     prefixes: ['metromatrix://', 'https://metromatrix.com', 'https://*.metromatrix.com'],
     config: {
       screens: {
         EmailVerification: {
           path: 'verify-email/:token',
-          parse: {
-            token: (token: string) => token,
-          },
+          parse: { token: (token: string) => token },
         },
-        // ✅ Handle verify-success with tokens from backend
         VerifySuccess: {
           path: 'verify-success',
           parse: {
@@ -198,23 +279,12 @@ export const AppContainer: React.FC = () => {
         },
         ResetPassword: {
           path: 'reset-password/:token',
-          parse: {
-            token: (token: string) => token,
-          },
+          parse: { token: (token: string) => token },
         },
-        // ✅ OAuth callback routes for Google/Facebook sign-in
-        SignIn: {
-          path: 'auth/google',
-        },
-        ProviderSignIn: {
-          path: 'auth/provider/google',
-        },
-        UserHome: {
-          path: 'home',
-        },
-        HomeServiceProviderDashboard: {
-          path: 'provider/dashboard',
-        },
+        SignIn: { path: 'auth/google' },
+        ProviderSignIn: { path: 'auth/provider/google' },
+        UserHome: { path: 'home' },
+        HomeServiceProviderDashboard: { path: 'provider/dashboard' },
       },
     },
   };
@@ -223,7 +293,8 @@ export const AppContainer: React.FC = () => {
     <GestureHandlerRootView style={styles.gestureStyle}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <NavigationContainer linking={linking}>
+        {/* ── NEW: pass ref to NavigationContainer ── */}
+        <NavigationContainer linking={linking} ref={navigationRef}>
           <BaseNavigator initialRouteName={initialRoute} />
         </NavigationContainer>
       </SafeAreaProvider>

@@ -14,6 +14,8 @@ import { resetPasswordSlice } from "../screens/authentication-screens/reset-pass
 import { resetPasswordOtpSlice } from "../screens/authentication-screens/reset-password-otp/resetPasswordOtpSlice";
 import { emailVerificationSlice } from "../screens/authentication-screens/email-verification/emailVerificationSlice";
 
+import providersChatReducer from '../screens/user/homeservice/providers-chat/providersChatSlice';
+
 import { adminSlice } from "../screens/admin/admin-dashboard/adminSlice";
 import { providerApprovalSlice } from "../screens/authentication-screens/provider-approval-pending/providerApprovalSlice";
 import userHomeReducer from "../screens/user-home/userhomeSlice";
@@ -108,6 +110,8 @@ export const store = configureStore({
     adminSPDashboard: adminServiceProvidersDashboardReducer,
     adminSPBookings: adminServiceProvidersBookingsReducer,
     adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
+	
+	providersChat: providersChatReducer,
   },
 });
 

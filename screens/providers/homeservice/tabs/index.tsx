@@ -9,6 +9,8 @@ import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
 import ProfileScreen from '../profie-screen/profile';
 
+import { Ionicons } from '@expo/vector-icons';
+
 // Navigation Types
 type TabParamList = {
   Dashboard: undefined;
@@ -114,6 +116,16 @@ const HomeServiceProviderLayout: React.FC = () => {
           ),
         }}
       />
+	  <Tab.Screen
+  name="Messages"
+  component={ProviderChatListScreen}
+  options={{
+    tabBarIcon: ({ color, size }) => (
+      <Ionicons name="chatbubbles-outline" size={size} color={color} />
+    ),
+    tabBarLabel: 'Messages',
+  }}
+/>
     </Tab.Navigator>
   );
 };

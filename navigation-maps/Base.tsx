@@ -11,6 +11,9 @@ import SignIn from "../screens/user-authentication/signin-screen/signin";
 import SignUp from "../screens/user-authentication/signup-screen/signup";
 import CompleteProfile from "../screens/authentication-screens/profile-info/completeProfile";
 
+import ProviderChatListScreen from "../screens/providers/homeservice/chat/providerChatListScreen";
+import ProviderChatRoomScreen from "../screens/providers/homeservice/chat/providerChatRoomScreen";
+
 // Provider Authentication Screens
 import ProviderSignIn from "../screens/provider-authentication/signin-screen/signin";
 import ProviderSignUp from "../screens/provider-authentication/signup-screen/signup";
@@ -78,6 +81,9 @@ export const BaseRouteNames = {
   ProviderSignUp: "ProviderSignUp",
   PersonalInfo: "PersonalInfo",
 
+  ProviderChatRoom: "ProviderChatRoom",
+  ProviderChatList: "ProviderChatList",
+  
   //Admin
   AdminDashboardScreen: "AdminDashboard",
   ProviderManagementScreen: "ProviderManagement",
@@ -143,6 +149,9 @@ export type RootStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
   CompleteProfile: { userId: string };
+  
+  ProviderChatRoom: { room: any; otherParty: any };
+  ProviderChatList: undefined;
   
   // Provider Authentication
   ProviderSignIn: undefined;
@@ -245,6 +254,19 @@ export const BaseRoutes: IRoute[] = [
       animation: 'slide_from_right',
     },
   },
+  
+  
+  {
+  component: ProviderChatListScreen,
+  title: BaseRouteNames.ProviderChatList,
+  options: { headerShown: false, animation: 'slide_from_right' }
+},
+{
+  component: ProviderChatRoomScreen,
+  title: BaseRouteNames.ProviderChatRoom,
+  options: { headerShown: false, animation: 'slide_from_right' }
+},
+  
   
   // User Authentication Routes
   {
