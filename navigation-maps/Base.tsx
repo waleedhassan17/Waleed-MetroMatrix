@@ -60,6 +60,14 @@ import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-sc
 import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
 
+// Healthcare Module
+import HealthcareStack from "../navigators/HealthcareStack";
+import DoctorStack from "../navigators/DoctorStack";
+
+// Admin Healthcare
+import HealthcareAnalyticsScreen from "../screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen";
+import SpecialtyManagementScreen from "../screens/admin/healthcare/SpecialtyManagement/SpecialtyManagementScreen";
+
 // Route names enum for type safety
 export const BaseRouteNames = {
   // Onboarding
@@ -127,6 +135,14 @@ export const BaseRouteNames = {
   AwaitingApproval: "AwaitingApproval",
   PaymentRequest: "PaymentRequest",
   JobCompletion: "JobCompletion",
+
+  // Admin Healthcare
+  HealthcareAnalytics: "HealthcareAnalytics",
+  SpecialtyManagement: "SpecialtyManagement",
+
+  // Healthcare Module
+  HealthcareStack: "HealthcareStack",
+  DoctorStack: "DoctorStack",
 } as const;
 
 export type BaseRouteName = typeof BaseRouteNames[keyof typeof BaseRouteNames];
@@ -201,6 +217,14 @@ export type RootStackParamList = {
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;
+
+  // Admin Healthcare
+  HealthcareAnalytics: undefined;
+  SpecialtyManagement: undefined;
+
+  // Healthcare Module
+  HealthcareStack: undefined;
+  DoctorStack: undefined;
 };
 
 // Route interface
@@ -565,6 +589,38 @@ export const BaseRoutes: IRoute[] = [
       headerShown: false,
       animation: 'slide_from_right',
     }
-  }
+  },
+
+  // Admin Healthcare Routes
+  {
+    component: HealthcareAnalyticsScreen,
+    title: BaseRouteNames.HealthcareAnalytics,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: SpecialtyManagementScreen,
+    title: BaseRouteNames.SpecialtyManagement,
+    options: {
+      headerShown: false,
+    }
+  },
+
+  // Healthcare Module Routes
+  {
+    component: HealthcareStack,
+    title: BaseRouteNames.HealthcareStack,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: DoctorStack,
+    title: BaseRouteNames.DoctorStack,
+    options: {
+      headerShown: false,
+    }
+  },
 ];
 

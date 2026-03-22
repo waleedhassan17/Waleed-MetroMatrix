@@ -159,12 +159,10 @@ const homeServiceBookingsSlice = createAppSlice({
         try {
           const response = await createBookingApi({
             providerId: bookingData.providerId || '',
-            serviceId: bookingData.serviceId || '',
-            scheduledDate: bookingData.date || '',
-            scheduledTime: bookingData.time || '',
-            address: bookingData.address || '',
-            coordinates: { latitude: 31.4504, longitude: 73.1350 },
-            notes: '',
+            selectedDate: bookingData.date || '',
+            selectedTime: bookingData.time || '',
+            addressId: bookingData.address || '',
+            instructions: '',
           });
           if (!response.success) {
             return rejectWithValue(response.message || 'Failed to create booking.');

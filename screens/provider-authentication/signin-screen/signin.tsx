@@ -130,14 +130,15 @@ export default function ProviderSignInScreen() {
     if (!validateForm()) return;
 
     // ===== STATIC LOGIN - START (Remove from here to "STATIC LOGIN - END" and uncomment "DYNAMIC LOGIN" below to hit real APIs) =====
-    console.log('👤 Static provider login, navigating to HomeServiceProviderDashboard');
+    const destination = providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
+    console.log(`👤 Static provider login, navigating to ${destination}`);
     Alert.alert('Success', 'Welcome back!', [
       {
         text: 'Continue',
         onPress: () => {
           (navigation as any).reset({
             index: 0,
-            routes: [{ name: 'HomeServiceProviderDashboard' }],
+            routes: [{ name: destination }],
           });
         },
       },

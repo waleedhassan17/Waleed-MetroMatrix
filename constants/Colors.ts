@@ -75,9 +75,9 @@ export const Colors = {
       badge: '#059669',
     },
     medical: {
-      primary: '#3B82F6',
-      light: '#DBEAFE',
-      badge: '#2563EB',
+      primary: '#2A7FFF',
+      light: '#D6E8FF',
+      badge: '#1E6AE1',
     },
     maintenance: {
       primary: '#F59E0B',

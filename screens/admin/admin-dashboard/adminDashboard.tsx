@@ -142,12 +142,12 @@ const SIDEBAR_MENU_ITEMS: SidebarMenuItem[] = [
     description: 'Manage home services',
   },
   {
-    id: 'doctors',
-    label: 'Doctors',
+    id: 'healthcare',
+    label: 'Healthcare',
     icon: 'medkit',
-    route: 'Doctors',
+    route: 'HealthcareAnalytics',
     color: '#10b981',
-    description: 'Medical professionals',
+    description: 'Healthcare dashboard',
   },
   {
     id: 'vendors',

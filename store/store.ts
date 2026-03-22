@@ -55,6 +55,44 @@ import adminServiceProvidersDashboardReducer from "../screens/admin/providers/se
 import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
 import adminServiceProvidersAnalyticsReducer from "../screens/admin/providers/service-providers/tabs/analytics/analyticsSlice";
 
+// Healthcare Patient slices (screens/user/healthcare/)
+import healthcareHomeReducer from '../screens/user/healthcare/home/healthcareHomeSlice';
+import specialtyListReducer from '../screens/user/healthcare/specialty-list/specialtyListSlice';
+import doctorListReducer from '../screens/user/healthcare/doctor-list/doctorListSlice';
+import doctorDetailReducer from '../screens/user/healthcare/doctor-detail/doctorDetailSlice';
+import doctorSearchReducer from '../screens/user/healthcare/doctor-search/doctorSearchSlice';
+import doctorReviewsReducer from '../screens/user/healthcare/doctor-reviews/doctorReviewsSlice';
+import clinicSelectionReducer from '../screens/user/healthcare/clinic-selection/clinicSelectionSlice';
+import slotSelectionReducer from '../screens/user/healthcare/slot-selection/slotSelectionSlice';
+import healthcareBookingReducer from '../screens/user/healthcare/book-appointment/healthcareBookingSlice';
+import bookingConfirmationReducer from '../screens/user/healthcare/booking-confirmation/bookingConfirmationSlice';
+import myAppointmentsReducer from '../screens/user/healthcare/MyAppointments/myAppointmentsSlice';
+import appointmentDetailReducer from '../screens/user/healthcare/AppointmentDetail/appointmentDetailSlice';
+import rescheduleAppointmentReducer from '../screens/user/healthcare/RescheduleAppointment/rescheduleAppointmentSlice';
+import videoWaitingRoomReducer from '../screens/user/healthcare/VideoWaitingRoom/videoWaitingRoomSlice';
+import videoCallReducer from '../screens/user/healthcare/VideoCall/videoCallSlice';
+import inCallChatReducer from '../screens/user/healthcare/InCallChat/inCallChatSlice';
+import prescriptionViewReducer from '../screens/user/healthcare/prescription-view/prescriptionViewSlice';
+import healthRecordsReducer from '../screens/user/healthcare/health-records/healthRecordsSlice';
+import uploadRecordReducer from '../screens/user/healthcare/upload-record/uploadRecordSlice';
+
+// Healthcare Doctor/Provider slices (screens/providers/healthcare/)
+import doctorDashboardReducer from '../screens/providers/healthcare/doctor-home/doctorDashboardSlice';
+import doctorScheduleReducer from '../screens/providers/healthcare/doctor-schedule/doctorScheduleSlice';
+import patientQueueReducer from '../screens/providers/healthcare/patient-queue/patientQueueSlice';
+import medicalNotesReducer from '../screens/providers/healthcare/medical-notes/medicalNotesSlice';
+import prescriptionWriterReducer from '../screens/providers/healthcare/prescription-writer/prescriptionWriterSlice';
+import patientHistoryReducer from '../screens/providers/healthcare/patient-history/patientHistorySlice';
+import doctorEarningsReducer from '../screens/providers/healthcare/doctor-earnings/doctorEarningsSlice';
+import doctorProfileReducer from '../screens/providers/healthcare/profile/doctorProfileSlice';
+import availabilitySettingsReducer from '../screens/providers/healthcare/availability-settings/availabilitySettingsSlice';
+import manageSlotsReducer from '../screens/providers/healthcare/manage-slots/manageSlotsSlice';
+
+// Admin Healthcare
+import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAnalytics/healthcareAnalyticsSlice';
+import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
+import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
+
 export const store = configureStore({
   reducer: {
     role: roleSlice.reducer,
@@ -108,6 +146,41 @@ export const store = configureStore({
     adminSPDashboard: adminServiceProvidersDashboardReducer,
     adminSPBookings: adminServiceProvidersBookingsReducer,
     adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
+    // Healthcare Patient reducers
+    healthcareHome: healthcareHomeReducer,
+    specialtyList: specialtyListReducer,
+    doctorList: doctorListReducer,
+    doctorDetail: doctorDetailReducer,
+    doctorSearch: doctorSearchReducer,
+    doctorReviews: doctorReviewsReducer,
+    clinicSelection: clinicSelectionReducer,
+    slotSelection: slotSelectionReducer,
+    healthcareBooking: healthcareBookingReducer,
+    bookingConfirmation: bookingConfirmationReducer,
+    appointmentConfirm: appointmentConfirmReducer,
+    myAppointments: myAppointmentsReducer,
+    appointmentDetail: appointmentDetailReducer,
+    rescheduleAppointment: rescheduleAppointmentReducer,
+    videoWaitingRoom: videoWaitingRoomReducer,
+    videoCall: videoCallReducer,
+    inCallChat: inCallChatReducer,
+    prescriptionView: prescriptionViewReducer,
+    healthRecords: healthRecordsReducer,
+    uploadRecord: uploadRecordReducer,
+    // Healthcare Doctor/Provider reducers
+    doctorDashboard: doctorDashboardReducer,
+    doctorSchedule: doctorScheduleReducer,
+    patientQueue: patientQueueReducer,
+    medicalNotes: medicalNotesReducer,
+    prescriptionWriter: prescriptionWriterReducer,
+    patientHistory: patientHistoryReducer,
+    doctorEarnings: doctorEarningsReducer,
+    doctorProfile: doctorProfileReducer,
+    availabilitySettings: availabilitySettingsReducer,
+    manageSlots: manageSlotsReducer,
+    // Healthcare Admin reducers
+    healthcareAnalytics: healthcareAnalyticsReducer,
+    specialtyManagement: specialtyManagementReducer,
   },
 });
 

@@ -153,6 +153,12 @@ export const AppContainer: React.FC = () => {
     
     // Check authentication based on user type
     if (userType === 'provider' && currentProvider) {
+      // Route doctors to the healthcare DoctorStack, home_service providers to the existing dashboard
+      const providerSubType = currentProvider.providerType;
+      if (providerSubType === 'doctor') {
+        console.log('➡️ Navigating to DoctorStack (authenticated doctor)');
+        return BaseRouteNames.DoctorStack;
+      }
       console.log('➡️ Navigating to HomeServiceProviderDashboard (authenticated provider)');
       return BaseRouteNames.HomeServiceProviderDashboard;
     } else if (userType === 'user' && currentUser) {
@@ -214,6 +220,12 @@ export const AppContainer: React.FC = () => {
         },
         HomeServiceProviderDashboard: {
           path: 'provider/dashboard',
+        },
+        HealthcareStack: {
+          path: 'healthcare',
+        },
+        DoctorStack: {
+          path: 'doctor/dashboard',
         },
       },
     },

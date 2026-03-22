@@ -49,6 +49,8 @@ const UserHomeScreen: React.FC = () => {
       // Map service IDs to navigation routes
       if (selectedService === 'homeServices') {
         navigation.navigate('HomeServiceLayout' as never);
+      } else if (selectedService === 'healthcare') {
+        navigation.navigate('HealthcareStack' as never);
       } else {
         navigation.navigate(selectedService as never);
       }
