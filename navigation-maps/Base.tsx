@@ -64,6 +64,10 @@ import JobCompletionScreen from "../screens/providers/homeservice/job-completion
 import HealthcareStack from "../navigators/HealthcareStack";
 import DoctorStack from "../navigators/DoctorStack";
 
+// Shopping Module
+import ShoppingStack from "../navigators/ShoppingStack";
+import BrandStack from "../navigators/BrandStack";
+
 // Admin Healthcare
 import HealthcareAnalyticsScreen from "../screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen";
 import SpecialtyManagementScreen from "../screens/admin/healthcare/SpecialtyManagement/SpecialtyManagementScreen";
@@ -143,6 +147,10 @@ export const BaseRouteNames = {
   // Healthcare Module
   HealthcareStack: "HealthcareStack",
   DoctorStack: "DoctorStack",
+
+  // Shopping Module
+  ShoppingStack: "ShoppingStack",
+  BrandStack: "BrandStack",
 } as const;
 
 export type BaseRouteName = typeof BaseRouteNames[keyof typeof BaseRouteNames];
@@ -225,6 +233,10 @@ export type RootStackParamList = {
   // Healthcare Module
   HealthcareStack: undefined;
   DoctorStack: undefined;
+
+  // Shopping Module
+  ShoppingStack: undefined;
+  BrandStack: undefined;
 };
 
 // Route interface
@@ -622,5 +634,20 @@ export const BaseRoutes: IRoute[] = [
       headerShown: false,
     }
   },
-];
 
+  // Shopping Module Routes
+  {
+    component: ShoppingStack,
+    title: BaseRouteNames.ShoppingStack,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: BrandStack,
+    title: BaseRouteNames.BrandStack,
+    options: {
+      headerShown: false,
+    }
+  },
+];

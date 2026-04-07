@@ -93,6 +93,27 @@ import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAn
 import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
 
+// Shopping Customer slices (screens/user/shopping/)
+import shoppingHomeReducer from '../screens/user/shopping/shopping-home/shoppingHomeSlice';
+import brandListReducer from '../screens/user/shopping/brand-list/brandListSlice';
+import brandStoreReducer from '../screens/user/shopping/brand-store/brandStoreSlice';
+import shoppingProductListReducer from '../screens/user/shopping/product-list/productListSlice';
+import productDetailReducer from '../screens/user/shopping/product-detail/productDetailSlice';
+import cartReducer from '../screens/user/shopping/cart/cartSlice';
+import shoppingCheckoutReducer from '../screens/user/shopping/checkout/checkoutSlice';
+import orderHistoryReducer from '../screens/user/shopping/order-history/orderHistorySlice';
+import orderDetailReducer from '../screens/user/shopping/order-detail/orderDetailSlice';
+import wishlistReducer from '../screens/user/shopping/wishlist/wishlistSlice';
+import productReviewsReducer from '../screens/user/shopping/product-reviews/productReviewsSlice';
+import shoppingSearchReducer from '../screens/user/shopping/search/searchSlice';
+
+// Shopping Brand Owner slices (screens/providers/shopping/)
+import brandHomeReducer from '../screens/providers/shopping/brand-home/brandHomeSlice';
+import brandProductsReducer from '../screens/providers/shopping/brand-products/brandProductsSlice';
+import brandOrdersReducer from '../screens/providers/shopping/brand-orders/brandOrdersSlice';
+import brandAnalyticsReducer from '../screens/providers/shopping/brand-analytics/brandAnalyticsSlice';
+import brandProfileReducer from '../screens/providers/shopping/brand-profile/brandProfileSlice';
+
 export const store = configureStore({
   reducer: {
     role: roleSlice.reducer,
@@ -181,6 +202,25 @@ export const store = configureStore({
     // Healthcare Admin reducers
     healthcareAnalytics: healthcareAnalyticsReducer,
     specialtyManagement: specialtyManagementReducer,
+    // Shopping Customer reducers
+    shoppingHome: shoppingHomeReducer,
+    brandList: brandListReducer,
+    brandStore: brandStoreReducer,
+    shoppingProductList: shoppingProductListReducer,
+    productDetail: productDetailReducer,
+    cart: cartReducer,
+    shoppingCheckout: shoppingCheckoutReducer,
+    orderHistory: orderHistoryReducer,
+    orderDetail: orderDetailReducer,
+    wishlist: wishlistReducer,
+    productReviews: productReviewsReducer,
+    shoppingSearch: shoppingSearchReducer,
+    // Shopping Brand Owner reducers
+    brandHome: brandHomeReducer,
+    brandProducts: brandProductsReducer,
+    brandOrders: brandOrdersReducer,
+    brandAnalytics: brandAnalyticsReducer,
+    brandProfile: brandProfileReducer,
   },
 });
 
