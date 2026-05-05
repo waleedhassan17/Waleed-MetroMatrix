@@ -309,7 +309,7 @@ export default function ProviderProfileScreen() {
         <TouchableOpacity
           style={styles.walletCard}
           activeOpacity={0.9}
-          onPress={() => (navigation as any).navigate('ProviderWalletScreen')}
+          onPress={() => (navigation as any).navigate('WalletScreen')}
         >
           <LinearGradient
             colors={['#10B981', '#059669']}

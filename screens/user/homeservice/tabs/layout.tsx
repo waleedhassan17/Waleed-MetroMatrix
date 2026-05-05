@@ -10,7 +10,7 @@ import {
   Text,
 } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Home, Calendar, User } from 'lucide-react-native';
+import { Home, Calendar } from 'lucide-react-native';
 import { Colors, Shadows, Spacing, BorderRadius } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import Screens
 import HomeScreen from './home-screen/index';
 import BookingsScreen from './booking-screen/booking';
-import ProfileScreen from './profile/profile';
 
 const Tab = createBottomTabNavigator();
 const { width } = Dimensions.get('window');
@@ -54,7 +53,6 @@ const TabBarIcon: React.FC<TabBarIconProps> = ({ focused, color, size, route }) 
   const IconComponent = {
     index: Home,
     bookings: Calendar,
-    profile: User,
   }[route] || Home;
 
   return (
@@ -210,14 +208,6 @@ const TabLayout: React.FC = () => {
         options={{
           title: 'Bookings',
           tabBarAccessibilityLabel: 'Navigate to Bookings',
-        }}
-      />
-      <Tab.Screen
-        name="profile"
-        component={ProfileScreen}
-        options={{
-          title: 'Profile',
-          tabBarAccessibilityLabel: 'Navigate to Profile',
         }}
       />
     </Tab.Navigator>

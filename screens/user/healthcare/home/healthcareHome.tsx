@@ -583,29 +583,6 @@ const HealthcareHomeScreen: React.FC = () => {
                 <Text style={styles.greeting}>{getGreeting()} 👋</Text>
                 <Text style={styles.headerTitle}>Find Your Doctor</Text>
               </View>
-              <View style={styles.headerActions}>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  onPress={() => navigation.navigate(HealthcareRouteNames.HealthcareNotifications as never)}
-                >
-                  <View style={styles.notificationDot} />
-                  <Ionicons
-                    name="notifications-outline"
-                    size={22}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  onPress={() => navigation.navigate(HealthcareRouteNames.HealthcareProfile as never)}
-                >
-                  <Ionicons
-                    name="person-outline"
-                    size={22}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-              </View>
             </View>
           </LinearGradient>
         </Animated.View>

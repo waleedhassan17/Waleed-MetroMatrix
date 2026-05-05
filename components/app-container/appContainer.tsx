@@ -227,6 +227,13 @@ export const AppContainer: React.FC = () => {
         DoctorStack: {
           path: 'doctor/dashboard',
         },
+        // Wallet top-up deep links
+        WalletTopUpSuccess: {
+          path: 'wallet/topup-success',
+        },
+        WalletTopUpCancel: {
+          path: 'wallet/topup-cancel',
+        },
       },
     },
   };

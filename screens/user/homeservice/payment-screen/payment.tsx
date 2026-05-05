@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: (StatusBar.currentHeight || 0) + 12,
   },
   headerContent: {
     flexDirection: 'row',

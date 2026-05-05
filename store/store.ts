@@ -50,6 +50,10 @@ import awaitingApprovalReducer from "../screens/providers/homeservice/awaiting-s
 import paymentRequestReducer from "../screens/providers/homeservice/payment-screen/paymentRequestSlice";
 import jobCompletionReducer from "../screens/providers/homeservice/job-completion/jobCompletionSlice";
 
+// Centralized User Features (Shared across all services)
+import userProfileReducer from "../screens/user/shared/profile/userProfileSlice";
+import { walletSlice } from "../screens/user/wallet/walletSlice";
+
 // Admin Service Providers slices
 import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
 import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
@@ -181,6 +185,9 @@ export const store = configureStore({
     // Healthcare Admin reducers
     healthcareAnalytics: healthcareAnalyticsReducer,
     specialtyManagement: specialtyManagementReducer,
+    // Centralized User Features
+    userProfile: userProfileReducer,
+    wallet: walletSlice.reducer,
   },
 });
 

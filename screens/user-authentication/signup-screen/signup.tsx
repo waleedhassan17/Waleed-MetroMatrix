@@ -35,6 +35,7 @@ import {
   clearError,
   submitSignUpAsync,
   submitGoogleSignUpAsync,
+  submitFacebookSignUpAsync,
 } from './signupSlice';
 import {
   useGoogleAuth,
@@ -103,42 +104,27 @@ const SignUp = () => {
     }
   }, [googleResponse]);
 
-  // Google signup with token (Firebase-only, backend API skipped for now)
+  // Google signup - Firebase auth + Backend API
   const handleGoogleSignupWithToken = async (idToken: string) => {
     try {
       // Step 1: Authenticate with Firebase using the raw Google token
       const userCredential = await firebaseSignInWithGoogle(idToken);
       const firebaseUser = userCredential.user;
-      
+
       console.log('✅ Firebase Google auth successful:', firebaseUser.email);
-      
-      // Step 2: Get Firebase ID token for future backend use
+
+      // Step 2: Get Firebase ID token for backend
       const firebaseIdToken = await getFirebaseIdToken();
-      
-      // Step 3: Save user data from Firebase to AsyncStorage (skip backend API for now)
-      const userData = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        fullName: firebaseUser.displayName || '',
-        phoneNumber: firebaseUser.phoneNumber || '',
-        profilePhoto: firebaseUser.photoURL || '',
-        profileComplete: false,
-        isVerified: firebaseUser.emailVerified,
-      };
-      
-      await saveUserInfo(userData);
-      await saveData(KeyForStorage.userType, 'user');
-      await saveData(KeyForStorage.isAuthenticated, true);
-      if (firebaseIdToken) {
-        await saveData(KeyForStorage.accessToken, firebaseIdToken);
+
+      if (!firebaseIdToken) {
+        throw new Error('Failed to get Firebase ID token');
       }
-      
-      // TODO: Re-enable backend API call when backend is ready
-      // const result = await dispatch(submitGoogleSignUpAsync({ idToken: firebaseIdToken })).unwrap();
-      
-      console.log('✅ Google signup successful, navigating to UserHome');
-      
-      // Navigate directly to UserHome using reset for clean navigation stack
+
+      // Step 3: Call backend API to register/authenticate via Firebase ID token
+      await dispatch(submitGoogleSignUpAsync({ idToken: firebaseIdToken })).unwrap();
+
+      console.log('✅ Google signup successful via backend, navigating to UserHome');
+
       (navigation as any).reset({
         index: 0,
         routes: [{ name: 'UserHome' }],
@@ -174,28 +160,10 @@ const SignUp = () => {
 
       console.log('✅ Firebase Facebook auth successful:', firebaseUser.email);
 
-      // Step 2: Get Firebase ID token for future backend use
-      const firebaseIdToken = await getFirebaseIdToken();
+      // Step 2: Call backend API with Facebook access token for registration
+      await dispatch(submitFacebookSignUpAsync({ accessToken: result.accessToken })).unwrap();
 
-      // Step 3: Save user data from Firebase + Facebook profile to AsyncStorage
-      const userData = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || result.profile?.email || '',
-        fullName: firebaseUser.displayName || result.profile?.name || '',
-        phoneNumber: firebaseUser.phoneNumber || '',
-        profilePhoto: firebaseUser.photoURL || result.profile?.imageURL || '',
-        profileComplete: false,
-        isVerified: firebaseUser.emailVerified,
-      };
-
-      await saveUserInfo(userData);
-      await saveData(KeyForStorage.userType, 'user');
-      await saveData(KeyForStorage.isAuthenticated, true);
-      if (firebaseIdToken) {
-        await saveData(KeyForStorage.accessToken, firebaseIdToken);
-      }
-
-      console.log('✅ Facebook signup successful, navigating to UserHome');
+      console.log('✅ Facebook signup successful via backend, navigating to UserHome');
 
       (navigation as any).reset({
         index: 0,

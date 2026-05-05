@@ -450,4 +450,6 @@ export type DoctorStackParamList = {
   DoctorProfile: undefined;
   DoctorSettings: undefined;
   ManageSlots: undefined;
+  WalletScreen: undefined;
+  TopUpWebView: { url: string; sessionId: string };
 };

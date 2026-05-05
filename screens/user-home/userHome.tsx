@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectService, Service } from './userhomeSlice';
 import { LinearGradient } from 'expo-linear-gradient';
+import SlideOutSidebar from '../../components/SlideOutSidebar/SlideOutSidebar';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +40,7 @@ const UserHomeScreen: React.FC = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { selectedService, services } = useAppSelector((state) => state.userHome);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const handleServicePress = (serviceId: string) => {
     dispatch(selectService(serviceId));
@@ -192,11 +194,13 @@ const UserHomeScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
+          {/* Hamburger Menu - Opens Sidebar */}
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => setSidebarVisible(true)}
+            activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={24} color="#1F2937" />
+            <Ionicons name="menu" size={24} color="#1F2937" />
           </TouchableOpacity>
 
           {/* Center - Brand */}
@@ -205,10 +209,17 @@ const UserHomeScreen: React.FC = () => {
             <Text style={styles.brandSubtitle}>Smart City Services</Text>
           </View>
 
+          {/* Notifications */}
           <TouchableOpacity style={styles.headerButton}>
             <Text style={styles.bellIcon}>🔔</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Sidebar */}
+        <SlideOutSidebar
+          isVisible={sidebarVisible}
+          onClose={() => setSidebarVisible(false)}
+        />
 
         {/* Live Services Badge */}
         <View style={styles.liveBadgeWrapper}>

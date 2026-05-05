@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerGradient: {
-    paddingTop: isAndroid ? (StatusBar.currentHeight || 0) + 16 : 16,
+    paddingTop: (StatusBar.currentHeight || 0) + 20,
     paddingBottom: 30,
     paddingHorizontal: 20,
     alignItems: 'center',

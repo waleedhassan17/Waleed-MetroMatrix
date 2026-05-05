@@ -30,6 +30,7 @@ import {
   clearError,
   submitSignInAsync,
   submitGoogleSignInAsync,
+  submitFacebookSignInAsync,
 } from './signinSlice';
 import {
   useGoogleAuth,
@@ -84,42 +85,27 @@ const SignIn = () => {
     }
   }, [googleResponse]);
 
-  // Google login with token (Firebase-only, backend API skipped for now)
+  // Google login with token - Firebase auth + Backend API
   const handleGoogleLoginWithToken = async (idToken: string) => {
     try {
       // Step 1: Authenticate with Firebase using the raw Google token
       const userCredential = await firebaseSignInWithGoogle(idToken);
       const firebaseUser = userCredential.user;
-      
+
       console.log('✅ Firebase Google auth successful:', firebaseUser.email);
-      
-      // Step 2: Get Firebase ID token for future backend use
+
+      // Step 2: Get Firebase ID token for backend
       const firebaseIdToken = await getFirebaseIdToken();
-      
-      // Step 3: Save user data from Firebase to AsyncStorage (skip backend API for now)
-      const userData = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        fullName: firebaseUser.displayName || '',
-        phoneNumber: firebaseUser.phoneNumber || '',
-        profilePhoto: firebaseUser.photoURL || '',
-        profileComplete: false,
-        isVerified: firebaseUser.emailVerified,
-      };
-      
-      await saveUserInfo(userData);
-      await saveData(KeyForStorage.userType, 'user');
-      await saveData(KeyForStorage.isAuthenticated, true);
-      if (firebaseIdToken) {
-        await saveData(KeyForStorage.accessToken, firebaseIdToken);
+
+      if (!firebaseIdToken) {
+        throw new Error('Failed to get Firebase ID token');
       }
-      
-      // TODO: Re-enable backend API call when backend is ready
-      // const result = await dispatch(submitGoogleSignInAsync({ idToken: firebaseIdToken })).unwrap();
-      
-      console.log('✅ Google login successful, navigating to UserHome');
-      
-      // Navigate directly to UserHome using reset for clean navigation stack
+
+      // Step 3: Call backend API to authenticate with Firebase ID token
+      await dispatch(submitGoogleSignInAsync({ idToken: firebaseIdToken })).unwrap();
+
+      console.log('✅ Google login successful via backend, navigating to UserHome');
+
       (navigation as any).reset({
         index: 0,
         routes: [{ name: 'UserHome' }],
@@ -155,28 +141,10 @@ const SignIn = () => {
 
       console.log('✅ Firebase Facebook auth successful:', firebaseUser.email);
 
-      // Step 2: Get Firebase ID token for future backend use
-      const firebaseIdToken = await getFirebaseIdToken();
+      // Step 2: Call backend API with Facebook access token for authentication
+      await dispatch(submitFacebookSignInAsync({ accessToken: result.accessToken })).unwrap();
 
-      // Step 3: Save user data from Firebase + Facebook profile to AsyncStorage
-      const userData = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || result.profile?.email || '',
-        fullName: firebaseUser.displayName || result.profile?.name || '',
-        phoneNumber: firebaseUser.phoneNumber || '',
-        profilePhoto: firebaseUser.photoURL || result.profile?.imageURL || '',
-        profileComplete: false,
-        isVerified: firebaseUser.emailVerified,
-      };
-
-      await saveUserInfo(userData);
-      await saveData(KeyForStorage.userType, 'user');
-      await saveData(KeyForStorage.isAuthenticated, true);
-      if (firebaseIdToken) {
-        await saveData(KeyForStorage.accessToken, firebaseIdToken);
-      }
-
-      console.log('✅ Facebook login successful, navigating to UserHome');
+      console.log('✅ Facebook login successful via backend, navigating to UserHome');
 
       (navigation as any).reset({
         index: 0,
@@ -244,99 +212,55 @@ const SignIn = () => {
       return;
     }
 
-    // ===== STATIC LOGIN - START (Remove from here to "STATIC LOGIN - END" and uncomment "DYNAMIC LOGIN" below to hit real APIs) =====
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
+    // ===== DYNAMIC LOGIN - Real API authentication =====
+    try {
+      const result = await dispatch(
+        submitSignInAsync({
+          email: email.trim(),
+          password,
+        })
+      ).unwrap();
 
-    // Admin hardcoded credentials check
-    if (trimmedEmail === 'waleedhassansfd@gmail.com' && trimmedPassword === 'Waleed@107') {
-      console.log('🔐 Admin credentials matched, navigating to AdminDashboard');
-      Alert.alert('Success', 'Welcome to Admin Dashboard!', [
+      // Check if admin or user from the result (not from Redux state)
+      const isAdminUser = result.type === 'admin';
+      const loginType = isAdminUser ? 'Admin' : 'User';
+      const welcomeMessage = isAdminUser
+        ? 'Welcome to Admin Dashboard!'
+        : 'Welcome back!';
+
+      console.log(`✅ Login successful as ${loginType}`);
+
+      Alert.alert('Success', welcomeMessage, [
         {
           text: 'Continue',
           onPress: () => {
-            (navigation as any).reset({
-              index: 0,
-              routes: [{ name: 'AdminDashboard' }],
-            });
+            try {
+              if (isAdminUser) {
+                console.log('🔐 Admin detected, navigating to AdminDashboard');
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'AdminDashboard' }],
+                });
+              } else {
+                console.log('👤 User detected, navigating to UserHome');
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'UserHome' }],
+                });
+              }
+            } catch (navigationError) {
+              console.log('⚠️ Navigation error:', navigationError);
+            }
           },
         },
       ]);
-      return;
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
+      Alert.alert(
+        'Login Failed',
+        typeof err === 'string' ? err : (err?.message || 'Please check your credentials and try again.')
+      );
     }
-
-    // Any other credentials → navigate to UserHome
-    console.log('👤 Static user login, navigating to UserHome');
-    Alert.alert('Success', 'Welcome back!', [
-      {
-        text: 'Continue',
-        onPress: () => {
-          (navigation as any).reset({
-            index: 0,
-            routes: [{ name: 'UserHome' }],
-          });
-        },
-      },
-    ]);
-    // ===== STATIC LOGIN - END =====
-
-    // ===== DYNAMIC LOGIN - START (Uncomment this block to hit real APIs) =====
-    // try {
-    //   const result = await dispatch(
-    //     submitSignInAsync({
-    //       email: email.trim(),
-    //       password,
-    //     })
-    //   ).unwrap();
-    //
-    //   // Check if admin or user from the result (not from Redux state)
-    //   const isAdminUser = result.type === 'admin';
-    //   const loginType = isAdminUser ? 'Admin' : 'User';
-    //   const welcomeMessage = isAdminUser
-    //     ? 'Welcome to Admin Dashboard!'
-    //     : 'Welcome back!';
-    //
-    //   console.log(`✅ Login successful as ${loginType}`);
-    //
-    //   Alert.alert('Success', welcomeMessage, [
-    //     {
-    //       text: 'Continue',
-    //       onPress: () => {
-    //         try {
-    //           // Navigate based on the result type, not Redux state
-    //           if (isAdminUser) {
-    //             console.log('🔐 Admin detected, navigating to AdminDashboard');
-    //             (navigation as any).navigate('AdminDashboard');
-    //           } else {
-    //             console.log('👤 User detected, navigating to UserHome');
-    //             (navigation as any).navigate('UserHome');
-    //           }
-    //         } catch (navigationError) {
-    //           console.log('⚠️ Navigation error, using reset:', navigationError);
-    //           // Fallback to reset navigation
-    //           if (isAdminUser) {
-    //             (navigation as any).reset({
-    //               index: 0,
-    //               routes: [{ name: 'AdminDashboard' }],
-    //             });
-    //           } else {
-    //             (navigation as any).reset({
-    //               index: 0,
-    //               routes: [{ name: 'UserHome' }],
-    //             });
-    //           }
-    //         }
-    //       },
-    //     },
-    //   ]);
-    // } catch (err: any) {
-    //   console.error('❌ Login error:', err);
-    //   Alert.alert(
-    //     'Login Failed',
-    //     err || 'Please check your credentials and try again.'
-    //   );
-    // }
-    // ===== DYNAMIC LOGIN - END =====
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {

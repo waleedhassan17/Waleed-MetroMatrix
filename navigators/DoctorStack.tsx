@@ -17,6 +17,8 @@ import DoctorEarningsScreen from '../screens/providers/healthcare/doctor-earning
 import DoctorProfileScreen from '../screens/providers/healthcare/profile/doctorProfile';
 import DoctorSettingsScreen from '../screens/providers/healthcare/availability-settings/availabilitySettings';
 import ManageSlotsScreen from '../screens/providers/healthcare/manage-slots/manageSlots';
+import WalletScreen from '../screens/user/wallet/WalletScreen';
+import TopUpWebViewScreen from '../screens/user/wallet/TopUpWebViewScreen';
 
 const Stack = createNativeStackNavigator<DoctorStackParamList>();
 
@@ -72,6 +74,22 @@ const DoctorStack: React.FC = () => {
       <Stack.Screen
         name={DoctorRouteNames.ManageSlots}
         component={ManageSlotsScreen}
+      />
+      <Stack.Screen
+        name="WalletScreen"
+        component={WalletScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="TopUpWebView"
+        component={TopUpWebViewScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
       />
     </Stack.Navigator>
   );

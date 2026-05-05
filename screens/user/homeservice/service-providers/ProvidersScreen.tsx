@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   headerGradient: {
-    paddingTop: isAndroid ? StatusBar.currentHeight : 0,
+    paddingTop: (StatusBar.currentHeight || 0) + 12,
   },
   headerContent: {
     flexDirection: 'row',

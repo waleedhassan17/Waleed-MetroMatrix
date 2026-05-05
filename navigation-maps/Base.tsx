@@ -49,8 +49,11 @@ import QuickSearchScreen from "../screens/user/homeservice/quick-search/QuickSea
 import SearchProvidersScreen from "../screens/user/homeservice/search-providers/searchProviders";
 import ProviderChatScreen from "../screens/user/homeservice/providers-chat/providersChatScreen";
 import CallScreen from "../screens/user/homeservice/call-screen/callScreen";
-import UserWalletScreen from "../screens/user/homeservice/wallet/walletScreen";
-import ProviderWalletScreen from "../screens/providers/homeservice/wallet/providerWalletScreen";
+
+// Centralized User Screens
+import UserProfileScreen from "../screens/user/shared/profile/UserProfileScreen";
+import WalletScreen from "../screens/user/wallet/WalletScreen";
+import TopUpWebViewScreen from "../screens/user/wallet/TopUpWebViewScreen";
 
 // Provider Job Flow Screens
 import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
@@ -115,8 +118,11 @@ export const BaseRouteNames = {
   SearchingProvidersScreen: "SearchingProvidersScreen",
   ProviderChatScreen: "ProviderChatScreen",
   CallScreen: "CallScreen",
-  UserWalletScreen: "UserWalletScreen",
-  ProviderWalletScreen: "ProviderWalletScreen",
+  UserProfileScreen: "UserProfileScreen",
+  WalletScreen: "WalletScreen",
+  TopUpWebView: "TopUpWebView",
+  WalletTopUpSuccess: "WalletTopUpSuccess",
+  WalletTopUpCancel: "WalletTopUpCancel",
   
   // Other screens (to be added)
   Logout: "Logout",
@@ -185,6 +191,7 @@ export type RootStackParamList = {
   CallScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
   UserWalletScreen: undefined;
   ProviderWalletScreen: undefined;
+  UserProfileScreen: undefined;
   
   // Verification
   VerifySuccess: {
@@ -524,18 +531,42 @@ export const BaseRoutes: IRoute[] = [
       animation: 'slide_from_bottom',
     }
   },
-  // Wallet Screens
   {
-    component: UserWalletScreen,
-    title: BaseRouteNames.UserWalletScreen,
+    component: WalletScreen,
+    title: BaseRouteNames.WalletScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',
     }
   },
   {
-    component: ProviderWalletScreen,
-    title: BaseRouteNames.ProviderWalletScreen,
+    component: TopUpWebViewScreen,
+    title: BaseRouteNames.TopUpWebView,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: WalletScreen,
+    title: BaseRouteNames.WalletTopUpSuccess,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: WalletScreen,
+    title: BaseRouteNames.WalletTopUpCancel,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  // Centralized User Screens
+  {
+    component: UserProfileScreen,
+    title: BaseRouteNames.UserProfileScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

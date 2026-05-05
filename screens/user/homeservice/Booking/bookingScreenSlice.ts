@@ -1,4 +1,4 @@
-import { PayloadAction } from '@reduxjs/toolkit';
+import { PayloadAction, createSelector } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
 import {
   fetchBookingData as fetchBookingDataApi,
@@ -310,22 +310,30 @@ export const selectIsFormValid = (state: { booking: BookingState }) => {
   return Boolean(selectedDate && selectedTime && selectedAddress);
 };
 
-export const selectBookingSummary = (state: { booking: BookingState }): BookingDetails | null => {
-  const { provider, selectedDate, selectedTime, selectedAddress, instructions } = state.booking;
-  
-  if (!provider) return null;
-  
-  return {
-    providerId: provider.id,
-    providerName: provider.name,
-    service: provider.service,
-    selectedDate,
-    selectedTime,
-    selectedAddress,
-    instructions,
-    estimatedPrice: provider.basePrice,
-    estimatedDuration: '1-2 hours',
-  };
-};
+// Memoized selectors
+const selectBookingProvider = (state: { booking: BookingState }) => state.booking.provider;
+const selectBookingDate = (state: { booking: BookingState }) => state.booking.selectedDate;
+const selectBookingTime = (state: { booking: BookingState }) => state.booking.selectedTime;
+const selectBookingAddress = (state: { booking: BookingState }) => state.booking.selectedAddress;
+const selectBookingInstructions = (state: { booking: BookingState }) => state.booking.instructions;
+
+export const selectBookingSummary = createSelector(
+  [selectBookingProvider, selectBookingDate, selectBookingTime, selectBookingAddress, selectBookingInstructions],
+  (provider, selectedDate, selectedTime, selectedAddress, instructions): BookingDetails | null => {
+    if (!provider) return null;
+
+    return {
+      providerId: provider.id,
+      providerName: provider.name,
+      service: provider.service,
+      selectedDate,
+      selectedTime,
+      selectedAddress,
+      instructions,
+      estimatedPrice: provider.basePrice,
+      estimatedDuration: '1-2 hours',
+    };
+  }
+);
 
 export default bookingSlice.reducer;

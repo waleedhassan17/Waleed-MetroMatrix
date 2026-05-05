@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
     }),
   },
   headerGradient: {
-    paddingTop: isAndroid ? 16 : 8,
+    paddingTop: (StatusBar.currentHeight || 0) + 20,
     paddingBottom: 16,
   },
   headerContent: {

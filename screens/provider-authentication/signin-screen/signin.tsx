@@ -129,54 +129,37 @@ export default function ProviderSignInScreen() {
   const handleSignIn = async () => {
     if (!validateForm()) return;
 
-    // ===== STATIC LOGIN - START (Remove from here to "STATIC LOGIN - END" and uncomment "DYNAMIC LOGIN" below to hit real APIs) =====
-    const destination = providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
-    console.log(`👤 Static provider login, navigating to ${destination}`);
-    Alert.alert('Success', 'Welcome back!', [
-      {
-        text: 'Continue',
-        onPress: () => {
-          (navigation as any).reset({
-            index: 0,
-            routes: [{ name: destination }],
-          });
-        },
-      },
-    ]);
-    // ===== STATIC LOGIN - END =====
+    // ===== DYNAMIC LOGIN - Real API authentication =====
+    try {
+      const result = await dispatch(
+        submitProviderSignInAsync({
+          email: email.trim(),
+          password,
+        })
+      ).unwrap();
+      console.log('✅ Provider sign in successful:', result);
 
-    // ===== DYNAMIC LOGIN - START (Uncomment this block to hit real APIs) =====
-    // try {
-    //   const result = await dispatch(
-    //     submitProviderSignInAsync({ 
-    //       email: email.trim(), 
-    //       password 
-    //     })
-    //   ).unwrap();
-    //   console.log('✅ Sign in successful:', result);
-    //   
-    //   // Navigate to HomeServiceProviderDashboard after successful login
-    //   Alert.alert('Success', 'Welcome back!', [
-    //     {
-    //       text: 'Continue',
-    //       onPress: () => {
-    //         try {
-    //           console.log('🏠 Navigating to HomeServiceProviderDashboard');
-    //           (navigation as any).navigate('HomeServiceProviderDashboard');
-    //         } catch (navigationError) {
-    //           console.log('⚠️ Navigation error, using reset:', navigationError);
-    //           (navigation as any).reset({
-    //             index: 0,
-    //             routes: [{ name: 'HomeServiceProviderDashboard' }],
-    //           });
-    //         }
-    //       },
-    //     },
-    //   ]);
-    // } catch (error) {
-    //   console.error('❌ Sign in error:', error);
-    // }
-    // ===== DYNAMIC LOGIN - END =====
+      // Navigate based on provider type
+      const destination = providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
+
+      Alert.alert('Success', 'Welcome back!', [
+        {
+          text: 'Continue',
+          onPress: () => {
+            (navigation as any).reset({
+              index: 0,
+              routes: [{ name: destination }],
+            });
+          },
+        },
+      ]);
+    } catch (err: any) {
+      console.error('❌ Provider sign in error:', err);
+      Alert.alert(
+        'Sign In Failed',
+        typeof err === 'string' ? err : (err?.message || 'Please check your credentials and try again.')
+      );
+    }
   };
 
   const handleGoogleSignIn = async () => {

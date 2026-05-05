@@ -602,7 +602,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.walletCard}
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('UserWalletScreen')}
+          onPress={() => navigation.navigate('WalletScreen')}
         >
           <LinearGradient
             colors={['#10B981', '#059669']}

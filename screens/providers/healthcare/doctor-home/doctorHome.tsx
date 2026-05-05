@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { Typography } from '../../../../constants/Fonts';
 import { fetchDashboardData, refreshDashboard } from './doctorDashboardSlice';
 import type { Appointment } from '../../../../models/healthcare/types';
+import SlideOutSidebar from '../../../../components/SlideOutSidebar/SlideOutSidebar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
@@ -119,6 +120,7 @@ const StatCard: React.FC<{
 const DoctorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard);
@@ -206,6 +208,12 @@ const DoctorHomeScreen: React.FC = () => {
         <Text style={styles.floatingHeaderTitle}>Dashboard</Text>
       </Animated.View>
 
+      {/* Sidebar Component */}
+      <SlideOutSidebar
+        isVisible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+      />
+
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
         contentContainerStyle={styles.scrollContent}
@@ -236,12 +244,14 @@ const DoctorHomeScreen: React.FC = () => {
               <Text style={styles.greetingText}>{getGreeting()} 👋</Text>
               <Text style={styles.doctorNameText} numberOfLines={1}>{doctorName}</Text>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerIconBtn} activeOpacity={0.7}>
-                <View style={styles.notifDot} />
-                <Ionicons name="notifications-outline" size={22} color={THEME.primary} />
-              </TouchableOpacity>
-            </View>
+            {/* Hamburger Menu - Opens Centralized Sidebar */}
+            <TouchableOpacity 
+              style={styles.headerIconBtn} 
+              onPress={() => setSidebarVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="menu" size={24} color={THEME.primary} />
+            </TouchableOpacity>
           </View>
 
           {/* Stats Cards Row */}

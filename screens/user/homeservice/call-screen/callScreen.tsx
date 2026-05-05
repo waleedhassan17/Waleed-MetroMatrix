@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     paddingHorizontal: 20,
-    paddingTop: isAndroid ? StatusBar.currentHeight! + 10 : 10,
+    paddingTop: (StatusBar.currentHeight || 0) + 12,
     paddingBottom: 10,
   },
   backButton: {
