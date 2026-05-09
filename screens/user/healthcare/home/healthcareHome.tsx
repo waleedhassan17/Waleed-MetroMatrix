@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchHomeData, clearError } from './healthcareHomeSlice';
+import type { HealthcareHomeState } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -176,7 +177,7 @@ const HealthcareHomeScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { featuredDoctors, specialties, loading, error } = useAppSelector(
     (state) => state.healthcareHome
-  );
+  ) as HealthcareHomeState;
 
   const [refreshing, setRefreshing] = React.useState(false);
   const [searchText, setSearchText] = React.useState('');
@@ -431,7 +432,7 @@ const HealthcareHomeScreen: React.FC = () => {
               <View style={styles.feeContainer}>
                 <Text style={styles.feeLabel}>Fee</Text>
                 <Text style={styles.feeAmount}>
-                  Rs. {item.consultationFee || '1500'}
+                  PKR {item.consultationFee || '1,500'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -622,7 +623,10 @@ const HealthcareHomeScreen: React.FC = () => {
             )}
           </View>
           {searchFocused && (
-            <TouchableOpacity style={styles.searchFilterButton}>
+            <TouchableOpacity
+              style={styles.searchFilterButton}
+              onPress={() => navigation.navigate(HealthcareRouteNames.DoctorSearch)}
+            >
               <Ionicons name="options-outline" size={20} color={THEME.primary} />
             </TouchableOpacity>
           )}
@@ -742,7 +746,7 @@ const HealthcareHomeScreen: React.FC = () => {
               <DoctorCardSkeleton />
             </>
           ) : (
-            featuredDoctors.map((doctor, index) => (
+            featuredDoctors.map((doctor: Doctor, index: number) => (
               <View key={doctor.doctorId}>
                 {renderDoctorCard({ item: doctor, index })}
               </View>

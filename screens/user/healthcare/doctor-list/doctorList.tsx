@@ -77,10 +77,10 @@ const SORT_OPTIONS: { value: SortOption; label: string; icon: string }[] = [
 
 const FEE_PRESETS: { label: string; range: [number, number] }[] = [
   { label: 'Any Price', range: [0, 10000] },
-  { label: 'Under Rs. 1000', range: [0, 1000] },
-  { label: 'Rs. 1000 - 2000', range: [1000, 2000] },
-  { label: 'Rs. 2000 - 3000', range: [2000, 3000] },
-  { label: 'Rs. 3000+', range: [3000, 10000] },
+  { label: 'Under PKR 1,000', range: [0, 1000] },
+  { label: 'PKR 1,000 - 2,000', range: [1000, 2000] },
+  { label: 'PKR 2,000 - 3,000', range: [2000, 3000] },
+  { label: 'PKR 3,000+', range: [3000, 10000] },
 ];
 
 // ── Cities ──────────────────────────────────
@@ -387,7 +387,7 @@ const DoctorListScreen: React.FC = () => {
               <View>
                 <Text style={styles.feeLabel}>Consultation Fee</Text>
                 <Text style={styles.feeAmount}>
-                  Rs. {item.consultationFee || '1500'}
+                  PKR {item.consultationFee || '1,500'}
                 </Text>
               </View>
               <View style={styles.cardActions}>

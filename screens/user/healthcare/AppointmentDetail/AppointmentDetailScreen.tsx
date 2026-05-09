@@ -523,7 +523,7 @@ const AppointmentDetailScreen: React.FC = () => {
             iconBg="#DCFCE7"
             iconColor={THEME.success}
             label="Amount"
-            value={`Rs. ${appointment.payment.amount}`}
+            value={`PKR ${appointment.payment.amount?.toLocaleString()}`}
           />
 
           <View style={styles.detailDivider} />

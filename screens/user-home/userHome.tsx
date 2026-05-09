@@ -53,6 +53,8 @@ const UserHomeScreen: React.FC = () => {
         navigation.navigate('HomeServiceLayout' as never);
       } else if (selectedService === 'healthcare') {
         navigation.navigate('HealthcareStack' as never);
+      } else if (selectedService === 'shopping') {
+        navigation.navigate('Shopping' as never);
       } else {
         navigation.navigate(selectedService as never);
       }

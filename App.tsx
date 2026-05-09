@@ -1,14 +1,15 @@
 import React from 'react';
 import { Provider } from 'react-redux';
-import { store } from './store/store';
+import { PersistGate } from 'redux-persist/integration/react';
+import { store, persistor } from './store/store';
 import AppContainer from './components/app-container/appContainer';
 
 /**
  * Main App Component
- * 
+ *
  * This is the root component of the application.
  * It provides the Redux store to the entire app and renders the AppContainer.
- * 
+ *
  * The AppContainer handles:
  * - App initialization and loading state
  * - Navigation container setup
@@ -21,7 +22,9 @@ const App: React.FC = () => {
 
   return (
     <Provider store={store}>
-      <AppContainer />
+      <PersistGate loading={null} persistor={persistor}>
+        <AppContainer />
+      </PersistGate>
     </Provider>
   );
 };

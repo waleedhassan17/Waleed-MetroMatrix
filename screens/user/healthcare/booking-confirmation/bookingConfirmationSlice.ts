@@ -153,7 +153,7 @@ export const applyCoupon = createAsyncThunk<
         bookingData.fee < couponData.minOrderValue
       ) {
         return rejectWithValue(
-          `Minimum order value of Rs. ${couponData.minOrderValue} required`
+          `Minimum order value of PKR ${couponData.minOrderValue} required`
         );
       }
 
@@ -408,7 +408,7 @@ export const selectFeeBreakdown = (state: RootState): FeeBreakdown => {
 // Get formatted fee
 export const selectFormattedTotal = (state: RootState): string => {
   const breakdown = selectFeeBreakdown(state);
-  return `Rs. ${breakdown.total.toLocaleString()}`;
+  return `PKR ${breakdown.total.toLocaleString()}`;
 };
 
 // Check if has discount

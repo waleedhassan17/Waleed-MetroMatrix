@@ -35,7 +35,7 @@ import type { DetailTab } from './doctorDetailSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
-import type { Clinic, DoctorReview } from '../../../../models/healthcare/types';
+import type { Doctor, Clinic, DoctorReview } from '../../../../models/healthcare/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_MAX_HEIGHT = 280;
@@ -144,7 +144,7 @@ const DoctorDetailScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const doctor = useAppSelector(selectDoctor);
+  const doctor: Doctor | null = useAppSelector(selectDoctor);
   const reviews = useAppSelector(selectReviews);
   const clinics = useAppSelector(selectClinics);
   const activeTab = useAppSelector(selectActiveTab);
@@ -496,7 +496,7 @@ const DoctorDetailScreen: React.FC = () => {
           </View>
           <Text style={styles.sectionTitle}>Education & Qualifications</Text>
         </View>
-        {doctor.qualifications?.map((q, index) => (
+        {doctor.qualifications?.map((q: string, index: number) => (
           <View key={index} style={styles.qualificationRow}>
             <View style={styles.qualificationDot} />
             <Text style={styles.qualificationText}>{q}</Text>
@@ -518,7 +518,7 @@ const DoctorDetailScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Specializations</Text>
           </View>
           <View style={styles.chipContainer}>
-            {doctor.subspecialties.map((s, index) => (
+            {doctor.subspecialties.map((s: string, index: number) => (
               <View key={index} style={styles.specChip}>
                 <Text style={styles.specChipText}>{s}</Text>
               </View>
@@ -572,7 +572,7 @@ const DoctorDetailScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Languages</Text>
           </View>
           <View style={styles.chipContainer}>
-            {doctor.languages.map((lang, index) => (
+            {doctor.languages.map((lang: string, index: number) => (
               <View key={index} style={styles.langChip}>
                 <Text style={styles.langChipText}>{lang}</Text>
               </View>
@@ -590,7 +590,7 @@ const DoctorDetailScreen: React.FC = () => {
             </View>
             <Text style={styles.sectionTitle}>Awards & Recognition</Text>
           </View>
-          {doctor.awards.map((award, index) => (
+          {doctor.awards.map((award: string, index: number) => (
             <View key={index} style={styles.awardRow}>
               <Ionicons name="ribbon-outline" size={16} color={THEME.warning} />
               <Text style={styles.awardText}>{award}</Text>
@@ -614,7 +614,7 @@ const DoctorDetailScreen: React.FC = () => {
             <Text style={styles.feeLabel}>In-Clinic Consultation</Text>
             <Text style={styles.feeDescription}>Visit the clinic</Text>
           </View>
-          <Text style={styles.feeAmount}>Rs. {doctor.consultationFee}</Text>
+          <Text style={styles.feeAmount}>PKR {doctor.consultationFee?.toLocaleString()}</Text>
         </View>
 
         {doctor.videoConsultationFee > 0 && (
@@ -633,7 +633,7 @@ const DoctorDetailScreen: React.FC = () => {
                 <Text style={styles.feeDescription}>Consult from home</Text>
               </View>
               <Text style={styles.feeAmount}>
-                Rs. {doctor.videoConsultationFee}
+                PKR {doctor.videoConsultationFee?.toLocaleString()}
               </Text>
             </View>
           </>
@@ -997,7 +997,7 @@ const DoctorDetailScreen: React.FC = () => {
           <View style={styles.footerFeeInfo}>
             <Text style={styles.footerFeeLabel}>Consultation Fee</Text>
             <Text style={styles.footerFeeAmount}>
-              Rs. {doctor.consultationFee}
+              PKR {doctor.consultationFee?.toLocaleString()}
             </Text>
           </View>
           <TouchableOpacity

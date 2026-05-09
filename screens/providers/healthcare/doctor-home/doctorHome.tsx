@@ -20,6 +20,8 @@ import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks'
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import { fetchDashboardData, refreshDashboard } from './doctorDashboardSlice';
+import type { DoctorDashboardState } from './doctorDashboardSlice';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { Appointment } from '../../../../models/healthcare/types';
 import SlideOutSidebar from '../../../../components/SlideOutSidebar/SlideOutSidebar';
 
@@ -123,7 +125,7 @@ const DoctorHomeScreen: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
-    useAppSelector((state) => state.doctorDashboard);
+    useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -153,7 +155,7 @@ const DoctorHomeScreen: React.FC = () => {
   }, [dispatch]);
 
   const nextAppointment = upcomingAppointments.find(
-    (a) => a.status === 'confirmed' || a.status === 'pending',
+    (a: Appointment) => a.status === 'confirmed' || a.status === 'pending',
   );
 
   const headerOpacity = scrollY.interpolate({ inputRange: [0, 80], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -338,7 +340,10 @@ const DoctorHomeScreen: React.FC = () => {
                 </View>
 
                 {/* CTA */}
-                <TouchableOpacity activeOpacity={0.85}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: nextAppointment.appointmentId })}
+                >
                   <LinearGradient
                     colors={nextAppointment.type === 'video' ? THEME.gradient.secondary : THEME.gradient.primary}
                     start={{ x: 0, y: 0 }}
@@ -363,11 +368,11 @@ const DoctorHomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
             {[
-              { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight },
-              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: '#ECFDF5', isMaterial: true },
-              { icon: 'settings-outline', label: 'Settings', color: '#64748B', bg: '#F1F5F9' },
+              { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorSchedule },
+              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: '#ECFDF5', isMaterial: true, route: DoctorRouteNames.DoctorEarnings },
+              { icon: 'settings-outline', label: 'Settings', color: '#64748B', bg: '#F1F5F9', route: DoctorRouteNames.DoctorSettings },
             ].map((action, i) => (
-              <TouchableOpacity key={i} style={styles.quickActionCard} activeOpacity={0.7}>
+              <TouchableOpacity key={i} style={styles.quickActionCard} activeOpacity={0.7} onPress={() => navigation.navigate(action.route)}>
                 <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
                   {action.isMaterial ? (
                     <MaterialCommunityIcons name={action.icon as any} size={22} color={action.color} />
@@ -415,6 +420,7 @@ const DoctorHomeScreen: React.FC = () => {
                     key={apt.appointmentId}
                     style={[styles.scheduleCard, isNext && styles.scheduleCardHighlight]}
                     activeOpacity={0.75}
+                    onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: apt.appointmentId })}
                   >
                     {isNext && (
                       <LinearGradient

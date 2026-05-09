@@ -363,7 +363,7 @@ const BookAppointmentScreen: React.FC = () => {
           <View style={styles.feeInfoContent}>
             <Text style={styles.feeInfoLabel}>Consultation Fee</Text>
             <Text style={styles.feeInfoAmount}>
-              Rs. {consultationFee || '—'}
+              PKR {consultationFee || '—'}
             </Text>
           </View>
           <View style={styles.feeTypeBadge}>
@@ -554,7 +554,7 @@ const BookAppointmentScreen: React.FC = () => {
           <View style={styles.reviewRowContent}>
             <Text style={styles.reviewRowLabel}>Consultation Fee</Text>
             <Text style={[styles.reviewRowValue, { color: THEME.primary, fontWeight: '700' }]}>
-              Rs. {consultationFee || '—'}
+              PKR {consultationFee || '—'}
             </Text>
           </View>
         </View>
@@ -629,7 +629,7 @@ const BookAppointmentScreen: React.FC = () => {
             {currentStep === 2 && (
               <View style={styles.footerFeeInfo}>
                 <Text style={styles.footerFeeLabel}>Total Fee</Text>
-                <Text style={styles.footerFeeAmount}>Rs. {consultationFee || '—'}</Text>
+                <Text style={styles.footerFeeAmount}>PKR {consultationFee || '—'}</Text>
               </View>
             )}
             

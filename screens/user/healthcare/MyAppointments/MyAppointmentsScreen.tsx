@@ -185,7 +185,7 @@ const MyAppointmentsScreen: React.FC = () => {
         {/* Payment */}
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Consultation Fee</Text>
-          <Text style={styles.paymentAmount}>Rs. {item.payment.amount}</Text>
+          <Text style={styles.paymentAmount}>PKR {item.payment.amount?.toLocaleString()}</Text>
         </View>
 
         {/* Actions */}

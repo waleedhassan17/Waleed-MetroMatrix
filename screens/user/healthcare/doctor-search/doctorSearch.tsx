@@ -317,7 +317,7 @@ const DoctorSearchScreen: React.FC = () => {
                 </Text>
                 <View style={styles.metaDot} />
                 <Text style={styles.feeText}>
-                  Rs. {item.consultationFee || '1500'}
+                  PKR {item.consultationFee || '1,500'}
                 </Text>
               </View>
             </View>

@@ -63,9 +63,16 @@ import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-sc
 import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
 
+// Shopping Module
+import ShoppingStack from "../navigators/ShoppingStack";
+import BrandStack from "../navigators/BrandStack";
+
 // Healthcare Module
 import HealthcareStack from "../navigators/HealthcareStack";
 import DoctorStack from "../navigators/DoctorStack";
+
+// Admin Shopping
+import AdminShoppingStack from "../navigators/AdminShoppingStack";
 
 // Admin Healthcare
 import HealthcareAnalyticsScreen from "../screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen";
@@ -141,6 +148,13 @@ export const BaseRouteNames = {
   AwaitingApproval: "AwaitingApproval",
   PaymentRequest: "PaymentRequest",
   JobCompletion: "JobCompletion",
+
+  // Shopping
+  Shopping: "Shopping",
+  BrandDashboard: "BrandDashboard",
+
+  // Admin Shopping
+  AdminShopping: "AdminShopping",
 
   // Admin Healthcare
   HealthcareAnalytics: "HealthcareAnalytics",
@@ -224,6 +238,13 @@ export type RootStackParamList = {
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;
+
+  // Shopping
+  Shopping: undefined;
+  BrandDashboard: undefined;
+
+  // Admin Shopping
+  AdminShopping: undefined;
 
   // Admin Healthcare
   HealthcareAnalytics: undefined;
@@ -619,6 +640,33 @@ export const BaseRoutes: IRoute[] = [
     options: {
       headerShown: false,
       animation: 'slide_from_right',
+    }
+  },
+
+  // Shopping Route
+  {
+    component: ShoppingStack,
+    title: BaseRouteNames.Shopping,
+    options: {
+      headerShown: false,
+    }
+  },
+
+  // Brand Provider Route
+  {
+    component: BrandStack,
+    title: BaseRouteNames.BrandDashboard,
+    options: {
+      headerShown: false,
+    }
+  },
+
+  // Admin Shopping Route
+  {
+    component: AdminShoppingStack,
+    title: BaseRouteNames.AdminShopping,
+    options: {
+      headerShown: false,
     }
   },
 

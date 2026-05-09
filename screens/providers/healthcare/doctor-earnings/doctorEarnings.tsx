@@ -11,6 +11,7 @@ import {
   Animated,
   Platform,
   Dimensions,
+  Share,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -299,7 +300,10 @@ const DoctorEarningsScreen: React.FC = () => {
               <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Earnings</Text>
-            <TouchableOpacity style={styles.backButton}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => Share.share({ message: `My ${currentPeriodLabel} earnings: ${formatCurrency(totalEarnings, currency)}` })}
+            >
               <Ionicons name="share-outline" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>

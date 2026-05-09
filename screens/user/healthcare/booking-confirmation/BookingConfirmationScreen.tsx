@@ -320,7 +320,7 @@ const BookingConfirmationScreen: React.FC = () => {
 
     Alert.alert(
       'Confirm Booking',
-      `Book appointment with Dr. ${doctorName} for Rs. ${feeBreakdown.total}?`,
+      `Book appointment with Dr. ${doctorName} for PKR ${feeBreakdown.total}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Confirm', onPress: () => dispatch(confirmBooking()) },
@@ -773,7 +773,7 @@ const BookingConfirmationScreen: React.FC = () => {
                 <View style={styles.feeRow}>
                   <Text style={styles.feeLabel}>Consultation Fee</Text>
                   <Text style={styles.feeValue}>
-                    Rs. {feeBreakdown.subtotal}
+                    PKR {feeBreakdown.subtotal}
                   </Text>
                 </View>
 
@@ -790,7 +790,7 @@ const BookingConfirmationScreen: React.FC = () => {
                       </Text>
                     </View>
                     <Text style={styles.feeDiscountValue}>
-                      - Rs. {feeBreakdown.discount}
+                      - PKR {feeBreakdown.discount}
                     </Text>
                   </View>
                 )}
@@ -800,7 +800,7 @@ const BookingConfirmationScreen: React.FC = () => {
                 <View style={styles.feeRow}>
                   <Text style={styles.feeTotalLabel}>Total Amount</Text>
                   <Text style={styles.feeTotalValue}>
-                    Rs. {feeBreakdown.total}
+                    PKR {feeBreakdown.total}
                   </Text>
                 </View>
               </View>
@@ -822,7 +822,7 @@ const BookingConfirmationScreen: React.FC = () => {
         <View style={styles.bottomContent}>
           <View style={styles.bottomLeft}>
             <Text style={styles.bottomLabel}>Total Payable</Text>
-            <Text style={styles.bottomAmount}>Rs. {feeBreakdown.total}</Text>
+            <Text style={styles.bottomAmount}>PKR {feeBreakdown.total}</Text>
           </View>
 
           <TouchableOpacity

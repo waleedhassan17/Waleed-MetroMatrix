@@ -24,7 +24,7 @@ const BaseNavigator: React.FC<BaseNavigatorProps> = ({ initialRouteName }) => {
 
   return (
     <Stack.Navigator 
-      initialRouteName={initialRouteName}
+      initialRouteName={initialRouteName as keyof RootStackParamList}
       screenOptions={defaultOptions}
     >
       {BaseRoutes.map((route: BaseRoute) => (

@@ -1,5 +1,16 @@
 // store/store.ts
-import { configureStore } from "@reduxjs/toolkit";
+import { configureStore, combineReducers } from "@reduxjs/toolkit";
+import {
+  persistStore,
+  persistReducer,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { roleSlice } from "../screens/role-selection/roleSlice";
 import { providerSlice } from "../screens/provider-selection/providerSlice"
 import { signInSlice } from "../screens/user-authentication/signin-screen/signinSlice"; 
@@ -97,99 +108,176 @@ import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAn
 import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
 
-export const store = configureStore({
-  reducer: {
-    role: roleSlice.reducer,
-    provider: providerSlice.reducer,
-    signIn: signInSlice.reducer,
-    providerSignIn: providerSignInSlice.reducer,
-    providerSignUp: providerSignUpSlice.reducer,
-    signUp: signUpSlice.reducer,
-    completeProfile: completeProfileSlice.reducer,
-    personalInfo: personalInfoSlice.reducer,
-    appContainer: appContainerSlice.reducer,
-    forgotPassword: forgotPasswordSlice.reducer,
-    resetPassword: resetPasswordSlice.reducer,
-    resetPasswordOtp: resetPasswordOtpSlice.reducer,
-    emailVerification: emailVerificationSlice.reducer,
-    admin: adminSlice.reducer,
-    userManagement: userManagementReducer,
-    providerManagement: providerManagementReducer,
-    pendingReview: pendingReviewReducer,
-    notifications: notificationsReducer,
-    settings: settingsReducer,
-    providerApproval: providerApprovalSlice.reducer,
-    userHome: userHomeReducer,
-    homeServiceBookings: homeServiceBookingsReducer,
-    serviceProviders: serviceProvidersReducer,
-    home: homeReducer,
-    providerProfile: providerProfileReducer,
-    booking: bookingReducer,
-    bookConfirmation: bookConfirmationReducer,
-    liveTracking: liveTrackingReducer,
-    serviceStatus: serviceStatusReducer,
-    payment: paymentReducer,
-    reviewRating: reviewRatingReducer,
-    // Quick Search Flow reducers
-    quickSearchForm: quickSearchReducer,
-    searchingProviders: searchProvidersReducer,
-    providerChat: providerChatReducer,
-    // Provider HomeService reducers
-    dashboard: providerDashboardReducer,
-    jobs: providerJobsReducer,
-    earnings: providerEarningsReducer,
-    profile: providerHomeProfileReducer,
-    // Provider Job Flow reducers
-    jobDetail: jobDetailReducer,
-    navigationMap: navigationMapReducer,
-    jobInProgress: jobInProgressReducer,
-    awaitingApproval: awaitingApprovalReducer,
-    paymentRequest: paymentRequestReducer,
-    jobCompletion: jobCompletionReducer,
-    // Admin Service Providers reducers
-    adminSPDashboard: adminServiceProvidersDashboardReducer,
-    adminSPBookings: adminServiceProvidersBookingsReducer,
-    adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
-    // Healthcare Patient reducers
-    healthcareHome: healthcareHomeReducer,
-    specialtyList: specialtyListReducer,
-    doctorList: doctorListReducer,
-    doctorDetail: doctorDetailReducer,
-    doctorSearch: doctorSearchReducer,
-    doctorReviews: doctorReviewsReducer,
-    clinicSelection: clinicSelectionReducer,
-    slotSelection: slotSelectionReducer,
-    healthcareBooking: healthcareBookingReducer,
-    bookingConfirmation: bookingConfirmationReducer,
-    appointmentConfirm: appointmentConfirmReducer,
-    myAppointments: myAppointmentsReducer,
-    appointmentDetail: appointmentDetailReducer,
-    rescheduleAppointment: rescheduleAppointmentReducer,
-    videoWaitingRoom: videoWaitingRoomReducer,
-    videoCall: videoCallReducer,
-    inCallChat: inCallChatReducer,
-    prescriptionView: prescriptionViewReducer,
-    healthRecords: healthRecordsReducer,
-    uploadRecord: uploadRecordReducer,
-    // Healthcare Doctor/Provider reducers
-    doctorDashboard: doctorDashboardReducer,
-    doctorSchedule: doctorScheduleReducer,
-    patientQueue: patientQueueReducer,
-    medicalNotes: medicalNotesReducer,
-    prescriptionWriter: prescriptionWriterReducer,
-    patientHistory: patientHistoryReducer,
-    doctorEarnings: doctorEarningsReducer,
-    doctorProfile: doctorProfileReducer,
-    availabilitySettings: availabilitySettingsReducer,
-    manageSlots: manageSlotsReducer,
-    // Healthcare Admin reducers
-    healthcareAnalytics: healthcareAnalyticsReducer,
-    specialtyManagement: specialtyManagementReducer,
-    // Centralized User Features
-    userProfile: userProfileReducer,
-    wallet: walletSlice.reducer,
-  },
+// Shopping Module reducers
+import shoppingHomeReducer from '../screens/Shopping/User/ShoppingHome/shoppingHomeSlice';
+import brandListReducer from '../screens/Shopping/User/BrandList/brandListSlice';
+import brandStoreReducer from '../screens/Shopping/User/BrandStore/brandStoreSlice';
+import categoryListReducer from '../screens/Shopping/User/CategoryList/categoryListSlice';
+import productListReducer from '../screens/Shopping/User/ProductList/productListSlice';
+import productSearchReducer from '../screens/Shopping/User/ProductSearch/productSearchSlice';
+import productDetailReducer from '../screens/Shopping/User/ProductDetail/productDetailSlice';
+import productReviewsReducer from '../screens/Shopping/User/ProductReviews/productReviewsSlice';
+import cartReducer from '../screens/Shopping/User/Cart/cartSlice';
+import checkoutAddressReducer from '../screens/Shopping/User/CheckoutAddress/checkoutAddressSlice';
+import checkoutDeliveryReducer from '../screens/Shopping/User/CheckoutDelivery/checkoutDeliverySlice';
+import checkoutPaymentReducer from '../screens/Shopping/User/CheckoutPayment/checkoutPaymentSlice';
+import checkoutReviewReducer from '../screens/Shopping/User/CheckoutReview/checkoutReviewSlice';
+import wishlistReducer from '../screens/Shopping/User/Wishlist/wishlistSlice';
+import orderConfirmationReducer from '../screens/Shopping/User/OrderConfirmation/orderConfirmationSlice';
+import myOrdersReducer from '../screens/Shopping/User/MyOrders/myOrdersSlice';
+import orderTrackingReducer from '../screens/Shopping/User/OrderTracking/orderTrackingSlice';
+import returnRequestReducer from '../screens/Shopping/User/ReturnRequest/returnRequestSlice';
+import writeReviewReducer from '../screens/Shopping/User/WriteReview/writeReviewSlice';
+import brandHomeReducer from '../screens/Shopping/Brand/BrandHome/brandHomeSlice';
+import brandProductsReducer from '../screens/Shopping/Brand/BrandProducts/brandProductsSlice';
+import productFormReducer from '../screens/Shopping/Brand/ProductForm/productFormSlice';
+import inventoryReducer from '../screens/Shopping/Brand/Inventory/inventorySlice';
+import brandOrdersReducer from '../screens/Shopping/Brand/BrandOrders/brandOrdersSlice';
+import processOrderReducer from '../screens/Shopping/Brand/ProcessOrder/processOrderSlice';
+import returnRequestsReducer from '../screens/Shopping/Brand/ReturnRequests/returnRequestsSlice';
+import addBrandReducer from '../screens/admin/Shopping/AddBrand/addBrandSlice';
+import brandManagementReducer from '../screens/admin/Shopping/BrandManagement/brandManagementSlice';
+import editBrandReducer from '../screens/admin/Shopping/EditBrand/editBrandSlice';
+import outletManagementReducer from '../screens/admin/Shopping/OutletManagement/outletManagementSlice';
+import addOutletReducer from '../screens/admin/Shopping/AddOutlet/addOutletSlice';
+import outletDetailReducer from '../screens/admin/Shopping/OutletDetail/outletDetailSlice';
+
+// ── Redux Persist Config ────────────────────
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['cart', 'wishlist'],
+};
+
+const rootReducer = combineReducers({
+  role: roleSlice.reducer,
+  provider: providerSlice.reducer,
+  signIn: signInSlice.reducer,
+  providerSignIn: providerSignInSlice.reducer,
+  providerSignUp: providerSignUpSlice.reducer,
+  signUp: signUpSlice.reducer,
+  completeProfile: completeProfileSlice.reducer,
+  personalInfo: personalInfoSlice.reducer,
+  appContainer: appContainerSlice.reducer,
+  forgotPassword: forgotPasswordSlice.reducer,
+  resetPassword: resetPasswordSlice.reducer,
+  resetPasswordOtp: resetPasswordOtpSlice.reducer,
+  emailVerification: emailVerificationSlice.reducer,
+  admin: adminSlice.reducer,
+  userManagement: userManagementReducer,
+  providerManagement: providerManagementReducer,
+  pendingReview: pendingReviewReducer,
+  notifications: notificationsReducer,
+  settings: settingsReducer,
+  providerApproval: providerApprovalSlice.reducer,
+  userHome: userHomeReducer,
+  homeServiceBookings: homeServiceBookingsReducer,
+  serviceProviders: serviceProvidersReducer,
+  home: homeReducer,
+  providerProfile: providerProfileReducer,
+  booking: bookingReducer,
+  bookConfirmation: bookConfirmationReducer,
+  liveTracking: liveTrackingReducer,
+  serviceStatus: serviceStatusReducer,
+  payment: paymentReducer,
+  reviewRating: reviewRatingReducer,
+  quickSearchForm: quickSearchReducer,
+  searchingProviders: searchProvidersReducer,
+  providerChat: providerChatReducer,
+  dashboard: providerDashboardReducer,
+  jobs: providerJobsReducer,
+  earnings: providerEarningsReducer,
+  profile: providerHomeProfileReducer,
+  jobDetail: jobDetailReducer,
+  navigationMap: navigationMapReducer,
+  jobInProgress: jobInProgressReducer,
+  awaitingApproval: awaitingApprovalReducer,
+  paymentRequest: paymentRequestReducer,
+  jobCompletion: jobCompletionReducer,
+  adminSPDashboard: adminServiceProvidersDashboardReducer,
+  adminSPBookings: adminServiceProvidersBookingsReducer,
+  adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
+  healthcareHome: healthcareHomeReducer,
+  specialtyList: specialtyListReducer,
+  doctorList: doctorListReducer,
+  doctorDetail: doctorDetailReducer,
+  doctorSearch: doctorSearchReducer,
+  doctorReviews: doctorReviewsReducer,
+  clinicSelection: clinicSelectionReducer,
+  slotSelection: slotSelectionReducer,
+  healthcareBooking: healthcareBookingReducer,
+  bookingConfirmation: bookingConfirmationReducer,
+  appointmentConfirm: appointmentConfirmReducer,
+  myAppointments: myAppointmentsReducer,
+  appointmentDetail: appointmentDetailReducer,
+  rescheduleAppointment: rescheduleAppointmentReducer,
+  videoWaitingRoom: videoWaitingRoomReducer,
+  videoCall: videoCallReducer,
+  inCallChat: inCallChatReducer,
+  prescriptionView: prescriptionViewReducer,
+  healthRecords: healthRecordsReducer,
+  uploadRecord: uploadRecordReducer,
+  doctorDashboard: doctorDashboardReducer,
+  doctorSchedule: doctorScheduleReducer,
+  patientQueue: patientQueueReducer,
+  medicalNotes: medicalNotesReducer,
+  prescriptionWriter: prescriptionWriterReducer,
+  patientHistory: patientHistoryReducer,
+  doctorEarnings: doctorEarningsReducer,
+  doctorProfile: doctorProfileReducer,
+  availabilitySettings: availabilitySettingsReducer,
+  manageSlots: manageSlotsReducer,
+  healthcareAnalytics: healthcareAnalyticsReducer,
+  specialtyManagement: specialtyManagementReducer,
+  userProfile: userProfileReducer,
+  wallet: walletSlice.reducer,
+  shoppingHome: shoppingHomeReducer,
+  brandList: brandListReducer,
+  brandStore: brandStoreReducer,
+  categoryList: categoryListReducer,
+  productList: productListReducer,
+  productSearch: productSearchReducer,
+  productDetail: productDetailReducer,
+  productReviews: productReviewsReducer,
+  cart: cartReducer,
+  wishlist: wishlistReducer,
+  checkoutAddress: checkoutAddressReducer,
+  checkoutDelivery: checkoutDeliveryReducer,
+  checkoutPayment: checkoutPaymentReducer,
+  checkoutReview: checkoutReviewReducer,
+  orderConfirmation: orderConfirmationReducer,
+  myOrders: myOrdersReducer,
+  orderTracking: orderTrackingReducer,
+  returnRequest: returnRequestReducer,
+  writeReview: writeReviewReducer,
+  brandHome: brandHomeReducer,
+  brandProducts: brandProductsReducer,
+  productForm: productFormReducer,
+  inventory: inventoryReducer,
+  brandOrders: brandOrdersReducer,
+  processOrder: processOrderReducer,
+  returnRequests: returnRequestsReducer,
+  addBrand: addBrandReducer,
+  brandManagement: brandManagementReducer,
+  editBrand: editBrandReducer,
+  outletManagement: outletManagementReducer,
+  addOutlet: addOutletReducer,
+  outletDetail: outletDetailReducer,
 });
 
-export type RootState = ReturnType<typeof store.getState>;
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
+
+export type RootState = ReturnType<typeof rootReducer>;
 export type AppDispatch = typeof store.dispatch;

@@ -20,7 +20,7 @@ interface ConsultationBreakdown {
   inClinicPercentage: number;
 }
 
-interface TopSpecialty {
+export interface TopSpecialty {
   name: string;
   appointments: number;
   revenue: number;
@@ -28,7 +28,7 @@ interface TopSpecialty {
   color: string;
 }
 
-interface TopDoctor {
+export interface TopDoctor {
   id: string;
   name: string;
   specialty: string;
@@ -38,13 +38,13 @@ interface TopDoctor {
   avatar?: string;
 }
 
-interface RevenueData {
+export interface RevenueData {
   total: number;
   growth: number;
   monthly: { month: string; amount: number }[];
 }
 
-interface SatisfactionData {
+export interface SatisfactionData {
   averageScore: number;
   totalReviews: number;
   distribution: { stars: number; count: number; percentage: number }[];
@@ -56,7 +56,7 @@ interface ChartData {
   consultationTypeMonthly: { month: string; video: number; inClinic: number }[];
 }
 
-interface HealthcareAnalyticsStats {
+export interface HealthcareAnalyticsStats {
   appointments: AppointmentStats;
   consultationBreakdown: ConsultationBreakdown;
   topSpecialties: TopSpecialty[];

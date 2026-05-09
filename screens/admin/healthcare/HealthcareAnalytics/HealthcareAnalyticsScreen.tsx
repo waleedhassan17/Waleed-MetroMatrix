@@ -27,6 +27,7 @@ import {
   selectAnalyticsLoading,
   selectIsExporting,
 } from './healthcareAnalyticsSlice';
+import type { HealthcareAnalyticsStats, TopSpecialty, TopDoctor, SatisfactionData } from './healthcareAnalyticsSlice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -93,9 +94,9 @@ const formatNumber = (num: number): string => {
 };
 
 const formatCurrency = (num: number): string => {
-  if (num >= 1000000) return 'Rs ' + (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return 'Rs ' + (num / 1000).toFixed(0) + 'K';
-  return 'Rs ' + num.toLocaleString();
+  if (num >= 1000000) return 'PKR ' + (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return 'PKR ' + (num / 1000).toFixed(0) + 'K';
+  return 'PKR ' + num.toLocaleString();
 };
 
 const getInitials = (name: string): string => {
@@ -281,7 +282,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
-  const stats = useAppSelector(selectAnalyticsStats);
+  const stats: HealthcareAnalyticsStats = useAppSelector(selectAnalyticsStats);
   const chartData = useAppSelector(selectChartData);
   const dateRange = useAppSelector(selectDateRange);
   const loading = useAppSelector(selectAnalyticsLoading);
@@ -523,7 +524,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
         {/* ========== TOP SPECIALTIES ========== */}
         <SectionCard title="Top Specialties" icon="medical">
           <SimpleBarChart
-            data={stats.topSpecialties.map((s) => ({
+            data={stats.topSpecialties.map((s: TopSpecialty) => ({
               label: s.name,
               value: s.appointments,
               color: s.color,
@@ -534,7 +535,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
 
         {/* ========== TOP DOCTORS ========== */}
         <SectionCard title="Top Doctors" icon="people">
-          {stats.topDoctors.map((doctor, index) => (
+          {stats.topDoctors.map((doctor: TopDoctor, index: number) => (
             <View
               key={doctor.id}
               style={[
@@ -588,7 +589,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
         {/* ========== REVENUE TREND ========== */}
         <SectionCard title="Revenue Trend" icon="trending-up">
           <SimpleBarChart
-            data={stats.revenue.monthly.map((m) => ({
+            data={stats.revenue.monthly.map((m: { month: string; amount: number }) => ({
               label: m.month,
               value: m.amount,
               color: COLORS.primary,
@@ -628,7 +629,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
               Based on {formatNumber(stats.satisfaction.totalReviews)} reviews
             </Text>
           </View>
-          {stats.satisfaction.distribution.map((item) => (
+          {stats.satisfaction.distribution.map((item: SatisfactionData['distribution'][number]) => (
             <View key={item.stars} style={styles.satisfactionRow}>
               <Text style={styles.satisfactionStars}>{item.stars} ★</Text>
               <View style={styles.satisfactionBarTrack}>

@@ -153,7 +153,7 @@ const SIDEBAR_MENU_ITEMS: SidebarMenuItem[] = [
     id: 'vendors',
     label: 'Vendors',
     icon: 'storefront',
-    route: 'Vendors',
+    route: 'AdminShopping',
     color: '#f59e0b',
     description: 'Product suppliers',
   },

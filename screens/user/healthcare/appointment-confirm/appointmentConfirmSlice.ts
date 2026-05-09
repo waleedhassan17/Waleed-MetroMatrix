@@ -503,7 +503,7 @@ export const selectShareMessage = (state: RootState): string => {
     message += `📍 ${details.clinicName}\n`;
   }
 
-  message += `\n💰 Fee: Rs. ${details.fee}`;
+  message += `\n💰 Fee: PKR ${details.fee}`;
 
   return message;
 };
