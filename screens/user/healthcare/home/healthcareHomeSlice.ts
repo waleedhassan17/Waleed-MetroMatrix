@@ -1,12 +1,13 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { Doctor, Specialty } from '../../../../models/healthcare/types';
-import { fetchSpecialtiesApi, fetchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
+import { fetchSpecialtiesApi, fetchDoctorsApi, fetchNextAppointmentApi } from '../../../../networks/healthcare/doctorApi';
 
 // ── State Interface ─────────────────────────
 
 export interface HealthcareHomeState {
   featuredDoctors: Doctor[];
   specialties: Specialty[];
+  nextAppointment: Appointment | null;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -23,6 +24,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const initialState: HealthcareHomeState = {
   featuredDoctors: [],
   specialties: [],
+  nextAppointment: null,
   loading: false,
   refreshing: false,
   error: null,
@@ -53,9 +55,10 @@ export const fetchHomeData = createAsyncThunk(
         };
       }
 
-      const [specialtiesRes, doctorsRes] = await Promise.all([
+      const [specialtiesRes, doctorsRes, appointmentRes] = await Promise.all([
         fetchSpecialtiesApi(),
         fetchDoctorsApi({ sort: 'rating', limit: 6 }),
+        fetchNextAppointmentApi().catch(() => ({ success: false, data: null })),
       ]);
 
       if (!specialtiesRes.success && !doctorsRes.success) {
@@ -65,6 +68,7 @@ export const fetchHomeData = createAsyncThunk(
       return {
         specialties: specialtiesRes.success ? specialtiesRes.data : [],
         featuredDoctors: doctorsRes.success ? doctorsRes.data.doctors : [],
+        nextAppointment: appointmentRes.success ? appointmentRes.data : null,
         fromCache: false,
       };
     } catch (error: any) {
@@ -158,6 +162,9 @@ const healthcareHomeSlice = createSlice({
         state.loading = false;
         state.specialties = action.payload.specialties;
         state.featuredDoctors = action.payload.featuredDoctors;
+        if (action.payload.nextAppointment !== undefined) {
+          state.nextAppointment = action.payload.nextAppointment;
+        }
         if (!action.payload.fromCache) {
           state.lastUpdated = Date.now();
         }
@@ -234,6 +241,9 @@ export const selectTopRatedDoctors = (state: { healthcareHome: HealthcareHomeSta
 export const selectSpecialtyById = (specialtyId: string) => 
   (state: { healthcareHome: HealthcareHomeState }) => 
     state.healthcareHome.specialties.find(s => s.specialtyId === specialtyId);
+
+export const selectNextAppointment = (state: { healthcareHome: HealthcareHomeState }) =>
+  state.healthcareHome.nextAppointment;
 
 // ── Exports ─────────────────────────────────
 

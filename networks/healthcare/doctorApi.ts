@@ -2,11 +2,11 @@
 // Doctor Domain - Network API Functions
 // ============================================
 
-import type { Doctor, Specialty, DoctorReview } from '../../models/healthcare/types';
+import type { Doctor, Specialty, DoctorReview, Appointment } from '../../models/healthcare/types';
 import type { ApiResponse, Pagination } from '../../models/serviceProviders/common';
 import type { FetchDoctorsParams, FetchDoctorReviewsParams } from '../../models/healthcare/doctorModel';
 import { USE_HEALTHCARE_DUMMY_DATA, healthcareApiRequest } from './config';
-import { dummySpecialties, dummyDoctors, dummyReviews } from './dummyData';
+import { dummySpecialties, dummyDoctors, dummyReviews, dummyAppointments } from './dummyData';
 import {
   doctorSerializer,
   specialtySerializer,
@@ -213,4 +213,24 @@ export async function searchDoctorsApi(
   return healthcareApiRequest<Doctor[]>(
     `/doctors/search?q=${encodeURIComponent(query)}`
   );
+}
+
+// ── Fetch Next Upcoming Appointment ─────────
+
+export async function fetchNextAppointmentApi(): Promise<ApiResponse<Appointment | null>> {
+  if (USE_HEALTHCARE_DUMMY_DATA) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const upcoming = dummyAppointments
+      .filter((a) => a.status === 'confirmed' || a.status === 'pending')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return {
+      success: true,
+      data: upcoming.length > 0 ? upcoming[0] : null,
+      message: 'Next appointment fetched',
+    };
+  }
+
+  return healthcareApiRequest<Appointment | null>('/appointments/next');
 }

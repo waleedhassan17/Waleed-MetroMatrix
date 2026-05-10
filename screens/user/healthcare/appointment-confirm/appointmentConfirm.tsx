@@ -632,11 +632,12 @@ const styles = StyleSheet.create({
     opacity: 0.1,
   },
   successTitle: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 10,
+    letterSpacing: -0.5,
   },
   successSubtitle: {
     fontSize: 14,
@@ -650,8 +651,8 @@ const styles = StyleSheet.create({
   codeCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 18,
+    padding: 22,
     marginBottom: 14,
     borderWidth: 2,
     borderColor: THEME.primaryLight,
@@ -703,20 +704,20 @@ const styles = StyleSheet.create({
   detailsCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
-    borderRadius: 10,
-    padding: 18,
+    borderRadius: 18,
+    padding: 20,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
   },
@@ -908,7 +909,7 @@ const styles = StyleSheet.create({
     }),
   },
   primaryButton: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 12,
   },
@@ -921,7 +922,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
   },
   secondaryButton: {

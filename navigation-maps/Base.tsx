@@ -77,6 +77,7 @@ import AdminShoppingStack from "../navigators/AdminShoppingStack";
 // Admin Healthcare
 import HealthcareAnalyticsScreen from "../screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen";
 import SpecialtyManagementScreen from "../screens/admin/healthcare/SpecialtyManagement/SpecialtyManagementScreen";
+import DoctorManagementScreen from "../screens/admin/healthcare/DoctorManagement/DoctorManagementScreen";
 
 // Route names enum for type safety
 export const BaseRouteNames = {
@@ -159,6 +160,7 @@ export const BaseRouteNames = {
   // Admin Healthcare
   HealthcareAnalytics: "HealthcareAnalytics",
   SpecialtyManagement: "SpecialtyManagement",
+  DoctorManagement: "DoctorManagement",
 
   // Healthcare Module
   HealthcareStack: "HealthcareStack",
@@ -249,6 +251,7 @@ export type RootStackParamList = {
   // Admin Healthcare
   HealthcareAnalytics: undefined;
   SpecialtyManagement: undefined;
+  DoctorManagement: undefined;
 
   // Healthcare Module
   HealthcareStack: undefined;
@@ -681,6 +684,13 @@ export const BaseRoutes: IRoute[] = [
   {
     component: SpecialtyManagementScreen,
     title: BaseRouteNames.SpecialtyManagement,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: DoctorManagementScreen,
+    title: BaseRouteNames.DoctorManagement,
     options: {
       headerShown: false,
     }

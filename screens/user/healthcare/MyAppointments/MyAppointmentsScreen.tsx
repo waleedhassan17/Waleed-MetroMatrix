@@ -293,17 +293,24 @@ const MyAppointmentsScreen: React.FC = () => {
       >
         {/* Title row */}
         <View style={styles.headerRow}>
-          {isInTab ? <View style={styles.backButton} /> : (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          {isInTab ? (
+            <View style={styles.backButton}>
+              <Ionicons name="calendar" size={20} color="#FFFFFF" />
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>My Appointments</Text>
             <Text style={styles.headerSubtitle}>
               {filteredAppointments.length} {activeTab === 'upcoming' ? 'upcoming' : 'past'}
             </Text>
           </View>
-          <View style={styles.backButton} />
+          <TouchableOpacity style={styles.backButton} onPress={onRefresh} activeOpacity={0.7}>
+            <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         {/* Tab Bar */}

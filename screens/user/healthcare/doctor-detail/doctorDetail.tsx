@@ -639,6 +639,26 @@ const DoctorDetailScreen: React.FC = () => {
           </>
         )}
       </View>
+
+      {/* Consultation Guarantee */}
+      <View style={styles.guaranteeCard}>
+        <LinearGradient
+          colors={['#F0FDF4', '#DCFCE7']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.guaranteeGradient}
+        >
+          <View style={styles.guaranteeIconWrap}>
+            <MaterialCommunityIcons name="shield-check" size={22} color="#059669" />
+          </View>
+          <View style={styles.guaranteeContent}>
+            <Text style={styles.guaranteeTitle}>Consultation Guarantee</Text>
+            <Text style={styles.guaranteeText}>
+              Get a free follow-up if you're not satisfied with your consultation
+            </Text>
+          </View>
+        </LinearGradient>
+      </View>
     </View>
   );
 
@@ -1085,13 +1105,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
+    width: 96,
+    height: 96,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   onlineDot: {
     position: 'absolute',
@@ -1113,10 +1133,11 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   doctorName: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   qualifications: {
     fontSize: 14,
@@ -1174,20 +1195,20 @@ const styles = StyleSheet.create({
   statsCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 20,
+    padding: 22,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
       },
       android: {
-        elevation: 4,
+        elevation: 5,
       },
     }),
   },
@@ -1409,10 +1430,14 @@ const styles = StyleSheet.create({
   // Fee Card
   feeCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
+    ...Platform.select({
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
   },
   feeCardTitle: {
     fontSize: 15,
@@ -1456,6 +1481,43 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F1F5F9',
     marginVertical: 14,
+  },
+
+  // Guarantee
+  guaranteeCard: {
+    marginTop: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  guaranteeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+  },
+  guaranteeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guaranteeContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  guaranteeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#065F46',
+    marginBottom: 2,
+  },
+  guaranteeText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#047857',
+    lineHeight: 16,
   },
 
   // Reviews
@@ -1800,20 +1862,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    padding: 12,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    padding: 14,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        shadowColor: '#1E293B',
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 8,
+        elevation: 10,
       },
     }),
   },
@@ -1833,7 +1895,7 @@ const styles = StyleSheet.create({
   },
   bookButton: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   bookButtonGradient: {
@@ -1841,11 +1903,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 15,
   },
   bookButtonText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 

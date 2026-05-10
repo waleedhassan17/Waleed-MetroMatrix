@@ -651,7 +651,11 @@ const HealthRecordsScreen: React.FC = () => {
           {/* Header Content */}
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
-              {isInTab ? <View style={styles.backButton} /> : (
+              {isInTab ? (
+                <View style={styles.backButton}>
+                  <Ionicons name="folder-open" size={20} color="#FFFFFF" />
+                </View>
+              ) : (
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}

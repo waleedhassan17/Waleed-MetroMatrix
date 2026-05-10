@@ -23,7 +23,7 @@ import type { HealthcareHomeState } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
-import type { Doctor, Specialty } from '../../../../models/healthcare/types';
+import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SPECIALTY_CARD_WIDTH = 88;
@@ -175,7 +175,7 @@ const DoctorCardSkeleton: React.FC = () => (
 const HealthcareHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { featuredDoctors, specialties, loading, error } = useAppSelector(
+  const { featuredDoctors, specialties, nextAppointment, loading, error } = useAppSelector(
     (state) => state.healthcareHome
   ) as HealthcareHomeState;
 
@@ -583,6 +583,7 @@ const HealthcareHomeScreen: React.FC = () => {
               <View style={styles.headerTextGroup}>
                 <Text style={styles.greeting}>{getGreeting()} 👋</Text>
                 <Text style={styles.headerTitle}>Find Your Doctor</Text>
+                <Text style={styles.headerSubtitle}>Book appointments with top specialists</Text>
               </View>
             </View>
           </LinearGradient>
@@ -631,6 +632,97 @@ const HealthcareHomeScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </Animated.View>
+
+        {/* ── Quick Actions ──────────────────── */}
+        <View style={styles.quickActionsContainer}>
+          <View style={styles.quickActionsGrid}>
+            {QUICK_ACTIONS.map((action, index) => renderQuickAction(action, index))}
+          </View>
+        </View>
+
+        {/* ── Trust Stats Bar ──────────────────── */}
+        <View style={styles.trustBar}>
+          <View style={styles.trustItem}>
+            <View style={[styles.trustIconBg, { backgroundColor: '#EAF3FF' }]}>
+              <Ionicons name="people" size={16} color="#2A7FFF" />
+            </View>
+            <View>
+              <Text style={styles.trustValue}>50,000+</Text>
+              <Text style={styles.trustLabel}>Patients</Text>
+            </View>
+          </View>
+          <View style={styles.trustDivider} />
+          <View style={styles.trustItem}>
+            <View style={[styles.trustIconBg, { backgroundColor: '#ECFDF5' }]}>
+              <MaterialCommunityIcons name="doctor" size={16} color="#10B981" />
+            </View>
+            <View>
+              <Text style={styles.trustValue}>200+</Text>
+              <Text style={styles.trustLabel}>Doctors</Text>
+            </View>
+          </View>
+          <View style={styles.trustDivider} />
+          <View style={styles.trustItem}>
+            <View style={[styles.trustIconBg, { backgroundColor: '#FFFBEB' }]}>
+              <Ionicons name="star" size={16} color="#F59E0B" />
+            </View>
+            <View>
+              <Text style={styles.trustValue}>4.8</Text>
+              <Text style={styles.trustLabel}>Rating</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Upcoming Appointment Card ────────── */}
+        {nextAppointment && (
+          <TouchableOpacity
+            style={styles.upcomingCard}
+            activeOpacity={0.9}
+            onPress={() =>
+              navigation.navigate(HealthcareRouteNames.AppointmentDetail, {
+                appointmentId: nextAppointment.appointmentId,
+              })
+            }
+          >
+            <LinearGradient
+              colors={nextAppointment.type === 'video' ? ['#5A9FFF', '#1E6AE1'] : ['#2A7FFF', '#1857C0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.upcomingGradient}
+            >
+              <View style={styles.upcomingHeader}>
+                <View style={styles.upcomingBadge}>
+                  <Ionicons
+                    name={nextAppointment.type === 'video' ? 'videocam' : 'location'}
+                    size={12}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.upcomingBadgeText}>
+                    {nextAppointment.type === 'video' ? 'Video Call' : 'In-Clinic'}
+                  </Text>
+                </View>
+                <Text style={styles.upcomingDate}>
+                  {new Date(nextAppointment.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
+              <Text style={styles.upcomingTitle}>Upcoming Appointment</Text>
+              <View style={styles.upcomingTimeRow}>
+                <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.upcomingTime}>
+                  {nextAppointment.timeSlot.start} – {nextAppointment.timeSlot.end}
+                </Text>
+              </View>
+              <View style={styles.upcomingFooter}>
+                <Text style={styles.upcomingViewText}>View Details</Text>
+                <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* ── Specialties Section ─────────────── */}
         <View style={styles.section}>
@@ -754,30 +846,48 @@ const HealthcareHomeScreen: React.FC = () => {
           )}
         </View>
 
-        {/* ── Health Tips Card ─────────────────── */}
-        <View style={styles.healthTipsSection}>
-          <LinearGradient
-            colors={['#ECFDF5', '#D1FAE5']}
-            style={styles.healthTipsCard}
-          >
-            <View style={styles.healthTipsIcon}>
-              <MaterialCommunityIcons
-                name="heart-pulse"
-                size={24}
-                color={THEME.success}
-              />
+        {/* ── Health Tips Section ─────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Health Tips</Text>
+              <Text style={styles.sectionSubtitle}>Stay informed, stay healthy</Text>
             </View>
-            <View style={styles.healthTipsContent}>
-              <Text style={styles.healthTipsTitle}>Daily Health Tip</Text>
-              <Text style={styles.healthTipsText}>
-                Regular health checkups can help detect potential issues early.
-                Schedule your annual checkup today!
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.healthTipsAction}>
-              <Ionicons name="chevron-forward" size={20} color={THEME.success} />
+          </View>
+          <View style={styles.healthTipsSection}>
+            <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
+              <LinearGradient
+                colors={['#ECFDF5', '#D1FAE5']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.healthTipGradient}
+              >
+                <View style={styles.healthTipIconWrap}>
+                  <MaterialCommunityIcons name="heart-pulse" size={20} color="#059669" />
+                </View>
+                <Text style={styles.healthTipTitle}>Preventive Care</Text>
+                <Text style={styles.healthTipText}>
+                  Regular checkups detect issues early. Book an annual health screening today.
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </LinearGradient>
+            <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
+              <LinearGradient
+                colors={['#EFF6FF', '#DBEAFE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.healthTipGradient}
+              >
+                <View style={styles.healthTipIconWrap}>
+                  <MaterialCommunityIcons name="water" size={20} color="#2563EB" />
+                </View>
+                <Text style={styles.healthTipTitle}>Stay Hydrated</Text>
+                <Text style={styles.healthTipText}>
+                  Drink 8 glasses of water daily for optimal body function and energy.
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Bottom Safe Area */}
@@ -839,55 +949,34 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     paddingHorizontal: 20,
-    paddingTop: STATUS_BAR_HEIGHT + 16,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    paddingTop: STATUS_BAR_HEIGHT + 20,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   headerTextGroup: {
     flex: 1,
   },
   greeting: {
     fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 6,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5,
+    marginBottom: 4,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    zIndex: 1,
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.65)',
   },
 
   // Search
@@ -895,8 +984,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 20,
+    marginTop: -16,
+    marginBottom: 24,
   },
   searchWrapperFocused: {
     gap: 10,
@@ -906,11 +995,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
+    ...Platform.select({
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
   },
   searchContainerFocused: {
     borderColor: THEME.primary,
@@ -949,31 +1042,31 @@ const styles = StyleSheet.create({
   // Quick Actions
   quickActionsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 28,
   },
   quickActionsGrid: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
   quickActionCard: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingVertical: 18,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
-      android: { elevation: 2 },
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
+      android: { elevation: 3 },
     }),
   },
   quickActionIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
@@ -981,46 +1074,171 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#1E293B',
     textAlign: 'center',
     lineHeight: 16,
   },
 
+  // Trust Stats Bar
+  trustBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EEF2FF',
+    ...Platform.select({
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  trustIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trustValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  trustLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  trustDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#E2E8F0',
+  },
+
+  // Upcoming Appointment Card
+  upcomingCard: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#2A7FFF',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  upcomingGradient: {
+    padding: 18,
+    borderRadius: 16,
+  },
+  upcomingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  upcomingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  upcomingBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  upcomingDate: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  upcomingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  upcomingTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
+  },
+  upcomingTime: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  upcomingFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-end',
+  },
+  upcomingViewText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
   // Sections
   section: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.4,
   },
   sectionSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: Colors.text.tertiary,
-    marginTop: 2,
+    color: '#94A3B8',
+    marginTop: 3,
   },
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: `${THEME.primary}08`,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#EAF3FF',
   },
   seeAllText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: THEME.primary,
   },
 
@@ -1035,28 +1253,28 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   specialtyIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 62,
+    height: 62,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#2A7FFF',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
+        shadowOpacity: 0.18,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 4,
+        elevation: 5,
       },
     }),
   },
   specialtyName: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text.primary,
+    fontWeight: '700',
+    color: '#1E293B',
     textAlign: 'center',
     marginBottom: 4,
     lineHeight: 16,
@@ -1182,20 +1400,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 14,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#EEF2FF',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
   },
@@ -1335,45 +1553,43 @@ const styles = StyleSheet.create({
   // Health Tips
   healthTipsSection: {
     paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  healthTipsCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 10,
+    gap: 12,
   },
-  healthTipsIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  healthTipsContent: {
+  healthTipCard: {
     flex: 1,
-    marginLeft: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
   },
-  healthTipsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#065F46',
-    marginBottom: 4,
+  healthTipGradient: {
+    padding: 16,
+    borderRadius: 16,
+    minHeight: 140,
   },
-  healthTipsText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#047857',
-    lineHeight: 16,
-  },
-  healthTipsAction: {
+  healthTipIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255,255,255,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  healthTipTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  healthTipText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#475569',
+    lineHeight: 16,
   },
 
   // Error State

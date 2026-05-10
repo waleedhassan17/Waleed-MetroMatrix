@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DoctorDashboardScreen from '../doctor-home/doctorHome';
 import DoctorScheduleScreen from '../doctor-schedule/doctorSchedule';
 import PatientQueueScreen from '../patient-queue/patientQueue';
+import DoctorEarningsScreen from '../doctor-earnings/doctorEarnings';
 
 // ── Blue Healthcare Palette ─────────────────
 const COLORS = {
@@ -33,6 +34,7 @@ type TabParamList = {
   DoctorHome: undefined;
   Schedule: undefined;
   Patients: undefined;
+  Earnings: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -42,6 +44,7 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
   DoctorHome:       { label: 'Dashboard',  icon: 'grid-outline',     iconFocused: 'grid' },
   Schedule:         { label: 'Schedule',    icon: 'calendar-outline', iconFocused: 'calendar' },
   Patients:         { label: 'Patients',    icon: 'people-outline',   iconFocused: 'people' },
+  Earnings:         { label: 'Earnings',    icon: 'wallet-outline',   iconFocused: 'wallet' },
 };
 
 // ── Animated Tab Icon ───────────────────────
@@ -138,6 +141,7 @@ const DoctorTabNavigator: React.FC = () => {
       <Tab.Screen name="DoctorHome" component={DoctorDashboardScreen} initialParams={{ isTab: true } as any} />
       <Tab.Screen name="Schedule" component={DoctorScheduleScreen} initialParams={{ isTab: true } as any} />
       <Tab.Screen name="Patients" component={PatientQueueScreen} initialParams={{ isTab: true } as any} />
+      <Tab.Screen name="Earnings" component={DoctorEarningsScreen} initialParams={{ isTab: true } as any} />
     </Tab.Navigator>
   );
 };

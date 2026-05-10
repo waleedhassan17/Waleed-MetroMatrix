@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector, PayloadAction } from '@reduxjs/toolkit';
 import type { MedicalRecord } from '../../../../models/healthcare/types';
 import {
   fetchHealthRecordsApi,
@@ -279,39 +279,41 @@ const healthRecordsSlice = createSlice({
 // ── Selectors ───────────────────────────────
 
 // Get filtered records by category
-export const selectFilteredRecords = (state: { healthRecords: HealthRecordsState }) => {
-  const { records, selectedCategory, sortBy, sortOrder } = state.healthRecords;
-
-  // Filter by category
-  let filtered = records;
-  if (selectedCategory !== 'All') {
-    const type = mapCategoryToType(selectedCategory);
-    if (type) {
-      filtered = records.filter((r) => r.type === type);
+export const selectFilteredRecords = createSelector(
+  [
+    (state: { healthRecords: HealthRecordsState }) => state.healthRecords.records,
+    (state: { healthRecords: HealthRecordsState }) => state.healthRecords.selectedCategory,
+    (state: { healthRecords: HealthRecordsState }) => state.healthRecords.sortBy,
+    (state: { healthRecords: HealthRecordsState }) => state.healthRecords.sortOrder,
+  ],
+  (records, selectedCategory, sortBy, sortOrder) => {
+    let filtered = records;
+    if (selectedCategory !== 'All') {
+      const type = mapCategoryToType(selectedCategory);
+      if (type) {
+        filtered = records.filter((r) => r.type === type);
+      }
     }
+
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+          break;
+        case 'name':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'type':
+          comparison = a.type.localeCompare(b.type);
+          break;
+      }
+      return sortOrder === 'asc' ? -comparison : comparison;
+    });
+
+    return sorted;
   }
-
-  // Sort records
-  const sorted = [...filtered].sort((a, b) => {
-    let comparison = 0;
-
-    switch (sortBy) {
-      case 'date':
-        comparison = new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-        break;
-      case 'name':
-        comparison = a.title.localeCompare(b.title);
-        break;
-      case 'type':
-        comparison = a.type.localeCompare(b.type);
-        break;
-    }
-
-    return sortOrder === 'asc' ? -comparison : comparison;
-  });
-
-  return sorted;
-};
+);
 
 // Get records grouped by category
 export const selectRecordsByCategory = (state: { healthRecords: HealthRecordsState }) => {
@@ -335,18 +337,17 @@ export const selectRecordsByCategory = (state: { healthRecords: HealthRecordsSta
 };
 
 // Get record statistics
-export const selectRecordStats = (state: { healthRecords: HealthRecordsState }) => {
-  const { records } = state.healthRecords;
-
-  return {
+export const selectRecordStats = createSelector(
+  [(state: { healthRecords: HealthRecordsState }) => state.healthRecords.records],
+  (records) => ({
     total: records.length,
     prescriptions: records.filter((r) => r.type === 'prescription').length,
     reports: records.filter((r) => r.type === 'report').length,
     imaging: records.filter((r) => r.type === 'imaging').length,
     vaccination: 0,
     other: records.filter((r) => r.type === 'discharge').length,
-  };
-};
+  })
+);
 
 // Get category counts for badges
 export const selectCategoryCounts = (state: { healthRecords: HealthRecordsState }) => {

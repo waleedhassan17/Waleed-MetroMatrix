@@ -585,7 +585,11 @@ const DoctorSearchScreen: React.FC = () => {
       >
 
         <View style={styles.headerContent}>
-          {isInTab ? <View style={styles.backButton} /> : (
+          {isInTab ? (
+            <View style={styles.backButton}>
+              <Ionicons name="search" size={20} color="#FFFFFF" />
+            </View>
+          ) : (
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>)}

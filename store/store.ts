@@ -106,6 +106,7 @@ import manageSlotsReducer from '../screens/providers/healthcare/manage-slots/man
 // Admin Healthcare
 import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAnalytics/healthcareAnalyticsSlice';
 import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
+import doctorManagementReducer from '../screens/admin/healthcare/DoctorManagement/doctorManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
 
 // Shopping Module reducers
@@ -231,6 +232,7 @@ const rootReducer = combineReducers({
   manageSlots: manageSlotsReducer,
   healthcareAnalytics: healthcareAnalyticsReducer,
   specialtyManagement: specialtyManagementReducer,
+  doctorManagement: doctorManagementReducer,
   userProfile: userProfileReducer,
   wallet: walletSlice.reducer,
   shoppingHome: shoppingHomeReducer,

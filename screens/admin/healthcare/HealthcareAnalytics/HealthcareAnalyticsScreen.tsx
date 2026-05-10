@@ -716,6 +716,20 @@ const HealthcareAnalyticsScreen: React.FC = () => {
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => (navigation as any).navigate('DoctorManagement')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#10b981' + '15' }]}>
+              <Ionicons name="people" size={20} color="#10b981" />
+            </View>
+            <View style={styles.quickActionText}>
+              <Text style={styles.quickActionTitle}>Doctor Management</Text>
+              <Text style={styles.quickActionSubtitle}>Verify, manage & monitor doctors</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* ========== EXPORT OPTIONS ========== */}
