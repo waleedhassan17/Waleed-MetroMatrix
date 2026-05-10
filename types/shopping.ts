@@ -319,6 +319,7 @@ export type BrandStackParamList = {
   BrandOrders: undefined;
   BrandOrderDetail: { orderId: string };
   BrandReturnRequests: undefined;
+  BrandDeliveries: undefined;
   BrandAnalytics: undefined;
   BrandSettings: undefined;
   BrandCoupons: undefined;

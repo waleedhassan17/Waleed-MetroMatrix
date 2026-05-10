@@ -61,9 +61,6 @@ export const fetchPaymentMethods = createAsyncThunk(
         description: `Available balance: ${sym}${formattedBalance} ${currency.toUpperCase()}`,
         iconLabel: 'Wallet',
       },
-      { id: 'card', name: 'Credit/Debit Card', description: 'Visa, Mastercard, and more.', iconLabel: 'Card' },
-      { id: 'jazzcash', name: 'JazzCash / EasyPaisa', description: 'Mobile wallet payments.', iconLabel: 'Mobile' },
-      { id: 'bank', name: 'Bank Transfer', description: 'Direct transfer from your bank.', iconLabel: 'Bank' },
     ];
 
     return { methods, balance, currency };

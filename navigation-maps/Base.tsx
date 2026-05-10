@@ -151,7 +151,7 @@ export const BaseRouteNames = {
 
   // Shopping
   Shopping: "Shopping",
-  BrandDashboard: "BrandDashboard",
+  BrandModule: "BrandModule",
 
   // Admin Shopping
   AdminShopping: "AdminShopping",
@@ -241,7 +241,7 @@ export type RootStackParamList = {
 
   // Shopping
   Shopping: undefined;
-  BrandDashboard: undefined;
+  BrandModule: undefined;
 
   // Admin Shopping
   AdminShopping: undefined;
@@ -655,7 +655,7 @@ export const BaseRoutes: IRoute[] = [
   // Brand Provider Route
   {
     component: BrandStack,
-    title: BaseRouteNames.BrandDashboard,
+    title: BaseRouteNames.BrandModule,
     options: {
       headerShown: false,
     }

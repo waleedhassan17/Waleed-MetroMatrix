@@ -9,6 +9,8 @@ import InventoryScreen from '../screens/Shopping/Brand/Inventory/InventoryScreen
 import BrandOrdersScreen from '../screens/Shopping/Brand/BrandOrders/BrandOrdersScreen';
 import ProcessOrderScreen from '../screens/Shopping/Brand/ProcessOrder/ProcessOrderScreen';
 import ReturnRequestsScreen from '../screens/Shopping/Brand/ReturnRequests/ReturnRequestsScreen';
+import BrandAnalyticsScreen from '../screens/Shopping/Brand/BrandAnalytics/BrandAnalyticsScreen';
+import BrandDeliveriesScreen from '../screens/Shopping/Brand/BrandDeliveries/BrandDeliveriesScreen';
 
 const Stack = createNativeStackNavigator<BrandStackParamList>();
 
@@ -53,8 +55,14 @@ const BrandStack: React.FC = () => {
         name={BrandRouteNames.BrandReturnRequests}
         component={ReturnRequestsScreen}
       />
-
-    
+      <Stack.Screen
+        name={BrandRouteNames.BrandAnalytics}
+        component={BrandAnalyticsScreen}
+      />
+      <Stack.Screen
+        name={BrandRouteNames.BrandDeliveries}
+        component={BrandDeliveriesScreen}
+      />
     </Stack.Navigator>
   );
 };

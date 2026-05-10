@@ -28,10 +28,9 @@ import {
   selectWallet,
   selectTransferring,
   selectLastTransfer,
-} from '../../screens/user/wallet/walletSlice';
-import type { WalletState } from '../../screens/user/wallet/walletSlice';
-import type { CounterpartyType } from '../../models/wallet';
-import { generateIdempotencyKey } from '../../networks/wallet/walletApi';
+} from '../../services/wallet';
+import type { WalletState, CounterpartyType } from '../../services/wallet';
+import { generateIdempotencyKey } from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 
 interface TransferSheetProps {

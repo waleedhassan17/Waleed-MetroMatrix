@@ -42,6 +42,7 @@ export const BrandRouteNames = {
   BrandOrders: 'BrandOrders',
   BrandOrderDetail: 'BrandOrderDetail',
   BrandReturnRequests: 'BrandReturnRequests',
+  BrandDeliveries: 'BrandDeliveries',
   BrandAnalytics: 'BrandAnalytics',
   BrandSettings: 'BrandSettings',
   BrandCoupons: 'BrandCoupons',

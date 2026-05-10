@@ -28,9 +28,9 @@ import {
   selectPayingOut,
   selectLastPayout,
   selectConnect,
-} from '../../screens/user/wallet/walletSlice';
-import type { WalletState } from '../../screens/user/wallet/walletSlice';
-import { generateIdempotencyKey } from '../../networks/wallet/walletApi';
+} from '../../services/wallet';
+import type { WalletState } from '../../services/wallet';
+import { generateIdempotencyKey } from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 
 interface PayoutSheetProps {

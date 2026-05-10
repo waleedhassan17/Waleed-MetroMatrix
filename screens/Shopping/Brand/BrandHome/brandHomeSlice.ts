@@ -11,9 +11,12 @@ type BrandOrderSummary = {
 export interface BrandHomeState {
   kpis: {
     revenue: number;
+    income: number;
     orders: number;
     products: number;
     lowStock: number;
+    activeShipments: number;
+    deliveryRate: number; // percentage
   };
   weeklySales: number[];
   recentOrders: BrandOrderSummary[];
@@ -23,9 +26,12 @@ export interface BrandHomeState {
 const initialState: BrandHomeState = {
   kpis: {
     revenue: 286400,
+    income: 252032, // revenue minus 12% platform fee
     orders: 84,
     products: 26,
     lowStock: 5,
+    activeShipments: 3,
+    deliveryRate: 95.4,
   },
   weeklySales: [16, 24, 19, 31, 28, 36, 42],
   recentOrders: [

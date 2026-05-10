@@ -56,9 +56,27 @@ const orderTrackingSlice = createSlice({
       state.orderStatus = action.payload;
       state.steps = buildSteps(action.payload);
     },
+    setTrackingData(
+      state,
+      action: PayloadAction<{
+        orderId: string;
+        status: OrderTrackingState['orderStatus'];
+        courierName?: string;
+        trackingNumber?: string;
+        estimatedDelivery?: string;
+      }>
+    ) {
+      const { orderId, status, courierName, trackingNumber, estimatedDelivery } = action.payload;
+      state.currentOrderId = orderId;
+      state.orderStatus = status;
+      state.steps = buildSteps(status);
+      if (courierName) state.courierName = courierName;
+      if (trackingNumber) state.trackingNumber = trackingNumber;
+      if (estimatedDelivery) state.estimatedDelivery = estimatedDelivery;
+    },
   },
 });
 
-export const { setCurrentOrderId, setOrderStatus } = orderTrackingSlice.actions;
+export const { setCurrentOrderId, setOrderStatus, setTrackingData } = orderTrackingSlice.actions;
 export const selectOrderTracking = (state: { orderTracking: OrderTrackingState }) => state.orderTracking;
 export default orderTrackingSlice.reducer;

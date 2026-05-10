@@ -19,6 +19,7 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';
 import type { Product, Category } from '../../../../types/shopping';
+import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import {
   fetchBrandStore,
   fetchBrandProducts,
@@ -54,6 +55,8 @@ const BrandStoreScreen: React.FC = () => {
   // Dynamic theming from brand config
   const theme = useBrandTheme(brand);
   const cartItemCount = 0; // Will be wired to cart slice later
+  const wishlistItems = useAppSelector(selectWishlistItems);
+  const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
 
   useEffect(() => {
     if (brandId) {
@@ -169,8 +172,27 @@ const BrandStoreScreen: React.FC = () => {
               </Text>
             </View>
           )}
-          <TouchableOpacity style={styles.wishlistBtn} activeOpacity={0.7}>
-            <Heart size={16} stroke={Colors.text.tertiary} strokeWidth={1.75} />
+          <TouchableOpacity
+            style={styles.wishlistBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              dispatch(toggleWishlistItem({
+                productId: item.productId,
+                productName: item.name,
+                productImage: item.images?.[0] ?? '',
+                brandId: item.brandId,
+                brandName: item.brandId,
+                price: item.salePrice ?? item.basePrice,
+                originalPrice: item.salePrice ? item.basePrice : undefined,
+              }));
+            }}
+          >
+            <Heart
+              size={16}
+              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
+              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
+              strokeWidth={1.75}
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.productInfo}>

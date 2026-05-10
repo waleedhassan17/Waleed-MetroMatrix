@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  TextInput,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -16,12 +15,7 @@ import {
   CheckCircle2,
   Circle,
   ChevronLeft,
-  CreditCard,
   Wallet,
-  Building2,
-  Trash2,
-  Plus,
-  Smartphone,
   Banknote,
   AlertCircle,
   TrendingUp,
@@ -29,30 +23,22 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
-import { selectBalance, selectCurrency } from '../../../user/wallet/walletSlice';
+import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import {
-  addCard,
   fetchPaymentMethods,
-  removeCard,
   refreshWalletBalance,
   selectCheckoutPaymentLoading,
   selectCheckoutPaymentMethods,
-  selectSavedCards,
   selectSelectedCheckoutPaymentMethod,
   setSelectedMethod,
   type PaymentMethod,
-  type SavedCard,
 } from './checkoutPaymentSlice';
-import { selectCartItemCount } from '../Cart/cartSlice';
 
 const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', badge: '#E74C3C' };
 
 const getMethodIcon = (id: string) => {
   switch (id) {
     case 'wallet': return Wallet;
-    case 'card': return CreditCard;
-    case 'bank': return Building2;
-    case 'jazzcash': return Smartphone;
     case 'cod': return Banknote;
     default: return Wallet;
   }
@@ -64,15 +50,10 @@ const CheckoutPaymentScreen: React.FC = () => {
 
   const paymentMethods = useAppSelector(selectCheckoutPaymentMethods);
   const selectedMethod = useAppSelector(selectSelectedCheckoutPaymentMethod);
-  const savedCards = useAppSelector(selectSavedCards);
   const loading = useAppSelector(selectCheckoutPaymentLoading);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
-
-  const [cardholderName, setCardholderName] = useState('');
-  const [cardLast4, setCardLast4] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [orderTotal] = useState(2500); // Placeholder — in production pass from checkout state
+  const orderTotal = 2500; // Placeholder — in production pass from checkout state
 
   useEffect(() => { dispatch(fetchPaymentMethods()); }, [dispatch]);
 
@@ -96,23 +77,6 @@ const CheckoutPaymentScreen: React.FC = () => {
     }
     navigation.navigate(ShoppingRouteNames.CheckoutReview, { paymentMethodId: selectedMethod.id });
   }, [navigation, selectedMethod, walletInsufficient, walletBalance, walletCurrency, orderTotal]);
-
-  const handleAddCard = useCallback(() => {
-    if (!cardholderName.trim() || cardLast4.trim().length !== 4 || !cardExpiry.trim()) {
-      Alert.alert('Invalid card', 'Enter cardholder name, last 4 digits, and expiry date.');
-      return;
-    }
-    const nextCard: SavedCard = {
-      id: `card-${Date.now()}`,
-      cardholderName: cardholderName.trim(),
-      last4: cardLast4.trim(),
-      expiry: cardExpiry.trim(),
-    };
-    dispatch(addCard(nextCard));
-    setCardholderName('');
-    setCardLast4('');
-    setCardExpiry('');
-  }, [cardExpiry, cardLast4, cardholderName, dispatch]);
 
   const getCurrencySymbol = (code: string) => {
     const map: Record<string, string> = { usd: '$', eur: '€', gbp: '£', pkr: '₨', inr: '₹' };
@@ -220,7 +184,7 @@ const CheckoutPaymentScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={styles.topUpBtn}
-              onPress={() => navigation.navigate('Wallet' as never)}
+              onPress={() => navigation.navigate('WalletScreen' as never)}
             >
               <Text style={styles.topUpBtnText}>Top Up</Text>
             </TouchableOpacity>
@@ -237,59 +201,15 @@ const CheckoutPaymentScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Saved Cards */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Saved Cards</Text>
-            <View style={styles.badgePill}>
-              <Plus size={12} stroke={ShopColors.primary} strokeWidth={2} />
-              <Text style={styles.badgePillText}>{savedCards.length}</Text>
-            </View>
+        {/* COD info when selected */}
+        {selectedMethod?.id === 'cod' && (
+          <View style={styles.walletInfoCard}>
+            <Banknote size={18} stroke={ShopColors.primary} strokeWidth={2} />
+            <Text style={styles.walletInfoText}>
+              Pay with cash when your order is delivered to your doorstep.
+            </Text>
           </View>
-
-          {savedCards.map((card) => (
-            <View key={card.id} style={styles.savedCard}>
-              <CreditCard size={16} stroke={Colors.text.secondary} strokeWidth={2} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.savedCardName}>{card.cardholderName}</Text>
-                <Text style={styles.savedCardMeta}>•••• {card.last4} · Expires {card.expiry}</Text>
-              </View>
-              <TouchableOpacity onPress={() => dispatch(removeCard(card.id))}>
-                <Trash2 size={16} stroke={Colors.error} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          {selectedMethod?.id === 'card' && (
-            <View style={styles.cardForm}>
-              <TextInput
-                style={styles.input}
-                placeholder="Cardholder name"
-                placeholderTextColor={Colors.text.tertiary}
-                value={cardholderName}
-                onChangeText={setCardholderName}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Last 4 digits"
-                placeholderTextColor={Colors.text.tertiary}
-                value={cardLast4}
-                onChangeText={(v) => setCardLast4(v.replace(/\D/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Expiry (MM/YY)"
-                placeholderTextColor={Colors.text.tertiary}
-                value={cardExpiry}
-                onChangeText={setCardExpiry}
-              />
-              <TouchableOpacity style={styles.addCardBtn} onPress={handleAddCard}>
-                <Text style={styles.addCardBtnText}>Save Card</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        )}
       </ScrollView>
 
       {/* Footer */}
@@ -370,15 +290,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(39,174,96,0.2)',
   },
   walletInfoText: { flex: 1, fontSize: 13, color: Colors.success, fontWeight: '500', lineHeight: 19 },
-  badgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FDEAD7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  badgePillText: { fontSize: 12, fontWeight: '800', color: ShopColors.primary },
-  savedCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: Colors.background, marginBottom: Spacing.sm },
-  savedCardName: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
-  savedCardMeta: { marginTop: 2, fontSize: 12, color: Colors.text.tertiary },
-  cardForm: { marginTop: Spacing.md, gap: Spacing.sm },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, paddingVertical: 14, fontSize: 14, color: Colors.text.primary, backgroundColor: Colors.background },
-  addCardBtn: { backgroundColor: '#FFF', borderWidth: 1, borderColor: ShopColors.primary, paddingVertical: 14, borderRadius: BorderRadius.lg, alignItems: 'center' },
-  addCardBtnText: { fontSize: 14, fontWeight: '800', color: ShopColors.primary },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ShopColors.primary, paddingVertical: 16, borderRadius: BorderRadius.xl },
   continueBtnDisabled: { opacity: 0.45 },

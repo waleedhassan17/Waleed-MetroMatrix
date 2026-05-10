@@ -1,12 +1,64 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
+  Platform,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, PackageCheck, XCircle } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Loader,
+  Package,
+  Truck,
+  XCircle,
+  MapPin,
+  CreditCard,
+  FileText,
+} from 'lucide-react-native';
+import { Shadows } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { selectBrandOrderById, updateOrderStatus } from '../BrandOrders/brandOrdersSlice';
 import { resetProcessOrder, selectProcessOrder, setCarrier, setNotes, setSaving, setTrackingNumber } from './processOrderSlice';
+
+const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
+
+const B = {
+  primary: '#E67E22',
+  primaryLight: '#FFF5EB',
+  surface: '#FFFFFF',
+  bg: '#F8F9FA',
+  text: '#1A1A2E',
+  textSec: '#6B7280',
+  textMuted: '#9CA3AF',
+  border: '#F0F0F0',
+  success: '#10B981',
+  successLight: '#ECFDF5',
+  info: '#3B82F6',
+  infoLight: '#EFF6FF',
+  purple: '#8B5CF6',
+  purpleLight: '#F5F3FF',
+  error: '#EF4444',
+  errorLight: '#FEF2F2',
+  warning: '#D97706',
+  warningLight: '#FFFBEB',
+};
+
+const STATUS_META: Record<string, { color: string; bg: string; icon: any; label: string }> = {
+  pending: { color: B.warning, bg: B.warningLight, icon: Clock, label: 'Pending' },
+  processing: { color: B.info, bg: B.infoLight, icon: Loader, label: 'Processing' },
+  shipped: { color: B.purple, bg: B.purpleLight, icon: Truck, label: 'Shipped' },
+  delivered: { color: B.success, bg: B.successLight, icon: CheckCircle2, label: 'Delivered' },
+  cancelled: { color: B.error, bg: B.errorLight, icon: XCircle, label: 'Cancelled' },
+};
 
 const ProcessOrderScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -17,9 +69,7 @@ const ProcessOrderScreen: React.FC = () => {
   const { carrier, notes, saving, trackingNumber } = useAppSelector(selectProcessOrder);
 
   useEffect(() => {
-    return () => {
-      dispatch(resetProcessOrder());
-    };
+    return () => { dispatch(resetProcessOrder()); };
   }, [dispatch]);
 
   const handleUpdate = (nextStatus: 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
@@ -27,7 +77,7 @@ const ProcessOrderScreen: React.FC = () => {
     setTimeout(() => {
       dispatch(updateOrderStatus({ orderId, orderStatus: nextStatus, trackingNumber: trackingNumber || undefined }));
       dispatch(setSaving(false));
-      Alert.alert('Order updated', `Order moved to ${nextStatus.replace('_', ' ')}.`);
+      Alert.alert('Order Updated', `Status changed to "${nextStatus}".`);
       navigation.navigate(BrandRouteNames.BrandOrders);
     }, 500);
   };
@@ -35,61 +85,152 @@ const ProcessOrderScreen: React.FC = () => {
   if (!order) {
     return (
       <View style={styles.container}>
-        <Text style={styles.empty}>Order not found.</Text>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={20} stroke={B.text} strokeWidth={2} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Order Not Found</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={styles.emptyWrap}>
+          <Package size={32} stroke={B.textMuted} strokeWidth={1.5} />
+          <Text style={styles.emptyText}>This order could not be found.</Text>
+        </View>
       </View>
     );
   }
 
+  const currentStatus = STATUS_META[order.orderStatus] || STATUS_META.pending;
+  const CurrentIcon = currentStatus.icon;
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={20} stroke={B.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.title}>Process Order</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>{order.orderId}</Text>
+          <Text style={styles.subtitle}>Process Order</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: currentStatus.bg }]}>
+          <CurrentIcon size={12} stroke={currentStatus.color} strokeWidth={2} />
+          <Text style={[styles.statusBadgeText, { color: currentStatus.color }]}>{currentStatus.label}</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.orderId}>{order.orderId}</Text>
-          <Text style={styles.customer}>{order.shippingAddress.fullName}</Text>
-          <Text style={styles.meta}>Status: {order.orderStatus}</Text>
-          <Text style={styles.meta}>Payment: {order.paymentMethod} · {order.paymentStatus}</Text>
-          <Text style={styles.meta}>Total: PKR {order.total.toLocaleString()}</Text>
+        {/* Customer & Payment */}
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <View style={[styles.cardIcon, { backgroundColor: B.primaryLight }]}>
+              <MapPin size={16} stroke={B.primary} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardLabel}>Ship to</Text>
+              <Text style={styles.cardValue}>{order.shippingAddress.fullName}</Text>
+              <Text style={styles.cardMeta}>{order.shippingAddress.addressLine1}{order.shippingAddress.city ? `, ${order.shippingAddress.city}` : ''}</Text>
+            </View>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.cardRow}>
+            <View style={[styles.cardIcon, { backgroundColor: B.infoLight }]}>
+              <CreditCard size={16} stroke={B.info} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardLabel}>Payment</Text>
+              <Text style={styles.cardValue}>{order.paymentMethod} · {order.paymentStatus}</Text>
+            </View>
+            <Text style={styles.totalText}>₨{order.total.toLocaleString()}</Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tracking</Text>
-          <TextInput style={styles.input} placeholder="Tracking number" placeholderTextColor={Colors.text.tertiary} value={trackingNumber} onChangeText={(text) => dispatch(setTrackingNumber(text))} />
-          <TextInput style={styles.input} placeholder="Carrier" placeholderTextColor={Colors.text.tertiary} value={carrier} onChangeText={(text) => dispatch(setCarrier(text))} />
-          <TextInput style={[styles.input, styles.multiline]} placeholder="Internal notes" placeholderTextColor={Colors.text.tertiary} value={notes} onChangeText={(text) => dispatch(setNotes(text))} multiline />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items</Text>
-          {order.items.map((item) => (
-            <View key={item.itemId} style={styles.itemRow}>
-              <Text style={styles.itemName}>{item.productName}</Text>
-              <Text style={styles.itemMeta}>{item.quantity} × PKR {item.unitPrice.toLocaleString()}</Text>
+        {/* Items */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Items ({order.items.length})</Text>
+          {order.items.map((item, idx) => (
+            <View key={item.itemId} style={[styles.itemRow, idx < order.items.length - 1 && styles.itemBorder]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemName}>{item.productName}</Text>
+                <Text style={styles.itemVariant}>Qty: {item.quantity}</Text>
+              </View>
+              <Text style={styles.itemPrice}>₨{(item.quantity * item.unitPrice).toLocaleString()}</Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, styles.processingBtn]} disabled={saving} onPress={() => handleUpdate('processing')}>
-            <PackageCheck size={16} stroke="#FFF" strokeWidth={2} />
-            <Text style={styles.actionText}>Mark Processing</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.shipBtn]} disabled={saving} onPress={() => handleUpdate('shipped')}>
-            <PackageCheck size={16} stroke="#FFF" strokeWidth={2} />
-            <Text style={styles.actionText}>Mark Shipped</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} disabled={saving} onPress={() => handleUpdate('cancelled')}>
-            <XCircle size={16} stroke="#FFF" strokeWidth={2} />
-            <Text style={styles.actionText}>Cancel</Text>
-          </TouchableOpacity>
+        {/* Tracking */}
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <FileText size={16} stroke={B.primary} strokeWidth={2} />
+            <Text style={styles.sectionTitle}>Shipping & Notes</Text>
+          </View>
+          <Text style={styles.inputLabel}>Tracking Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 1Z999AA10123456784"
+            placeholderTextColor={B.textMuted}
+            value={trackingNumber}
+            onChangeText={(text) => dispatch(setTrackingNumber(text))}
+          />
+          <Text style={styles.inputLabel}>Carrier</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. TCS, Leopards, FedEx"
+            placeholderTextColor={B.textMuted}
+            value={carrier}
+            onChangeText={(text) => dispatch(setCarrier(text))}
+          />
+          <Text style={styles.inputLabel}>Internal Notes</Text>
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            placeholder="Add any internal notes..."
+            placeholderTextColor={B.textMuted}
+            value={notes}
+            onChangeText={(text) => dispatch(setNotes(text))}
+            multiline
+          />
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actionsCard}>
+          <Text style={styles.sectionTitle}>Update Status</Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: B.info }]}
+              disabled={saving}
+              onPress={() => handleUpdate('processing')}
+            >
+              <Loader size={16} stroke="#FFF" strokeWidth={2} />
+              <Text style={styles.actionText}>Processing</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: B.purple }]}
+              disabled={saving}
+              onPress={() => handleUpdate('shipped')}
+            >
+              <Truck size={16} stroke="#FFF" strokeWidth={2} />
+              <Text style={styles.actionText}>Shipped</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: B.success }]}
+              disabled={saving}
+              onPress={() => handleUpdate('delivered')}
+            >
+              <CheckCircle2 size={16} stroke="#FFF" strokeWidth={2} />
+              <Text style={styles.actionText}>Delivered</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: B.error }]}
+              disabled={saving}
+              onPress={() => handleUpdate('cancelled')}
+            >
+              <XCircle size={16} stroke="#FFF" strokeWidth={2} />
+              <Text style={styles.actionText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -97,29 +238,121 @@ const ProcessOrderScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface, ...Shadows.sm },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.text.primary },
-  content: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  summaryCard: { padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: Colors.surface, ...Shadows.sm },
-  orderId: { fontSize: 18, fontWeight: '800', color: Colors.text.primary },
-  customer: { marginTop: 4, fontSize: 14, fontWeight: '700', color: Colors.text.secondary },
-  meta: { marginTop: 4, fontSize: 12, color: Colors.text.secondary },
-  section: { marginTop: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: Colors.surface, ...Shadows.sm },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.text.primary, marginBottom: Spacing.sm },
-  input: { marginBottom: Spacing.md, paddingHorizontal: Spacing.md, height: 48, borderRadius: BorderRadius.lg, backgroundColor: Colors.backgroundAlt, color: Colors.text.primary },
-  multiline: { height: 100, textAlignVertical: 'top', paddingTop: Spacing.md },
-  itemRow: { paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  itemName: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
-  itemMeta: { marginTop: 2, fontSize: 12, color: Colors.text.secondary },
-  actionRow: { marginTop: Spacing.lg, gap: Spacing.sm },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: BorderRadius.lg },
-  processingBtn: { backgroundColor: Colors.primary },
-  shipBtn: { backgroundColor: Colors.info },
-  cancelBtn: { backgroundColor: Colors.error },
-  actionText: { color: '#FFF', fontWeight: '800' },
-  empty: { flex: 1, textAlign: 'center', textAlignVertical: 'center', fontSize: 16, color: Colors.text.secondary },
+  container: { flex: 1, backgroundColor: B.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: STATUS_BAR_H + 10,
+    paddingBottom: 12,
+    backgroundColor: B.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: B.border,
+    gap: 12,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: B.bg,
+  },
+  headerCenter: { flex: 1 },
+  title: { fontSize: 18, fontWeight: '800', color: B.text },
+  subtitle: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  content: { padding: 16, paddingBottom: 40 },
+
+  // Card
+  card: {
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: B.surface,
+    ...Shadows.sm,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardLabel: { fontSize: 11, fontWeight: '600', color: B.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  cardValue: { fontSize: 14, fontWeight: '700', color: B.text, marginTop: 1 },
+  cardMeta: { fontSize: 12, color: B.textMuted, marginTop: 1 },
+  totalText: { fontSize: 16, fontWeight: '800', color: B.text },
+  divider: { height: 1, backgroundColor: B.border, marginVertical: 12 },
+
+  // Section
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: B.text, marginBottom: 4 },
+
+  // Items
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  itemBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
+  itemName: { fontSize: 14, fontWeight: '700', color: B.text },
+  itemVariant: { fontSize: 12, color: B.textMuted, marginTop: 2 },
+  itemPrice: { fontSize: 14, fontWeight: '800', color: B.text },
+
+  // Inputs
+  inputLabel: { fontSize: 12, fontWeight: '700', color: B.textSec, marginBottom: 6, marginTop: 4 },
+  input: {
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: B.bg,
+    color: B.text,
+    fontSize: 14,
+  },
+  multiline: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
+
+  // Actions
+  actionsCard: {
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: B.surface,
+    ...Shadows.sm,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8,
+  },
+  actionBtn: {
+    width: '47%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  actionText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+
+  // Empty
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  emptyText: { fontSize: 14, color: B.textMuted },
 });
 
 export default ProcessOrderScreen;

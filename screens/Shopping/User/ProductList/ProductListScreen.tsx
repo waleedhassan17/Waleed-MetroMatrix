@@ -43,6 +43,7 @@ import {
   selectActiveFilterCount,
 } from './productListSlice';
 import type { SortOption, ProductFilters } from './productListSlice';
+import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
@@ -89,6 +90,9 @@ const ProductListScreen: React.FC = () => {
   const sorting = useAppSelector(selectProductSorting);
   const loading = useAppSelector(selectProductListLoading);
   const activeFilterCount = useAppSelector(selectActiveFilterCount);
+
+  const wishlistItems = useAppSelector(selectWishlistItems);
+  const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
 
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
@@ -164,8 +168,27 @@ const ProductListScreen: React.FC = () => {
               </Text>
             </View>
           )}
-          <TouchableOpacity style={styles.wishlistBtn} activeOpacity={0.7}>
-            <Heart size={16} stroke={Colors.text.tertiary} strokeWidth={1.75} />
+          <TouchableOpacity
+            style={styles.wishlistBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              dispatch(toggleWishlistItem({
+                productId: item.productId,
+                productName: item.name,
+                productImage: item.images?.[0] ?? '',
+                brandId: item.brandId,
+                brandName: item.brandId,
+                price: item.salePrice ?? item.basePrice,
+                originalPrice: item.salePrice ? item.basePrice : undefined,
+              }));
+            }}
+          >
+            <Heart
+              size={16}
+              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
+              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
+              strokeWidth={1.75}
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.productInfo}>

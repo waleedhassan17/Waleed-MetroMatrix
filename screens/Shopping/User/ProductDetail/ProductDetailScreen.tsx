@@ -35,7 +35,7 @@ import {
   setQuantity,
   setActiveTab,
   setImageIndex,
-  toggleWishlist,
+  toggleWishlistWithPersist,
   resetProductDetail,
   selectProductDetail,
   selectProduct,
@@ -44,6 +44,7 @@ import {
   selectProductReviews,
   selectCurrentPrice,
 } from './productDetailSlice';
+import { selectIsInWishlist } from '../Wishlist/wishlistSlice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_WIDTH * 1.05;
@@ -77,10 +78,10 @@ const ProductDetailScreen: React.FC = () => {
     quantity,
     activeTab,
     imageIndex,
-    isWishlisted,
     addToCartLoading,
     error,
   } = useAppSelector(selectProductDetail);
+  const isWishlisted = useAppSelector(selectIsInWishlist(productId));
 
   useEffect(() => {
     if (productId) {
@@ -188,7 +189,7 @@ const ProductDetailScreen: React.FC = () => {
               <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
             </TouchableOpacity>
             <View style={styles.galleryHeaderRight}>
-              <TouchableOpacity style={styles.headerCircle} onPress={() => dispatch(toggleWishlist())}>
+              <TouchableOpacity style={styles.headerCircle} onPress={() => dispatch(toggleWishlistWithPersist())}>
                 <Heart
                   size={20}
                   stroke={isWishlisted ? ShopColors.badge : Colors.text.primary}

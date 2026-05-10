@@ -47,8 +47,8 @@ import {
   clearWalletError,
   fetchConnectStatus,
   startConnectOnboarding,
-} from './walletSlice';
-import type { WalletState } from './walletSlice';
+} from '../../../services/wallet';
+import type { WalletState } from '../../../services/wallet';
 import type { WalletTransaction, ConnectStatus } from '../../../models/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Colors';
 import { KeyForStorage, retrieveData } from '../../../utils/storage_utils/storageUtils';

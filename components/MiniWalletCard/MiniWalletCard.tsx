@@ -12,7 +12,7 @@ import {
   selectBalance,
   selectCurrency,
   fetchWallet,
-} from '../../screens/user/wallet/walletSlice';
+} from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 import { Eye, EyeOff, ArrowUpRight } from 'lucide-react-native';
 

@@ -129,6 +129,30 @@ export default function ProviderSignInScreen() {
   const handleSignIn = async () => {
     if (!validateForm()) return;
 
+    // ===== STATIC DEV LOGINS - Bypass API for test accounts =====
+    const STATIC_PROVIDERS: Record<string, { password: string; route: string; name: string }> = {
+      'drhira@gmail.com': { password: '123456', route: 'DoctorStack', name: 'Dr. Hira' },
+      'saim@gmail.com': { password: '123456', route: 'HomeServiceProviderDashboard', name: 'Saim' },
+      'outfitters@gmail.com': { password: '123456', route: 'BrandModule', name: 'Outfitters' },
+    };
+
+    const staticMatch = STATIC_PROVIDERS[email.trim().toLowerCase()];
+    if (staticMatch && password === staticMatch.password) {
+      console.log(`✅ [Static] Provider login: ${staticMatch.name} → ${staticMatch.route}`);
+      Alert.alert('Success', `Welcome back, ${staticMatch.name}!`, [
+        {
+          text: 'Continue',
+          onPress: () => {
+            (navigation as any).reset({
+              index: 0,
+              routes: [{ name: staticMatch.route }],
+            });
+          },
+        },
+      ]);
+      return;
+    }
+
     // ===== DYNAMIC LOGIN - Real API authentication =====
     try {
       const result = await dispatch(

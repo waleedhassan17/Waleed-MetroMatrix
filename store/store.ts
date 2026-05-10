@@ -63,7 +63,7 @@ import jobCompletionReducer from "../screens/providers/homeservice/job-completio
 
 // Centralized User Features (Shared across all services)
 import userProfileReducer from "../screens/user/shared/profile/userProfileSlice";
-import { walletSlice } from "../screens/user/wallet/walletSlice";
+import { walletSlice } from "../services/wallet";
 
 // Admin Service Providers slices
 import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
@@ -135,6 +135,8 @@ import inventoryReducer from '../screens/Shopping/Brand/Inventory/inventorySlice
 import brandOrdersReducer from '../screens/Shopping/Brand/BrandOrders/brandOrdersSlice';
 import processOrderReducer from '../screens/Shopping/Brand/ProcessOrder/processOrderSlice';
 import returnRequestsReducer from '../screens/Shopping/Brand/ReturnRequests/returnRequestsSlice';
+import brandAnalyticsReducer from '../screens/Shopping/Brand/BrandAnalytics/brandAnalyticsSlice';
+import brandDeliveriesReducer from '../screens/Shopping/Brand/BrandDeliveries/brandDeliveriesSlice';
 import addBrandReducer from '../screens/admin/Shopping/AddBrand/addBrandSlice';
 import brandManagementReducer from '../screens/admin/Shopping/BrandManagement/brandManagementSlice';
 import editBrandReducer from '../screens/admin/Shopping/EditBrand/editBrandSlice';
@@ -257,6 +259,8 @@ const rootReducer = combineReducers({
   brandOrders: brandOrdersReducer,
   processOrder: processOrderReducer,
   returnRequests: returnRequestsReducer,
+  brandAnalytics: brandAnalyticsReducer,
+  brandDeliveries: brandDeliveriesReducer,
   addBrand: addBrandReducer,
   brandManagement: brandManagementReducer,
   editBrand: editBrandReducer,

@@ -1,7 +1,9 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import type { Product, ProductVariant, ProductReview } from '../../../../types/shopping';
 import { fetchProductByIdApi, fetchProductReviewsApi } from '../../../../networks/shopping/productApi';
 import { addToCartApi } from '../../../../networks/shopping/orderApi';
+import { addItem, type CartItemState } from '../Cart/cartSlice';
+import { toggleWishlistItem, type WishlistItemState } from '../Wishlist/wishlistSlice';
 
 // ── State Interface ─────────────────────────
 
@@ -67,7 +69,7 @@ export const fetchProductDetail = createAsyncThunk(
 
 export const addToCart = createAsyncThunk(
   'productDetail/addToCart',
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { getState, dispatch, rejectWithValue }) => {
     try {
       const state = getState() as { productDetail: ProductDetailState };
       const { product, selectedVariant, quantity } = state.productDetail;
@@ -87,10 +89,49 @@ export const addToCart = createAsyncThunk(
         return rejectWithValue('Failed to add to cart');
       }
 
+      // Sync item into the local persisted cart slice
+      const cartItem: CartItemState = {
+        itemId: `${product.productId}-${selectedVariant.variantId}`,
+        productId: product.productId,
+        brandId: product.brandId,
+        brandName: product.brandId, // best available; replace if brand name is on Product type
+        variantId: selectedVariant.variantId,
+        quantity,
+        unitPrice: product.salePrice ?? product.basePrice + (selectedVariant.additionalPrice || 0),
+        totalPrice: (product.salePrice ?? product.basePrice + (selectedVariant.additionalPrice || 0)) * quantity,
+        productName: product.name,
+        productImage: product.images?.[0] ?? '',
+        size: selectedVariant.size ?? undefined,
+        color: selectedVariant.color ?? undefined,
+        colorCode: selectedVariant.colorCode ?? undefined,
+      };
+      dispatch(addItem(cartItem));
+
       return res;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to add to cart.');
     }
+  }
+);
+
+// Thunk that toggles wishlist in the persisted wishlist slice
+export const toggleWishlistWithPersist = createAsyncThunk(
+  'productDetail/toggleWishlistWithPersist',
+  async (_, { getState, dispatch }) => {
+    const state = getState() as { productDetail: ProductDetailState };
+    const { product } = state.productDetail;
+    if (!product) return;
+
+    const wishlistItem: WishlistItemState = {
+      productId: product.productId,
+      productName: product.name,
+      productImage: product.images?.[0] ?? '',
+      brandId: product.brandId,
+      brandName: product.brandId,
+      price: product.salePrice ?? product.basePrice,
+      originalPrice: product.salePrice ? product.basePrice : undefined,
+    };
+    dispatch(toggleWishlistItem(wishlistItem));
   }
 );
 
@@ -203,17 +244,20 @@ export const selectSelectedVariant = (state: { productDetail: ProductDetailState
 export const selectProductDetailLoading = (state: { productDetail: ProductDetailState }) => state.productDetail.loading;
 export const selectProductReviews = (state: { productDetail: ProductDetailState }) => state.productDetail.reviews;
 
-// Computed price based on selected variant
-export const selectCurrentPrice = (state: { productDetail: ProductDetailState }) => {
-  const { product, selectedVariant } = state.productDetail;
-  if (!product) return { price: 0, originalPrice: 0, hasDiscount: false };
-  const base = product.basePrice + (selectedVariant?.additionalPrice || 0);
-  const sale = product.salePrice ? product.salePrice + (selectedVariant?.additionalPrice || 0) : null;
-  return {
-    price: sale || base,
-    originalPrice: base,
-    hasDiscount: !!sale && sale < base,
-  };
-};
+// Computed price based on selected variant (memoized)
+export const selectCurrentPrice = createSelector(
+  [(state: { productDetail: ProductDetailState }) => state.productDetail.product,
+   (state: { productDetail: ProductDetailState }) => state.productDetail.selectedVariant],
+  (product, selectedVariant) => {
+    if (!product) return { price: 0, originalPrice: 0, hasDiscount: false };
+    const base = product.basePrice + (selectedVariant?.additionalPrice || 0);
+    const sale = product.salePrice ? product.salePrice + (selectedVariant?.additionalPrice || 0) : null;
+    return {
+      price: sale || base,
+      originalPrice: base,
+      hasDiscount: !!sale && sale < base,
+    };
+  }
+);
 
 export default productDetailSlice.reducer;

@@ -29,9 +29,12 @@ const myOrdersSlice = createSlice({
     setStatusFilter(state, action: PayloadAction<MyOrdersState['statusFilter']>) {
       state.statusFilter = action.payload;
     },
+    addOrder(state, action: PayloadAction<MyOrdersItem>) {
+      state.orders.unshift(action.payload);
+    },
   },
 });
 
-export const { setStatusFilter } = myOrdersSlice.actions;
+export const { setStatusFilter, addOrder } = myOrdersSlice.actions;
 export const selectMyOrders = (state: { myOrders: MyOrdersState }) => state.myOrders;
 export default myOrdersSlice.reducer;
