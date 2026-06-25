@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { Doctor } from '../../../../models/healthcare/types';
 import { fetchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import {
+  fetchAllDoctorsAdminApi,
+  approveDoctorApi,
+  rejectDoctorApi,
+} from '../../../../networks/healthcare/adminApi';
 
 // ── Types ─────────────────────────────────────
 
@@ -34,10 +39,14 @@ export const fetchAllDoctors = createAsyncThunk(
   'doctorManagement/fetchAllDoctors',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetchDoctorsApi({ limit: 100 });
+      // Admin endpoint returns doctors across all verification statuses.
+      const res = await fetchAllDoctorsAdminApi({ limit: 100 });
       if (res.success) {
         return res.data.doctors;
       }
+      // Fallback to the public list if the admin call is unavailable.
+      const pub = await fetchDoctorsApi({ limit: 100 });
+      if (pub.success) return pub.data.doctors;
       return rejectWithValue('Failed to fetch doctors');
     } catch (error: any) {
       return rejectWithValue(error.message || 'Network error');
@@ -48,12 +57,17 @@ export const fetchAllDoctors = createAsyncThunk(
 export const verifyDoctor = createAsyncThunk(
   'doctorManagement/verifyDoctor',
   async (
-    { doctorId, action }: { doctorId: string; action: 'verify' | 'reject' },
+    { doctorId, action, reason }: { doctorId: string; action: 'verify' | 'reject'; reason?: string },
     { rejectWithValue }
   ) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const res =
+        action === 'verify'
+          ? await approveDoctorApi(doctorId)
+          : await rejectDoctorApi(doctorId, reason || 'Did not meet verification requirements');
+      if (!res.success) {
+        return rejectWithValue(res.message || 'Action failed');
+      }
       return { doctorId, newStatus: action === 'verify' ? 'verified' as const : 'rejected' as const };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Action failed');

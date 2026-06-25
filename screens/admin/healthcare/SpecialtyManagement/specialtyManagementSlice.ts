@@ -1,5 +1,30 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../store/store';
+import {
+  fetchAdminSpecialtiesApi,
+  createSpecialtyApi,
+  updateSpecialtyApi,
+  deleteSpecialtyApi,
+} from '../../../../networks/healthcare/adminApi';
+
+// Map a backend specialty (commonConditions: string[]) into this screen's shape.
+const SPECIALTY_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6', '#EC4899'];
+function toLocalSpecialty(s: any, idx = 0): any {
+  return {
+    id: s.specialtyId || s.id || s._id,
+    name: s.name || '',
+    icon: s.icon || 'medkit',
+    description: s.description || '',
+    commonConditions: (s.commonConditions || []).map((c: any, i: number) =>
+      typeof c === 'string' ? { id: `${i}`, name: c } : c
+    ),
+    isActive: s.isActive ?? true,
+    doctorCount: s.doctorCount || 0,
+    color: SPECIALTY_COLORS[idx % SPECIALTY_COLORS.length],
+    createdAt: s.createdAt || new Date().toISOString(),
+    updatedAt: s.updatedAt,
+  };
+}
 
 // ============================================
 // INTERFACES
@@ -193,13 +218,9 @@ export const fetchSpecialties = createAsyncThunk(
   'specialtyManagement/fetchSpecialties',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
-
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 600));
-      return initialState.specialties;
+      const res = await fetchAdminSpecialtiesApi();
+      if (!res.success) return rejectWithValue(res.message || 'Failed to fetch specialties');
+      return res.data.map((s: any, i: number) => toLocalSpecialty(s, i));
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to fetch specialties');
     }
@@ -210,31 +231,25 @@ export const saveSpecialty = createAsyncThunk(
   'specialtyManagement/saveSpecialty',
   async (specialty: EditingSpecialty, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
-
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      if (specialty.id) {
-        // Update existing
-        const existing = state.specialtyManagement.specialties.find(s => s.id === specialty.id);
-        return {
-          ...existing!,
-          ...specialty,
-          updatedAt: new Date().toISOString(),
-        } as Specialty;
-      } else {
-        // Create new
-        return {
-          ...specialty,
-          id: Date.now().toString(),
-          isActive: true,
-          doctorCount: 0,
-          createdAt: new Date().toISOString(),
-        } as Specialty;
-      }
+      const conditions = (specialty.commonConditions || []).map((c) => c.name);
+      const payload = {
+        name: specialty.name,
+        icon: specialty.icon,
+        description: specialty.description,
+        commonConditions: conditions,
+      };
+      const res = specialty.id
+        ? await updateSpecialtyApi(specialty.id, payload)
+        : await createSpecialtyApi(payload);
+      if (!res.success) return rejectWithValue(res.message || 'Failed to save specialty');
+      const existing = (getState() as RootState).specialtyManagement.specialties.find((s) => s.id === specialty.id);
+      return {
+        ...toLocalSpecialty(res.data),
+        // Preserve UI-only fields the backend doesn't store.
+        color: specialty.color || existing?.color || '#3B82F6',
+        commonConditions: specialty.commonConditions,
+        doctorCount: existing?.doctorCount ?? 0,
+      } as Specialty;
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to save specialty');
     }
@@ -246,15 +261,15 @@ export const toggleSpecialtyStatus = createAsyncThunk(
   async (specialtyId: string, { getState, rejectWithValue }) => {
     try {
       const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
-
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 400));
-
       const specialty = state.specialtyManagement.specialties.find(s => s.id === specialtyId);
       if (!specialty) return rejectWithValue('Specialty not found');
 
+      // Backend deactivates via DELETE (soft-delete). Reactivation is applied locally
+      // (no reactivate endpoint yet).
+      if (specialty.isActive) {
+        const res = await deleteSpecialtyApi(specialtyId);
+        if (!res.success) return rejectWithValue(res.message || 'Failed to deactivate');
+      }
       return { id: specialtyId, isActive: !specialty.isActive };
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to toggle status');
@@ -266,12 +281,8 @@ export const deleteSpecialty = createAsyncThunk(
   'specialtyManagement/deleteSpecialty',
   async (specialtyId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
-
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const res = await deleteSpecialtyApi(specialtyId);
+      if (!res.success) return rejectWithValue(res.message || 'Failed to delete specialty');
       return specialtyId;
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to delete specialty');
