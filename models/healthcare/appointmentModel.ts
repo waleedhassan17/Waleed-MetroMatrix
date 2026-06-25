@@ -110,6 +110,8 @@ export const VideoCallSchema = z.object({
 
 export const BookAppointmentRequestSchema = z.object({
   doctorId: z.string(),
+  // Backend books against a concrete slot; supply the selected slotId.
+  slotId: z.string().optional(),
   clinicId: z.string().optional(),
   type: z.enum(['in-clinic', 'video']),
   date: z.string(),
@@ -122,6 +124,8 @@ export const BookAppointmentRequestSchema = z.object({
   patientDetails: z.object({
     name: z.string(),
     phone: z.string(),
+    age: z.number().optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
     relation: z.string().optional(),
   }).optional(),
   paymentMethod: z.string().optional(),
@@ -130,6 +134,8 @@ export const BookAppointmentRequestSchema = z.object({
 
 export const RescheduleAppointmentRequestSchema = z.object({
   appointmentId: z.string(),
+  // Backend reschedules to a concrete slot.
+  newSlotId: z.string().optional(),
   date: z.string(),
   timeSlot: z.object({
     start: z.string(),

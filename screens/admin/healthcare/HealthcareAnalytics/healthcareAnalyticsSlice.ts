@@ -1,5 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../store/store';
+import {
+  fetchAdminStatsApi,
+  fetchAppointmentAnalyticsApi,
+  fetchRevenueAnalyticsApi,
+} from '../../../../networks/healthcare/adminApi';
+
+const SPEC_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
 // ============================================
 // INTERFACES
@@ -179,17 +186,43 @@ export const fetchAnalytics = createAsyncThunk(
     { getState, rejectWithValue }
   ) => {
     try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
+      // Pull real figures from the backend admin analytics endpoints, merging
+      // them over the structured shape (some fields have no backend source yet).
+      const [statsRes, apptRes, revRes] = await Promise.all([
+        fetchAdminStatsApi(),
+        fetchAppointmentAnalyticsApi('monthly'),
+        fetchRevenueAnalyticsApi('specialty'),
+      ]);
 
-      // TODO: Replace with actual API call
-      // const response = await getHealthcareAnalyticsAPI(token, params?.start, params?.end);
-      // return response;
+      const base = initialState.stats;
+      const s = statsRes.success ? statsRes.data : {};
+      const revenueRows: any[] = revRes.success ? revRes.data?.revenue || [] : [];
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      return initialState.stats;
+      const stats: HealthcareAnalyticsStats = {
+        ...base,
+        appointments: {
+          ...base.appointments,
+          total: s.totalAppointments ?? base.appointments.total,
+          completionRate: apptRes.success
+            ? apptRes.data?.overallCompletionRate ?? base.appointments.completionRate
+            : base.appointments.completionRate,
+        },
+        revenue: {
+          ...base.revenue,
+          total: s.thisMonthRevenue ?? base.revenue.total,
+          growth: s.growth ?? base.revenue.growth,
+        },
+        topSpecialties: revenueRows.length
+          ? revenueRows.slice(0, 5).map((r, i) => ({
+              name: r.specialtyName || 'Unknown',
+              appointments: r.appointmentCount || 0,
+              revenue: r.totalRevenue || 0,
+              icon: 'medkit',
+              color: SPEC_COLORS[i % SPEC_COLORS.length],
+            }))
+          : base.topSpecialties,
+      };
+      return stats;
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to fetch analytics');
     }

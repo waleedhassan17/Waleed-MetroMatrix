@@ -25,6 +25,7 @@ import {
   prescriptionSerializer,
   medicalRecordSerializer,
   videoCallSerializer,
+  normalizePagination,
 } from '../../serializers/healthcare/healthcareSerializer';
 
 // ── Fetch Time Slots ────────────────────────
@@ -54,13 +55,20 @@ export async function fetchTimeSlotsApi(
     ...(params.clinicId && { clinicId: params.clinicId }),
   });
 
-  const res = await healthcareApiRequest<TimeSlot[]>(
+  const res = await healthcareApiRequest<any>(
     `/doctors/${encodeURIComponent(params.doctorId)}/slots?${queryParams}`
   );
   if (res.success) {
-    return { ...res, data: res.data.map(timeSlotSerializer) };
+    // Backend groups slots by time-of-day { morning, afternoon, evening }.
+    const g = res.data || {};
+    const flat = Array.isArray(g)
+      ? g
+      : [...(g.morning?.slots || []), ...(g.afternoon?.slots || []), ...(g.evening?.slots || [])];
+    // Each grouped slot carries the date implicitly (the query date).
+    const withDate = flat.map((s: any) => ({ date: params.date, ...s }));
+    return { ...res, data: withDate.map(timeSlotSerializer) };
   }
-  return res;
+  return res as ApiResponse<TimeSlot[]>;
 }
 
 // ── Book Appointment ────────────────────────
@@ -97,14 +105,33 @@ export async function bookAppointmentApi(
     };
   }
 
-  const res = await healthcareApiRequest<Appointment>('/appointments', {
+  // Transform the app's booking request into the backend contract.
+  const payload: any = {
+    slotId: (data as any).slotId,
+    doctorId: data.doctorId,
+    clinicId: data.clinicId,
+    type: data.type,
+    symptoms: data.symptoms,
+    couponCode: (data as any).couponCode,
+    patientInfo: data.patientDetails
+      ? {
+          name: data.patientDetails.name,
+          phone: data.patientDetails.phone,
+          age: (data.patientDetails as any).age,
+          gender: (data.patientDetails as any).gender,
+          relationship: data.patientDetails.relation || 'self',
+        }
+      : undefined,
+  };
+
+  const res = await healthcareApiRequest<any>('/appointments', {
     method: 'POST',
-    body: JSON.stringify(data),
+    data: payload,
   });
   if (res.success) {
     return { ...res, data: appointmentSerializer(res.data) };
   }
-  return res;
+  return res as ApiResponse<Appointment>;
 }
 
 // ── Fetch Appointments ──────────────────────
@@ -142,14 +169,31 @@ export async function fetchAppointmentsApi(
     };
   }
 
-  const queryParams = new URLSearchParams({
-    patientId: params.patientId,
-    ...(params.status && { status: params.status }),
+  // Backend infers the patient from the auth token; map status to its buckets.
+  const statusMap: Record<string, string> = {
+    pending: 'upcoming',
+    confirmed: 'upcoming',
+    completed: 'past',
+    cancelled: 'cancelled',
+  };
+  const qp = new URLSearchParams({
+    ...(params.status && { status: statusMap[params.status] || params.status }),
     page: String(params.page || 1),
     limit: String(params.limit || 10),
   });
 
-  return healthcareApiRequest(`/appointments?${queryParams}`);
+  const res = await healthcareApiRequest<any>(`/appointments?${qp}`);
+  if (res.success) {
+    const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
+    return {
+      ...res,
+      data: {
+        appointments: list.map(appointmentSerializer),
+        pagination: normalizePagination(res.data?.pagination),
+      },
+    };
+  }
+  return res as ApiResponse<{ appointments: Appointment[]; pagination: Pagination }>;
 }
 
 // ── Fetch Appointment by ID ─────────────────
@@ -195,8 +239,8 @@ export async function cancelAppointmentApi(
   }
 
   return healthcareApiRequest(`/appointments/${encodeURIComponent(appointmentId)}/cancel`, {
-    method: 'POST',
-    body: JSON.stringify({ reason }),
+    method: 'PATCH',
+    data: { reason: reason || 'Cancelled by patient' },
   });
 }
 
@@ -229,13 +273,17 @@ export async function rescheduleAppointmentApi(
     };
   }
 
-  return healthcareApiRequest<Appointment>(
+  const res = await healthcareApiRequest<any>(
     `/appointments/${encodeURIComponent(data.appointmentId)}/reschedule`,
     {
-      method: 'PUT',
-      body: JSON.stringify({ date: data.date, timeSlot: data.timeSlot }),
+      method: 'PATCH',
+      data: { newSlotId: (data as any).newSlotId },
     }
   );
+  if (res.success) {
+    return { ...res, data: appointmentSerializer(res.data) };
+  }
+  return res as ApiResponse<Appointment>;
 }
 
 // ── Fetch Prescription ──────────────────────
@@ -260,13 +308,19 @@ export async function fetchPrescriptionApi(
     };
   }
 
-  const res = await healthcareApiRequest<Prescription>(
-    `/prescriptions/${encodeURIComponent(prescriptionId)}`
-  );
+  // Backend exposes the patient's prescriptions list; find the requested one.
+  const res = await healthcareApiRequest<any>('/prescriptions/my');
   if (res.success) {
-    return { ...res, data: prescriptionSerializer(res.data) };
+    const list = res.data?.prescriptions || (Array.isArray(res.data) ? res.data : []);
+    const found = list.find(
+      (p: any) => (p.id || p._id || p.prescriptionId) === prescriptionId
+    );
+    if (!found) {
+      return { success: false, data: null as any, message: 'Prescription not found' };
+    }
+    return { ...res, data: prescriptionSerializer(found) };
   }
-  return res;
+  return res as ApiResponse<Prescription>;
 }
 
 // ── Fetch Medical Records ───────────────────
@@ -286,13 +340,13 @@ export async function fetchMedicalRecordsApi(
     };
   }
 
-  const res = await healthcareApiRequest<MedicalRecord[]>(
-    `/medical-records?patientId=${encodeURIComponent(patientId)}`
-  );
+  // Backend infers the patient from the auth token.
+  const res = await healthcareApiRequest<any>('/health-records');
   if (res.success) {
-    return { ...res, data: res.data.map(medicalRecordSerializer) };
+    const list = Array.isArray(res.data) ? res.data : res.data?.records || res.data?.healthRecords || [];
+    return { ...res, data: list.map(medicalRecordSerializer) };
   }
-  return res;
+  return res as ApiResponse<MedicalRecord[]>;
 }
 
 // ── Upload Medical Record ───────────────────

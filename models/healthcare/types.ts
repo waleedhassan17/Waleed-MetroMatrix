@@ -7,8 +7,10 @@
 export interface Doctor {
   doctorId: string;
   userId: string;
+  name?: string;
   pmcNumber: string;
   specialtyId: string;
+  specialtyName?: string;
   subspecialties: string[];
   qualifications: string[];
   experience: number; // years
@@ -83,6 +85,13 @@ export interface Appointment {
   confirmationCode?: string;
   confirmedAt?: string;
   createdAt: string;
+  // Display-only (populated on backend list/detail responses)
+  doctorName?: string;
+  doctorImage?: string;
+  specialtyName?: string;
+  clinicName?: string;
+  clinicAddress?: string;
+  patientName?: string;
 }
 
 // ── TimeSlot ────────────────────────────────
