@@ -187,25 +187,10 @@ export async function fetchDoctorTransactionsApi(): Promise<ApiResponse<EarningT
     await new Promise((r) => setTimeout(r, 400));
     return { success: true, data: dummyEarningTransactions.map(earningTransactionSerializer), message: 'Transactions loaded' };
   }
-  // Derive a transaction ledger from completed appointments.
-  const res = await healthcareApiRequest<any>('/doctors/me/appointments?status=past&limit=100');
+  const res = await healthcareApiRequest<any>('/doctors/me/transactions');
   if (res.success) {
-    const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
-    const txns = list
-      .filter((a: any) => a.status === 'completed')
-      .map((a: any) =>
-        earningTransactionSerializer({
-          transactionId: a.id || a._id,
-          patientName: a.patientId?.fullName || a.patientInfo?.name || '',
-          appointmentId: a.id || a._id,
-          type: a.type,
-          amount: a.totalAmount || a.fee || 0,
-          method: 'cash',
-          status: 'completed',
-          date: a.slotId?.date || a.createdAt,
-        })
-      );
-    return { ...res, data: txns };
+    const list = res.data?.transactions || (Array.isArray(res.data) ? res.data : []);
+    return { ...res, data: list.map(earningTransactionSerializer) };
   }
   return res as ApiResponse<EarningTransaction[]>;
 }
@@ -383,34 +368,61 @@ export async function fetchPatientNotesApi(
       message: 'Notes loaded',
     };
   }
-  return {
-    success: true,
-    data: { patient: notePatientSerializer({ patientId }), notes: [] },
-    message: 'No notes',
-  };
+  const res = await healthcareApiRequest<any>(`/doctors/me/patients/${encodeURIComponent(patientId)}/notes`);
+  if (res.success) {
+    return {
+      ...res,
+      data: {
+        patient: notePatientSerializer(res.data?.patient || { patientId }),
+        notes: (res.data?.notes || []).map(medicalNoteSerializer),
+      },
+    };
+  }
+  return res as ApiResponse<{ patient: NotePatient; notes: MedicalNote[] }>;
 }
 
-export async function saveNoteApi(note: MedicalNote): Promise<ApiResponse<MedicalNote>> {
+export async function saveNoteApi(note: MedicalNote & { patientId?: string }): Promise<ApiResponse<MedicalNote>> {
   if (USE_HEALTHCARE_DUMMY_DATA) {
     await new Promise((r) => setTimeout(r, 500));
+    const saved: MedicalNote = {
+      ...note,
+      noteId: note.noteId || `note-${Date.now()}`,
+      updatedAt: new Date().toISOString(),
+      createdAt: note.createdAt || new Date().toISOString(),
+    };
+    return { success: true, data: medicalNoteSerializer(saved), message: 'Note saved' };
   }
-  const saved: MedicalNote = {
-    ...note,
-    noteId: note.noteId || `note-${Date.now()}`,
-    updatedAt: new Date().toISOString(),
-    createdAt: note.createdAt || new Date().toISOString(),
+  const body = {
+    patientId: note.patientId,
+    appointmentId: note.appointmentId,
+    title: note.title,
+    content: note.content,
+    tags: note.tags,
+    attachments: note.attachments,
   };
-  return { success: true, data: medicalNoteSerializer(saved), message: 'Note saved' };
+  const res = note.noteId
+    ? await healthcareApiRequest<any>(`/doctors/me/notes/${encodeURIComponent(note.noteId)}`, { method: 'PATCH', data: body })
+    : await healthcareApiRequest<any>('/doctors/me/notes', { method: 'POST', data: body });
+  if (res.success) {
+    return { ...res, data: medicalNoteSerializer(res.data?.note || res.data) };
+  }
+  return res as ApiResponse<MedicalNote>;
 }
 
 export async function deleteNoteApi(noteId: string): Promise<ApiResponse<{ noteId: string }>> {
-  return { success: true, data: { noteId }, message: 'Note deleted' };
+  if (USE_HEALTHCARE_DUMMY_DATA) {
+    return { success: true, data: { noteId }, message: 'Note deleted' };
+  }
+  const res = await healthcareApiRequest<any>(`/doctors/me/notes/${encodeURIComponent(noteId)}`, { method: 'DELETE' });
+  return { success: res.success, data: { noteId }, message: res.message };
 }
 
 export async function attachFileApi(
   noteId: string,
   attachment: NoteAttachment
 ): Promise<ApiResponse<NoteAttachment>> {
+  // File binary upload isn't backed yet; attachment metadata is persisted when the
+  // note is saved. Return the attachment so the UI can reflect it immediately.
   return { success: true, data: attachment, message: 'File attached' };
 }
 
@@ -454,7 +466,7 @@ export async function fetchPrescriptionDetailApi(
     await new Promise((r) => setTimeout(r, 500));
     return { success: true, data: prescriptionDetailSerializer(dummyPrescriptionDetail), message: 'Prescription loaded' };
   }
-  const res = await healthcareApiRequest<any>('/prescriptions/my');
+  const res = await healthcareApiRequest<any>('/doctors/me/prescriptions?limit=200');
   if (res.success) {
     const list = res.data?.prescriptions || (Array.isArray(res.data) ? res.data : []);
     const p = list.find((x: any) => (x.id || x._id || x.prescriptionId) === prescriptionId);
@@ -529,7 +541,11 @@ export async function fetchPatientHistoryApi(
     await new Promise((r) => setTimeout(r, 500));
     return { success: true, data: patientRecordSerializer(dummyPatientRecord), message: 'Patient history loaded' };
   }
-  return { success: true, data: patientRecordSerializer({ patientId, visits: [] }), message: 'No history' };
+  const res = await healthcareApiRequest<any>(`/doctors/me/patients/${encodeURIComponent(patientId)}/history`);
+  if (res.success) {
+    return { ...res, data: patientRecordSerializer(res.data) };
+  }
+  return res as ApiResponse<PatientRecord>;
 }
 
 // ═══════════════════════════════════════════
