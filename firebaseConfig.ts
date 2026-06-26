@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { initializeAuth, getAuth } from 'firebase/auth';
 //@ts-ignore - getReactNativePersistence exists at runtime in RN bundle
@@ -16,11 +17,19 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Auth with AsyncStorage persistence so auth state survives app restarts
-const auth = getApps().length > 1
-  ? getAuth(app)
-  : initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+// On web, AsyncStorage-based RN persistence is invalid (it crashes at startup) —
+// use the default browser persistence via getAuth(). On native, keep AsyncStorage
+// persistence so auth state survives app restarts.
+let auth: ReturnType<typeof getAuth>;
+if (Platform.OS === 'web') {
+  auth = getAuth(app);
+} else {
+  auth =
+    getApps().length > 1
+      ? getAuth(app)
+      : initializeAuth(app, {
+          persistence: getReactNativePersistence(AsyncStorage),
+        });
+}
 
 export { app, auth };

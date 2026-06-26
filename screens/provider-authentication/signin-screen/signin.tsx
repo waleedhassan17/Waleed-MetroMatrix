@@ -139,17 +139,8 @@ export default function ProviderSignInScreen() {
     const staticMatch = STATIC_PROVIDERS[email.trim().toLowerCase()];
     if (staticMatch && password === staticMatch.password) {
       console.log(`✅ [Static] Provider login: ${staticMatch.name} → ${staticMatch.route}`);
-      Alert.alert('Success', `Welcome back, ${staticMatch.name}!`, [
-        {
-          text: 'Continue',
-          onPress: () => {
-            (navigation as any).reset({
-              index: 0,
-              routes: [{ name: staticMatch.route }],
-            });
-          },
-        },
-      ]);
+      (navigation as any).reset({ index: 0, routes: [{ name: staticMatch.route }] });
+      Alert.alert('Success', `Welcome back, ${staticMatch.name}!`);
       return;
     }
 
@@ -163,20 +154,20 @@ export default function ProviderSignInScreen() {
       ).unwrap();
       console.log('✅ Provider sign in successful:', result);
 
-      // Navigate based on provider type
-      const destination = providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
+      // Navigate based on provider type. Prefer the freshly-returned result over the
+      // selector value (which may be a stale closure right after dispatch).
+      const resolvedType = (result as any)?.provider?.providerType || providerType;
+      const destination = resolvedType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
 
-      Alert.alert('Success', 'Welcome back!', [
-        {
-          text: 'Continue',
-          onPress: () => {
-            (navigation as any).reset({
-              index: 0,
-              routes: [{ name: destination }],
-            });
-          },
-        },
-      ]);
+      // Navigate immediately — do NOT gate navigation behind Alert.alert, whose
+      // buttons don't render on react-native-web (web users would be stuck here).
+      try {
+        console.log(`➡️ Navigating to ${destination}`);
+        (navigation as any).reset({ index: 0, routes: [{ name: destination }] });
+      } catch (navErr) {
+        console.log('⚠️ Navigation error:', navErr);
+      }
+      Alert.alert('Success', 'Welcome back!');
     } catch (err: any) {
       console.error('❌ Provider sign in error:', err);
       Alert.alert(

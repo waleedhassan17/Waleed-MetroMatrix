@@ -16,6 +16,7 @@ import {
 // ✅ Admin emails that should use admin login flow directly
 const ADMIN_EMAILS = [
   'waleedhassansfd@gmail.com',
+  'admin@mmlocal.dev', // local dev/test admin
   // Add more admin emails here as needed
 ];
 

@@ -230,30 +230,19 @@ const SignIn = () => {
 
       console.log(`✅ Login successful as ${loginType}`);
 
-      Alert.alert('Success', welcomeMessage, [
-        {
-          text: 'Continue',
-          onPress: () => {
-            try {
-              if (isAdminUser) {
-                console.log('🔐 Admin detected, navigating to AdminDashboard');
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'AdminDashboard' }],
-                });
-              } else {
-                console.log('👤 User detected, navigating to UserHome');
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'UserHome' }],
-                });
-              }
-            } catch (navigationError) {
-              console.log('⚠️ Navigation error:', navigationError);
-            }
-          },
-        },
-      ]);
+      // Navigate immediately. NOTE: navigation must NOT be gated behind an
+      // Alert.alert button press — Alert.alert renders no actionable buttons on
+      // react-native-web, so on web the onPress would never fire and the user
+      // would be stuck on the sign-in screen despite a successful login.
+      const target = isAdminUser ? 'AdminDashboard' : 'UserHome';
+      try {
+        console.log(`➡️ Navigating to ${target}`);
+        (navigation as any).reset({ index: 0, routes: [{ name: target }] });
+      } catch (navigationError) {
+        console.log('⚠️ Navigation error:', navigationError);
+      }
+      // Non-blocking confirmation (a no-op on web, a toast/dialog on native).
+      Alert.alert('Success', welcomeMessage);
     } catch (err: any) {
       console.error('❌ Login error:', err);
       Alert.alert(
