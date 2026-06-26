@@ -253,7 +253,10 @@ export const AppContainer: React.FC = () => {
 const styles = StyleSheet.create({
   gestureStyle: {
     flex: 1,
-    backgroundColor: Black,
+    // Light app-root background. Screens cover this on native, but on web some
+    // screens (e.g. the doctor tab scenes) don't fully cover it — a black root
+    // showed through and made those screens look odd/blank.
+    backgroundColor: '#F8FBFF',
   },
   loadingContainer: {
     flex: 1,

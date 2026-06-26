@@ -316,14 +316,16 @@ export async function fetchAvailabilitySettingsApi(): Promise<
   }
   const res = await healthcareApiRequest<any>('/doctors/me/availability');
   const av = res.success ? res.data || {} : {};
-  const vacationDates: VacationDate[] =
-    av.unavailableFrom && av.unavailableTo
-      ? [vacationDateSerializer({ id: 'current', startDate: av.unavailableFrom, endDate: av.unavailableTo, reason: 'Unavailable' })]
-      : [];
+  // Backend absentDates → vacation entries (single-day each).
+  const vacationDates = (av.absentDates || []).map((d: any, i: number) => {
+    const day = new Date(d).toISOString().split('T')[0];
+    return { id: `abs-${i}`, startDate: day, endDate: day, reason: 'Absent' };
+  });
   return {
     success: true,
     data: {
-      weeklySchedule: dummyWeeklySchedule.map(dayScheduleSerializer),
+      // The slice normalises the backend weeklyAvailability (online/onsite ranges).
+      weeklySchedule: av.weeklyAvailability || [],
       vacationDates,
       instantBooking: av.isAvailable ?? true,
       videoConsultation: true,
@@ -332,9 +334,20 @@ export async function fetchAvailabilitySettingsApi(): Promise<
   };
 }
 
+// Expand an inclusive date range into YYYY-MM-DD strings.
+function expandDateRange(start: string, end: string): string[] {
+  const out: string[] = [];
+  const s = new Date(start);
+  const e = new Date(end);
+  for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+    out.push(new Date(d).toISOString().split('T')[0]);
+  }
+  return out;
+}
+
 export async function saveAvailabilitySettingsApi(settings: {
-  weeklySchedule: DaySchedule[];
-  vacationDates: VacationDate[];
+  weeklySchedule: any[];
+  vacationDates: any[];
   instantBooking: boolean;
   videoConsultation: boolean;
 }): Promise<ApiResponse<{ success: boolean }>> {
@@ -342,15 +355,35 @@ export async function saveAvailabilitySettingsApi(settings: {
     await new Promise((r) => setTimeout(r, 800));
     return { success: true, data: { success: true }, message: 'Settings saved' };
   }
-  const vacation = settings.vacationDates[0];
+  const weeklyAvailability = (settings.weeklySchedule || []).map((d: any) => ({
+    day: d.day,
+    isWorking: d.isWorking,
+    online: {
+      enabled: !!d.online?.enabled,
+      ranges: d.online?.enabled ? [{ startTime: d.online.startTime, endTime: d.online.endTime }] : [],
+    },
+    onsite: {
+      enabled: !!d.onsite?.enabled,
+      clinicId: d.onsite?.clinicId || null,
+      ranges: d.onsite?.enabled ? [{ startTime: d.onsite.startTime, endTime: d.onsite.endTime }] : [],
+    },
+  }));
+  const absentDates = (settings.vacationDates || []).flatMap((v: any) => expandDateRange(v.startDate, v.endDate));
   const res = await healthcareApiRequest<any>('/doctors/me/availability', {
     method: 'PATCH',
-    data: {
-      isAvailable: settings.instantBooking,
-      ...(vacation && { unavailableFrom: vacation.startDate, unavailableTo: vacation.endDate }),
-    },
+    data: { isAvailable: settings.instantBooking, weeklyAvailability, absentDates },
   });
   return { success: res.success, data: { success: res.success }, message: res.message };
+}
+
+// Generate bookable slots from the saved weekly availability.
+export async function generateSlotsApi(params: {
+  startDate: string;
+  endDate: string;
+  slotDuration?: number;
+}): Promise<ApiResponse<any>> {
+  const res = await healthcareApiRequest<any>('/doctors/me/slots/generate', { method: 'POST', data: params });
+  return { success: res.success, data: res.data, message: res.message };
 }
 
 // ═══════════════════════════════════════════

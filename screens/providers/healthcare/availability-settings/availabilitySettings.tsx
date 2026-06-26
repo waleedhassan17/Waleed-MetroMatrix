@@ -24,7 +24,10 @@ import { Typography } from '../../../../constants/Fonts';
 import {
   fetchSettings,
   saveSettings,
-  updateWeeklySchedule,
+  generateSlots,
+  toggleDayWorking,
+  toggleDayMode,
+  updateDayMode,
   addVacation,
   removeVacation,
   toggleInstantBooking,
@@ -147,13 +150,18 @@ const TimePicker: React.FC<{
 
 // ── Day Schedule Row ──────────────────────────
 
+const MODE_META = {
+  online: { icon: 'videocam-outline' as const, color: '#2A7FFF', label: 'Online (Video)' },
+  onsite: { icon: 'business-outline' as const, color: '#10B981', label: 'Onsite (Clinic)' },
+};
+
 const DayScheduleRow: React.FC<{
   schedule: DaySchedule;
   onToggleWorking: () => void;
-  onStartTimePress: () => void;
-  onEndTimePress: () => void;
+  onToggleMode: (mode: 'online' | 'onsite') => void;
+  onTimePress: (mode: 'online' | 'onsite', field: 'startTime' | 'endTime') => void;
   index: number;
-}> = ({ schedule, onToggleWorking, onStartTimePress, onEndTimePress, index }) => {
+}> = ({ schedule, onToggleWorking, onToggleMode, onTimePress }) => {
   const dc = DAY_COLORS[schedule.day];
   const pressAnim = useRef(new Animated.Value(1)).current;
 
@@ -165,50 +173,84 @@ const DayScheduleRow: React.FC<{
     onToggleWorking();
   };
 
-  return (
-    <View style={[styles.dayRow, !schedule.isWorking && styles.dayRowOff]}>
-      {/* Day toggle */}
-      <Animated.View style={{ transform: [{ scale: pressAnim }] }}>
+  const renderMode = (mode: 'online' | 'onsite') => {
+    const m = schedule[mode];
+    const meta = MODE_META[mode];
+    return (
+      <View style={modeStyles.modeRow} key={mode}>
         <TouchableOpacity
-          style={[styles.dayToggle, schedule.isWorking && styles.dayToggleActive]}
-          onPress={handlePress}
-          activeOpacity={0.85}
+          style={[modeStyles.modeTag, m.enabled && { backgroundColor: `${meta.color}14`, borderColor: meta.color }]}
+          onPress={() => onToggleMode(mode)}
+          activeOpacity={0.8}
         >
-          {schedule.isWorking ? (
-            <LinearGradient colors={dc.gradient} style={styles.dayToggleGradient}>
-              <Text style={styles.dayLabelActive}>{DAY_SHORT[schedule.day]}</Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.dayToggleInactive}>
-              <Text style={styles.dayLabel}>{DAY_SHORT[schedule.day]}</Text>
-            </View>
-          )}
+          <Ionicons name={meta.icon} size={13} color={m.enabled ? meta.color : '#94A3B8'} />
+          <Text style={[modeStyles.modeTagText, { color: m.enabled ? meta.color : '#94A3B8' }]}>{meta.label}</Text>
         </TouchableOpacity>
-      </Animated.View>
+        {m.enabled ? (
+          <View style={modeStyles.modeTimes}>
+            <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'startTime')} activeOpacity={0.75}>
+              <Text style={styles.timeChipText}>{formatTime12(m.startTime)}</Text>
+            </TouchableOpacity>
+            <View style={styles.timeDash} />
+            <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'endTime')} activeOpacity={0.75}>
+              <Text style={[styles.timeChipText, { color: '#1E6AE1' }]}>{formatTime12(m.endTime)}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={modeStyles.modeOff}>Not available</Text>
+        )}
+      </View>
+    );
+  };
 
-      {schedule.isWorking ? (
-        <View style={styles.dayTimes}>
-          <TouchableOpacity style={styles.timeChip} onPress={onStartTimePress} activeOpacity={0.75}>
-            <Ionicons name="sunny-outline" size={13} color={THEME.primary} />
-            <Text style={styles.timeChipText}>{formatTime12(schedule.startTime)}</Text>
+  return (
+    <View style={[styles.dayRow, !schedule.isWorking && styles.dayRowOff, modeStyles.dayRowCol]}>
+      <View style={modeStyles.dayHeader}>
+        <Animated.View style={{ transform: [{ scale: pressAnim }] }}>
+          <TouchableOpacity
+            style={[styles.dayToggle, schedule.isWorking && styles.dayToggleActive]}
+            onPress={handlePress}
+            activeOpacity={0.85}
+          >
+            {schedule.isWorking ? (
+              <LinearGradient colors={dc.gradient} style={styles.dayToggleGradient}>
+                <Text style={styles.dayLabelActive}>{DAY_SHORT[schedule.day]}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.dayToggleInactive}>
+                <Text style={styles.dayLabel}>{DAY_SHORT[schedule.day]}</Text>
+              </View>
+            )}
           </TouchableOpacity>
+        </Animated.View>
+        {!schedule.isWorking && (
+          <View style={styles.dayOffContainer}>
+            <Ionicons name="close-outline" size={14} color="#CBD5E1" />
+            <Text style={styles.dayOffText}>Day Off — tap to enable</Text>
+          </View>
+        )}
+      </View>
 
-          <View style={styles.timeDash} />
-
-          <TouchableOpacity style={styles.timeChip} onPress={onEndTimePress} activeOpacity={0.75}>
-            <Ionicons name="moon-outline" size={13} color="#5A9FFF" />
-            <Text style={[styles.timeChipText, { color: '#1E6AE1' }]}>{formatTime12(schedule.endTime)}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.dayOffContainer}>
-          <Ionicons name="close-outline" size={14} color="#CBD5E1" />
-          <Text style={styles.dayOffText}>Day Off</Text>
+      {schedule.isWorking && (
+        <View style={modeStyles.modesWrap}>
+          {renderMode('online')}
+          {renderMode('onsite')}
         </View>
       )}
     </View>
   );
 };
+
+const modeStyles = StyleSheet.create({
+  dayRowCol: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
+  dayHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modesWrap: { gap: 8, paddingLeft: 4 },
+  modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  modeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  modeTagText: { fontSize: 12, fontWeight: '700' },
+  modeTimes: { flexDirection: 'row', alignItems: 'center' },
+  modeOff: { fontSize: 12, color: '#94A3B8', fontStyle: 'italic' },
+});
 
 // ── Vacation Card ─────────────────────────────
 
@@ -411,6 +453,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerTarget, setTimePickerTarget] = useState<{
     day: Weekday;
+    mode: 'online' | 'onsite';
     field: 'startTime' | 'endTime';
   } | null>(null);
   const [vacationModalVisible, setVacationModalVisible] = useState(false);
@@ -449,25 +492,30 @@ const AvailabilitySettingsScreen: React.FC = () => {
   }, [saveSuccess, dispatch]);
 
   const currentTimeValue = timePickerTarget
-    ? weeklySchedule.find((s) => s.day === timePickerTarget.day)?.[timePickerTarget.field] ?? '09:00'
+    ? weeklySchedule.find((s) => s.day === timePickerTarget.day)?.[timePickerTarget.mode]?.[timePickerTarget.field] ?? '09:00'
     : '09:00';
 
-  const handleOpenTimePicker = useCallback((day: Weekday, field: 'startTime' | 'endTime') => {
-    setTimePickerTarget({ day, field });
+  const handleOpenTimePicker = useCallback((day: Weekday, mode: 'online' | 'onsite', field: 'startTime' | 'endTime') => {
+    setTimePickerTarget({ day, mode, field });
     setTimePickerVisible(true);
   }, []);
 
   const handleTimeSelect = useCallback((time: string) => {
     if (timePickerTarget) {
-      dispatch(updateWeeklySchedule({
+      dispatch(updateDayMode({
         day: timePickerTarget.day,
+        mode: timePickerTarget.mode,
         updates: { [timePickerTarget.field]: time },
       }));
     }
   }, [dispatch, timePickerTarget]);
 
-  const handleToggleWorking = useCallback((day: Weekday, current: boolean) => {
-    dispatch(updateWeeklySchedule({ day, updates: { isWorking: !current } }));
+  const handleToggleWorking = useCallback((day: Weekday) => {
+    dispatch(toggleDayWorking({ day }));
+  }, [dispatch]);
+
+  const handleToggleMode = useCallback((day: Weekday, mode: 'online' | 'onsite') => {
+    dispatch(toggleDayMode({ day, mode }));
   }, [dispatch]);
 
   const handleAddVacation = useCallback(
@@ -484,18 +532,24 @@ const AvailabilitySettingsScreen: React.FC = () => {
     ]);
   }, [dispatch]);
 
-  const handleSave = useCallback(() => {
-    dispatch(saveSettings());
+  const handleSave = useCallback(async () => {
+    const r = await dispatch(saveSettings());
+    // Persist availability, then auto-generate bookable slots for the next 30 days.
+    if (saveSettings.fulfilled.match(r)) {
+      dispatch(generateSlots({ days: 30 }));
+    }
   }, [dispatch]);
 
+  const hoursOf = (m: { enabled: boolean; startTime: string; endTime: string }) => {
+    if (!m?.enabled) return 0;
+    const [sh, sm] = m.startTime.split(':').map(Number);
+    const [eh, em] = m.endTime.split(':').map(Number);
+    return Math.max(0, (eh + em / 60) - (sh + sm / 60));
+  };
   const workingDays = weeklySchedule.filter((s) => s.isWorking).length;
   const totalHours = weeklySchedule
     .filter((s) => s.isWorking)
-    .reduce((acc, s) => {
-      const [sh, sm] = s.startTime.split(':').map(Number);
-      const [eh, em] = s.endTime.split(':').map(Number);
-      return acc + (eh + em / 60) - (sh + sm / 60);
-    }, 0);
+    .reduce((acc, s) => acc + hoursOf(s.online) + hoursOf(s.onsite), 0);
 
   // ── Loading ───────────────────────────────────
 
@@ -639,9 +693,9 @@ const AvailabilitySettingsScreen: React.FC = () => {
                   key={schedule.day}
                   schedule={schedule}
                   index={index}
-                  onToggleWorking={() => handleToggleWorking(schedule.day, schedule.isWorking)}
-                  onStartTimePress={() => handleOpenTimePicker(schedule.day, 'startTime')}
-                  onEndTimePress={() => handleOpenTimePicker(schedule.day, 'endTime')}
+                  onToggleWorking={() => handleToggleWorking(schedule.day)}
+                  onToggleMode={(mode) => handleToggleMode(schedule.day, mode)}
+                  onTimePress={(mode, field) => handleOpenTimePicker(schedule.day, mode, field)}
                 />
               ))}
             </View>
