@@ -32,6 +32,12 @@ import {
 } from './manageSlotsSlice';
 import { TimeSlot } from '../../../../models/healthcare/types';
 
+// Online (video) vs Onsite (in-clinic) slot badge styles.
+const msTypeStyles = StyleSheet.create({
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
+  typeText: { fontSize: 8, fontWeight: '700' },
+});
+
 // ── Theme ─────────────────────────────────────
 
 const THEME = {
@@ -117,6 +123,17 @@ const SlotGridItem: React.FC<{
         disabled={isBooked}
         activeOpacity={isBooked ? 1 : 0.8}
       >
+        <View style={msTypeStyles.typeRow}>
+          <Ionicons
+            name={slot.appointmentType === 'video' ? 'videocam' : 'business'}
+            size={9}
+            color={slot.appointmentType === 'video' ? '#2A7FFF' : '#10B981'}
+          />
+          <Text style={[msTypeStyles.typeText, { color: slot.appointmentType === 'video' ? '#2A7FFF' : '#10B981' }]}>
+            {slot.appointmentType === 'video' ? 'Online' : 'Onsite'}
+          </Text>
+        </View>
+
         <Text style={[styles.slotTime, { color: timeColor }]}>
           {formatTime12(slot.startTime)}
         </Text>
