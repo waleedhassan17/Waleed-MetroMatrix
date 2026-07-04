@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     backgroundColor: ShopColors.surface,
-    paddingTop: (StatusBar.currentHeight || 0) + 16,
+    paddingTop: (StatusBar.currentHeight || 0) + 24,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,

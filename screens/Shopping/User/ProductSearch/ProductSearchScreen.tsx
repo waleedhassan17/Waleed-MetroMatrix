@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: (StatusBar.currentHeight || 0) + 8,
+    paddingTop: (StatusBar.currentHeight || 0) + 20,
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
     backgroundColor: Colors.surface,

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,26 +34,14 @@ import {
   toggleVideoConsultation,
   clearSaveSuccess,
   resetAvailabilitySettings,
+  copySchedule,
   Weekday,
   DaySchedule,
   VacationDate,
 } from './availabilitySettingsSlice';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Constants ─────────────────────────────────
 
@@ -463,20 +451,31 @@ const AvailabilitySettingsScreen: React.FC = () => {
   const successAnim = useRef(new Animated.Value(0)).current;
   const sectionAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
     dispatch(fetchSettings());
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      Animated.stagger(
-        90,
-        sectionAnims.map((a) =>
-          Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
-        )
-      ),
-    ]).start();
     return () => { dispatch(resetAvailabilitySettings()); };
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!loading && !hasAnimated.current) {
+      hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
+      sectionAnims.forEach(a => a.setValue(0));
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+        Animated.stagger(
+          90,
+          sectionAnims.map((a) =>
+            Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
+          )
+        ),
+      ]).start();
+    }
+  }, [loading]);
 
   // Success banner animation
   useEffect(() => {
@@ -540,6 +539,13 @@ const AvailabilitySettingsScreen: React.FC = () => {
     }
   }, [dispatch]);
 
+  const handleCopySchedule = useCallback(() => {
+    Alert.alert('Copy Schedule', "Apply Monday's schedule to all weekdays?", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Copy', onPress: () => dispatch(copySchedule()) },
+    ]);
+  }, [dispatch]);
+
   const hoursOf = (m: { enabled: boolean; startTime: string; endTime: string }) => {
     if (!m?.enabled) return 0;
     const [sh, sm] = m.startTime.split(':').map(Number);
@@ -550,6 +556,20 @@ const AvailabilitySettingsScreen: React.FC = () => {
   const totalHours = weeklySchedule
     .filter((s) => s.isWorking)
     .reduce((acc, s) => acc + hoursOf(s.online) + hoursOf(s.onsite), 0);
+
+  const slotCountPreview = useMemo(() => {
+    let count = 0;
+    weeklySchedule.forEach(day => {
+      if (!day.isWorking) return;
+      if (day.online.enabled) {
+        count += Math.floor(hoursOf(day.online) * 2); // Assuming 30min slots
+      }
+      if (day.onsite.enabled) {
+        count += Math.floor(hoursOf(day.onsite) * 2);
+      }
+    });
+    return count;
+  }, [weeklySchedule]);
 
   // ── Loading ───────────────────────────────────
 
@@ -638,7 +658,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -682,8 +702,13 @@ const AvailabilitySettingsScreen: React.FC = () => {
             <View style={styles.cardLabelRow}>
               <View style={styles.cardLabelDot} />
               <Text style={styles.cardLabel}>Weekly Schedule</Text>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.copyScheduleBtn} onPress={handleCopySchedule}>
+                <Ionicons name="copy-outline" size={14} color={THEME.primary} />
+                <Text style={styles.copyScheduleText}>Copy Mon</Text>
+              </TouchableOpacity>
               <View style={styles.workingDaysBadge}>
-                <Text style={styles.workingDaysBadgeText}>{workingDays}/7 days</Text>
+                <Text style={styles.workingDaysBadgeText}>{slotCountPreview} slots/wk</Text>
               </View>
             </View>
 
@@ -953,7 +978,23 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    flex: 1,
+  },
+  copyScheduleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#D6E8FF',
+  },
+  copyScheduleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.primary,
   },
   workingDaysBadge: {
     backgroundColor: '#DCFCE7',

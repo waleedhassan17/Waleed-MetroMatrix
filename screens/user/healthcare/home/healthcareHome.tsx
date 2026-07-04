@@ -16,7 +16,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchHomeData, clearError } from './healthcareHomeSlice';
 import type { HealthcareHomeState } from './healthcareHomeSlice';
@@ -24,6 +23,7 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
+import DoctorCard from '../../../../components/Healthcare/DoctorCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SPECIALTY_CARD_WIDTH = 88;
@@ -330,129 +330,24 @@ const HealthcareHomeScreen: React.FC = () => {
   // ── Doctor Card ─────────────────────────────
 
   const renderDoctorCard = useCallback(
-    ({ item, index }: { item: Doctor; index: number }) => {
-      const doctorName = item.bio?.split(' ')[1] || 'Doctor';
-
-      return (
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateX: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [50, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <TouchableOpacity
-            style={styles.doctorCard}
-            onPress={() => handleDoctorPress(item)}
-            activeOpacity={0.8}
-          >
-            {/* Avatar Section */}
-            <View style={styles.doctorAvatarWrapper}>
-              <LinearGradient
-                colors={[THEME.primaryLight, '#F0F7FF']}
-                style={styles.doctorAvatar}
-              >
-                <MaterialCommunityIcons
-                  name="doctor"
-                  size={32}
-                  color={THEME.primary}
-                />
-              </LinearGradient>
-              {item.isAvailable && (
-                <View style={styles.availabilityBadge}>
-                  <View style={styles.availabilityDot} />
-                </View>
-              )}
-              {item.isVerified && (
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={18} color={THEME.primary} />
-                </View>
-              )}
-            </View>
-
-            {/* Info Section */}
-            <View style={styles.doctorInfo}>
-              <View style={styles.doctorNameRow}>
-                <Text style={styles.doctorName} numberOfLines={1}>
-                  Dr. {doctorName}
-                </Text>
-              </View>
-
-              <Text style={styles.doctorSpecialty} numberOfLines={1}>
-                {item.qualifications?.join(' • ') || 'Specialist'}
-              </Text>
-
-              <View style={styles.doctorMetaRow}>
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={12} color="#FBBF24" />
-                  <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.5'}</Text>
-                </View>
-
-                <View style={styles.metaDivider} />
-
-                <View style={styles.experienceBadge}>
-                  <MaterialCommunityIcons
-                    name="briefcase-outline"
-                    size={12}
-                    color={Colors.text.secondary}
-                  />
-                  <Text style={styles.experienceText}>
-                    {item.experience || '5'}+ yrs
-                  </Text>
-                </View>
-
-                {item.totalPatients && (
-                  <>
-                    <View style={styles.metaDivider} />
-                    <View style={styles.patientsBadge}>
-                      <Ionicons
-                        name="people-outline"
-                        size={12}
-                        color={Colors.text.secondary}
-                      />
-                      <Text style={styles.patientsText}>
-                        {item.totalPatients > 999
-                          ? `${(item.totalPatients / 1000).toFixed(1)}k`
-                          : item.totalPatients}
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* Fee & Action Section */}
-            <View style={styles.doctorActionSection}>
-              <View style={styles.feeContainer}>
-                <Text style={styles.feeLabel}>Fee</Text>
-                <Text style={styles.feeAmount}>
-                  PKR {item.consultationFee || '1,500'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.bookButton}
-                onPress={() => handleDoctorPress(item)}
-              >
-                <LinearGradient
-                  colors={THEME.gradient.primary as any}
-                  style={styles.bookButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.bookButtonText}>Book</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
-    },
+    ({ item }: { item: Doctor; index: number }) => (
+      <Animated.View
+        style={{
+          marginHorizontal: 20,
+          opacity: fadeAnim,
+          transform: [
+            {
+              translateX: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <DoctorCard doctor={item} onPress={handleDoctorPress} onBook={handleDoctorPress} />
+      </Animated.View>
+    ),
     [fadeAnim]
   );
 

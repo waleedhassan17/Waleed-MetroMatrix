@@ -189,6 +189,18 @@ const availabilitySettingsSlice = createSlice({
         state.saveSuccess = false;
       }
     },
+    copySchedule(state) {
+      const mon = state.weeklySchedule.find(s => s.day === 'Monday');
+      if (!mon) return;
+      state.weeklySchedule.forEach(s => {
+        if (s.day !== 'Saturday' && s.day !== 'Sunday') {
+          s.isWorking = mon.isWorking;
+          s.online = { ...mon.online };
+          s.onsite = { ...mon.onsite };
+        }
+      });
+      state.saveSuccess = false;
+    },
     addVacation(state, action: PayloadAction<Omit<VacationDate, 'id'>>) {
       state.vacationDates.push({ ...action.payload, id: `vac-${Date.now()}` });
       state.saveSuccess = false;
@@ -263,6 +275,7 @@ export const {
   toggleDayWorking,
   toggleDayMode,
   updateDayMode,
+  copySchedule,
   addVacation,
   removeVacation,
   toggleInstantBooking,

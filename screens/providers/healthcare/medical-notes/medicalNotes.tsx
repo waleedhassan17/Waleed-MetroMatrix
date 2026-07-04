@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -37,21 +38,7 @@ import {
 } from './medicalNotesSlice';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Helpers ───────────────────────────────────
 
@@ -171,7 +158,10 @@ const NoteCard: React.FC<{
 
 const MedicalNotesScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const routePatientId: string | undefined = route.params?.patientId;
+  const routeAppointmentId: string | undefined = route.params?.appointmentId;
   const { patient, notes, currentNote, saving, loading, error } = useAppSelector(
     (s) => s.medicalNotes,
   );
@@ -185,14 +175,26 @@ const MedicalNotesScreen: React.FC = () => {
   const editorSlideAnim = useRef(new Animated.Value(20)).current;
   const recordingPulse = useRef(new Animated.Value(1)).current;
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
-    dispatch(fetchPatientNotes('pat-001'));
-    Animated.parallel([
-      Animated.timing(listFadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(listSlideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-    ]).start();
+    if (routePatientId) {
+      dispatch(fetchPatientNotes(routePatientId));
+    }
     return () => { dispatch(clearNotes()); };
-  }, [dispatch]);
+  }, [dispatch, routePatientId]);
+
+  useEffect(() => {
+    if (!loading && !hasAnimated.current) {
+      hasAnimated.current = true;
+      listFadeAnim.setValue(0);
+      listSlideAnim.setValue(16);
+      Animated.parallel([
+        Animated.timing(listFadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(listSlideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [loading]);
 
   // Editor enter animation
   useEffect(() => {
@@ -305,6 +307,16 @@ const MedicalNotesScreen: React.FC = () => {
     }
   }, [currentNote, dispatch]);
 
+  const handleConvertToPrescription = useCallback(() => {
+    if (!currentNote) return;
+    navigation.navigate(DoctorRouteNames.PrescriptionWriter, {
+      patient,
+      patientId: routePatientId,
+      appointmentId: routeAppointmentId,
+      notes: currentNote.content,
+    });
+  }, [currentNote, patient, routePatientId, routeAppointmentId, navigation]);
+
   // ── Loading ───────────────────────────────────
 
   if (loading) {
@@ -415,6 +427,12 @@ const MedicalNotesScreen: React.FC = () => {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.toolbarBtn} onPress={handleAttachFile}>
                   <Ionicons name="attach" size={17} color="#64748B" />
+                </TouchableOpacity>
+
+                <View style={styles.toolbarDivider} />
+
+                <TouchableOpacity style={styles.toolbarBtn} onPress={handleConvertToPrescription}>
+                  <MaterialCommunityIcons name="prescription" size={17} color={THEME.primary} />
                 </TouchableOpacity>
               </View>
 

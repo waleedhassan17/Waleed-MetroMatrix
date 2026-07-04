@@ -149,7 +149,7 @@ export function doctorSerializer(data: any): Doctor {
     rating: data?.rating || 0,
     totalReviews: data?.totalReviews || 0,
     totalPatients: data?.totalPatients || 0,
-    isAvailable: data?.isAvailable ?? false,
+    isAvailable: data?.isAvailable ?? data?.availableToday ?? false,
     isVerified: data?.isVerified ?? verificationStatus === 'verified',
     verificationStatus,
     languages: data?.languages || [],

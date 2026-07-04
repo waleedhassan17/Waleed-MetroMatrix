@@ -22,6 +22,7 @@ import { Typography } from '../../../../constants/Fonts';
 import { fetchDashboardData, refreshDashboard } from './doctorDashboardSlice';
 import type { DoctorDashboardState } from './doctorDashboardSlice';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
 import type { Appointment } from '../../../../models/healthcare/types';
 import SlideOutSidebar from '../../../../components/SlideOutSidebar/SlideOutSidebar';
 
@@ -29,31 +30,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  primarySoft: '#F0F7FF',
-  accent: '#5A9FFF',
-  accentLight: '#D6E8FF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  textDark: '#1A1A1A',
-  textMedium: '#2D3748',
-  textLight: '#64748B',
-  cardBg: '#FFFFFF',
-  pageBg: '#F8FBFF',
-  border: '#D6E8FF',
-  gradient: {
-    primary: ['#2A7FFF', '#1E6AE1'] as [string, string],
-    soft: ['#EAF3FF', '#D6E8FF'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Helpers ───────────────────────────────────
 
@@ -123,6 +100,7 @@ const DoctorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
@@ -131,22 +109,23 @@ const DoctorHomeScreen: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
   const hasAnimated = useRef(false);
-  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
   useEffect(() => {
-    if (!loading && initialLoadDone.current && !hasAnimated.current) {
+    // Reveal content once the initial load settles. Must NOT depend on a data
+    // field (e.g. doctorName) — if that field is empty the content would stay
+    // at opacity 0 and the whole screen renders blank.
+    if (!loading && !hasAnimated.current) {
       hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
       ]).start();
-    }
-    if (loading) {
-      initialLoadDone.current = true;
     }
   }, [loading]);
 
@@ -217,7 +196,7 @@ const DoctorHomeScreen: React.FC = () => {
       />
 
       <Animated.ScrollView
-        style={{ opacity: fadeAnim }}
+        style={{ flex: 1, opacity: fadeAnim }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
@@ -246,14 +225,26 @@ const DoctorHomeScreen: React.FC = () => {
               <Text style={styles.greetingText}>{getGreeting()} 👋</Text>
               <Text style={styles.doctorNameText} numberOfLines={1}>{doctorName}</Text>
             </View>
-            {/* Hamburger Menu - Opens Centralized Sidebar */}
-            <TouchableOpacity 
-              style={styles.headerIconBtn} 
-              onPress={() => setSidebarVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="menu" size={24} color={THEME.primary} />
-            </TouchableOpacity>
+            {/* Online Toggle & Hamburger Menu */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                style={[styles.onlineToggle, isOnline ? styles.onlineToggleActive : styles.onlineToggleInactive]}
+                onPress={() => setIsOnline(!isOnline)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.onlineDot, { backgroundColor: isOnline ? THEME.success : THEME.textMuted }]} />
+                <Text style={[styles.onlineText, { color: isOnline ? THEME.success : THEME.textMuted }]}>
+                  {isOnline ? 'Available' : 'Busy'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.headerIconBtn} 
+                onPress={() => setSidebarVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="menu" size={24} color={THEME.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Stats Cards Row */}
@@ -324,10 +315,12 @@ const DoctorHomeScreen: React.FC = () => {
                 {/* Patient info */}
                 <View style={styles.nextPatientRow}>
                   <LinearGradient colors={THEME.gradient.primary} style={styles.nextPatientAvatar}>
-                    <MaterialCommunityIcons name="account" size={22} color="#FFFFFF" />
+                    <Text style={styles.nextPatientInitials}>
+                      {getInitials(getPatientName(nextAppointment))}
+                    </Text>
                   </LinearGradient>
                   <View style={styles.nextPatientInfo}>
-                    <Text style={styles.nextPatientName}>Patient #{nextAppointment.patientId.slice(-3)}</Text>
+                    <Text style={styles.nextPatientName}>{getPatientName(nextAppointment)}</Text>
                     {nextAppointment.symptoms ? (
                       <Text style={styles.nextPatientSymptoms} numberOfLines={1}>
                         {nextAppointment.symptoms}
@@ -342,7 +335,7 @@ const DoctorHomeScreen: React.FC = () => {
                 {/* CTA */}
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: nextAppointment.appointmentId })}
+                  onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: nextAppointment.appointmentId, patientId: nextAppointment.patientId })}
                 >
                   <LinearGradient
                     colors={nextAppointment.type === 'video' ? THEME.gradient.secondary : THEME.gradient.primary}
@@ -368,9 +361,12 @@ const DoctorHomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
             {[
+              { icon: 'create-outline', label: 'Write Rx', color: THEME.accent, bg: THEME.accentLight, route: DoctorRouteNames.PrescriptionWriter },
+              { icon: 'time-outline', label: 'Manage Slots', color: THEME.warning, bg: THEME.warningLight, route: DoctorRouteNames.ManageSlots },
               { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorSchedule },
-              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: '#ECFDF5', isMaterial: true, route: DoctorRouteNames.DoctorEarnings },
-              { icon: 'settings-outline', label: 'Settings', color: '#64748B', bg: '#F1F5F9', route: DoctorRouteNames.DoctorSettings },
+              { icon: 'person-outline', label: 'Profile', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorProfile },
+              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: THEME.successLight, isMaterial: true, route: DoctorRouteNames.DoctorEarnings },
+              { icon: 'settings-outline', label: 'Settings', color: THEME.textLight, bg: THEME.borderLight, route: DoctorRouteNames.DoctorSettings },
             ].map((action, i) => (
               <TouchableOpacity key={i} style={styles.quickActionCard} activeOpacity={0.7} onPress={() => navigation.navigate(action.route)}>
                 <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
@@ -420,7 +416,7 @@ const DoctorHomeScreen: React.FC = () => {
                     key={apt.appointmentId}
                     style={[styles.scheduleCard, isNext && styles.scheduleCardHighlight]}
                     activeOpacity={0.75}
-                    onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: apt.appointmentId })}
+                    onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: apt.appointmentId, patientId: apt.patientId })}
                   >
                     {isNext && (
                       <LinearGradient
@@ -445,7 +441,7 @@ const DoctorHomeScreen: React.FC = () => {
                     <View style={styles.scheduleContent}>
                       <View style={styles.scheduleTopRow}>
                         <Text style={styles.schedulePatientName} numberOfLines={1}>
-                          Patient #{apt.patientId.slice(-3)}
+                          {getPatientName(apt)}
                         </Text>
                         <View style={[styles.scheduleStatusBadge, { backgroundColor: sc.bg }]}>
                           <View style={[styles.scheduleStatusDot, { backgroundColor: sc.dot }]} />
@@ -698,6 +694,32 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.error,
     zIndex: 1,
   },
+  onlineToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  onlineToggleActive: {
+    backgroundColor: THEME.successLight,
+    borderColor: '#A7F3D0',
+  },
+  onlineToggleInactive: {
+    backgroundColor: THEME.borderLight,
+    borderColor: THEME.border,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  onlineText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
   // Stats Row
   statsRow: {
@@ -862,6 +884,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  nextPatientInitials: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
   nextPatientInfo: {
     flex: 1,
   },
@@ -905,10 +933,11 @@ const styles = StyleSheet.create({
   // Quick actions
   quickActionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   quickActionCard: {
-    flex: 1,
+    width: '31%',
     backgroundColor: THEME.cardBg,
     borderRadius: 10,
     paddingVertical: 18,

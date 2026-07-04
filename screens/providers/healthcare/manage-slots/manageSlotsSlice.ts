@@ -95,6 +95,15 @@ const manageSlotsSlice = createSlice({
         state.saveSuccess = false;
       }
     },
+    toggleAllSlots(state, action: PayloadAction<boolean>) {
+      const makeAvailable = action.payload;
+      state.slots.forEach(slot => {
+        if (slot.bookedCount === 0) {
+          slot.isAvailable = makeAvailable;
+        }
+      });
+      state.saveSuccess = false;
+    },
     clearSaveSuccess(state) {
       state.saveSuccess = false;
     },
@@ -144,6 +153,7 @@ export const {
   setSlotDuration,
   setMaxPatientsPerSlot,
   toggleSlot,
+  toggleAllSlots,
   clearSaveSuccess,
   resetManageSlots,
 } = manageSlotsSlice.actions;

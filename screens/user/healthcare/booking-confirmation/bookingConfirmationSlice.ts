@@ -8,6 +8,7 @@ import type {
 import { applyCouponApi } from '../../../../networks/healthcare/providerApi';
 import { bookAppointmentApi } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';
+import { getDoctorDisplayName, getDoctorSpecialty } from '../../../../utils/healthcare/doctorDisplay';
 
 // ── Types ───────────────────────────────────
 
@@ -465,8 +466,7 @@ export const selectDoctorName = (state: RootState): string => {
 
   if (!bookingData) return '';
 
-  const name = bookingData.doctor.bio?.split(' ')[1];
-  return name ? `Dr. ${name}` : 'Doctor';
+  return getDoctorDisplayName(bookingData.doctor);
 };
 
 // Get appointment summary
@@ -478,7 +478,7 @@ export const selectAppointmentSummary = (state: RootState) => {
 
   return {
     doctorName: selectDoctorName(state),
-    specialty: bookingData.doctor.subspecialties?.[0] || 'Specialist',
+    specialty: getDoctorSpecialty(bookingData.doctor),
     date: bookingData.slot.date,
     time: `${bookingData.slot.startTime} - ${bookingData.slot.endTime}`,
     type: selectConsultationTypeLabel(state),

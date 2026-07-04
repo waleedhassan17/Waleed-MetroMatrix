@@ -42,6 +42,7 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor } from '../../../../models/healthcare/types';
+import DoctorCard from '../../../../components/Healthcare/DoctorCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -289,141 +290,31 @@ const DoctorListScreen: React.FC = () => {
   // ── Doctor Card ─────────────────────────────
 
   const renderDoctorCard = useCallback(
-    ({ item, index }: { item: Doctor; index: number }) => {
-      const doctorName = item.bio?.split(' ')[1] || 'Doctor';
-
-      return (
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [30, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <TouchableOpacity
-            style={styles.doctorCard}
-            onPress={() => handleDoctorPress(item)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardRow}>
-              {/* Avatar */}
-              <View style={styles.avatarContainer}>
-                <LinearGradient
-                  colors={[THEME.primaryLight, '#F0F7FF']}
-                  style={styles.avatar}
-                >
-                  <MaterialCommunityIcons
-                    name="doctor"
-                    size={28}
-                    color={THEME.primary}
-                  />
-                </LinearGradient>
-                {item.isAvailable && <View style={styles.onlineDot} />}
-              </View>
-
-              {/* Info */}
-              <View style={styles.cardInfo}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.doctorName} numberOfLines={1}>
-                    Dr. {doctorName}
-                  </Text>
-                  {item.isVerified && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color={THEME.primary}
-                    />
-                  )}
-                </View>
-                <Text style={styles.qualifications} numberOfLines={1}>
-                  {item.qualifications?.join(', ') || 'Specialist'}
-                </Text>
-                <Text style={styles.specialtyText} numberOfLines={1}>
-                  {item.subspecialties?.join(' · ') || 'General Practice'}
-                </Text>
-
-                {/* Meta Row */}
-                <View style={styles.metaRow}>
-                  <View style={styles.ratingChip}>
-                    <Ionicons name="star" size={11} color={THEME.star} />
-                    <Text style={styles.ratingChipText}>
-                      {item.rating?.toFixed(1) || '4.5'}
-                    </Text>
-                  </View>
-                  <View style={styles.metaChip}>
-                    <MaterialCommunityIcons
-                      name="briefcase-outline"
-                      size={11}
-                      color={Colors.text.secondary}
-                    />
-                    <Text style={styles.metaChipText}>
-                      {item.experience || '5'}+ yrs
-                    </Text>
-                  </View>
-                  <View style={styles.metaChip}>
-                    <Ionicons
-                      name="people-outline"
-                      size={11}
-                      color={Colors.text.secondary}
-                    />
-                    <Text style={styles.metaChipText}>
-                      {item.totalPatients > 999
-                        ? `${(item.totalPatients / 1000).toFixed(1)}k`
-                        : item.totalPatients || '500+'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Bottom Row: Fee + Buttons */}
-            <View style={styles.cardBottom}>
-              <View>
-                <Text style={styles.feeLabel}>Consultation Fee</Text>
-                <Text style={styles.feeAmount}>
-                  PKR {item.consultationFee || '1,500'}
-                </Text>
-              </View>
-              <View style={styles.cardActions}>
-                {item.videoConsultationFee > 0 && (
-                  <View style={styles.videoBadge}>
-                    <MaterialCommunityIcons
-                      name="video-outline"
-                      size={14}
-                      color={THEME.accent}
-                    />
-                    <Text style={styles.videoBadgeText}>Video</Text>
-                  </View>
-                )}
-                <TouchableOpacity
-                  style={styles.bookButton}
-                  onPress={() =>
-                    navigation.navigate(HealthcareRouteNames.BookAppointment, {
-                      doctorId: item.doctorId,
-                    })
-                  }
-                >
-                  <LinearGradient
-                    colors={THEME.gradient.primary as any}
-                    style={styles.bookButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={styles.bookButtonText}>Book Now</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
-    },
+    ({ item }: { item: Doctor; index: number }) => (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [
+            {
+              translateY: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [30, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <DoctorCard
+          doctor={item}
+          onPress={handleDoctorPress}
+          onBook={(d) =>
+            navigation.navigate(HealthcareRouteNames.BookAppointment, {
+              doctorId: d.doctorId,
+            })
+          }
+        />
+      </Animated.View>
+    ),
     [fadeAnim, navigation]
   );
 

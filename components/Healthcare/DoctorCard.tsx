@@ -1,13 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
-import { Typography } from '../../constants/Fonts';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { HC, HCRadius, HCShadow } from '../../constants/HealthcareTheme';
 import type { Doctor } from '../../models/healthcare/types';
-import RatingStars from './RatingStars';
-import VerifiedBadge from './VerifiedBadge';
-import ConsultationTypeBadge from './ConsultationTypeBadge';
+import DoctorAvatar from './DoctorAvatar';
+import {
+  getDoctorDisplayName,
+  getDoctorSpecialty,
+  getQualificationsLine,
+  getConsultationFee,
+  getExperienceLabel,
+  getRating,
+  getConsultationModes,
+} from '../../utils/healthcare/doctorDisplay';
 
 interface DoctorCardProps {
   doctor: Doctor;
@@ -16,81 +21,73 @@ interface DoctorCardProps {
 }
 
 const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onPress, onBook }) => {
-  const consultType =
-    doctor.videoConsultationFee > 0 ? 'both' : 'in-clinic';
+  const rating = getRating(doctor);
+  const modes = getConsultationModes(doctor);
+  const experience = getExperienceLabel(doctor);
+  const quals = getQualificationsLine(doctor);
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => onPress?.(doctor)}
-      activeOpacity={0.8}
-    >
-      {/* Top Row: Avatar + Info */}
+    <TouchableOpacity style={styles.card} onPress={() => onPress?.(doctor)} activeOpacity={0.85}>
       <View style={styles.topRow}>
-        {/* Avatar */}
-        <View style={styles.avatarWrap}>
-          <LinearGradient
-            colors={[Colors.categories.medical.light, Colors.categories.medical.primary + '30']}
-            style={styles.avatar}
-          >
-            <Ionicons name="person" size={28} color={Colors.categories.medical.primary} />
-          </LinearGradient>
-          {doctor.isAvailable && <View style={styles.onlineDot} />}
-        </View>
+        <DoctorAvatar doctor={doctor} size={60} showOnlineDot showVerified />
 
-        {/* Info */}
         <View style={styles.info}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1}>
-              Dr. {doctor.bio.split(' ')[1] || 'Doctor'}
-            </Text>
-            {doctor.isVerified && <VerifiedBadge size="small" />}
-          </View>
-
-          <Text style={styles.qualifications} numberOfLines={1}>
-            {doctor.qualifications.join(', ')}
+          <Text style={styles.name} numberOfLines={1}>
+            {getDoctorDisplayName(doctor)}
           </Text>
-
           <Text style={styles.specialty} numberOfLines={1}>
-            {doctor.subspecialties.join(' · ') || 'General Practice'}
+            {getDoctorSpecialty(doctor)}
           </Text>
+          {!!quals && (
+            <Text style={styles.quals} numberOfLines={1}>
+              {quals}
+            </Text>
+          )}
 
-          {/* Rating + Experience */}
           <View style={styles.metaRow}>
-            <RatingStars rating={doctor.rating} size={11} totalReviews={doctor.totalReviews} />
-            <View style={styles.expChip}>
-              <Ionicons name="time-outline" size={11} color={Colors.text.secondary} />
-              <Text style={styles.expText}>{doctor.experience} yrs</Text>
+            <View style={styles.ratingChip}>
+              <Ionicons name="star" size={11} color={HC.star} />
+              <Text style={styles.ratingText}>{rating.value}</Text>
+              {rating.hasRating && <Text style={styles.ratingCount}>({rating.count})</Text>}
             </View>
+            {experience && (
+              <>
+                <View style={styles.dot} />
+                <View style={styles.metaItem}>
+                  <MaterialCommunityIcons name="briefcase-outline" size={12} color={HC.textLight} />
+                  <Text style={styles.metaText}>{experience}</Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </View>
 
-      {/* Available Today indicator */}
-      {doctor.isAvailable && (
-        <View style={styles.availableRow}>
-          <View style={styles.availableDot} />
-          <Text style={styles.availableText}>Available Today</Text>
-        </View>
-      )}
+      <View style={styles.divider} />
 
-      {/* Bottom Row: Fee + Badges + Book */}
       <View style={styles.bottomRow}>
         <View style={styles.bottomLeft}>
-          <View>
-            <Text style={styles.feeLabel}>Consultation Fee</Text>
-            <Text style={styles.feeAmount}>Rs. {doctor.consultationFee}</Text>
+          <View style={styles.modeChips}>
+            {modes.inClinic && (
+              <View style={styles.modeChip}>
+                <Ionicons name="business-outline" size={11} color={HC.primaryDark} />
+                <Text style={styles.modeText}>In-clinic</Text>
+              </View>
+            )}
+            {modes.video && (
+              <View style={[styles.modeChip, { backgroundColor: HC.successLight }]}>
+                <Ionicons name="videocam-outline" size={11} color={HC.successDark} />
+                <Text style={[styles.modeText, { color: HC.successDark }]}>Video</Text>
+              </View>
+            )}
           </View>
-          <ConsultationTypeBadge type={consultType} compact />
+          <Text style={styles.fee}>{getConsultationFee(doctor)}</Text>
         </View>
 
         {onBook && (
-          <TouchableOpacity
-            style={styles.bookBtn}
-            onPress={() => onBook(doctor)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.bookBtnText}>Book</Text>
+          <TouchableOpacity style={styles.bookBtn} onPress={() => onBook(doctor)} activeOpacity={0.85}>
+            <Text style={styles.bookText}>Book</Text>
+            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         )}
       </View>
@@ -100,132 +97,60 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onPress, onBook }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.small,
+    backgroundColor: HC.card,
+    borderRadius: HCRadius.lg,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: HC.borderLight,
+    ...HCShadow.sm,
   },
-  topRow: {
-    flexDirection: 'row',
-    marginBottom: Spacing.md,
-  },
-  avatarWrap: {
-    position: 'relative',
-    marginRight: Spacing.md,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.success,
-    borderWidth: 2,
-    borderColor: Colors.surface,
-  },
-  info: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: 2,
-  },
-  name: {
-    ...Typography.title.medium,
-    color: Colors.text.primary,
-    flexShrink: 1,
-  },
-  qualifications: {
-    ...Typography.caption.large,
-    color: Colors.text.secondary,
-    marginBottom: 2,
-  },
-  specialty: {
-    ...Typography.caption.medium,
-    color: Colors.categories.medical.primary,
-    marginBottom: Spacing.xs,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  expChip: {
+  topRow: { flexDirection: 'row', gap: 14 },
+  info: { flex: 1 },
+  name: { fontSize: 16, fontWeight: '800', color: HC.textHeading, letterSpacing: -0.3 },
+  specialty: { fontSize: 13, fontWeight: '600', color: HC.primary, marginTop: 2 },
+  quals: { fontSize: 12, fontWeight: '500', color: HC.textLight, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
+  ratingChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: Colors.backgroundAlt,
-    paddingHorizontal: Spacing.sm,
+    backgroundColor: HC.warningLight,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: BorderRadius.sm,
+    borderRadius: 999,
   },
-  expText: {
-    ...Typography.caption.medium,
-    color: Colors.text.secondary,
-  },
-
-  // Available
-  availableRow: {
+  ratingText: { fontSize: 11, fontWeight: '800', color: HC.warningDark },
+  ratingCount: { fontSize: 10, fontWeight: '600', color: HC.warningDark, opacity: 0.8 },
+  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: HC.textMuted },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metaText: { fontSize: 11, fontWeight: '600', color: HC.textLight },
+  divider: { height: 1, backgroundColor: HC.divider, marginVertical: 12 },
+  bottomRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  bottomLeft: { flex: 1 },
+  modeChips: { flexDirection: 'row', gap: 6, marginBottom: 6 },
+  modeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
+    gap: 3,
+    backgroundColor: HC.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  availableDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.success,
-  },
-  availableText: {
-    ...Typography.caption.large,
-    color: Colors.success,
-    fontWeight: '600',
-  },
-
-  // Bottom
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    paddingTop: Spacing.md,
-  },
-  bottomLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
-  },
-  feeLabel: {
-    ...Typography.caption.medium,
-    color: Colors.text.tertiary,
-  },
-  feeAmount: {
-    ...Typography.title.medium,
-    color: Colors.text.primary,
-  },
+  modeText: { fontSize: 10, fontWeight: '700', color: HC.primaryDark },
+  fee: { fontSize: 15, fontWeight: '800', color: HC.textHeading },
   bookBtn: {
-    backgroundColor: Colors.categories.medical.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: HC.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: HCRadius.sm,
+    ...HCShadow.brand,
   },
-  bookBtnText: {
-    ...Typography.button?.small ?? Typography.label.medium,
-    color: Colors.text.inverse,
-  },
+  bookText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
 });
 
 export default DoctorCard;

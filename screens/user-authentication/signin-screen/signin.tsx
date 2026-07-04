@@ -212,44 +212,29 @@ const SignIn = () => {
       return;
     }
 
-    // ===== DYNAMIC LOGIN - Real API authentication =====
-    try {
-      const result = await dispatch(
-        submitSignInAsync({
-          email: email.trim(),
-          password,
-        })
-      ).unwrap();
+    // ===== STATIC AUTHENTICATION - Bypass API for demo/dev =====
+    const trimmedEmail = email.trim().toLowerCase();
 
-      // Check if admin or user from the result (not from Redux state)
-      const isAdminUser = result.type === 'admin';
-      const loginType = isAdminUser ? 'Admin' : 'User';
-      const welcomeMessage = isAdminUser
-        ? 'Welcome to Admin Dashboard!'
-        : 'Welcome back!';
-
-      console.log(`✅ Login successful as ${loginType}`);
-
-      // Navigate immediately. NOTE: navigation must NOT be gated behind an
-      // Alert.alert button press — Alert.alert renders no actionable buttons on
-      // react-native-web, so on web the onPress would never fire and the user
-      // would be stuck on the sign-in screen despite a successful login.
-      const target = isAdminUser ? 'AdminDashboard' : 'UserHome';
+    // Admin static login
+    if (trimmedEmail === 'waleedhassansfd@gmail.com' && password === '123456') {
+      console.log('✅ [Static] Admin login → AdminDashboard');
       try {
-        console.log(`➡️ Navigating to ${target}`);
-        (navigation as any).reset({ index: 0, routes: [{ name: target }] });
+        (navigation as any).reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
       } catch (navigationError) {
         console.log('⚠️ Navigation error:', navigationError);
       }
-      // Non-blocking confirmation (a no-op on web, a toast/dialog on native).
-      Alert.alert('Success', welcomeMessage);
-    } catch (err: any) {
-      console.error('❌ Login error:', err);
-      Alert.alert(
-        'Login Failed',
-        typeof err === 'string' ? err : (err?.message || 'Please check your credentials and try again.')
-      );
+      Alert.alert('Success', 'Welcome to Admin Dashboard!');
+      return;
     }
+
+    // User static login - any valid email/password navigates to UserHome
+    console.log('✅ [Static] User login → UserHome');
+    try {
+      (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
+    } catch (navigationError) {
+      console.log('⚠️ Navigation error:', navigationError);
+    }
+    Alert.alert('Success', 'Welcome back!');
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {

@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   },
   galleryHeader: {
     position: 'absolute',
-    top: (StatusBar.currentHeight || 0) + 8,
+    top: (StatusBar.currentHeight || 0) + 20,
     left: Spacing.lg,
     right: Spacing.lg,
     flexDirection: 'row',

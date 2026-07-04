@@ -31,6 +31,7 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { Typography } from '../../../../constants/Fonts';
 import type { HealthcareStackParamList, Doctor, Clinic } from '../../../../models/healthcare/types';
 import type { RouteProp } from '@react-navigation/native';
+import { getDoctorName, getDoctorSpecialty } from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -208,7 +209,7 @@ const BookAppointmentScreen: React.FC = () => {
     }
   }, [symptomsText]);
 
-  const doctorName = doctor?.bio?.split(' ')[1] || 'Doctor';
+  const doctorName = getDoctorName(doctor);
   const consultationFee = appointmentType === 'video'
     ? doctor?.videoConsultationFee
     : doctor?.consultationFee;
@@ -496,7 +497,7 @@ const BookAppointmentScreen: React.FC = () => {
               )}
             </View>
             <Text style={styles.reviewDoctorSpecialty}>
-              {doctor?.subspecialties?.[0] || doctor?.qualifications?.join(', ') || 'Specialist'}
+              {getDoctorSpecialty(doctor)}
             </Text>
             {doctor?.rating && (
               <View style={styles.reviewRatingRow}>

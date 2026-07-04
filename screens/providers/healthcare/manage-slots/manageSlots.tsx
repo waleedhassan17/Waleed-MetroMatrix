@@ -29,6 +29,7 @@ import {
   clearSaveSuccess,
   resetManageSlots,
   SlotDuration,
+  toggleAllSlots,
 } from './manageSlotsSlice';
 import { TimeSlot } from '../../../../models/healthcare/types';
 
@@ -39,21 +40,7 @@ const msTypeStyles = StyleSheet.create({
 });
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 const DURATION_OPTIONS: { label: string; value: SlotDuration; sub: string }[] = [
   { label: '15', value: 15, sub: 'min' },
@@ -180,14 +167,24 @@ const ManageSlotsScreen: React.FC = () => {
   const prevClinic = useRef(selectedClinic);
   const prevDate = useRef(selectedDate);
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
     dispatch(fetchSlots());
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-    ]).start();
     return () => { dispatch(resetManageSlots()); };
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!loading && !hasAnimated.current) {
+      hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [loading]);
 
   useEffect(() => {
     const clinicChanged = prevClinic.current !== selectedClinic;
@@ -222,6 +219,21 @@ const ManageSlotsScreen: React.FC = () => {
   const handleDurationChange = useCallback((d: SlotDuration) => dispatch(setSlotDuration(d)), [dispatch]);
   const handleMaxPatientsChange = useCallback((n: number) => dispatch(setMaxPatientsPerSlot(n)), [dispatch]);
   const handleToggleSlot = useCallback((slotId: string) => dispatch(toggleSlot(slotId)), [dispatch]);
+  const handleToggleAll = useCallback((makeAvailable: boolean) => dispatch(toggleAllSlots(makeAvailable)), [dispatch]);
+
+  const handleNextWeek = useCallback(() => {
+    const nextDate = new Date(selectedDate + 'T00:00:00');
+    nextDate.setDate(nextDate.getDate() + 7);
+    dispatch(setSelectedDate(nextDate.toISOString().split('T')[0]));
+  }, [selectedDate, dispatch]);
+
+  const handlePrevWeek = useCallback(() => {
+    const prevDate = new Date(selectedDate + 'T00:00:00');
+    prevDate.setDate(prevDate.getDate() - 7);
+    if (prevDate.toISOString().split('T')[0] >= todayStr) {
+      dispatch(setSelectedDate(prevDate.toISOString().split('T')[0]));
+    }
+  }, [selectedDate, todayStr, dispatch]);
 
   const handleSave = useCallback(() => {
     dispatch(saveSlots());
@@ -309,7 +321,7 @@ const ManageSlotsScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -363,6 +375,14 @@ const ManageSlotsScreen: React.FC = () => {
           <View style={styles.cardLabelRow}>
             <View style={styles.cardLabelDot} />
             <Text style={styles.cardLabel}>Date</Text>
+            <View style={styles.weekNav}>
+              <TouchableOpacity onPress={handlePrevWeek} style={styles.weekNavBtn}>
+                <Ionicons name="chevron-back" size={18} color={THEME.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleNextWeek} style={styles.weekNavBtn}>
+                <Ionicons name="chevron-forward" size={18} color={THEME.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.dateStrip}>
             {weekDates.map((dateStr) => {
@@ -513,8 +533,16 @@ const ManageSlotsScreen: React.FC = () => {
           <View style={styles.cardLabelRow}>
             <View style={styles.cardLabelDot} />
             <Text style={styles.cardLabel}>Time Slots</Text>
+            <View style={{ flex: 1 }} />
             {totalSlots > 0 && (
-              <Text style={styles.cardLabelCount}>{totalSlots} slots</Text>
+              <TouchableOpacity 
+                style={styles.selectAllBtn} 
+                onPress={() => handleToggleAll(availableCount < totalSlots - bookedCount)}
+              >
+                <Text style={styles.selectAllText}>
+                  {availableCount < totalSlots - bookedCount ? 'Select All' : 'Deselect All'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
@@ -736,13 +764,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardLabelCount: {
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.textLight,
+  },
+  weekNav: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  weekNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: THEME.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectAllBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: THEME.primaryLight,
+    borderRadius: 8,
+  },
+  selectAllText: {
+    fontSize: 12,
     fontWeight: '700',
     color: THEME.primary,
-    backgroundColor: THEME.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
   },
 
   // Clinic

@@ -13,7 +13,9 @@ import {
   Platform,
   Animated,
   StatusBar,
+  Switch,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -39,31 +41,9 @@ import {
 import { Medication } from '../../../../models/healthcare/types';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Constants ─────────────────────────────────
-
-const DUMMY_PATIENT: PrescriptionPatient = {
-  patientId: 'pat-001',
-  patientName: 'Ahmed Khan',
-  age: 34,
-  gender: 'Male',
-  appointmentId: 'apt-001',
-  type: 'in-clinic',
-};
 
 const EMPTY_MED: Medication = {
   name: '',
@@ -103,6 +83,8 @@ const PrescriptionWriterScreen: React.FC = () => {
   const [testInput, setTestInput] = useState('');
   const [medForm, setMedForm] = useState<Medication>({ ...EMPTY_MED });
   const [showDiagnosisSuggestions, setShowDiagnosisSuggestions] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -110,8 +92,28 @@ const PrescriptionWriterScreen: React.FC = () => {
   const sectionAnims = useRef([0, 1, 2, 3, 4, 5].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
+    // Accept either a full `patient` object (from the consultation screen) or a
+    // bare `patientId` (+ optional name) when launched from the patient queue.
     const patientParam = route.params?.patient as PrescriptionPatient | undefined;
-    dispatch(setPatient(patientParam ?? DUMMY_PATIENT));
+    const fallbackId = route.params?.patientId as string | undefined;
+    const resolved: PrescriptionPatient | undefined =
+      patientParam ||
+      (fallbackId
+        ? {
+            patientId: fallbackId,
+            patientName: (route.params?.patientName as string) || 'Patient',
+            age: (route.params?.age as number) || 0,
+            gender: (route.params?.gender as PrescriptionPatient['gender']) || 'Male',
+            appointmentId: (route.params?.appointmentId as string) || '',
+            type: (route.params?.type as PrescriptionPatient['type']) || 'in-clinic',
+          }
+        : undefined);
+    if (!resolved) {
+      Alert.alert('Error', 'No patient selected for prescription.');
+      navigation.goBack();
+      return;
+    }
+    dispatch(setPatient(resolved));
 
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
@@ -160,7 +162,10 @@ const PrescriptionWriterScreen: React.FC = () => {
 
   const handleSave = useCallback(() => {
     dispatch(savePrescription());
-  }, [dispatch]);
+    if (saveAsTemplate) {
+      // Future: dispatch action to save this prescription as a template
+    }
+  }, [dispatch, saveAsTemplate]);
 
   const filteredSuggestions = diagnosis.length >= 2
     ? DIAGNOSIS_SUGGESTIONS.filter((s) =>
@@ -258,6 +263,26 @@ const PrescriptionWriterScreen: React.FC = () => {
   );
 
   // ── Render ────────────────────────────────────
+
+  if (!patient) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Error</Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </LinearGradient>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+           <Text style={{ fontSize: 16, color: '#64748B' }}>Patient data missing</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -586,16 +611,38 @@ const PrescriptionWriterScreen: React.FC = () => {
             accentColor={THEME.primary}
             animIndex={5}
           >
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#CBD5E1"
-                value={followUpDate}
-                onChangeText={(t) => dispatch(setFollowUpDate(t))}
+            <TouchableOpacity style={styles.inputWrapper} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+              <Text style={[styles.textInput, !followUpDate && { color: '#CBD5E1', paddingVertical: Platform.OS === 'ios' ? 12 : 8 }]}>
+                {followUpDate || 'Select Date (YYYY-MM-DD)'}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={followUpDate ? new Date(followUpDate) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    dispatch(setFollowUpDate(selectedDate.toISOString().split('T')[0]));
+                  }
+                }}
+              />
+            )}
+          </SectionCard>
+
+          {/* ── Save As Template ── */}
+          <Animated.View style={{ opacity: sectionAnims[5] }}>
+            <View style={styles.templateToggleRow}>
+              <Text style={styles.templateToggleLabel}>Save as Template</Text>
+              <Switch
+                value={saveAsTemplate}
+                onValueChange={setSaveAsTemplate}
+                trackColor={{ false: '#E2E8F0', true: `${THEME.primary}55` }}
+                thumbColor={saveAsTemplate ? THEME.primary : '#CBD5E1'}
               />
             </View>
-          </SectionCard>
+          </Animated.View>
 
           {/* Error / Success */}
           {error ? (
@@ -857,9 +904,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   suggestionBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  suggestionText: { fontSize: 14, fontWeight: '500', color: '#0F172A' },
+  suggestionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
 
-  // Medications
+  templateToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  templateToggleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: THEME.textDark || '#0F172A',
+  },
+
+  // Meds list
   medList: { gap: 8, marginBottom: 14 },
   medCard: {
     flexDirection: 'row',

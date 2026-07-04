@@ -20,6 +20,9 @@ import { setActiveTab, fetchMyAppointments } from './myAppointmentsSlice';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
+import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
+import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
+import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Theme ─────────────────────────────────────
 
@@ -130,7 +133,15 @@ const MyAppointmentsScreen: React.FC = () => {
     const cardFade = new Animated.Value(1);
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.9}
+        onPress={() =>
+          navigation.navigate(HealthcareRouteNames.AppointmentDetail, {
+            appointmentId: item.appointmentId,
+          })
+        }
+      >
         {/* Type stripe */}
         <LinearGradient
           colors={isVideo ? THEME.gradient.video : THEME.gradient.primary}
@@ -139,27 +150,37 @@ const MyAppointmentsScreen: React.FC = () => {
           style={styles.cardStripe}
         />
 
-        {/* Card Header */}
+        {/* Doctor identity */}
         <View style={styles.cardHeader}>
-          <View style={[
-            styles.typeIconWrap,
-            { backgroundColor: isVideo ? '#EAF3FF' : THEME.primaryLight },
-          ]}>
+          <DoctorAvatar
+            doctor={{ name: item.doctorName, profileImage: item.doctorImage }}
+            size={48}
+          />
+          <View style={styles.cardHeaderInfo}>
+            <Text style={styles.cardDoctorName} numberOfLines={1}>
+              {getAppointmentDoctorName(item)}
+            </Text>
+            <Text style={styles.cardType} numberOfLines={1}>
+              {item.specialtyName ||
+                (isVideo ? 'Video Consultation' : 'In-Clinic Visit')}
+            </Text>
+          </View>
+          <StatusBadge status={item.status} />
+        </View>
+
+        {/* Consultation type + id */}
+        <View style={styles.cardTypeRow}>
+          <View style={styles.typeTag}>
             <MaterialCommunityIcons
               name={isVideo ? 'video-outline' : 'stethoscope'}
-              size={18}
+              size={13}
               color={isVideo ? THEME.accent : THEME.primary}
             />
-          </View>
-
-          <View style={styles.cardHeaderInfo}>
-            <Text style={styles.cardType}>
+            <Text style={styles.typeTagText}>
               {isVideo ? 'Video Consultation' : 'In-Clinic Visit'}
             </Text>
-            <Text style={styles.cardId}>#{item.appointmentId.slice(-8).toUpperCase()}</Text>
           </View>
-
-          <StatusBadge status={item.status} />
+          <Text style={styles.cardId}>#{item.appointmentId.slice(-8).toUpperCase()}</Text>
         </View>
 
         {/* Details */}
@@ -228,7 +249,7 @@ const MyAppointmentsScreen: React.FC = () => {
             )}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -536,10 +557,38 @@ const styles = StyleSheet.create({
   cardHeaderInfo: {
     flex: 1,
   },
-  cardType: {
+  cardDoctorName: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  cardType: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#2A7FFF',
+    marginTop: 1,
+  },
+  cardTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 16,
+    marginBottom: 12,
+  },
+  typeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  typeTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
   },
   cardId: {
     fontSize: 11,

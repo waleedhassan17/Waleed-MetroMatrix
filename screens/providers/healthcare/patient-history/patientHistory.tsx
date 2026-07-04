@@ -29,20 +29,7 @@ import type { DoctorStackParamList } from '../../../../models/healthcare/types';
 type RouteParams = RouteProp<DoctorStackParamList, 'PatientHistory'>;
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Helpers ───────────────────────────────────
 
@@ -178,14 +165,24 @@ const PatientHistoryScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
     dispatch(fetchPatientHistory(patientId));
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-    ]).start();
     return () => { dispatch(resetPatientHistory()); };
   }, [dispatch, patientId]);
+
+  useEffect(() => {
+    if (!loading && patient && !hasAnimated.current) {
+      hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [loading, patient]);
 
   const handleVisitPress = useCallback(
     (visit: PastVisit) => dispatch(selectVisit(visit)),

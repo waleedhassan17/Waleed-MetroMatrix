@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAppSelector } from '../../../../store/hooks';
 
 // ── Theme ───────────────────────────────────
 const THEME = {
@@ -30,23 +31,6 @@ const THEME = {
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
-};
-
-// ── Profile Data (mocked until API) ─────────
-const PROFILE_DATA = {
-  name: 'Muhammad Ali',
-  email: 'muhammad.ali@email.com',
-  phone: '+92 300 1234567',
-  bloodGroup: 'B+',
-  age: 28,
-  weight: '72 kg',
-  height: '175 cm',
-  allergies: ['Penicillin', 'Dust'],
-  conditions: ['None'],
-  memberSince: 'January 2024',
-  totalAppointments: 8,
-  totalPrescriptions: 5,
-  totalRecords: 12,
 };
 
 // ── Section Items ────────────────────────────
@@ -85,6 +69,22 @@ const SETTINGS_SECTIONS = [
 // ── Main Screen ─────────────────────────────
 const HealthcareProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const user = useAppSelector((s) => s.signIn.user);
+
+  // Real identity from auth; medical details default to "not set" rather than
+  // fabricated values (showing a fake blood group/allergy in a health app is unsafe).
+  const profile = {
+    name: user?.fullName?.trim() || 'Your Profile',
+    email: user?.email || '—',
+    phone: user?.phoneNumber || 'Add phone number',
+    bloodGroup: '—',
+    age: null as number | null,
+    weight: '—',
+    height: '—',
+    allergies: [] as string[],
+    conditions: [] as string[],
+  };
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -164,26 +164,9 @@ const HealthcareProfileScreen: React.FC = () => {
               </View>
             </View>
 
-            <Text style={styles.profileName}>{PROFILE_DATA.name}</Text>
-            <Text style={styles.profileEmail}>{PROFILE_DATA.email}</Text>
-            <Text style={styles.profilePhone}>{PROFILE_DATA.phone}</Text>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{PROFILE_DATA.totalAppointments}</Text>
-                <Text style={styles.statLabel}>Appointments</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{PROFILE_DATA.totalPrescriptions}</Text>
-                <Text style={styles.statLabel}>Prescriptions</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{PROFILE_DATA.totalRecords}</Text>
-                <Text style={styles.statLabel}>Records</Text>
-              </View>
-            </View>
+            <Text style={styles.profileName}>{profile.name}</Text>
+            <Text style={styles.profileEmail}>{profile.email}</Text>
+            <Text style={styles.profilePhone}>{profile.phone}</Text>
           </LinearGradient>
         </Animated.View>
 
@@ -192,10 +175,10 @@ const HealthcareProfileScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Medical Information</Text>
           <View style={styles.medInfoGrid}>
             {[
-              { label: 'Blood Group', value: PROFILE_DATA.bloodGroup, icon: 'water', color: '#EF4444' },
-              { label: 'Age', value: `${PROFILE_DATA.age} years`, icon: 'person', color: THEME.primary },
-              { label: 'Weight', value: PROFILE_DATA.weight, icon: 'barbell-outline', color: '#10B981' },
-              { label: 'Height', value: PROFILE_DATA.height, icon: 'resize', color: '#7C3AED' },
+              { label: 'Blood Group', value: profile.bloodGroup, icon: 'water', color: '#EF4444' },
+              { label: 'Age', value: profile.age ? `${profile.age} years` : '—', icon: 'person', color: THEME.primary },
+              { label: 'Weight', value: profile.weight, icon: 'barbell-outline', color: '#10B981' },
+              { label: 'Height', value: profile.height, icon: 'resize', color: '#7C3AED' },
             ].map((item) => (
               <View key={item.label} style={styles.medInfoItem}>
                 <Ionicons name={item.icon as any} size={20} color={item.color} />
@@ -208,22 +191,30 @@ const HealthcareProfileScreen: React.FC = () => {
           <View style={styles.tagSection}>
             <Text style={styles.tagSectionLabel}>Allergies</Text>
             <View style={styles.tagRow}>
-              {PROFILE_DATA.allergies.map((a) => (
-                <View key={a} style={[styles.tag, { backgroundColor: '#FEF2F2' }]}>
-                  <Text style={[styles.tagText, { color: '#EF4444' }]}>{a}</Text>
-                </View>
-              ))}
+              {profile.allergies.length > 0 ? (
+                profile.allergies.map((a) => (
+                  <View key={a} style={[styles.tag, { backgroundColor: '#FEF2F2' }]}>
+                    <Text style={[styles.tagText, { color: '#EF4444' }]}>{a}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyHint}>None recorded</Text>
+              )}
             </View>
           </View>
 
           <View style={styles.tagSection}>
             <Text style={styles.tagSectionLabel}>Chronic Conditions</Text>
             <View style={styles.tagRow}>
-              {PROFILE_DATA.conditions.map((c) => (
-                <View key={c} style={[styles.tag, { backgroundColor: THEME.primaryLight }]}>
-                  <Text style={[styles.tagText, { color: THEME.primary }]}>{c}</Text>
-                </View>
-              ))}
+              {profile.conditions.length > 0 ? (
+                profile.conditions.map((c) => (
+                  <View key={c} style={[styles.tag, { backgroundColor: THEME.primaryLight }]}>
+                    <Text style={[styles.tagText, { color: THEME.primary }]}>{c}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyHint}>None recorded</Text>
+              )}
             </View>
           </View>
         </View>
@@ -303,12 +294,6 @@ const HealthcareProfileScreen: React.FC = () => {
             ))}
           </View>
         ))}
-
-        {/* Member Since */}
-        <View style={styles.memberChip}>
-          <Ionicons name="ribbon-outline" size={16} color={THEME.primary} />
-          <Text style={styles.memberText}>Member since {PROFILE_DATA.memberSince}</Text>
-        </View>
 
         {/* Sign Out */}
         <TouchableOpacity style={styles.signOutButton} onPress={handleLogout} activeOpacity={0.8}>
@@ -448,6 +433,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   tagText: { fontSize: 12, fontWeight: '600' },
+  emptyHint: { fontSize: 13, color: THEME.textTertiary, fontStyle: 'italic' },
 
   // Quick Actions
   quickActionsRow: {

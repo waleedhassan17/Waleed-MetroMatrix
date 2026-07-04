@@ -7,6 +7,7 @@ import type {
 } from '../../../../models/healthcare/types';
 import { fetchAppointmentByIdApi } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';
+import { getDoctorDisplayName, getDoctorSpecialty } from '../../../../utils/healthcare/doctorDisplay';
 
 // ── Types ───────────────────────────────────
 
@@ -434,15 +435,13 @@ export const selectConfirmationDetails = (
 
   if (!appointmentId || !appointment) return null;
 
-  const doctorName = doctor?.bio?.split(' ')[1]
-    ? `Dr. ${doctor.bio.split(' ')[1]}`
-    : 'Doctor';
+  const doctorName = doctor ? getDoctorDisplayName(doctor) : 'Doctor';
 
   return {
     appointmentId,
     confirmationCode: confirmationCode || generateConfirmationCode(),
     doctorName,
-    doctorSpecialty: doctor?.subspecialties?.[0] || 'Specialist',
+    doctorSpecialty: getDoctorSpecialty(doctor),
     date: formatDate(appointment.date),
     time: `${formatTime12(appointment.timeSlot.start)} - ${formatTime12(
       appointment.timeSlot.end
@@ -462,9 +461,7 @@ export const selectCalendarEvent = (state: RootState): CalendarEvent | null => {
 
   if (!appointment) return null;
 
-  const doctorName = doctor?.bio?.split(' ')[1]
-    ? `Dr. ${doctor.bio.split(' ')[1]}`
-    : 'Doctor';
+  const doctorName = doctor ? getDoctorDisplayName(doctor) : 'Doctor';
 
   const startDate = new Date(
     `${appointment.date}T${appointment.timeSlot.start}`
@@ -513,8 +510,7 @@ export const selectDoctorName = (state: RootState): string => {
   const doctor = state.appointmentConfirm.doctor;
   if (!doctor) return 'Doctor';
 
-  const name = doctor.bio?.split(' ')[1];
-  return name ? `Dr. ${name}` : 'Doctor';
+  return getDoctorDisplayName(doctor);
 };
 
 // Get appointment type label

@@ -11,6 +11,7 @@ import {
   rescheduleAppointmentApi,
 } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';
+import { getDoctorDisplayName } from '../../../../utils/healthcare/doctorDisplay';
 
 // ── Types ───────────────────────────────────
 
@@ -603,8 +604,7 @@ export const selectDoctorName = (state: RootState): string => {
   const doctor = state.appointmentDetail.doctor;
   if (!doctor) return '';
   
-  const name = doctor.bio?.split(' ')[1];
-  return name ? `Dr. ${name}` : 'Doctor';
+  return getDoctorDisplayName(doctor);
 };
 
 // Check if cancel form is valid

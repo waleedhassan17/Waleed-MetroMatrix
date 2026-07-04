@@ -270,7 +270,7 @@ const CartScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: (StatusBar.currentHeight || 0) + 12, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: (StatusBar.currentHeight || 0) + 20, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   clearBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, justifyContent: 'center', alignItems: 'center' },

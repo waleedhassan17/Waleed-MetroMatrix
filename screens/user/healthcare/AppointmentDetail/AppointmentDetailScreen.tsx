@@ -36,6 +36,8 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
+import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
+import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -409,12 +411,15 @@ const AppointmentDetailScreen: React.FC = () => {
           </View>
 
           <View style={styles.doctorRow}>
-            <View style={styles.doctorAvatar}>
-              <MaterialCommunityIcons name="doctor" size={28} color={THEME.primary} />
-            </View>
+            <DoctorAvatar
+              doctor={{ name: appointment.doctorName, profileImage: appointment.doctorImage }}
+              size={52}
+            />
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorName}>Doctor</Text>
-              <Text style={styles.doctorId}>ID: {appointment.doctorId.slice(-8)}</Text>
+              <Text style={styles.doctorName}>{getAppointmentDoctorName(appointment)}</Text>
+              <Text style={styles.doctorId}>
+                {appointment.specialtyName || 'Specialist'}
+              </Text>
             </View>
           </View>
 

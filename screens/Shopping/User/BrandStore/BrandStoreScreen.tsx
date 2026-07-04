@@ -134,20 +134,20 @@ const BrandStoreScreen: React.FC = () => {
     const id = isAll ? null : item?.categoryId || null;
     const label = isAll ? 'All' : item?.name || '';
     const isActive = selectedCategory === id;
+    const tabBackgroundColor = isActive ? theme.primaryColor : Colors.surface;
+    const tabBorderColor = isActive ? theme.primaryColor : Colors.border;
+    const tabTextColor = isActive ? theme.textOnPrimary : Colors.text.primary;
 
     return (
       <TouchableOpacity
         style={[
           styles.categoryTab,
-          isActive && { backgroundColor: theme.primaryColor, borderColor: theme.primaryColor },
+          { backgroundColor: tabBackgroundColor, borderColor: tabBorderColor },
         ]}
         onPress={() => handleCategorySelect(id)}
       >
         <Text
-          style={[
-            styles.categoryTabText,
-            isActive && { color: theme.textOnPrimary },
-          ]}
+          style={[styles.categoryTabText, { color: tabTextColor }]}
         >
           {label}
         </Text>
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: (StatusBar.currentHeight || 0) + 8,
+    paddingTop: (StatusBar.currentHeight || 0) + 16,
     paddingHorizontal: Spacing.md,
   },
   bannerHeaderRight: {
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   categoryTabText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.text.secondary,
   },
 

@@ -31,6 +31,14 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor } from '../../../../models/healthcare/types';
+import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
+import {
+  getDoctorDisplayName,
+  getDoctorSpecialty,
+  getConsultationFee,
+  getExperienceLabel,
+  getRating,
+} from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DEBOUNCE_MS = 400;
@@ -248,8 +256,9 @@ const DoctorSearchScreen: React.FC = () => {
   // ── Doctor Row ──────────────────────────
 
   const renderDoctorRow = useCallback(
-    ({ item, index }: { item: Doctor; index: number }) => {
-      const doctorName = item.bio?.split(' ')[1] || 'Doctor';
+    ({ item }: { item: Doctor; index: number }) => {
+      const rating = getRating(item);
+      const experience = getExperienceLabel(item);
 
       return (
         <Animated.View
@@ -270,26 +279,13 @@ const DoctorSearchScreen: React.FC = () => {
             onPress={() => handleDoctorPress(item)}
             activeOpacity={0.7}
           >
-            {/* Avatar */}
-            <View style={styles.resultAvatarWrapper}>
-              <LinearGradient
-                colors={[THEME.primaryLight, '#F0F7FF']}
-                style={styles.resultAvatar}
-              >
-                <MaterialCommunityIcons
-                  name="doctor"
-                  size={24}
-                  color={THEME.primary}
-                />
-              </LinearGradient>
-              {item.isAvailable && <View style={styles.onlineDot} />}
-            </View>
+            <DoctorAvatar doctor={item} size={48} showOnlineDot />
 
             {/* Info */}
             <View style={styles.resultInfo}>
               <View style={styles.resultNameRow}>
                 <Text style={styles.resultName} numberOfLines={1}>
-                  Dr. {doctorName}
+                  {getDoctorDisplayName(item)}
                 </Text>
                 {item.isVerified && (
                   <Ionicons
@@ -301,24 +297,22 @@ const DoctorSearchScreen: React.FC = () => {
               </View>
 
               <Text style={styles.resultSpecialty} numberOfLines={1}>
-                {item.qualifications?.join(' • ') || 'Specialist'}
+                {getDoctorSpecialty(item)}
               </Text>
 
               <View style={styles.resultMetaRow}>
                 <View style={styles.ratingBadge}>
                   <Ionicons name="star" size={10} color="#FBBF24" />
-                  <Text style={styles.ratingText}>
-                    {item.rating?.toFixed(1) || '4.5'}
-                  </Text>
+                  <Text style={styles.ratingText}>{rating.value}</Text>
                 </View>
+                {experience && (
+                  <>
+                    <View style={styles.metaDot} />
+                    <Text style={styles.metaText}>{experience}</Text>
+                  </>
+                )}
                 <View style={styles.metaDot} />
-                <Text style={styles.metaText}>
-                  {item.experience || '5'}+ yrs
-                </Text>
-                <View style={styles.metaDot} />
-                <Text style={styles.feeText}>
-                  PKR {item.consultationFee || '1,500'}
-                </Text>
+                <Text style={styles.feeText}>{getConsultationFee(item)}</Text>
               </View>
             </View>
 

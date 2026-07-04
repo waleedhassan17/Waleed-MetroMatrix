@@ -34,20 +34,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_HEIGHT = 160;
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Period options ─────────────────────────────
 
@@ -134,12 +121,13 @@ const BarChart: React.FC<{ data: ChartDataPoint[]; currency: string }> = ({ data
 
 // ── Component ─────────────────────────────────
 
-const DoctorEarningsScreen: React.FC = () => {
+const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
   const {
     totalEarnings,
+    trendPercentage,
     periodFilter,
     transactions,
     chartData,
@@ -154,16 +142,29 @@ const DoctorEarningsScreen: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const heroScaleAnim = useRef(new Animated.Value(0.92)).current;
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
     dispatch(fetchEarnings());
     dispatch(fetchTransactions());
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      Animated.spring(heroScaleAnim, { toValue: 1, tension: 80, friction: 9, useNativeDriver: true }),
-    ]).start();
     return () => { dispatch(resetDoctorEarnings()); };
   }, [dispatch]);
+
+  useEffect(() => {
+    // Reveal once the earnings load settles. Don't gate on transactionsLoading —
+    // if that request hangs/fails the content would stay invisible (blank screen).
+    if (!loading && !hasAnimated.current) {
+      hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
+      heroScaleAnim.setValue(0.92);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+        Animated.spring(heroScaleAnim, { toValue: 1, tension: 80, friction: 9, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [loading]);
 
   const handlePeriodChange = useCallback(
     (period: PeriodFilter) => {
@@ -182,11 +183,13 @@ const DoctorEarningsScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          {!isInTab && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <Text style={styles.headerTitle}>Earnings</Text>
-          <View style={styles.backButton} />
+          {!isInTab && <View style={styles.backButton} />}
         </LinearGradient>
         <View style={styles.centered}>
           <View style={styles.loadingIconWrap}>
@@ -205,11 +208,13 @@ const DoctorEarningsScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          {!isInTab && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <Text style={styles.headerTitle}>Earnings</Text>
-          <View style={styles.backButton} />
+          {!isInTab && <View style={styles.backButton} />}
         </LinearGradient>
         <View style={styles.centered}>
           <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
@@ -282,7 +287,7 @@ const DoctorEarningsScreen: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       <Animated.ScrollView
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -296,9 +301,13 @@ const DoctorEarningsScreen: React.FC = () => {
         >
           {/* Nav row */}
           <View style={styles.heroNav}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            {!isInTab ? (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backButtonPlaceholder} />
+            )}
             <Text style={styles.headerTitle}>Earnings</Text>
             <TouchableOpacity
               style={styles.backButton}
@@ -312,9 +321,9 @@ const DoctorEarningsScreen: React.FC = () => {
           <Animated.View style={[styles.heroAmountBlock, { transform: [{ scale: heroScaleAnim }] }]}>
             <Text style={styles.heroAmountLabel}>{currentPeriodLabel} Earnings</Text>
             <Text style={styles.heroAmount}>{formatCurrency(totalEarnings, currency)}</Text>
-            <View style={styles.heroTrendBadge}>
-              <Ionicons name="trending-up" size={13} color="#FFFFFF" />
-              <Text style={styles.heroTrendText}>+12% vs last period</Text>
+            <View style={[styles.heroTrendBadge, { backgroundColor: trendPercentage >= 0 ? 'rgba(255,255,255,0.18)' : 'rgba(239,68,68,0.2)' }]}>
+              <Ionicons name={trendPercentage >= 0 ? "trending-up" : "trending-down"} size={13} color="#FFFFFF" />
+              <Text style={styles.heroTrendText}>{trendPercentage >= 0 ? '+' : ''}{trendPercentage}% vs last period</Text>
             </View>
           </Animated.View>
 
@@ -337,6 +346,21 @@ const DoctorEarningsScreen: React.FC = () => {
             })}
           </View>
         </LinearGradient>
+
+        {/* ── Withdraw CTA ── */}
+        <View style={styles.withdrawSection}>
+          <TouchableOpacity style={styles.withdrawBtn} activeOpacity={0.85}>
+            <LinearGradient
+              colors={THEME.gradient.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.withdrawBtnGradient}
+            >
+              <Ionicons name="wallet-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.withdrawBtnText}>Withdraw Funds</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Chart ── */}
         {chartData.length > 0 && (
@@ -530,6 +554,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  backButtonPlaceholder: {
+    width: 40,
+    height: 40,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -597,6 +625,33 @@ const styles = StyleSheet.create({
   },
   periodTabTextActive: {
     color: THEME.primary,
+  },
+
+  // Withdraw CTA
+  withdrawSection: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  withdrawBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  withdrawBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  withdrawBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Section

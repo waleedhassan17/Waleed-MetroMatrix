@@ -4,7 +4,11 @@ import { store } from "../../store/store";
 import { KeyForStorage, retrieveData, clearAuthData } from "../../utils/storage_utils/storageUtils";
 
 // API Configuration
-export const API_URL = "https://metromatrix-backend-8758842b3e4c.herokuapp.com/api";
+// ⚠️ LOCAL TESTING (web): browser runs on this machine, so localhost reaches the
+// local backend. REVERT to the Heroku URL (commented below) before deploying.
+export const API_URL = "http://localhost:5000/api";
+// LAN IP (for Expo Go on a physical device): "http://192.168.100.71:5000/api"
+// Production: "https://metromatrix-backend-8758842b3e4c.herokuapp.com/api"
 
 const TIMEOUT = 30000; // 30 seconds timeout
 

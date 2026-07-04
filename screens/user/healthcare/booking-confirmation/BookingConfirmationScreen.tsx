@@ -30,9 +30,14 @@ import {
   selectFeeBreakdown,
 } from './bookingConfirmationSlice';
 import type { BookingSummary, PatientDetails } from './bookingConfirmationSlice';
-import type { HealthcareStackParamList, PaymentRecord } from '../../../../models/healthcare/types';
-import { getDoctorById } from '../../../../dummy-data/healthcare/doctors';
+import type { HealthcareStackParamList, PaymentRecord, Doctor } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
+import {
+  getDoctorName,
+  getDoctorSpecialty,
+  getRating,
+} from '../../../../utils/healthcare/doctorDisplay';
 import { Typography } from '../../../../constants/Fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -225,6 +230,7 @@ const BookingConfirmationScreen: React.FC = () => {
 
   const slotSelection = useAppSelector((s) => s.slotSelection);
   const clinicSelection = useAppSelector((s) => s.clinicSelection);
+  const detailDoctor = useAppSelector((s) => s.doctorDetail?.doctor as Doctor | null);
   const {
     bookingData,
     patientDetails,
@@ -240,9 +246,11 @@ const BookingConfirmationScreen: React.FC = () => {
   const [couponInput, setCouponInput] = useState('');
   const [couponFocused, setCouponFocused] = useState(false);
 
-  // Build booking summary from previous screens
+  // Build booking summary from previous screens. The real doctor is the one
+  // already loaded into the doctor-detail slice during the booking flow.
   useEffect(() => {
-    const doctor = getDoctorById(doctorId);
+    const doctor =
+      detailDoctor && detailDoctor.doctorId === doctorId ? detailDoctor : null;
     if (!doctor || !slotSelection.selectedSlot) return;
 
     const consultationType = slotSelection.consultationType;
@@ -267,6 +275,7 @@ const BookingConfirmationScreen: React.FC = () => {
   }, [
     dispatch,
     doctorId,
+    detailDoctor,
     slotSelection.selectedSlot,
     slotSelection.consultationType,
     clinicSelection.selectedClinic,
@@ -316,7 +325,7 @@ const BookingConfirmationScreen: React.FC = () => {
       }
     }
 
-    const doctorName = bookingData.doctor.bio?.split(' ')[1] || 'Doctor';
+    const doctorName = getDoctorName(bookingData.doctor);
 
     Alert.alert(
       'Confirm Booking',
@@ -365,7 +374,8 @@ const BookingConfirmationScreen: React.FC = () => {
   }
 
   const { doctor, slot, clinic, consultationType } = bookingData;
-  const doctorName = doctor.bio?.split(' ')[1] || 'Doctor';
+  const doctorName = getDoctorName(doctor);
+  const bcRating = getRating(doctor);
 
   // ── Render ──────────────────────────────────
 
@@ -416,13 +426,7 @@ const BookingConfirmationScreen: React.FC = () => {
             {/* ── Appointment Summary Card ────────── */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryHeader}>
-                <View style={styles.doctorAvatar}>
-                  <MaterialCommunityIcons
-                    name="doctor"
-                    size={28}
-                    color={THEME.primary}
-                  />
-                </View>
+                <DoctorAvatar doctor={doctor} size={56} showVerified />
                 <View style={styles.doctorInfo}>
                   <View style={styles.doctorNameRow}>
                     <Text style={styles.doctorName} numberOfLines={1}>
@@ -437,13 +441,14 @@ const BookingConfirmationScreen: React.FC = () => {
                     )}
                   </View>
                   <Text style={styles.doctorSpec} numberOfLines={1}>
-                    {doctor.subspecialties?.[0] || 'Specialist'}
+                    {getDoctorSpecialty(doctor)}
                   </Text>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={12} color={THEME.star} />
                     <Text style={styles.ratingText}>
-                      {doctor.rating?.toFixed(1) || '4.5'} ({doctor.totalReviews || 0}{' '}
-                      reviews)
+                      {bcRating.hasRating
+                        ? `${bcRating.value} (${bcRating.count} review${bcRating.count === 1 ? '' : 's'})`
+                        : 'New doctor'}
                     </Text>
                   </View>
                 </View>

@@ -30,21 +30,8 @@ import {
 } from './patientQueueSlice';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Helpers ───────────────────────────────────
 
@@ -80,6 +67,7 @@ const CurrentPatientCard: React.FC<{
   onComplete: () => void;
   onSkip: () => void;
 }> = ({ patient, onComplete, onSkip }) => {
+  const navigation = useNavigation<any>();
   const isVideo = patient.type === 'video';
   const initials = patient.patientName
     .split(' ')
@@ -87,6 +75,17 @@ const CurrentPatientCard: React.FC<{
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [pulseAnim]);
 
   return (
     <View style={styles.currentCard}>
@@ -99,7 +98,7 @@ const CurrentPatientCard: React.FC<{
       >
         <View style={styles.currentBadgeRow}>
           <View style={styles.currentLiveBadge}>
-            <Animated.View style={styles.currentLiveDot} />
+            <Animated.View style={[styles.currentLiveDot, { opacity: pulseAnim }]} />
             <Text style={styles.currentLiveText}>In Consultation</Text>
           </View>
           <View style={styles.currentTokenBadge}>
@@ -150,6 +149,25 @@ const CurrentPatientCard: React.FC<{
       </View>
 
       {/* Actions */}
+      <View style={styles.currentActionsRow}>
+        <TouchableOpacity 
+          style={styles.actionBtn} 
+          onPress={() => navigation.navigate(DoctorRouteNames.PatientHistory, { patientId: patient.patientId, patientName: patient.patientName })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="document-text-outline" size={17} color={THEME.primary} />
+          <Text style={styles.actionBtnText}>History</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => navigation.navigate(DoctorRouteNames.PrescriptionWriter, { patientId: patient.patientId, patientName: patient.patientName, age: patient.age, gender: patient.gender, appointmentId: patient.appointmentId, type: patient.type })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="create-outline" size={17} color={THEME.accent} />
+          <Text style={[styles.actionBtnText, { color: THEME.accent }]}>Write Rx</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.currentActions}>
         <TouchableOpacity style={styles.skipBtn} onPress={onSkip} activeOpacity={0.8}>
           <Ionicons name="arrow-forward-outline" size={17} color="#64748B" />
@@ -316,25 +334,30 @@ const PatientQueueScreen: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
   const hasAnimated = useRef(false);
-  const initialLoadDone = useRef(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
   useEffect(() => {
     dispatch(fetchQueue());
-    return () => { dispatch(resetPatientQueue()); };
+    const interval = setInterval(() => {
+      dispatch(fetchQueue());
+    }, 30000); // 30s auto-refresh polling
+    return () => { 
+      clearInterval(interval);
+      dispatch(resetPatientQueue()); 
+    };
   }, [dispatch]);
 
   useEffect(() => {
-    if (!loading && initialLoadDone.current && !hasAnimated.current) {
+    if (!loading && isLayoutReady && !hasAnimated.current) {
       hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
       ]).start();
     }
-    if (loading) {
-      initialLoadDone.current = true;
-    }
-  }, [loading]);
+  }, [loading, isLayoutReady]);
 
   // Tab indicator animation
   const tabIndex = FILTER_TABS.findIndex((t) => t.value === filterTab);
@@ -456,7 +479,7 @@ const PatientQueueScreen: React.FC = () => {
   // ── Render ────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} onLayout={() => setIsLayoutReady(true)}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       {/* ── Gradient Header ── */}
@@ -790,12 +813,35 @@ const styles = StyleSheet.create({
   currentSymptoms: { fontSize: 13, fontWeight: '500', color: '#64748B', lineHeight: 18 },
   currentHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   currentHistoryText: { fontSize: 11, fontWeight: '500', color: '#94A3B8', flex: 1 },
+  currentActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: THEME.pageBg,
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.primary,
+  },
   currentActions: {
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    paddingTop: 4,
+    paddingTop: 10,
   },
   skipBtn: {
     flex: 1,

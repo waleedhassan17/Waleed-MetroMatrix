@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -25,21 +25,11 @@ import {
   ViewMode,
 } from './doctorScheduleSlice';
 import { Appointment } from '../../../../models/healthcare/types';
+import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    secondary: ['#5A9FFF', '#1E6AE1'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 // ── Helpers ───────────────────────────────────
 
@@ -89,18 +79,6 @@ const STATUS_CONFIG: Record<Appointment['status'], { bg: string; text: string; d
   'no-show': { bg: '#FEF2F2', text: '#DC2626', dot: '#EF4444' },
 };
 
-const PATIENT_NAMES: Record<string, string> = {
-  'p-001': 'Imran Khan',
-  'p-002': 'Sara Ahmed',
-  'p-003': 'Usman Malik',
-  'p-004': 'Fatima Noor',
-  'p-005': 'Ali Hassan',
-  'p-006': 'Ayesha Khan',
-  'p-007': 'Kamran Shah',
-  'p-008': 'Bilal Iqbal',
-  'p-009': 'Zainab Raza',
-  'p-010': 'Ahmed Rauf',
-};
 
 // ── Week Calendar Strip ───────────────────────
 
@@ -170,9 +148,10 @@ const WeekCalendarStrip: React.FC<{
 // ── Appointment Card ──────────────────────────
 
 const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = ({ appointment, index }) => {
+  const navigation = useNavigation<any>();
   const isVideo = appointment.type === 'video';
   const sc = STATUS_CONFIG[appointment.status] ?? STATUS_CONFIG.pending;
-  const patientName = PATIENT_NAMES[appointment.patientId] || `Patient #${appointment.patientId.slice(-3)}`;
+  const patientName = getPatientName(appointment);
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -192,7 +171,16 @@ const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = (
         transform: [{ translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
       }}
     >
-      <TouchableOpacity style={styles.aptCard} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={styles.aptCard} 
+        activeOpacity={0.8}
+        onPress={() => {
+          navigation.navigate(DoctorRouteNames.PatientHistory, {
+            patientId: appointment.patientId,
+            patientName: patientName,
+          });
+        }}
+      >
         {/* Left type stripe */}
         <LinearGradient
           colors={isVideo ? THEME.gradient.secondary : THEME.gradient.primary}
@@ -224,7 +212,7 @@ const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = (
               colors={isVideo ? THEME.gradient.secondary : THEME.gradient.primary}
               style={styles.aptPatientAvatar}
             >
-              <MaterialCommunityIcons name="account" size={16} color="#FFFFFF" />
+              <Text style={styles.aptPatientInitials}>{getInitials(patientName)}</Text>
             </LinearGradient>
             <View style={styles.aptPatientInfo}>
               <Text style={styles.aptPatientName}>{patientName}</Text>
@@ -279,7 +267,7 @@ const DoctorScheduleScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-10)).current;
   const hasAnimated = useRef(false);
-  const initialLoadDone = useRef(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
   useEffect(() => {
     dispatch(fetchSchedule());
@@ -287,17 +275,16 @@ const DoctorScheduleScreen: React.FC = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!loading && initialLoadDone.current && !hasAnimated.current) {
+    if (!loading && isLayoutReady && !hasAnimated.current) {
       hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      headerSlide.setValue(-10);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.spring(headerSlide, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
       ]).start();
     }
-    if (loading) {
-      initialLoadDone.current = true;
-    }
-  }, [loading]);
+  }, [loading, isLayoutReady]);
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
 
@@ -404,7 +391,7 @@ const DoctorScheduleScreen: React.FC = () => {
   // ── Render ────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} onLayout={() => setIsLayoutReady(true)}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       {/* ── Gradient Header ── */}
@@ -890,6 +877,12 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  aptPatientInitials: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   aptPatientInfo: {
     flex: 1,

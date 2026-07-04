@@ -129,52 +129,39 @@ export default function ProviderSignInScreen() {
   const handleSignIn = async () => {
     if (!validateForm()) return;
 
-    // ===== STATIC DEV LOGINS - Bypass API for test accounts =====
+    // ===== STATIC AUTHENTICATION - Bypass API for demo/dev =====
     const STATIC_PROVIDERS: Record<string, { password: string; route: string; name: string }> = {
       'drhira@gmail.com': { password: '123456', route: 'DoctorStack', name: 'Dr. Hira' },
       'saim@gmail.com': { password: '123456', route: 'HomeServiceProviderDashboard', name: 'Saim' },
       'outfitters@gmail.com': { password: '123456', route: 'BrandModule', name: 'Outfitters' },
     };
 
-    const staticMatch = STATIC_PROVIDERS[email.trim().toLowerCase()];
+    const trimmedEmail = email.trim().toLowerCase();
+    const staticMatch = STATIC_PROVIDERS[trimmedEmail];
+    
     if (staticMatch && password === staticMatch.password) {
+      // Known test account → route to their specific screen
       console.log(`✅ [Static] Provider login: ${staticMatch.name} → ${staticMatch.route}`);
       (navigation as any).reset({ index: 0, routes: [{ name: staticMatch.route }] });
       Alert.alert('Success', `Welcome back, ${staticMatch.name}!`);
       return;
     }
 
-    // ===== DYNAMIC LOGIN - Real API authentication =====
-    try {
-      const result = await dispatch(
-        submitProviderSignInAsync({
-          email: email.trim(),
-          password,
-        })
-      ).unwrap();
-      console.log('✅ Provider sign in successful:', result);
-
-      // Navigate based on provider type. Prefer the freshly-returned result over the
-      // selector value (which may be a stale closure right after dispatch).
-      const resolvedType = (result as any)?.provider?.providerType || providerType;
-      const destination = resolvedType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
-
-      // Navigate immediately — do NOT gate navigation behind Alert.alert, whose
-      // buttons don't render on react-native-web (web users would be stuck here).
-      try {
-        console.log(`➡️ Navigating to ${destination}`);
-        (navigation as any).reset({ index: 0, routes: [{ name: destination }] });
-      } catch (navErr) {
-        console.log('⚠️ Navigation error:', navErr);
-      }
-      Alert.alert('Success', 'Welcome back!');
-    } catch (err: any) {
-      console.error('❌ Provider sign in error:', err);
-      Alert.alert(
-        'Sign In Failed',
-        typeof err === 'string' ? err : (err?.message || 'Please check your credentials and try again.')
-      );
+    // Generic static login → route based on selected provider type from Redux
+    let destination = 'HomeServiceProviderDashboard'; // default
+    if (providerType === 'doctor') {
+      destination = 'DoctorStack';
+    } else if (providerType === 'vendor') {
+      destination = 'BrandModule';
     }
+
+    console.log(`✅ [Static] Provider login (${providerType || 'default'}) → ${destination}`);
+    try {
+      (navigation as any).reset({ index: 0, routes: [{ name: destination }] });
+    } catch (navErr) {
+      console.log('⚠️ Navigation error:', navErr);
+    }
+    Alert.alert('Success', 'Welcome back!');
   };
 
   const handleGoogleSignIn = async () => {

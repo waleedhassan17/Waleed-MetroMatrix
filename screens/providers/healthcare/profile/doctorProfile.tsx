@@ -25,18 +25,7 @@ import {
 } from './doctorProfileSlice';
 
 // ── Theme ─────────────────────────────────────
-
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-  },
-};
+import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 
 const formatCurrency = (amount: number, currency: string) =>
   `${currency} ${amount.toLocaleString()}`;
@@ -92,20 +81,31 @@ const DoctorProfileScreen: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const sectionAnims = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
 
+  const hasAnimated = useRef(false);
+
   useEffect(() => {
     dispatch(fetchDoctorProfile());
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      Animated.stagger(
-        90,
-        sectionAnims.map((a) =>
-          Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
-        )
-      ),
-    ]).start();
     return () => { dispatch(resetDoctorProfile()); };
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!loading && profile && !hasAnimated.current) {
+      hasAnimated.current = true;
+      fadeAnim.setValue(0);
+      slideAnim.setValue(20);
+      sectionAnims.forEach(a => a.setValue(0));
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
+        Animated.stagger(
+          90,
+          sectionAnims.map((a) =>
+            Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
+          )
+        ),
+      ]).start();
+    }
+  }, [loading, profile]);
 
   // ── Loading ───────────────────────────────────
 
@@ -220,6 +220,17 @@ const DoctorProfileScreen: React.FC = () => {
             <StatBox icon="account-group" value={profile.totalPatients.toLocaleString()} label="Patients" />
             <View style={styles.statsDivider} />
             <StatBox icon="comment-text-outline" value={profile.totalReviews.toString()} label="Reviews" />
+          </View>
+
+          {/* Completeness Meter */}
+          <View style={styles.completenessWrap}>
+            <View style={styles.completenessHeader}>
+              <Text style={styles.completenessText}>Profile Completeness</Text>
+              <Text style={styles.completenessPercent}>85%</Text>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: '85%' }]} />
+            </View>
           </View>
         </LinearGradient>
 
@@ -532,6 +543,39 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.4 },
   statLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.3 },
   statsDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  // Completeness Meter
+  completenessWrap: {
+    marginTop: 16,
+    paddingHorizontal: 10,
+  },
+  completenessHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  completenessText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  completenessPercent: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#10B981', // green for completeness
+    borderRadius: 3,
+  },
 
   // Availability card (overlaps gradient)
   availCardWrap: {

@@ -77,6 +77,11 @@ const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName,
           <Ionicons name={config.icon} size={20} color={COLORS.textTertiary} />
         </View>
       )}
+      {routeName === 'Patients' && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>3</Text>
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -200,8 +205,27 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   tabLabelActive: {
-    fontWeight: '700',
     color: COLORS.primary,
+    fontWeight: '700',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });
 

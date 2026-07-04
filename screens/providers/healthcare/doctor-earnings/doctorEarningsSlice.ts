@@ -30,6 +30,7 @@ export interface ChartDataPoint {
 
 export interface DoctorEarningsState {
   totalEarnings: number;
+  trendPercentage: number;
   periodFilter: PeriodFilter;
   transactions: EarningTransaction[];
   chartData: ChartDataPoint[];
@@ -42,6 +43,7 @@ export interface DoctorEarningsState {
 
 const initialState: DoctorEarningsState = {
   totalEarnings: 0,
+  trendPercentage: 0,
   periodFilter: 'thisMonth',
   transactions: [],
   chartData: [],
@@ -55,7 +57,7 @@ const initialState: DoctorEarningsState = {
 // ── Async Thunks ────────────────────────────
 
 export const fetchEarnings = createAsyncThunk<
-  { total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[] },
+  { total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[]; trendPercentage?: number },
   PeriodFilter | undefined,
   { state: { doctorEarnings: DoctorEarningsState }; rejectValue: string }
 >('doctorEarnings/fetchEarnings', async (period, { getState, rejectWithValue }) => {
@@ -106,6 +108,7 @@ const doctorEarningsSlice = createSlice({
       .addCase(fetchEarnings.fulfilled, (state, action) => {
         state.loading = false;
         state.totalEarnings = action.payload.total;
+        state.trendPercentage = action.payload.trendPercentage ?? 12; // Dummy default
         state.chartData = action.payload.chart;
         state.breakdown = action.payload.breakdown;
       })

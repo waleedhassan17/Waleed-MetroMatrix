@@ -8,7 +8,7 @@ const HEALTHCARE_PREFIX = '/v1/healthcare';
 const HEALTHCARE_ADMIN_PREFIX = '/v1/admin';
 
 // Toggle to fall back to bundled dummy data (offline/demo). Real backend by default.
-export const USE_HEALTHCARE_DUMMY_DATA = false;
+export const USE_HEALTHCARE_DUMMY_DATA = true;
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

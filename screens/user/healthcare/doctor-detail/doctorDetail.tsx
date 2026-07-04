@@ -17,7 +17,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
   fetchDoctorDetail,
@@ -36,6 +35,16 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Clinic, DoctorReview } from '../../../../models/healthcare/types';
+import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
+import {
+  getDoctorName,
+  getDoctorDisplayName,
+  getDoctorSpecialty,
+  getQualificationsLine,
+  getRating,
+  getExperienceLabel,
+  formatPatientCount,
+} from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_MAX_HEIGHT = 280;
@@ -241,7 +250,7 @@ const DoctorDetailScreen: React.FC = () => {
     if (!doctor) return;
     try {
       await Share.share({
-        message: `Check out Dr. ${doctor.bio?.split(' ')[1] || 'Doctor'} on Smart City Healthcare App`,
+        message: `Check out ${getDoctorDisplayName(doctor)} on Smart City Healthcare App`,
         title: 'Share Doctor Profile',
       });
     } catch (error) {
@@ -279,7 +288,7 @@ const DoctorDetailScreen: React.FC = () => {
   const handleViewAllReviews = () => {
     navigation.navigate(HealthcareRouteNames.DoctorReviews, {
       doctorId,
-      doctorName: doctor?.bio?.split(' ')[1] || 'Doctor',
+      doctorName: getDoctorName(doctor),
     });
   };
 
@@ -344,7 +353,8 @@ const DoctorDetailScreen: React.FC = () => {
 
   if (!doctor) return null;
 
-  const doctorName = doctor.bio?.split(' ')[1] || 'Doctor';
+  const doctorName = getDoctorName(doctor);
+  const detailRating = getRating(doctor);
 
   // ── Profile Header ────────────────────────
 
@@ -352,41 +362,28 @@ const DoctorDetailScreen: React.FC = () => {
     <Animated.View style={[styles.profileHeader, { opacity: headerOpacity }]}>
       {/* Avatar */}
       <View style={styles.avatarContainer}>
-        <LinearGradient
-          colors={['#FFFFFF', '#F1F5F9']}
-          style={styles.avatar}
-        >
-          <MaterialCommunityIcons
-            name="doctor"
-            size={48}
-            color={THEME.primary}
-          />
-        </LinearGradient>
-        {doctor.isAvailable && <View style={styles.onlineDot} />}
-        {doctor.isVerified && (
-          <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={20} color={THEME.primary} />
-          </View>
-        )}
+        <DoctorAvatar doctor={doctor} size={100} showOnlineDot showVerified />
       </View>
 
       {/* Name & Info */}
-      <Text style={styles.doctorName}>Dr. {doctorName}</Text>
+      <Text style={styles.doctorName}>{getDoctorDisplayName(doctor)}</Text>
       <Text style={styles.qualifications}>
-        {doctor.qualifications?.join(', ') || 'Specialist'}
+        {getDoctorSpecialty(doctor)}
       </Text>
-      <Text style={styles.subspecialty}>
-        {doctor.subspecialties?.join(' · ') || 'General Practice'}
-      </Text>
+      {!!getQualificationsLine(doctor) && (
+        <Text style={styles.subspecialty}>{getQualificationsLine(doctor)}</Text>
+      )}
 
       {/* Rating Badge */}
       <View style={styles.ratingContainer}>
         <View style={styles.ratingBadge}>
           <Ionicons name="star" size={14} color={THEME.star} />
-          <Text style={styles.ratingValue}>{doctor.rating?.toFixed(1) || '4.5'}</Text>
+          <Text style={styles.ratingValue}>{detailRating.value}</Text>
         </View>
         <Text style={styles.reviewCount}>
-          ({doctor.totalReviews || 0} reviews)
+          {detailRating.hasRating
+            ? `(${detailRating.count} review${detailRating.count === 1 ? '' : 's'})`
+            : 'No reviews yet'}
         </Text>
       </View>
     </Animated.View>
@@ -404,7 +401,7 @@ const DoctorDetailScreen: React.FC = () => {
             color={THEME.primary}
           />
         </View>
-        <Text style={styles.statValue}>{doctor.experience || '5'}+</Text>
+        <Text style={styles.statValue}>{doctor.experience > 0 ? `${doctor.experience}+` : '—'}</Text>
         <Text style={styles.statLabel}>Years Exp.</Text>
       </View>
 
@@ -414,11 +411,7 @@ const DoctorDetailScreen: React.FC = () => {
         <View style={[styles.statIconBg, { backgroundColor: '#F0FDF4' }]}>
           <Ionicons name="people-outline" size={18} color={THEME.success} />
         </View>
-        <Text style={styles.statValue}>
-          {doctor.totalPatients > 999
-            ? `${(doctor.totalPatients / 1000).toFixed(1)}k`
-            : doctor.totalPatients || '500+'}
-        </Text>
+        <Text style={styles.statValue}>{formatPatientCount(doctor.totalPatients) ?? '—'}</Text>
         <Text style={styles.statLabel}>Patients</Text>
       </View>
 
