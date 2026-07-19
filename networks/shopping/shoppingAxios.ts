@@ -1,5 +1,6 @@
 // ============================================
 // Shopping Module - Shared Axios Instance
+// Base URL comes from config/env.ts (one API host for the whole app).
 // ============================================
 
 import axios from "axios";
@@ -8,9 +9,7 @@ import {
   retrieveData,
   clearAuthData,
 } from "../../utils/storage_utils/storageUtils";
-
-export const SHOPPING_API_URL =
-  "https://metromatrix-backend-8758842b3e4c.herokuapp.com/api/shopping";
+import { SHOPPING_API_URL } from "../../config/env";
 
 const TIMEOUT = 30000;
 
@@ -31,66 +30,37 @@ const ShoppingAxiosInstance = axios.create({
   },
 });
 
-// Request interceptor: inject JWT
+// Request interceptor: inject JWT (admin token first, then user/vendor token)
 ShoppingAxiosInstance.interceptors.request.use(
   async (config) => {
     try {
       let token = await retrieveData(KeyForStorage.adminToken);
-      let source = "admin";
-
       if (!isValidToken(token)) {
         token = await retrieveData(KeyForStorage.accessToken);
-        source = "user/brand";
       }
-
       if (isValidToken(token)) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log(`🛍️ [Shopping] Injected ${source} token`);
-      } else {
-        console.warn("⚠️ [Shopping] No valid token for request:", config.url);
       }
-    } catch (err) {
-      console.error("❌ [Shopping] Token retrieval error:", err);
+    } catch {
+      // proceed unauthenticated; protected endpoints will 401
     }
-
-    const urlPath = config.url?.startsWith('/') ? config.url.slice(1) : config.url;
-    console.log(
-      "🛍️ [Shopping] Request:",
-      (config.method || "").toUpperCase(),
-      `${config.baseURL}/${urlPath}`
-    );
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: logging + 401 handling
+// Response interceptor: 401 clears stale auth
 ShoppingAxiosInstance.interceptors.response.use(
-  (response) => {
-    console.log(
-      "✅ [Shopping] Response:",
-      response.status,
-      response.config.url
-    );
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    console.error("❌ [Shopping] Response error:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url,
-    });
-
     if (error.response?.status === 401) {
-      console.warn("⚠️ [Shopping] 401 - clearing auth data");
       await clearAuthData();
     }
-
     return Promise.reject(error);
   }
 );
 
-// Error extraction helper
+// Error extraction helper — use for every shopping error path
 export const extractShoppingError = (e: any, fallback: string): string => {
   const data = e?.response?.data;
   if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
@@ -98,6 +68,10 @@ export const extractShoppingError = (e: any, fallback: string): string => {
     if (typeof first === "string") return first;
     if (first?.msg) return first.msg;
     if (first?.message) return first.message;
+    if (typeof first === "object") {
+      const v = Object.values(first)[0];
+      if (typeof v === "string") return v;
+    }
   }
   return data?.error || data?.message || e?.message || fallback;
 };

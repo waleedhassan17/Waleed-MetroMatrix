@@ -1,271 +1,218 @@
 // ============================================
-// Shopping Module - Order API
-// Uses dummy data until backend is ready.
+// Shopping Module - Order API (real backend)
+// One checkout = one OrderGroup → N per-brand Orders.
+// Legacy Order-typed functions flatten the group via the serializer;
+// group-typed functions are the preferred surface for new screens.
 // ============================================
 
 import type {
   Order,
-  Cart,
-  Coupon,
-  OrderStatus,
+  OrderGroupView,
+  OrderTrackingView,
+  ReturnRequestView,
   ShippingAddress,
+  SavedAddressView,
   PaginatedResponse,
   SingleResponse,
 } from "../../types/shopping";
-import {
-  SAMPLE_ORDERS,
-  OUTFITTERS_COUPONS,
-  simulateDelay,
-  paginateArray,
-  singleResponse,
-} from "./dummyData";
+import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
+import { flattenOrderGroup } from "../../serializers/shopping/orderSerializer";
 
-// In-memory cart state
-let CART: Cart = {
-  cartId: 'cart_001',
-  userId: 'current_user',
-  items: [],
-  subtotal: 0,
-  discount: 0,
-  shippingFee: 0,
-  total: 0,
-  appliedCoupon: undefined,
-};
+// Cart + coupon functions live in cartApi; re-exported for compatibility.
+export {
+  fetchCartApi,
+  addToCartApi,
+  updateCartItemApi,
+  removeCartItemApi,
+  clearCartApi,
+  applyCouponApi,
+  removeCouponApi,
+  fetchCouponsApi,
+} from "./cartApi";
 
-// Mutable orders
-let ALL_ORDERS: Order[] = [...SAMPLE_ORDERS];
+// ── Checkout ────────────────────────────────
 
-const recalcCart = () => {
-  CART.subtotal = CART.items.reduce((s, i) => s + i.totalPrice, 0);
-  CART.shippingFee = CART.subtotal >= 3000 ? 0 : 200;
-  CART.total = CART.subtotal - CART.discount + CART.shippingFee;
-};
+export interface CheckoutPayload {
+  addressId?: string;
+  shippingAddress?: ShippingAddress;
+  paymentMethod: "wallet" | "cod";
+  deliveryOptionId?: string;
+}
 
-// ── Cart ────────────────────────────────────
-
-export const fetchCartApi = async (): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(200);
-  console.log("✅ [Dummy] Cart fetched:", CART.items.length, "items");
-  return singleResponse({ ...CART });
-};
-
-export const addToCartApi = async (payload: {
-  productId: string;
-  brandId: string;
-  variantId: string;
-  quantity: number;
-}): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(300);
-  const existing = CART.items.find(
-    (i) => i.productId === payload.productId && i.variantId === payload.variantId
-  );
-  if (existing) {
-    existing.quantity += payload.quantity;
-    existing.totalPrice = existing.unitPrice * existing.quantity;
-  } else {
-    const unitPrice = 1490 + Math.floor(Math.random() * 3000);
-    CART.items.push({
-      itemId: `item_${Date.now()}`,
-      productId: payload.productId,
-      brandId: payload.brandId,
-      variantId: payload.variantId,
-      quantity: payload.quantity,
-      unitPrice,
-      totalPrice: unitPrice * payload.quantity,
-    });
+// POST /checkout → full group view (preferred)
+export const checkoutApi = async (
+  payload: CheckoutPayload
+): Promise<SingleResponse<OrderGroupView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.post("/checkout", payload);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Checkout failed"));
   }
-  recalcCart();
-  console.log("✅ [Dummy] Item added to cart");
-  return singleResponse({ ...CART });
 };
 
-export const updateCartItemApi = async (
-  itemId: string,
-  quantity: number
-): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(200);
-  const item = CART.items.find((i) => i.itemId === itemId);
-  if (item) {
-    item.quantity = quantity;
-    item.totalPrice = item.unitPrice * quantity;
-  }
-  recalcCart();
-  console.log("✅ [Dummy] Cart item updated");
-  return singleResponse({ ...CART });
-};
-
-export const removeCartItemApi = async (
-  itemId: string
-): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(200);
-  CART.items = CART.items.filter((i) => i.itemId !== itemId);
-  recalcCart();
-  console.log("✅ [Dummy] Cart item removed");
-  return singleResponse({ ...CART });
-};
-
-export const clearCartApi = async (): Promise<{ success: boolean }> => {
-  await simulateDelay(200);
-  CART.items = [];
-  CART.discount = 0;
-  CART.appliedCoupon = undefined;
-  recalcCart();
-  console.log("✅ [Dummy] Cart cleared");
-  return { success: true };
-};
-
-// ── Coupons ─────────────────────────────────
-
-export const applyCouponApi = async (
-  couponCode: string
-): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(300);
-  const coupon = OUTFITTERS_COUPONS.find(
-    (c) => c.couponCode.toLowerCase() === couponCode.toLowerCase()
-  );
-  if (!coupon) {
-    throw new Error("Invalid coupon code");
-  }
-  if (CART.subtotal < coupon.minOrderAmount) {
-    throw new Error(`Minimum order of PKR ${coupon.minOrderAmount} required`);
-  }
-  let discount = 0;
-  if (coupon.type === 'percentage') {
-    discount = Math.min((CART.subtotal * coupon.value) / 100, coupon.maxDiscount);
-  } else {
-    discount = coupon.value;
-  }
-  CART.discount = Math.round(discount);
-  CART.appliedCoupon = couponCode;
-  recalcCart();
-  console.log("✅ [Dummy] Coupon applied:", couponCode, "discount:", CART.discount);
-  return singleResponse({ ...CART });
-};
-
-export const removeCouponApi = async (): Promise<SingleResponse<Cart>> => {
-  await simulateDelay(200);
-  CART.discount = 0;
-  CART.appliedCoupon = undefined;
-  recalcCart();
-  console.log("✅ [Dummy] Coupon removed");
-  return singleResponse({ ...CART });
-};
-
-export const fetchCouponsApi = async (
-  brandId?: string
-): Promise<{ success: boolean; data: Coupon[] }> => {
-  await simulateDelay(200);
-  let coupons = OUTFITTERS_COUPONS;
-  if (brandId) {
-    coupons = coupons.filter((c) => !c.brandId || c.brandId === brandId);
-  }
-  console.log("✅ [Dummy] Coupons fetched:", coupons.length);
-  return { success: true, data: coupons };
-};
-
-// ── Orders ──────────────────────────────────
-
+// Legacy signature — flattens the group into a single Order summary
 export const createOrderApi = async (payload: {
   shippingAddress: ShippingAddress;
   paymentMethod: string;
 }): Promise<SingleResponse<Order>> => {
-  await simulateDelay(600);
-  const order: Order = {
-    orderId: `ORD-${Date.now()}`,
-    odexId: `ODX-O-${Date.now()}`,
-    userId: 'current_user',
-    brandId: CART.items[0]?.brandId || 'brand_outfitters_001',
-    items: CART.items.map((item) => ({
-      itemId: item.itemId,
-      productId: item.productId,
-      brandId: item.brandId,
-      variantId: item.variantId,
-      productName: 'Product',
-      productImage: '',
-      variantLabel: '',
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      totalPrice: item.totalPrice,
-    })),
+  const res = await checkoutApi({
     shippingAddress: payload.shippingAddress,
-    paymentMethod: payload.paymentMethod,
-    paymentStatus: payload.paymentMethod === 'COD' ? 'pending' : 'paid',
-    orderStatus: 'confirmed',
-    subtotal: CART.subtotal,
-    discount: CART.discount,
-    shippingFee: CART.shippingFee,
-    total: CART.total,
-    createdAt: new Date().toISOString(),
-  };
-  ALL_ORDERS.unshift(order);
-  // Clear cart after order
-  CART.items = [];
-  CART.discount = 0;
-  CART.appliedCoupon = undefined;
-  recalcCart();
-  console.log("✅ [Dummy] Order created:", order.orderId);
-  return singleResponse(order);
+    paymentMethod: payload.paymentMethod === "COD" ? "cod" : (payload.paymentMethod as "wallet" | "cod"),
+  });
+  return { success: res.success, data: flattenOrderGroup(res.data) };
 };
 
-export const fetchOrdersApi = async ({
+// ── My Orders ───────────────────────────────
+
+// GET /orders → order groups (preferred)
+export const fetchOrderGroupsApi = async ({
   page = 1,
   limit = 20,
   status,
-}: {
+}: { page?: number; limit?: number; status?: string } = {}): Promise<
+  PaginatedResponse<OrderGroupView>
+> => {
+  try {
+    const res = await ShoppingAxiosInstance.get("/orders", {
+      params: { page, limit, status },
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to load orders"));
+  }
+};
+
+// Legacy signature — flattened
+export const fetchOrdersApi = async (params: {
   page?: number;
   limit?: number;
   status?: string;
 } = {}): Promise<PaginatedResponse<Order>> => {
-  await simulateDelay(300);
-  let orders = [...ALL_ORDERS];
-  if (status) {
-    orders = orders.filter((o) => o.orderStatus === status);
-  }
-  console.log("✅ [Dummy] Orders fetched:", orders.length);
-  return paginateArray(orders, page, limit);
+  const res = await fetchOrderGroupsApi(params);
+  return { ...res, data: res.data.map(flattenOrderGroup) };
 };
 
+// GET /orders/:id (accepts groupId or child orderId) → group view
+export const fetchOrderGroupByIdApi = async (
+  id: string
+): Promise<SingleResponse<OrderGroupView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.get(`/orders/${id}`);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to load order"));
+  }
+};
+
+// Legacy signature — flattened
 export const fetchOrderByIdApi = async (
   orderId: string
 ): Promise<SingleResponse<Order>> => {
-  await simulateDelay(200);
-  const order = ALL_ORDERS.find((o) => o.orderId === orderId);
-  if (!order) {
-    throw new Error("Order not found");
-  }
-  console.log("✅ [Dummy] Order fetched:", order.orderId);
-  return singleResponse(order);
+  const res = await fetchOrderGroupByIdApi(orderId);
+  return { success: res.success, data: flattenOrderGroup(res.data) };
 };
 
+// GET /orders/:orderId/tracking
+export const fetchOrderTrackingApi = async (
+  orderId: string
+): Promise<SingleResponse<OrderTrackingView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.get(`/orders/${orderId}/tracking`);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to load tracking"));
+  }
+};
+
+// POST /orders/:orderId/cancel — cancels ONE per-brand child order
 export const cancelOrderApi = async (
   orderId: string,
   reason?: string
 ): Promise<SingleResponse<Order>> => {
-  await simulateDelay(400);
-  const order = ALL_ORDERS.find((o) => o.orderId === orderId);
-  if (!order) {
-    throw new Error("Order not found");
+  try {
+    const res = await ShoppingAxiosInstance.post(`/orders/${orderId}/cancel`, { reason });
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to cancel order"));
   }
-  order.orderStatus = 'cancelled';
-  console.log("✅ [Dummy] Order cancelled:", orderId);
-  return singleResponse(order);
+};
+
+// POST /orders/:orderId/return
+export const requestReturnApi = async (
+  orderId: string,
+  payload: { items?: { itemId: string }[]; reason: string; images?: string[] }
+): Promise<SingleResponse<ReturnRequestView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.post(`/orders/${orderId}/return`, payload);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to request return"));
+  }
+};
+
+// ── Saved Addresses ─────────────────────────
+
+export const fetchAddressesApi = async (): Promise<{
+  success: boolean;
+  data: SavedAddressView[];
+}> => {
+  try {
+    const res = await ShoppingAxiosInstance.get("/addresses");
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to load addresses"));
+  }
+};
+
+export const createAddressApi = async (
+  payload: Partial<SavedAddressView>
+): Promise<SingleResponse<SavedAddressView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.post("/addresses", payload);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to save address"));
+  }
+};
+
+export const updateAddressApi = async (
+  addressId: string,
+  payload: Partial<SavedAddressView>
+): Promise<SingleResponse<SavedAddressView>> => {
+  try {
+    const res = await ShoppingAxiosInstance.patch(`/addresses/${addressId}`, payload);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to update address"));
+  }
+};
+
+export const deleteAddressApi = async (
+  addressId: string
+): Promise<{ success: boolean }> => {
+  try {
+    const res = await ShoppingAxiosInstance.delete(`/addresses/${addressId}`);
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to delete address"));
+  }
 };
 
 // ── Brand Owner: Update Order Status ────────
 
 export const updateOrderStatusApi = async (
   orderId: string,
-  payload: { orderStatus: string; trackingNumber?: string }
+  payload: { orderStatus: string; trackingNumber?: string; note?: string }
 ): Promise<SingleResponse<Order>> => {
-  await simulateDelay(300);
-  const order = ALL_ORDERS.find((o) => o.orderId === orderId);
-  if (!order) {
-    throw new Error("Order not found");
+  try {
+    const res = await ShoppingAxiosInstance.patch(`/vendor/orders/${orderId}/status`, {
+      status: payload.orderStatus,
+      trackingNumber: payload.trackingNumber,
+      note: payload.note,
+    });
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to update order status"));
   }
-  order.orderStatus = payload.orderStatus as OrderStatus;
-  if (payload.trackingNumber) {
-    order.trackingNumber = payload.trackingNumber;
-  }
-  console.log("✅ [Dummy] Order status updated:", orderId, "->", payload.orderStatus);
-  return singleResponse(order);
 };

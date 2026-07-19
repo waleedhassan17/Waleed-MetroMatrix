@@ -261,6 +261,74 @@ export interface OutletConfig {
   updatedAt?: string;
 }
 
+// ── Order Group (multi-vendor checkout) ───────
+// One checkout = one OrderGroup (what the customer pays once)
+// → N per-brand Orders (what each vendor fulfils independently).
+
+export interface OrderGroupView {
+  groupId: string;
+  odexId: string;
+  userId: string;
+  orders: Order[];
+  shippingAddress: ShippingAddress;
+  paymentMethod: string;
+  paymentStatus: PaymentStatus;
+  subtotal: number;
+  discount: number;
+  shippingFee: number;
+  total: number;
+  appliedCoupon?: string;
+  createdAt: string;
+}
+
+// ── Saved Address ─────────────────────────────
+
+export interface SavedAddressView extends ShippingAddress {
+  addressId: string;
+  label?: string;
+  isDefault: boolean;
+}
+
+// ── Order Tracking ────────────────────────────
+
+export interface OrderTrackingView {
+  orderId: string;
+  odexId: string;
+  orderStatus: OrderStatus;
+  trackingNumber?: string;
+  statusHistory: {
+    status: OrderStatus;
+    changedAt: string;
+    note?: string;
+    role?: string;
+  }[];
+}
+
+// ── Return Request ────────────────────────────
+
+export type ReturnStatus = 'requested' | 'approved' | 'rejected' | 'picked_up' | 'refunded';
+
+export interface ReturnRequestView {
+  returnId: string;
+  orderId: string;
+  userId: string;
+  brandId: string;
+  items: {
+    orderItemId: string;
+    productId: string;
+    productName: string;
+    variantId: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+  reason: string;
+  images: string[];
+  status: ReturnStatus;
+  vendorNote?: string;
+  refundAmount: number;
+  createdAt: string;
+}
+
 // ── API Response Wrappers ─────────────────────
 
 export interface PaginatedResponse<T> {
