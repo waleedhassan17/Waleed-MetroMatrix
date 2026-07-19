@@ -10,6 +10,7 @@ import {
   PayoutResponse,
 } from "../../models/wallet";
 import { KeyForStorage, retrieveData, clearAuthData } from "../../utils/storage_utils/storageUtils";
+import { API_URL } from "../network/network";
 
 /**
  * Wallet API Configuration
@@ -18,8 +19,7 @@ import { KeyForStorage, retrieveData, clearAuthData } from "../../utils/storage_
  * main backend. Both users and providers authenticate using the same JWT
  * access token - the backend identifies the account type from the token.
  */
-export const WALLET_API_URL =
-  "https://metromatrix-backend-8758842b3e4c.herokuapp.com/api/wallet";
+export const WALLET_API_URL = `${API_URL}/wallet`;
 
 /**
  * Generate a UUID v4 for idempotency keys.

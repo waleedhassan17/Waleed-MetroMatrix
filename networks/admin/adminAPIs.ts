@@ -15,8 +15,9 @@ import type {
   VerificationStatus,
 } from '../../models/admin';
 
-// API Configuration - using centralized base URL from network.ts
-export const API_URL = 'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api';
+// API Configuration - centralized base URL from network.ts (Vercel host)
+export { API_URL } from '../network/network';
+import { API_URL } from '../network/network';
 
 // ============================================
 // HELPER FUNCTIONS
