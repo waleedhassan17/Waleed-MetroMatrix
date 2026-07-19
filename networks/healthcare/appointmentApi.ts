@@ -404,8 +404,26 @@ export async function startVideoCallApi(
     };
   }
 
-  return healthcareApiRequest<VideoCall>(
-    `/appointments/${encodeURIComponent(appointmentId)}/video-call`,
+  // H6 BUILD: join/create the call room. Backend returns provider 'jitsi'
+  // with a roomUrl the screen renders in a WebView (TELEMEDICINE_DECISION.md).
+  const res = await healthcareApiRequest<any>(
+    `/video-calls/join/${encodeURIComponent(appointmentId)}`,
     { method: 'POST' }
   );
+  if (res.success && res.data) {
+    const d: any = res.data;
+    return {
+      success: true,
+      data: {
+        callId: String(d.callId),
+        appointmentId,
+        roomId: d.roomId || d.roomName || '',
+        status: (d.status as VideoCall['status']) || 'active',
+        roomUrl: d.roomUrl,
+        provider: d.provider,
+      },
+      message: 'Video call ready',
+    };
+  }
+  return res as ApiResponse<VideoCall>;
 }

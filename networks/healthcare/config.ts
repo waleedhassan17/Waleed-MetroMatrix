@@ -7,8 +7,10 @@ import API from '../network/network';
 const HEALTHCARE_PREFIX = '/v1/healthcare';
 const HEALTHCARE_ADMIN_PREFIX = '/v1/admin';
 
-// Toggle to fall back to bundled dummy data (offline/demo). Real backend by default.
-export const USE_HEALTHCARE_DUMMY_DATA = true;
+// Offline demo fallback ONLY. When true, networks/healthcare/* return the
+// bundled fixtures from dummyData.ts instead of hitting the API.
+// Default is FALSE: the module runs against the real backend.
+export const USE_HEALTHCARE_DUMMY_DATA = false;
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

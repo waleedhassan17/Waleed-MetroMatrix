@@ -29,6 +29,8 @@ import {
   type CallStatus,
   type NetworkQuality,
 } from './videoCallSlice';
+import { WebView } from 'react-native-webview';
+import { startVideoCallApi } from '../../../../networks/healthcare/appointmentApi';
 import InCallChatScreen from '../InCallChat/InCallChatScreen';
 import { clearChat } from '../InCallChat/inCallChatSlice';
 
@@ -128,13 +130,25 @@ const VideoCallScreen: React.FC = () => {
     }).start();
   }, [controlsVisible]);
 
-  // Connection setup
+  // Connection setup — real join via the video-call API (H6: Jitsi room in a WebView)
+  const [roomUrl, setRoomUrl] = useState<string | null>(null);
   useEffect(() => {
     const appointmentId = route.params?.appointmentId ?? '';
     dispatch(startConnecting(appointmentId));
-    const t = setTimeout(() => dispatch(connectionEstablished()), 2000);
+    let cancelled = false;
+    (async () => {
+      const res = await startVideoCallApi(appointmentId);
+      if (cancelled) return;
+      if (res.success && res.data?.roomUrl) {
+        setRoomUrl(res.data.roomUrl);
+        dispatch(connectionEstablished());
+      } else {
+        dispatch(connectionFailed(res.message || 'Could not join the call'));
+        Alert.alert('Cannot join call', res.message || 'Please try again from the appointment.');
+      }
+    })();
     return () => {
-      clearTimeout(t);
+      cancelled = true;
       dispatch(resetCall());
       dispatch(clearChat());
     };
@@ -255,12 +269,25 @@ const VideoCallScreen: React.FC = () => {
           activeOpacity={1}
           onPress={handleToggleControls}
         >
-          <View style={styles.remoteVideoPlaceholder}>
-            <View style={styles.remoteAvatarWrap}>
-              <MaterialCommunityIcons name="doctor" size={56} color="rgba(255,255,255,0.2)" />
+          {roomUrl ? (
+            <WebView
+              source={{ uri: roomUrl }}
+              style={styles.remoteVideo}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              mediaCapturePermissionGrantType="grant"
+              originWhitelist={["*"]}
+            />
+          ) : (
+            <View style={styles.remoteVideoPlaceholder}>
+              <View style={styles.remoteAvatarWrap}>
+                <MaterialCommunityIcons name="doctor" size={56} color="rgba(255,255,255,0.2)" />
+              </View>
+              <Text style={styles.remoteVideoLabel}>Connecting to consultation room…</Text>
             </View>
-            <Text style={styles.remoteVideoLabel}>Remote Video Feed</Text>
-          </View>
+          )}
 
           {/* Status overlay */}
           {statusLabel && (

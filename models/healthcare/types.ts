@@ -179,6 +179,9 @@ export interface VideoCall {
   endedAt?: string;
   duration?: number;
   recording?: string;
+  /** Jitsi room URL (H6 transport) — rendered in a WebView on both sides */
+  roomUrl?: string;
+  provider?: string;
 }
 
 // ── Payment Record ──────────────────────────
