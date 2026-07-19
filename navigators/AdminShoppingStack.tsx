@@ -9,18 +9,45 @@ import EditBrandScreen from '../screens/admin/Shopping/EditBrand/EditBrandScreen
 import OutletManagementScreen from '../screens/admin/Shopping/OutletManagement/OutletManagementScreen';
 import AddOutletScreen from '../screens/admin/Shopping/AddOutlet/AddOutletScreen';
 import OutletDetailScreen from '../screens/admin/Shopping/OutletDetail/OutletDetailScreen';
+import AdminShoppingDashboardScreen from '../screens/admin/Shopping/AdminShoppingDashboard/AdminShoppingDashboardScreen';
+import AdminShoppingOrdersScreen from '../screens/admin/Shopping/AdminShoppingOrders/AdminShoppingOrdersScreen';
+import AdminShoppingOrderDetailScreen from '../screens/admin/Shopping/AdminShoppingOrderDetail/AdminShoppingOrderDetailScreen';
+import AdminShoppingAnalyticsScreen from '../screens/admin/Shopping/AdminShoppingAnalytics/AdminShoppingAnalyticsScreen';
+import AdminShoppingSettingsScreen from '../screens/admin/Shopping/AdminShoppingSettings/AdminShoppingSettingsScreen';
 
 const Stack = createNativeStackNavigator<AdminShoppingParamList>();
 
 const AdminShoppingStack: React.FC = () => {
   return (
     <Stack.Navigator
-      initialRouteName={AdminShoppingRouteNames.AdminBrandList as keyof AdminShoppingParamList}
+      initialRouteName={AdminShoppingRouteNames.AdminShoppingDashboard as keyof AdminShoppingParamList}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
       }}
     >
+      {/* Dashboard & oversight */}
+      <Stack.Screen
+        name={AdminShoppingRouteNames.AdminShoppingDashboard}
+        component={AdminShoppingDashboardScreen}
+      />
+      <Stack.Screen
+        name={AdminShoppingRouteNames.AdminShoppingOrders}
+        component={AdminShoppingOrdersScreen}
+      />
+      <Stack.Screen
+        name={AdminShoppingRouteNames.AdminShoppingOrderDetail}
+        component={AdminShoppingOrderDetailScreen}
+      />
+      <Stack.Screen
+        name={AdminShoppingRouteNames.AdminShoppingAnalytics}
+        component={AdminShoppingAnalyticsScreen}
+      />
+      <Stack.Screen
+        name={AdminShoppingRouteNames.AdminShoppingSettings}
+        component={AdminShoppingSettingsScreen}
+      />
+
       {/* Brand Management */}
       <Stack.Screen
         name={AdminShoppingRouteNames.AdminBrandList}

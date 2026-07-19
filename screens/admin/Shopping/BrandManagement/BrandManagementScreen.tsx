@@ -31,8 +31,8 @@ import {
   fetchBrandsAsync,
   setStatusFilter,
   setSearchQuery,
-  toggleBrandStatus,
-  deleteBrand,
+  setBrandStatusAsync,
+  deleteBrandAsync,
   clearError,
   selectFilteredBrands,
   selectStatusFilter,
@@ -57,8 +57,9 @@ const COLORS = {
 
 const FILTERS: { key: BrandStatusFilter; label: string }[] = [
   { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
   { key: 'active', label: 'Active' },
-  { key: 'inactive', label: 'Inactive' },
+  { key: 'suspended', label: 'Suspended' },
 ];
 
 const BrandManagementScreen: React.FC = () => {
@@ -90,11 +91,40 @@ const BrandManagementScreen: React.FC = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => dispatch(deleteBrand(brandId)),
+          onPress: () => dispatch(deleteBrandAsync(brandId)),
         },
       ]
     );
   }, [dispatch]);
+
+  // Approve pending brands / suspend or reactivate — closes the vendor
+  // onboarding loop. Reason is recorded in the server audit trail.
+  const handleStatusChange = useCallback(
+    (item: any, status: 'active' | 'suspended', label: string) => {
+      Alert.prompt?.(
+        `${label} brand`,
+        `Reason for ${label.toLowerCase()}ing "${item.name}" (recorded in the audit log):`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: label,
+            onPress: (reason?: string) =>
+              dispatch(setBrandStatusAsync({ brandId: item.brandId, status, reason: reason || `${label} by admin` })),
+          },
+        ],
+        'plain-text'
+      ) ??
+        Alert.alert(`${label} brand`, `${label} "${item.name}"? This is recorded in the audit log.`, [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: label,
+            onPress: () =>
+              dispatch(setBrandStatusAsync({ brandId: item.brandId, status, reason: `${label} by admin` })),
+          },
+        ]);
+    },
+    [dispatch]
+  );
 
   const renderBrandCard = ({ item }: { item: any }) => (
     <View style={styles.card}>
@@ -104,31 +134,50 @@ const BrandManagementScreen: React.FC = () => {
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.brandName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.brandSlug}>{item.slug}</Text>
+          <Text style={styles.brandSlug}>{item.slug}{item.ownerName ? ` · ${item.ownerName}` : ''}</Text>
         </View>
-        <Switch
-          value={item.isActive}
-          onValueChange={(_value: boolean) => { dispatch(toggleBrandStatus(item.brandId)); }}
-          trackColor={{ false: COLORS.border, true: COLORS.success }}
-        />
       </View>
 
       <View style={styles.cardStats}>
         <View style={styles.stat}>
           <Package size={14} stroke={COLORS.textLight} strokeWidth={1.75} />
-          <Text style={styles.statText}>0 products</Text>
+          <Text style={styles.statText}>{item.productCount ?? 0} products</Text>
         </View>
         <View style={styles.stat}>
           <Text style={[
             styles.statusBadge,
-            item.isActive ? styles.statusActive : styles.statusInactive,
+            item.status === 'active' ? styles.statusActive : styles.statusInactive,
           ]}>
-            {item.isActive ? 'Active' : 'Inactive'}
+            {item.status === 'pending' ? 'Pending approval' : item.status === 'suspended' ? 'Suspended' : 'Active'}
           </Text>
         </View>
       </View>
 
       <View style={styles.cardActions}>
+        {item.status === 'pending' && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => handleStatusChange(item, 'active', 'Approve')}
+          >
+            <Text style={[styles.actionText, { color: COLORS.success }]}>Approve</Text>
+          </TouchableOpacity>
+        )}
+        {item.status === 'active' && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => handleStatusChange(item, 'suspended', 'Suspend')}
+          >
+            <Text style={[styles.actionText, { color: COLORS.danger }]}>Suspend</Text>
+          </TouchableOpacity>
+        )}
+        {item.status === 'suspended' && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => handleStatusChange(item, 'active', 'Reactivate')}
+          >
+            <Text style={[styles.actionText, { color: COLORS.success }]}>Reactivate</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.actionBtn}
           onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminBrandDetail, { brandId: item.brandId })}

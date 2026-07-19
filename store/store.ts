@@ -149,6 +149,11 @@ import couponListReducer from '../screens/Shopping/User/CouponList/couponListSli
 import brandProfileReducer from '../screens/Shopping/Brand/BrandProfile/brandProfileSlice';
 import brandCouponsReducer from '../screens/Shopping/Brand/BrandCoupons/brandCouponsSlice';
 import brandReviewsReducer from '../screens/Shopping/Brand/BrandReviews/brandReviewsSlice';
+import adminShoppingDashboardReducer from '../screens/admin/Shopping/AdminShoppingDashboard/adminShoppingDashboardSlice';
+import adminShoppingOrdersReducer from '../screens/admin/Shopping/AdminShoppingOrders/adminShoppingOrdersSlice';
+import adminShoppingOrderDetailReducer from '../screens/admin/Shopping/AdminShoppingOrderDetail/adminShoppingOrderDetailSlice';
+import adminShoppingAnalyticsReducer from '../screens/admin/Shopping/AdminShoppingAnalytics/adminShoppingAnalyticsSlice';
+import adminShoppingSettingsReducer from '../screens/admin/Shopping/AdminShoppingSettings/adminShoppingSettingsSlice';
 
 // ── Redux Persist Config ────────────────────
 const persistConfig = {
@@ -279,6 +284,11 @@ const rootReducer = combineReducers({
   brandProfile: brandProfileReducer,
   brandCoupons: brandCouponsReducer,
   brandReviews: brandReviewsReducer,
+  adminShoppingDashboard: adminShoppingDashboardReducer,
+  adminShoppingOrders: adminShoppingOrdersReducer,
+  adminShoppingOrderDetail: adminShoppingOrderDetailReducer,
+  adminShoppingAnalytics: adminShoppingAnalyticsReducer,
+  adminShoppingSettings: adminShoppingSettingsReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
