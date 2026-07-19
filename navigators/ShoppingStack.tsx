@@ -23,18 +23,29 @@ import MyOrdersScreen from '../screens/Shopping/User/MyOrders/MyOrdersScreen';
 import OrderTrackingScreen from '../screens/Shopping/User/OrderTracking/OrderTrackingScreen';
 import ReturnRequestScreen from '../screens/Shopping/User/ReturnRequest/ReturnRequestScreen';
 import WriteReviewScreen from '../screens/Shopping/User/WriteReview/WriteReviewScreen';
+import OrderDetailScreen from '../screens/Shopping/User/OrderDetail/OrderDetailScreen';
+import AddressSelectionScreen from '../screens/Shopping/User/AddressSelection/AddressSelectionScreen';
+import PaymentSelectionScreen from '../screens/Shopping/User/PaymentSelection/PaymentSelectionScreen';
+import CouponListScreen from '../screens/Shopping/User/CouponList/CouponListScreen';
+import ShoppingTabsNavigator from '../screens/Shopping/User/ShoppingTabs/ShoppingTabsNavigator';
 
 const Stack = createNativeStackNavigator<ShoppingStackParamList>();
 
 const ShoppingStack: React.FC = () => {
   return (
     <Stack.Navigator
-      initialRouteName={ShoppingRouteNames.BrandList}
+      initialRouteName={ShoppingRouteNames.ShoppingTabs as keyof ShoppingStackParamList}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
       }}
     >
+      {/* ── Tab shell (Home / Categories / Cart / Wishlist / Orders) ── */}
+      <Stack.Screen
+        name={ShoppingRouteNames.ShoppingTabs}
+        component={ShoppingTabsNavigator}
+      />
+
       {/* ── Discovery ────────────────────────────── */}
       <Stack.Screen
         name={ShoppingRouteNames.ShoppingHome}
@@ -113,6 +124,22 @@ const ShoppingStack: React.FC = () => {
       <Stack.Screen
         name={ShoppingRouteNames.WriteReview}
         component={WriteReviewScreen}
+      />
+      <Stack.Screen
+        name={ShoppingRouteNames.OrderDetail}
+        component={OrderDetailScreen}
+      />
+      <Stack.Screen
+        name={ShoppingRouteNames.AddressSelection}
+        component={AddressSelectionScreen}
+      />
+      <Stack.Screen
+        name={ShoppingRouteNames.PaymentSelection}
+        component={PaymentSelectionScreen}
+      />
+      <Stack.Screen
+        name={ShoppingRouteNames.CouponList}
+        component={CouponListScreen}
       />
     </Stack.Navigator>
   );

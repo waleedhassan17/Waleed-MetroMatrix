@@ -40,7 +40,7 @@ const MyOrdersScreen: React.FC = () => {
       </ScrollView>
       <ScrollView contentContainerStyle={styles.content}>
         {filtered.map((order) => (
-          <TouchableOpacity key={order.orderId} style={styles.card} onPress={() => navigation.navigate(ShoppingRouteNames.OrderTracking, { orderId: order.orderId })}>
+          <TouchableOpacity key={order.orderId} style={styles.card} onPress={() => navigation.navigate(ShoppingRouteNames.OrderDetail, { orderId: order.orderId })}>
             <Text style={styles.orderId}>{order.orderId}</Text>
             <Text style={styles.orderTitle}>{order.title}</Text>
             <Text style={styles.meta}>{order.status} · {order.createdAt}</Text>

@@ -144,6 +144,11 @@ import editBrandReducer from '../screens/admin/Shopping/EditBrand/editBrandSlice
 import outletManagementReducer from '../screens/admin/Shopping/OutletManagement/outletManagementSlice';
 import addOutletReducer from '../screens/admin/Shopping/AddOutlet/addOutletSlice';
 import outletDetailReducer from '../screens/admin/Shopping/OutletDetail/outletDetailSlice';
+import orderDetailReducer from '../screens/Shopping/User/OrderDetail/orderDetailSlice';
+import couponListReducer from '../screens/Shopping/User/CouponList/couponListSlice';
+import brandProfileReducer from '../screens/Shopping/Brand/BrandProfile/brandProfileSlice';
+import brandCouponsReducer from '../screens/Shopping/Brand/BrandCoupons/brandCouponsSlice';
+import brandReviewsReducer from '../screens/Shopping/Brand/BrandReviews/brandReviewsSlice';
 
 // ── Redux Persist Config ────────────────────
 const persistConfig = {
@@ -269,6 +274,11 @@ const rootReducer = combineReducers({
   outletManagement: outletManagementReducer,
   addOutlet: addOutletReducer,
   outletDetail: outletDetailReducer,
+  orderDetail: orderDetailReducer,
+  couponList: couponListReducer,
+  brandProfile: brandProfileReducer,
+  brandCoupons: brandCouponsReducer,
+  brandReviews: brandReviewsReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
