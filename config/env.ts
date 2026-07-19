@@ -14,7 +14,7 @@ export const SHOPPING_API_URL = `${API_BASE_URL}/shopping`;
 
 // Offline demo fallback ONLY. When true, networks/shopping/* return the
 // bundled Outfitters fixtures from dummyData.ts instead of hitting the API.
-export const USE_SHOPPING_DUMMY_DATA = false;
+export const USE_SHOPPING_DUMMY_DATA = true;
 
 // Telemedicine BUILT (see TELEMEDICINE_DECISION.md): Jitsi Meet rooms in a
 // WebView on both patient and doctor sides, joined via /video-calls/join.

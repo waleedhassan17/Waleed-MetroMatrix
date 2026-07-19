@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSelector } from '../../../../store/hooks';
 import { selectCartItemCount } from '../Cart/cartSlice';
 
+import BrandListScreen from '../BrandList/BrandListScreen';
 import ShoppingHomeScreen from '../ShoppingHome/ShoppingHomeScreen';
-import CategoryListScreen from '../CategoryList/CategoryListScreen';
 import CartScreen from '../Cart/CartScreen';
 import WishlistScreen from '../Wishlist/WishlistScreen';
 import MyOrdersScreen from '../MyOrders/MyOrdersScreen';
+import { Shadows } from '../../../../constants/Colors';
 
 // Shopping orange palette — matches the rest of the shopping module
 const COLORS = {
@@ -21,7 +22,7 @@ const COLORS = {
 
 type ShoppingTabParamList = {
   ShopHome: undefined;
-  Categories: undefined;
+  Brands: undefined;
   CartTab: undefined;
   WishlistTab: undefined;
   Orders: undefined;
@@ -30,8 +31,8 @@ type ShoppingTabParamList = {
 const Tab = createBottomTabNavigator<ShoppingTabParamList>();
 
 const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconFocused: keyof typeof Ionicons.glyphMap }> = {
-  ShopHome:    { label: 'Home',       icon: 'storefront-outline', iconFocused: 'storefront' },
-  Categories:  { label: 'Categories', icon: 'grid-outline',       iconFocused: 'grid' },
+  ShopHome:    { label: 'Home',       icon: 'home-outline',       iconFocused: 'home' },
+  Brands:      { label: 'Brands',     icon: 'storefront-outline', iconFocused: 'storefront' },
   CartTab:     { label: 'Cart',       icon: 'cart-outline',       iconFocused: 'cart' },
   WishlistTab: { label: 'Wishlist',   icon: 'heart-outline',      iconFocused: 'heart' },
   Orders:      { label: 'Orders',     icon: 'receipt-outline',    iconFocused: 'receipt' },
@@ -60,13 +61,19 @@ const ShoppingTabsNavigator: React.FC = () => {
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          height: 62,
+          borderTopColor: 'transparent',
+          height: 64,
           paddingBottom: 8,
-          paddingTop: 6,
+          paddingTop: 8,
+          position: 'absolute',
+          bottom: 16,
+          left: 16,
+          right: 16,
+          borderRadius: 20,
+          ...Shadows.medium,
         },
         tabBarLabel: TAB_CONFIG[route.name]?.label ?? route.name,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2 },
         tabBarIcon: ({ focused, color, size }) => {
           if (route.name === 'CartTab') {
             return <CartIconWithBadge focused={focused} color={color} size={size} />;
@@ -79,7 +86,7 @@ const ShoppingTabsNavigator: React.FC = () => {
       })}
     >
       <Tab.Screen name="ShopHome" component={ShoppingHomeScreen} />
-      <Tab.Screen name="Categories" component={CategoryListScreen} />
+      <Tab.Screen name="Brands" component={BrandListScreen} />
       <Tab.Screen name="CartTab" component={CartScreen} />
       <Tab.Screen name="WishlistTab" component={WishlistScreen} />
       <Tab.Screen name="Orders" component={MyOrdersScreen} />

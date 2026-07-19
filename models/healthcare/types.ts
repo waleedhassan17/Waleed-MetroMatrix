@@ -448,6 +448,9 @@ export type HealthcareStackParamList = {
   Emergency: undefined;
   HealthcareNotifications: undefined;
   HealthcareProfile: undefined;
+  AppointmentPayment: { appointmentId: string };
+  MyPrescriptions: undefined;
+  SymptomChecker: undefined;
 };
 
 export type DoctorStackParamList = {
@@ -455,13 +458,17 @@ export type DoctorStackParamList = {
   DoctorDashboard: undefined;
   DoctorSchedule: undefined;
   DoctorAppointments: undefined;
-  Consultation: { appointmentId: string };
+  ConsultationNotes: { appointmentId: string };
   PrescriptionWriter: { appointmentId: string; patientId: string };
   PatientHistory: { patientId: string };
   DoctorEarnings: undefined;
   DoctorProfile: undefined;
-  DoctorSettings: undefined;
+  DoctorAvailability: undefined;
   ManageSlots: undefined;
   WalletScreen: undefined;
   TopUpWebView: { url: string; sessionId: string };
+  DoctorVideoConsultation: { appointmentId: string };
+  DoctorMyReviews: undefined;
+  DoctorNotifications: undefined;
+  DoctorPatients: undefined;
 };

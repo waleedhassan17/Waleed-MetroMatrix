@@ -113,7 +113,6 @@ import appointmentConfirmReducer from '../screens/user/healthcare/appointment-co
 import shoppingHomeReducer from '../screens/Shopping/User/ShoppingHome/shoppingHomeSlice';
 import brandListReducer from '../screens/Shopping/User/BrandList/brandListSlice';
 import brandStoreReducer from '../screens/Shopping/User/BrandStore/brandStoreSlice';
-import categoryListReducer from '../screens/Shopping/User/CategoryList/categoryListSlice';
 import productListReducer from '../screens/Shopping/User/ProductList/productListSlice';
 import productSearchReducer from '../screens/Shopping/User/ProductSearch/productSearchSlice';
 import productDetailReducer from '../screens/Shopping/User/ProductDetail/productDetailSlice';
@@ -248,7 +247,6 @@ const rootReducer = combineReducers({
   shoppingHome: shoppingHomeReducer,
   brandList: brandListReducer,
   brandStore: brandStoreReducer,
-  categoryList: categoryListReducer,
   productList: productListReducer,
   productSearch: productSearchReducer,
   productDetail: productDetailReducer,

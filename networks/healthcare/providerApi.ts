@@ -677,3 +677,53 @@ export async function processPaymentApi(payment: {
     message: 'Payment will be collected at the clinic',
   };
 }
+
+// ── H5 additions: doctor reviews, notifications, patients list ──
+
+export async function fetchMyReviewsApi(): Promise<ApiResponse<any>> {
+  return healthcareApiRequest<any>('/doctors/me/reviews');
+}
+
+export async function fetchDoctorNotificationsApi(): Promise<ApiResponse<any[]>> {
+  const res = await healthcareApiRequest<any>('/notifications');
+  if (res.success) {
+    const list = res.data?.notifications || (Array.isArray(res.data) ? res.data : []);
+    return { ...res, data: list };
+  }
+  return res as ApiResponse<any[]>;
+}
+
+export async function markNotificationReadApi(notificationId: string): Promise<ApiResponse<any>> {
+  return healthcareApiRequest<any>(
+    `/notifications/${encodeURIComponent(notificationId)}/read`,
+    { method: 'PATCH' }
+  );
+}
+
+export async function markAllNotificationsReadApi(): Promise<ApiResponse<any>> {
+  return healthcareApiRequest<any>('/notifications/read-all', { method: 'PATCH' });
+}
+
+/** Distinct patients derived from my appointments (no dedicated endpoint needed). */
+export async function fetchMyPatientsApi(): Promise<
+  ApiResponse<{ patientId: string; name: string; lastVisit: string; appointmentCount: number }[]>
+> {
+  const res = await healthcareApiRequest<any>('/doctors/me/appointments');
+  if (!res.success) return res as any;
+  const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
+  const byPatient = new Map<string, { patientId: string; name: string; lastVisit: string; appointmentCount: number }>();
+  for (const apt of list) {
+    const pid = String(apt.patientId?._id || apt.patientId?.id || apt.patientId || '');
+    if (!pid) continue;
+    const name = apt.patientId?.fullName || apt.patientInfo?.name || 'Patient';
+    const when = apt.createdAt || '';
+    const existing = byPatient.get(pid);
+    if (existing) {
+      existing.appointmentCount += 1;
+      if (when > existing.lastVisit) existing.lastVisit = when;
+    } else {
+      byPatient.set(pid, { patientId: pid, name, lastVisit: when, appointmentCount: 1 });
+    }
+  }
+  return { success: true, data: [...byPatient.values()], message: 'Patients derived from appointments' };
+}

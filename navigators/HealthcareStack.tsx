@@ -28,6 +28,9 @@ import UploadRecordScreen from '../screens/user/healthcare/upload-record/uploadR
 import VideoWaitingRoomScreen from '../screens/user/healthcare/VideoWaitingRoom/VideoWaitingRoomScreen';
 import EmergencyScreen from '../screens/user/healthcare/emergency/EmergencyScreen';
 import HealthcareNotificationsScreen from '../screens/user/healthcare/notifications/HealthcareNotificationsScreen';
+import AppointmentPaymentScreen from '../screens/user/healthcare/AppointmentPayment/AppointmentPaymentScreen';
+import MyPrescriptionsScreen from '../screens/user/healthcare/MyPrescriptions/MyPrescriptionsScreen';
+import SymptomCheckerScreen from '../screens/user/healthcare/SymptomChecker/SymptomCheckerScreen';
 import HealthcareProfileScreen from '../screens/user/healthcare/profile/HealthcareProfileScreen';
 
 const Stack = createNativeStackNavigator<HealthcareStackParamList>();
@@ -110,6 +113,18 @@ const HealthcareStack: React.FC = () => {
         name={HealthcareRouteNames.VideoWaitingRoom}
         component={VideoWaitingRoomScreen}
         options={{ animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name={HealthcareRouteNames.AppointmentPayment}
+        component={AppointmentPaymentScreen}
+      />
+      <Stack.Screen
+        name={HealthcareRouteNames.MyPrescriptions}
+        component={MyPrescriptionsScreen}
+      />
+      <Stack.Screen
+        name={HealthcareRouteNames.SymptomChecker}
+        component={SymptomCheckerScreen}
       />
       <Stack.Screen
         name={HealthcareRouteNames.PrescriptionView}

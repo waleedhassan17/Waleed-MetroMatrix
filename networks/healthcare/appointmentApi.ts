@@ -427,3 +427,63 @@ export async function startVideoCallApi(
   }
   return res as ApiResponse<VideoCall>;
 }
+
+// ── H2/H5/H6 additions: payment, prescriptions list, symptom checker ──
+
+export interface AppointmentPaymentState {
+  appointmentId: string;
+  status: 'unpaid' | 'paid' | 'refunded';
+  method: 'wallet' | 'cash_at_clinic' | null;
+  amount: number;
+  fee: number;
+  discount: number;
+  paidAt?: string;
+  refundedAt?: string;
+  refundAmount: number;
+  doctorName: string;
+  clinicName: string;
+  appointmentStatus: string;
+}
+
+export async function payAppointmentApi(
+  appointmentId: string,
+  method: 'wallet' | 'cash_at_clinic'
+): Promise<ApiResponse<any>> {
+  return healthcareApiRequest<any>(
+    `/appointments/${encodeURIComponent(appointmentId)}/pay`,
+    { method: 'POST', data: { method } }
+  );
+}
+
+export async function fetchAppointmentPaymentApi(
+  appointmentId: string
+): Promise<ApiResponse<AppointmentPaymentState>> {
+  return healthcareApiRequest<AppointmentPaymentState>(
+    `/appointments/${encodeURIComponent(appointmentId)}/payment`
+  );
+}
+
+export async function fetchMyPrescriptionsApi(): Promise<ApiResponse<Prescription[]>> {
+  const res = await healthcareApiRequest<any>('/prescriptions/my');
+  if (res.success) {
+    const list = res.data?.prescriptions || (Array.isArray(res.data) ? res.data : []);
+    return { ...res, data: list.map(prescriptionSerializer) };
+  }
+  return res as ApiResponse<Prescription[]>;
+}
+
+export interface SymptomCheckResult {
+  disclaimer: string;
+  conditions: { condition: string; confidence: number; matchedSymptoms?: string[] }[];
+  recommendedSpecialty: { specialtyId: string | null; name: string };
+  source: 'llm' | 'rules';
+}
+
+export async function checkSymptomsApi(
+  symptoms: string
+): Promise<ApiResponse<SymptomCheckResult>> {
+  return healthcareApiRequest<SymptomCheckResult>('/symptom-checker', {
+    method: 'POST',
+    data: { symptoms },
+  });
+}

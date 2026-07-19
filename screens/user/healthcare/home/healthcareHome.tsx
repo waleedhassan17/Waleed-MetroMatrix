@@ -96,6 +96,22 @@ const QUICK_ACTIONS = [
     color: '#EF4444',
     bg: '#FEF2F2',
   },
+  {
+    id: 'prescriptions',
+    label: 'Prescriptions',
+    icon: 'pill',
+    route: HealthcareRouteNames.MyPrescriptions,
+    color: '#8B5CF6',
+    bg: '#EDE9FE',
+  },
+  {
+    id: 'symptom-checker',
+    label: 'Symptom Check',
+    icon: 'stethoscope',
+    route: HealthcareRouteNames.SymptomChecker,
+    color: '#F59E0B',
+    bg: '#FEF3C7',
+  },
 ];
 
 // ── Skeleton Components ─────────────────────

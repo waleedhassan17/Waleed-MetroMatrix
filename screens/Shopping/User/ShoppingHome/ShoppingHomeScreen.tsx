@@ -28,6 +28,7 @@ import {
   selectShoppingHomeLoading,
   selectShoppingHome,
 } from './shoppingHomeSlice';
+import { ShoppingHeader } from '../../../../components/shopping/ShoppingHeader';
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
@@ -41,9 +42,13 @@ const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
 const ShopColors = {
   primary: '#E67E22',
   primaryDark: '#D35400',
-  primaryLight: '#FFF3E6',
+  primaryLight: '#FFF8F0',
   accent: '#F39C12',
   badge: '#E74C3C',
+  gradientStart: '#F97316',
+  gradientEnd: '#EA580C',
+  success: '#10B981',
+  surfaceElevated: '#FFFFFF',
 };
 
 const ShoppingHomeScreen: React.FC = () => {
@@ -106,10 +111,6 @@ const ShoppingHomeScreen: React.FC = () => {
     navigation.navigate(ShoppingRouteNames.BrandList);
   };
 
-  const navigateToCategoryList = () => {
-    navigation.navigate(ShoppingRouteNames.CategoryList);
-  };
-
   // ── Render Helpers ────────────────────────
 
   const renderBanner = ({ item }: { item: any }) => (
@@ -123,26 +124,15 @@ const ShoppingHomeScreen: React.FC = () => {
       <Image source={{ uri: item.image }} style={styles.bannerImage} />
       <View style={styles.bannerOverlay}>
         <Text style={styles.bannerTitle}>{item.title}</Text>
-        {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
+        {!!item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
       </View>
     </TouchableOpacity>
   );
 
-  const renderBrandCard = ({ item }: { item: BrandConfig }) => (
-    <TouchableOpacity
-      style={styles.brandCard}
-      activeOpacity={0.7}
-      onPress={() => navigateToBrandStore(item.brandId)}
-    >
-      <View style={[styles.brandLogoWrap, { borderColor: item.primaryColor || ShopColors.primary }]}>
-        <Image source={{ uri: item.logo }} style={styles.brandLogo} />
-      </View>
-      <Text style={styles.brandName} numberOfLines={1}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+
 
   const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
-    const hasDiscount = item.salePrice && item.salePrice < item.basePrice;
+    const hasDiscount = Boolean(item.salePrice && item.salePrice < item.basePrice);
     return (
       <TouchableOpacity
         style={[styles.productCard, index % 2 === 0 ? { marginRight: Spacing.md } : {}]}
@@ -201,6 +191,19 @@ const ShoppingHomeScreen: React.FC = () => {
     );
   };
 
+  const renderCategoryCard = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.categoryCard}
+      activeOpacity={0.7}
+      onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never, { categoryId: item.id } as never)}
+    >
+      <View style={styles.categoryIconWrap}>
+        <Text style={styles.categoryEmoji}>{item.icon}</Text>
+      </View>
+      <Text style={styles.categoryName} numberOfLines={1}>{item.name}</Text>
+    </TouchableOpacity>
+  );
+
   // ── Dummy banners if none from API ────────
   const displayBanners = banners.length > 0 ? banners : [
     { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800', title: 'New Arrivals', subtitle: 'Discover the latest trends' },
@@ -223,8 +226,33 @@ const ShoppingHomeScreen: React.FC = () => {
   if (loading && featuredBrands.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={ShopColors.primary} />
-        <Text style={styles.loadingText}>Loading shop...</Text>
+        <View style={styles.loadingBrandedWrap}>
+          <View style={styles.shimmerLogo}>
+            <Text style={styles.shimmerLogoText}>🛍️</Text>
+          </View>
+          <ActivityIndicator size="large" color={ShopColors.primary} style={{ marginTop: 20 }} />
+          <Text style={styles.loadingText}>Setting up your shop...</Text>
+          <Text style={styles.loadingSubtext}>Discovering brands & products</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error && featuredBrands.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <View style={styles.errorWrap}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Couldn't load shop</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            activeOpacity={0.8}
+            onPress={() => dispatch(fetchHomeData(true))}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -234,38 +262,39 @@ const ShoppingHomeScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
 
       {/* ── Header ──────────────────────────── */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Shop</Text>
-          <Text style={styles.headerSubtitle}>Discover amazing brands</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.walletChip}
-            onPress={() => navigation.navigate('WalletScreen' as never)}
-            activeOpacity={0.75}
-          >
-            <Wallet size={13} stroke={ShopColors.primary} strokeWidth={2} />
-            <Text style={styles.walletChipText}>
-              {walletCurrency.toLowerCase() === 'pkr' ? '₨' : '$'}{walletBalance.toFixed(0)}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cartBtn} onPress={navigateToCart}>
-            <ShoppingCart size={22} stroke={Colors.text.primary} strokeWidth={1.75} />
-            {cartItemCount > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cartItemCount > 99 ? '99+' : cartItemCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ShoppingHeader
+        title="Shop"
+        subtitle="Discover amazing brands"
+        rightContent={
+          <>
+            <TouchableOpacity
+              style={styles.walletChip}
+              onPress={() => navigation.navigate('WalletScreen' as never)}
+              activeOpacity={0.75}
+            >
+              <Wallet size={13} stroke={ShopColors.primary} strokeWidth={2} />
+              <Text style={styles.walletChipText}>
+                {walletCurrency.toLowerCase() === 'pkr' ? '₨' : '$'}{walletBalance.toFixed(0)}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cartBtn} onPress={navigateToCart}>
+              <ShoppingCart size={22} stroke={Colors.text.primary} strokeWidth={1.75} />
+              {cartItemCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartItemCount > 99 ? '99+' : cartItemCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </>
+        }
+        showSearch={true}
+        searchPlaceholder="Search products, brands..."
+        onSearchPress={navigateToSearch}
+      />
 
-      {/* ── Search Bar ──────────────────────── */}
-      <TouchableOpacity style={styles.searchBar} activeOpacity={0.8} onPress={navigateToSearch}>
-        <Search size={18} stroke={Colors.text.tertiary} strokeWidth={1.75} />
-        <Text style={styles.searchPlaceholder}>Search products, brands...</Text>
-      </TouchableOpacity>
+
+
+
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -310,59 +339,39 @@ const ShoppingHomeScreen: React.FC = () => {
           )}
         </View>
 
-        {/* ── Shop by Category ───────────────── */}
+        {/* ── Categories ──────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Shop by Category</Text>
-            <TouchableOpacity onPress={navigateToCategoryList} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={styles.categoryItem}
-                activeOpacity={0.7}
-                onPress={() => navigation.navigate(ShoppingRouteNames.ProductList, { categoryId: cat.id })}
-              >
-                <View style={styles.categoryIcon}>
-                  <Text style={styles.categoryEmoji}>{cat.icon}</Text>
-                </View>
-                <Text style={styles.categoryName}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Featured Brands ────────────────── */}
-        {featuredBrands.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Brands</Text>
-              <TouchableOpacity onPress={navigateToBrandList} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={styles.seeAll}>See All</Text>
-              </TouchableOpacity>
+            <View>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <Text style={styles.sectionSubtitle}>Shop by department</Text>
             </View>
-            <FlatList
-              data={featuredBrands}
-              renderItem={renderBrandCard}
-              keyExtractor={(item) => item.brandId}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
-              ItemSeparatorComponent={() => <View style={{ width: Spacing.lg }} />}
-            />
           </View>
-        )}
+          <FlatList
+            data={categories}
+            renderItem={renderCategoryCard}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
+            ItemSeparatorComponent={() => <View style={{ width: Spacing.lg }} />}
+          />
+        </View>
 
         {/* ── Trending Products ──────────────── */}
         {featuredProducts.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Trending Now</Text>
-              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={styles.seeAll}>See All</Text>
+              <View>
+                <Text style={styles.sectionTitle}>Trending Now</Text>
+                <Text style={styles.sectionSubtitle}>Popular picks for you</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.seeAllBtn}
+                onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.seeAll}>View All</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.productGrid}>
@@ -375,6 +384,32 @@ const ShoppingHomeScreen: React.FC = () => {
           </View>
         )}
 
+        {/* ── New Arrivals ────────────────────── */}
+        {featuredProducts.filter(p => p.isNewArrival).length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>🆕 New Arrivals</Text>
+                <Text style={styles.sectionSubtitle}>Just dropped this week</Text>
+              </View>
+            </View>
+            <FlatList
+              data={featuredProducts.filter(p => p.isNewArrival).slice(0, 8)}
+              renderItem={({ item, index }) => (
+                <View style={{ width: PRODUCT_CARD_WIDTH, marginRight: index % 2 === 0 ? Spacing.md : 0 }}>
+                  {renderProductCard({ item, index })}
+                </View>
+              )}
+              keyExtractor={(item) => `new-${item.productId}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
+              ItemSeparatorComponent={() => <View style={{ width: Spacing.md }} />}
+            />
+          </View>
+        )}
+
+        {/* ── Bottom spacer ───────────────────── */}
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -394,10 +429,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.background,
   },
+  loadingBrandedWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  shimmerLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: ShopColors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shimmerLogoText: {
+    fontSize: 36,
+  },
   loadingText: {
     marginTop: Spacing.md,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  loadingSubtext: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.text.tertiary,
+  },
+
+  // Error State
+  errorWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 8,
+  },
+  errorMessage: {
     fontSize: 14,
     color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: ShopColors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.xl,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // Header
@@ -468,22 +558,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Search
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.backgroundAlt,
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    gap: Spacing.sm,
-  },
-  searchPlaceholder: {
-    fontSize: 14,
-    color: Colors.text.tertiary,
-  },
 
   scrollContent: {
     paddingBottom: Spacing.xxxl,
@@ -554,35 +628,44 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text.primary,
   },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: Colors.text.tertiary,
+    marginTop: 2,
+  },
+  seeAllBtn: {
+    backgroundColor: ShopColors.primaryLight,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(230,126,34,0.15)',
+  },
   seeAll: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: ShopColors.primary,
   },
 
   // Categories
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  categoryItem: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 3) / 4,
+  categoryCard: {
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    width: 72,
   },
-  categoryIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: ShopColors.primaryLight,
+  categoryIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: ShopColors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.surface,
+    ...Shadows.small,
     marginBottom: Spacing.xs,
   },
   categoryEmoji: {
-    fontSize: 24,
+    fontSize: 28,
   },
   categoryName: {
     fontSize: 11,
@@ -591,33 +674,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Brand Cards
-  brandCard: {
-    alignItems: 'center',
-    width: 80,
-  },
-  brandLogoWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.full,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    ...Shadows.small,
-    marginBottom: Spacing.xs,
-  },
-  brandLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.full,
-  },
-  brandName: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  },
+
 
   // Product Cards
   productGrid: {

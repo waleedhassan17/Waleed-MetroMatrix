@@ -166,6 +166,16 @@ const CurrentPatientCard: React.FC<{
           <Ionicons name="create-outline" size={17} color={THEME.accent} />
           <Text style={[styles.actionBtnText, { color: THEME.accent }]}>Write Rx</Text>
         </TouchableOpacity>
+        {patient.type === 'video' && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate(DoctorRouteNames.DoctorVideoConsultation, { appointmentId: patient.appointmentId })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="videocam-outline" size={17} color="#10B981" />
+            <Text style={[styles.actionBtnText, { color: '#10B981' }]}>Join Call</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.currentActions}>

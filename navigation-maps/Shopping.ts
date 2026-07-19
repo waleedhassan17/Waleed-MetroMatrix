@@ -25,7 +25,6 @@ export const ShoppingRouteNames = {
   ReturnRequest: 'ReturnRequest',
   WriteReview: 'WriteReview',
   SearchProducts: 'SearchProducts',
-  CategoryList: 'CategoryList',
   CouponList: 'CouponList',
   AddressSelection: 'AddressSelection',
   PaymentSelection: 'PaymentSelection',

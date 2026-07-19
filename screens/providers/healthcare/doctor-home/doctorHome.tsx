@@ -335,7 +335,7 @@ const DoctorHomeScreen: React.FC = () => {
                 {/* CTA */}
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: nextAppointment.appointmentId, patientId: nextAppointment.patientId })}
+                  onPress={() => navigation.navigate(DoctorRouteNames.ConsultationNotes, { appointmentId: nextAppointment.appointmentId, patientId: nextAppointment.patientId })}
                 >
                   <LinearGradient
                     colors={nextAppointment.type === 'video' ? THEME.gradient.secondary : THEME.gradient.primary}
@@ -366,7 +366,10 @@ const DoctorHomeScreen: React.FC = () => {
               { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorSchedule },
               { icon: 'person-outline', label: 'Profile', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorProfile },
               { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: THEME.successLight, isMaterial: true, route: DoctorRouteNames.DoctorEarnings },
-              { icon: 'settings-outline', label: 'Settings', color: THEME.textLight, bg: THEME.borderLight, route: DoctorRouteNames.DoctorSettings },
+              { icon: 'settings-outline', label: 'Settings', color: THEME.textLight, bg: THEME.borderLight, route: DoctorRouteNames.DoctorAvailability },
+              { icon: 'people-outline', label: 'My Patients', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorPatients },
+              { icon: 'star-outline', label: 'Reviews', color: '#F59E0B', bg: '#FEF3C7', route: DoctorRouteNames.DoctorMyReviews },
+              { icon: 'notifications-outline', label: 'Notifications', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorNotifications },
             ].map((action, i) => (
               <TouchableOpacity key={i} style={styles.quickActionCard} activeOpacity={0.7} onPress={() => navigation.navigate(action.route)}>
                 <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
@@ -416,7 +419,7 @@ const DoctorHomeScreen: React.FC = () => {
                     key={apt.appointmentId}
                     style={[styles.scheduleCard, isNext && styles.scheduleCardHighlight]}
                     activeOpacity={0.75}
-                    onPress={() => navigation.navigate(DoctorRouteNames.Consultation, { appointmentId: apt.appointmentId, patientId: apt.patientId })}
+                    onPress={() => navigation.navigate(DoctorRouteNames.ConsultationNotes, { appointmentId: apt.appointmentId, patientId: apt.patientId })}
                   >
                     {isNext && (
                       <LinearGradient

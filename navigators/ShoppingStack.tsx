@@ -7,7 +7,6 @@ import type { ShoppingStackParamList } from '../types/shopping';
 import ShoppingHomeScreen from '../screens/Shopping/User/ShoppingHome/ShoppingHomeScreen';
 import BrandListScreen from '../screens/Shopping/User/BrandList/BrandListScreen';
 import BrandStoreScreen from '../screens/Shopping/User/BrandStore/BrandStoreScreen';
-import CategoryListScreen from '../screens/Shopping/User/CategoryList/CategoryListScreen';
 import ProductListScreen from '../screens/Shopping/User/ProductList/ProductListScreen';
 import ProductSearchScreen from '../screens/Shopping/User/ProductSearch/ProductSearchScreen';
 import ProductDetailScreen from '../screens/Shopping/User/ProductDetail/ProductDetailScreen';
@@ -34,7 +33,7 @@ const Stack = createNativeStackNavigator<ShoppingStackParamList>();
 const ShoppingStack: React.FC = () => {
   return (
     <Stack.Navigator
-      initialRouteName={ShoppingRouteNames.ShoppingTabs as keyof ShoppingStackParamList}
+      initialRouteName={ShoppingRouteNames.BrandList as keyof ShoppingStackParamList}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
@@ -58,10 +57,6 @@ const ShoppingStack: React.FC = () => {
       <Stack.Screen
         name={ShoppingRouteNames.BrandStore}
         component={BrandStoreScreen}
-      />
-      <Stack.Screen
-        name={ShoppingRouteNames.CategoryList}
-        component={CategoryListScreen}
       />
       <Stack.Screen
         name={ShoppingRouteNames.ProductList}

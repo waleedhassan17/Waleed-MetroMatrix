@@ -16,6 +16,10 @@ import PatientHistoryScreen from '../screens/providers/healthcare/patient-histor
 import DoctorEarningsScreen from '../screens/providers/healthcare/doctor-earnings/doctorEarnings';
 import DoctorProfileScreen from '../screens/providers/healthcare/profile/doctorProfile';
 import DoctorSettingsScreen from '../screens/providers/healthcare/availability-settings/availabilitySettings';
+import DoctorVideoConsultationScreen from '../screens/providers/healthcare/video-consultation/DoctorVideoConsultationScreen';
+import DoctorReviewsScreen from '../screens/providers/healthcare/doctor-reviews/DoctorReviewsScreen';
+import DoctorNotificationsScreen from '../screens/providers/healthcare/notifications/DoctorNotificationsScreen';
+import DoctorPatientsScreen from '../screens/providers/healthcare/patients/DoctorPatientsScreen';
 import ManageSlotsScreen from '../screens/providers/healthcare/manage-slots/manageSlots';
 import WalletScreen from '../screens/user/wallet/WalletScreen';
 import TopUpWebViewScreen from '../screens/user/wallet/TopUpWebViewScreen';
@@ -48,7 +52,7 @@ const DoctorStack: React.FC = () => {
         component={DoctorAppointmentsScreen}
       />
       <Stack.Screen
-        name={DoctorRouteNames.Consultation}
+        name={DoctorRouteNames.ConsultationNotes}
         component={ConsultationScreen}
       />
       <Stack.Screen
@@ -68,7 +72,7 @@ const DoctorStack: React.FC = () => {
         component={DoctorProfileScreen}
       />
       <Stack.Screen
-        name={DoctorRouteNames.DoctorSettings}
+        name={DoctorRouteNames.DoctorAvailability}
         component={DoctorSettingsScreen}
       />
       <Stack.Screen
@@ -90,6 +94,22 @@ const DoctorStack: React.FC = () => {
           headerShown: false,
           animation: 'slide_from_right',
         }}
+      />
+      <Stack.Screen
+        name={DoctorRouteNames.DoctorVideoConsultation}
+        component={DoctorVideoConsultationScreen}
+      />
+      <Stack.Screen
+        name={DoctorRouteNames.DoctorMyReviews}
+        component={DoctorReviewsScreen}
+      />
+      <Stack.Screen
+        name={DoctorRouteNames.DoctorNotifications}
+        component={DoctorNotificationsScreen}
+      />
+      <Stack.Screen
+        name={DoctorRouteNames.DoctorPatients}
+        component={DoctorPatientsScreen}
       />
     </Stack.Navigator>
   );

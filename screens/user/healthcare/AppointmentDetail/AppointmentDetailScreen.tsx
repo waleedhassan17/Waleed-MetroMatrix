@@ -566,6 +566,22 @@ const AppointmentDetailScreen: React.FC = () => {
               </View>
             </View>
           </View>
+
+          {appointment.payment.status !== 'completed' &&
+            appointment.status !== 'cancelled' &&
+            appointment.status !== 'completed' && (
+              <TouchableOpacity
+                style={styles.payNowBtn}
+                onPress={() =>
+                  navigation.navigate(HealthcareRouteNames.AppointmentPayment, {
+                    appointmentId: appointment.appointmentId,
+                  })
+                }
+              >
+                <Ionicons name="wallet-outline" size={16} color="#FFF" />
+                <Text style={styles.payNowText}>Pay Consultation Fee</Text>
+              </TouchableOpacity>
+            )}
         </View>
 
         {/* Video Call Button */}
@@ -1073,6 +1089,21 @@ const styles = StyleSheet.create({
   },
   actionButtonDisabled: {
     opacity: 0.6,
+  },
+  payNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2A7FFF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  payNowText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
   actionButtonGradient: {
     flexDirection: 'row',

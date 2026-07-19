@@ -371,7 +371,6 @@ export type ShoppingStackParamList = {
   ReturnRequest: { orderId?: string };
   WriteReview: { productId: string };
   SearchProducts: { brandId?: string };
-  CategoryList: { brandId?: string };
   CouponList: { brandId?: string };
   AddressSelection: undefined;
   PaymentSelection: { orderId?: string };

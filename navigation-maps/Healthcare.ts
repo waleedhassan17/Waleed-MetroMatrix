@@ -27,6 +27,9 @@ export const HealthcareRouteNames = {
   Emergency: 'Emergency',
   HealthcareNotifications: 'HealthcareNotifications',
   HealthcareProfile: 'HealthcareProfile',
+  AppointmentPayment: 'AppointmentPayment',
+  MyPrescriptions: 'MyPrescriptions',
+  SymptomChecker: 'SymptomChecker',
 } as const;
 
 // Doctor / Provider Routes
@@ -35,13 +38,17 @@ export const DoctorRouteNames = {
   DoctorDashboard: 'DoctorDashboard',
   DoctorSchedule: 'DoctorSchedule',
   DoctorAppointments: 'DoctorAppointments',
-  Consultation: 'Consultation',
+  ConsultationNotes: 'ConsultationNotes',
   PrescriptionWriter: 'PrescriptionWriter',
   PatientHistory: 'PatientHistory',
   DoctorEarnings: 'DoctorEarnings',
   DoctorProfile: 'DoctorProfile',
-  DoctorSettings: 'DoctorSettings',
+  DoctorAvailability: 'DoctorAvailability',
   ManageSlots: 'ManageSlots',
+  DoctorVideoConsultation: 'DoctorVideoConsultation',
+  DoctorMyReviews: 'DoctorMyReviews',
+  DoctorNotifications: 'DoctorNotifications',
+  DoctorPatients: 'DoctorPatients',
 } as const;
 
 export type HealthcareRouteName = typeof HealthcareRouteNames[keyof typeof HealthcareRouteNames];
