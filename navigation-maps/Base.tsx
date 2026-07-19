@@ -78,6 +78,12 @@ import AdminShoppingStack from "../navigators/AdminShoppingStack";
 import HealthcareAnalyticsScreen from "../screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen";
 import SpecialtyManagementScreen from "../screens/admin/healthcare/SpecialtyManagement/SpecialtyManagementScreen";
 import DoctorManagementScreen from "../screens/admin/healthcare/DoctorManagement/DoctorManagementScreen";
+import AdminHealthcareDashboardScreen from "../screens/admin/healthcare/AdminHealthcareDashboard/AdminHealthcareDashboardScreen";
+import AdminAppointmentsScreen from "../screens/admin/healthcare/AdminAppointments/AdminAppointmentsScreen";
+import AdminAppointmentDetailScreen from "../screens/admin/healthcare/AdminAppointmentDetail/AdminAppointmentDetailScreen";
+import AdminClinicManagementScreen from "../screens/admin/healthcare/AdminClinicManagement/AdminClinicManagementScreen";
+import AdminReviewModerationScreen from "../screens/admin/healthcare/AdminReviewModeration/AdminReviewModerationScreen";
+import AdminHealthcareSettingsScreen from "../screens/admin/healthcare/AdminHealthcareSettings/AdminHealthcareSettingsScreen";
 
 // Route names enum for type safety
 export const BaseRouteNames = {
@@ -161,6 +167,12 @@ export const BaseRouteNames = {
   HealthcareAnalytics: "HealthcareAnalytics",
   SpecialtyManagement: "SpecialtyManagement",
   DoctorManagement: "DoctorManagement",
+  AdminHealthcareDashboard: "AdminHealthcareDashboard",
+  AdminAppointments: "AdminAppointments",
+  AdminAppointmentDetail: "AdminAppointmentDetail",
+  AdminClinicManagement: "AdminClinicManagement",
+  AdminReviewModeration: "AdminReviewModeration",
+  AdminHealthcareSettings: "AdminHealthcareSettings",
 
   // Healthcare Module
   HealthcareStack: "HealthcareStack",
@@ -252,6 +264,12 @@ export type RootStackParamList = {
   HealthcareAnalytics: undefined;
   SpecialtyManagement: undefined;
   DoctorManagement: undefined;
+  AdminHealthcareDashboard: undefined;
+  AdminAppointments: undefined;
+  AdminAppointmentDetail: { appointmentId: string };
+  AdminClinicManagement: undefined;
+  AdminReviewModeration: undefined;
+  AdminHealthcareSettings: undefined;
 
   // Healthcare Module
   HealthcareStack: undefined;
@@ -691,6 +709,48 @@ export const BaseRoutes: IRoute[] = [
   {
     component: DoctorManagementScreen,
     title: BaseRouteNames.DoctorManagement,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminHealthcareDashboardScreen,
+    title: BaseRouteNames.AdminHealthcareDashboard,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminAppointmentsScreen,
+    title: BaseRouteNames.AdminAppointments,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminAppointmentDetailScreen,
+    title: BaseRouteNames.AdminAppointmentDetail,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminClinicManagementScreen,
+    title: BaseRouteNames.AdminClinicManagement,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminReviewModerationScreen,
+    title: BaseRouteNames.AdminReviewModeration,
+    options: {
+      headerShown: false,
+    }
+  },
+  {
+    component: AdminHealthcareSettingsScreen,
+    title: BaseRouteNames.AdminHealthcareSettings,
     options: {
       headerShown: false,
     }

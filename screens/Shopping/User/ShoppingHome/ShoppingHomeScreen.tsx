@@ -213,14 +213,14 @@ const ShoppingHomeScreen: React.FC = () => {
 
   // ── Categories ────────────────────────────
   const categories = [
-    { id: '1', name: 'Fashion', icon: '👕' },
-    { id: '2', name: 'Electronics', icon: '📱' },
-    { id: '3', name: 'Home', icon: '🏠' },
-    { id: '4', name: 'Beauty', icon: '💄' },
-    { id: '5', name: 'Sports', icon: '⚽' },
-    { id: '6', name: 'Books', icon: '📚' },
-    { id: '7', name: 'Toys', icon: '🧸' },
-    { id: '8', name: 'More', icon: '📦' },
+    { id: 'men', name: 'Men', icon: '👨' },
+    { id: 'women', name: 'Women', icon: '👩' },
+    { id: 'kids', name: 'Kids', icon: '🧒' },
+    { id: 'accessories', name: 'Accessories', icon: '⌚' },
+    { id: 'shoes', name: 'Footwear', icon: '👟' },
+    { id: 'winter', name: 'Winter', icon: '🧥' },
+    { id: 'summer', name: 'Summer', icon: '👕' },
+    { id: 'fragrances', name: 'Fragrance', icon: '🧴' },
   ];
 
   if (loading && featuredBrands.length === 0) {
@@ -726,7 +726,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productInfo: {
-    padding: Spacing.sm,
+    padding: Spacing.md,
+    paddingTop: Spacing.md,
   },
   productName: {
     fontSize: 13,

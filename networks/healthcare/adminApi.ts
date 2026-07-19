@@ -131,3 +131,128 @@ export async function fetchRevenueAnalyticsApi(
 ): Promise<ApiResponse<any>> {
   return healthcareAdminApiRequest<any>(`/analytics/revenue?groupBy=${groupBy}`);
 }
+
+// ── H3/H7 additions: oversight endpoints ──
+
+export async function fetchAdminHealthcareDashboardApi(): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>('/healthcare/dashboard');
+}
+
+export async function fetchAdminAppointmentsApi(params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  type?: string;
+  doctorId?: string;
+  patient?: string;
+} = {}): Promise<ApiResponse<any[]>> {
+  const qp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') qp.append(k, String(v));
+  });
+  const res = await healthcareAdminApiRequest<any>(`/appointments?${qp}`);
+  if (res.success) {
+    const list = Array.isArray(res.data) ? res.data : res.data?.appointments || [];
+    return { ...res, data: list };
+  }
+  return res as ApiResponse<any[]>;
+}
+
+export async function fetchAdminAppointmentDetailApi(id: string): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/appointments/${encodeURIComponent(id)}`);
+}
+
+export async function forceAppointmentStatusApi(
+  id: string,
+  status: string,
+  reason: string
+): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/appointments/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    data: { status, reason },
+  });
+}
+
+export async function refundAppointmentAdminApi(id: string, reason: string): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/appointments/${encodeURIComponent(id)}/refund`, {
+    method: 'POST',
+    data: { reason },
+  });
+}
+
+export async function fetchAdminDoctorDetailApi(doctorId: string): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/doctors/${encodeURIComponent(doctorId)}`);
+}
+
+export async function setDoctorStatusApi(
+  doctorId: string,
+  status: 'active' | 'suspended',
+  reason: string
+): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/doctors/${encodeURIComponent(doctorId)}/status`, {
+    method: 'PATCH',
+    data: { status, reason },
+  });
+}
+
+export async function fetchAdminClinicsApi(params: { page?: number; city?: string; doctorId?: string } = {}): Promise<ApiResponse<any[]>> {
+  const qp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') qp.append(k, String(v));
+  });
+  const res = await healthcareAdminApiRequest<any>(`/clinics?${qp}`);
+  if (res.success) {
+    const list = Array.isArray(res.data) ? res.data : res.data?.clinics || [];
+    return { ...res, data: list };
+  }
+  return res as ApiResponse<any[]>;
+}
+
+export async function setClinicStatusApi(id: string, isActive: boolean, reason?: string): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/clinics/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    data: { isActive, reason },
+  });
+}
+
+export async function fetchAdminHealthcareReviewsApi(params: { rating?: number; maxRating?: number; doctorId?: string } = {}): Promise<ApiResponse<any[]>> {
+  const qp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') qp.append(k, String(v));
+  });
+  const res = await healthcareAdminApiRequest<any>(`/healthcare/reviews?${qp}`);
+  if (res.success) {
+    const list = Array.isArray(res.data) ? res.data : res.data?.reviews || [];
+    return { ...res, data: list };
+  }
+  return res as ApiResponse<any[]>;
+}
+
+export async function deleteHealthcareReviewApi(id: string, reason: string): Promise<ApiResponse<any>> {
+  return healthcareAdminApiRequest<any>(`/healthcare/reviews/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    data: { reason },
+  });
+}
+
+export interface HealthcareSettingsView {
+  commissionPercent: number;
+  cancellationWindowHours: number;
+  lateCancelRefundPercent: number;
+  defaultSlotDurationMinutes: number;
+  maxAdvanceBookingDays: number;
+  autoApproveDoctors: boolean;
+}
+
+export async function fetchHealthcareSettingsApi(): Promise<ApiResponse<HealthcareSettingsView>> {
+  return healthcareAdminApiRequest<HealthcareSettingsView>('/healthcare/settings');
+}
+
+export async function updateHealthcareSettingsApi(
+  patch: Partial<HealthcareSettingsView>
+): Promise<ApiResponse<HealthcareSettingsView>> {
+  return healthcareAdminApiRequest<HealthcareSettingsView>('/healthcare/settings', {
+    method: 'PATCH',
+    data: patch,
+  });
+}

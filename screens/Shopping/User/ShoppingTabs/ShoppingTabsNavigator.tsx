@@ -22,7 +22,6 @@ const COLORS = {
 
 type ShoppingTabParamList = {
   ShopHome: undefined;
-  Brands: undefined;
   CartTab: undefined;
   WishlistTab: undefined;
   Orders: undefined;
@@ -32,7 +31,6 @@ const Tab = createBottomTabNavigator<ShoppingTabParamList>();
 
 const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; iconFocused: keyof typeof Ionicons.glyphMap }> = {
   ShopHome:    { label: 'Home',       icon: 'home-outline',       iconFocused: 'home' },
-  Brands:      { label: 'Brands',     icon: 'storefront-outline', iconFocused: 'storefront' },
   CartTab:     { label: 'Cart',       icon: 'cart-outline',       iconFocused: 'cart' },
   WishlistTab: { label: 'Wishlist',   icon: 'heart-outline',      iconFocused: 'heart' },
   Orders:      { label: 'Orders',     icon: 'receipt-outline',    iconFocused: 'receipt' },
@@ -86,7 +84,6 @@ const ShoppingTabsNavigator: React.FC = () => {
       })}
     >
       <Tab.Screen name="ShopHome" component={ShoppingHomeScreen} />
-      <Tab.Screen name="Brands" component={BrandListScreen} />
       <Tab.Screen name="CartTab" component={CartScreen} />
       <Tab.Screen name="WishlistTab" component={WishlistScreen} />
       <Tab.Screen name="Orders" component={MyOrdersScreen} />

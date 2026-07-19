@@ -635,7 +635,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productInfo: {
-    padding: Spacing.sm,
+    padding: Spacing.md,
+    paddingTop: Spacing.md,
   },
   productName: {
     fontSize: 13,
