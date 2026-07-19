@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import {
   selectDeliveryFilter,
   selectDeliverySearch,
   setDeliveryFilter,
+  fetchDeliveries,
   setDeliverySearch,
   type DeliveryFilter,
   type Shipment,
@@ -85,6 +86,10 @@ const BrandDeliveriesScreen: React.FC = () => {
   const courierStats = useAppSelector(selectCourierStats);
   const filter = useAppSelector(selectDeliveryFilter);
   const searchQuery = useAppSelector(selectDeliverySearch);
+
+  useEffect(() => {
+    dispatch(fetchDeliveries());
+  }, [dispatch]);
 
   const renderKpis = () => (
     <View style={styles.kpiRow}>

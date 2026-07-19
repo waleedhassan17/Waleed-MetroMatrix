@@ -1,4 +1,11 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import {
+  fetchAddressesApi,
+  createAddressApi,
+  updateAddressApi,
+  deleteAddressApi,
+} from '../../../../networks/shopping/orderApi';
+import type { SavedAddressView } from '../../../../types/shopping';
 
 export interface CheckoutAddressForm {
   name: string;
@@ -40,33 +47,81 @@ const initialState: CheckoutAddressState = {
   error: null,
 };
 
-const sampleAddresses: SavedAddress[] = [
-  {
-    id: 'addr-1',
-    name: 'Muhammad Waleed',
-    phone: '+92 300 1234567',
-    address: 'House 14, Street 8',
-    city: 'Lahore',
-    area: 'Gulberg III',
-    landmark: 'Near Liberty Market',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    name: 'Waleed Hassan',
-    phone: '+92 312 7654321',
-    address: 'Apartment 7B, Block C',
-    city: 'Karachi',
-    area: 'DHA Phase 5',
-    landmark: 'Opposite Phase 5 Park',
-    isDefault: false,
-  },
-];
+// ── Server ↔ form mapping ───────────────────
 
-export const fetchAddresses = createAsyncThunk('checkoutAddress/fetchAddresses', async () => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return sampleAddresses;
+const fromServer = (a: SavedAddressView & { area?: string; landmark?: string }): SavedAddress => ({
+  id: a.addressId,
+  name: a.fullName,
+  phone: a.phone,
+  address: a.addressLine1,
+  city: a.city,
+  area: a.area || a.addressLine2 || '',
+  landmark: a.landmark || '',
+  isDefault: a.isDefault,
 });
+
+const toServer = (form: Partial<CheckoutAddressForm>) => ({
+  fullName: form.name,
+  phone: form.phone,
+  addressLine1: form.address,
+  city: form.city,
+  area: form.area,
+  landmark: form.landmark,
+  isDefault: form.isDefault,
+});
+
+// ── Server-backed thunks (same names as the old local actions) ──────
+
+export const fetchAddresses = createAsyncThunk(
+  'checkoutAddress/fetchAddresses',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetchAddressesApi();
+      return res.data.map(fromServer);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load addresses.');
+    }
+  }
+);
+
+export const addNewAddress = createAsyncThunk(
+  'checkoutAddress/addNewAddress',
+  async (form: CheckoutAddressForm, { rejectWithValue }) => {
+    try {
+      const res = await createAddressApi(toServer(form) as any);
+      return fromServer(res.data as any);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to save address.');
+    }
+  }
+);
+
+export const updateAddress = createAsyncThunk(
+  'checkoutAddress/updateAddress',
+  async (
+    { id, updates }: { id: string; updates: Partial<CheckoutAddressForm> },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await updateAddressApi(id, toServer(updates) as any);
+      return fromServer(res.data as any);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update address.');
+    }
+  }
+);
+
+export const deleteAddress = createAsyncThunk(
+  'checkoutAddress/deleteAddress',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await deleteAddressApi(id);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to delete address.');
+    }
+  }
+);
 
 const checkoutAddressSlice = createSlice({
   name: 'checkoutAddress',
@@ -90,57 +145,6 @@ const checkoutAddressSlice = createSlice({
     resetNewAddressForm(state) {
       state.newAddressForm = { ...initialForm };
     },
-    addNewAddress(state, action: PayloadAction<CheckoutAddressForm>) {
-      const newAddress: SavedAddress = {
-        ...action.payload,
-        id: `addr-${Date.now()}`,
-      };
-
-      if (newAddress.isDefault) {
-        state.savedAddresses = state.savedAddresses.map((address) => ({
-          ...address,
-          isDefault: false,
-        }));
-      }
-
-      state.savedAddresses.unshift(newAddress);
-      state.selectedAddress = newAddress;
-      state.newAddressForm = { ...initialForm };
-      state.error = null;
-    },
-    updateAddress(
-      state,
-      action: PayloadAction<{ id: string; updates: Partial<CheckoutAddressForm> }>
-    ) {
-      const { id, updates } = action.payload;
-      const index = state.savedAddresses.findIndex((address) => address.id === id);
-      if (index === -1) return;
-
-      const updatedAddress = {
-        ...state.savedAddresses[index],
-        ...updates,
-      };
-
-      if (updatedAddress.isDefault) {
-        state.savedAddresses = state.savedAddresses.map((address) => ({
-          ...address,
-          isDefault: address.id === id,
-        }));
-      } else {
-        state.savedAddresses[index] = updatedAddress;
-      }
-
-      state.savedAddresses[index] = updatedAddress;
-      state.selectedAddress = updatedAddress;
-    },
-    deleteAddress(state, action: PayloadAction<string>) {
-      const removedId = action.payload;
-      state.savedAddresses = state.savedAddresses.filter((address) => address.id !== removedId);
-
-      if (state.selectedAddress?.id === removedId) {
-        state.selectedAddress = state.savedAddresses[0] || null;
-      }
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -151,11 +155,56 @@ const checkoutAddressSlice = createSlice({
       .addCase(fetchAddresses.fulfilled, (state, action) => {
         state.loading = false;
         state.savedAddresses = action.payload;
-        state.selectedAddress = action.payload.find((address) => address.isDefault) || action.payload[0] || null;
+        const selectedStillExists = state.selectedAddress
+          ? action.payload.some((a) => a.id === state.selectedAddress!.id)
+          : false;
+        if (!selectedStillExists) {
+          state.selectedAddress =
+            action.payload.find((address) => address.isDefault) || action.payload[0] || null;
+        }
       })
-      .addCase(fetchAddresses.rejected, (state) => {
+      .addCase(fetchAddresses.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to load addresses.';
+        state.error = (action.payload as string) || 'Failed to load addresses.';
+      })
+      .addCase(addNewAddress.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addNewAddress.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.isDefault) {
+          state.savedAddresses = state.savedAddresses.map((a) => ({ ...a, isDefault: false }));
+        }
+        state.savedAddresses.unshift(action.payload);
+        state.selectedAddress = action.payload;
+        state.newAddressForm = { ...initialForm };
+      })
+      .addCase(addNewAddress.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || 'Failed to save address.';
+      })
+      .addCase(updateAddress.fulfilled, (state, action) => {
+        const updated = action.payload;
+        if (updated.isDefault) {
+          state.savedAddresses = state.savedAddresses.map((a) => ({ ...a, isDefault: false }));
+        }
+        const index = state.savedAddresses.findIndex((address) => address.id === updated.id);
+        if (index !== -1) state.savedAddresses[index] = updated;
+        state.selectedAddress = updated;
+      })
+      .addCase(updateAddress.rejected, (state, action) => {
+        state.error = (action.payload as string) || 'Failed to update address.';
+      })
+      .addCase(deleteAddress.fulfilled, (state, action) => {
+        const removedId = action.payload;
+        state.savedAddresses = state.savedAddresses.filter((address) => address.id !== removedId);
+        if (state.selectedAddress?.id === removedId) {
+          state.selectedAddress = state.savedAddresses[0] || null;
+        }
+      })
+      .addCase(deleteAddress.rejected, (state, action) => {
+        state.error = (action.payload as string) || 'Failed to delete address.';
       });
   },
 });
@@ -164,9 +213,6 @@ export const {
   setSelectedAddress,
   updateNewAddressFormField,
   resetNewAddressForm,
-  addNewAddress,
-  updateAddress,
-  deleteAddress,
 } = checkoutAddressSlice.actions;
 
 export const selectCheckoutAddresses = (state: { checkoutAddress: CheckoutAddressState }) =>

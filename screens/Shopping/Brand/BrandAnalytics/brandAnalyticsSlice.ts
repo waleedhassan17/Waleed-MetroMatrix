@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { fetchVendorAnalyticsApi } from '../../../../networks/shopping/vendorApi';
 
 // ── Types ───────────────────────────────────
 
@@ -28,7 +29,7 @@ export interface CategoryBreakdown {
 export interface FinancialSummary {
   totalRevenue: number;
   totalIncome: number;       // revenue after platform fees
-  totalExpenses: number;     // shipping + returns + ad spend
+  totalExpenses: number;     // shipping + returns
   netProfit: number;         // income - expenses
   totalOrders: number;
   avgOrderValue: number;
@@ -45,81 +46,45 @@ export interface BrandAnalyticsState {
   categoryBreakdown: CategoryBreakdown[];
   previousPeriodRevenue: number; // for trend calculation
   loading: boolean;
+  error: string | null;
 }
 
-// ── Sample Data ─────────────────────────────
-
-const SAMPLE_REVENUE_7D: RevenuePoint[] = [
-  { label: 'Mon', revenue: 32400, orders: 12 },
-  { label: 'Tue', revenue: 45600, orders: 18 },
-  { label: 'Wed', revenue: 38200, orders: 14 },
-  { label: 'Thu', revenue: 52800, orders: 22 },
-  { label: 'Fri', revenue: 61400, orders: 26 },
-  { label: 'Sat', revenue: 78200, orders: 34 },
-  { label: 'Sun', revenue: 55800, orders: 21 },
-];
-
-const SAMPLE_REVENUE_30D: RevenuePoint[] = [
-  { label: 'W1', revenue: 186000, orders: 72 },
-  { label: 'W2', revenue: 214000, orders: 86 },
-  { label: 'W3', revenue: 198000, orders: 78 },
-  { label: 'W4', revenue: 264000, orders: 105 },
-];
-
-const SAMPLE_REVENUE_90D: RevenuePoint[] = [
-  { label: 'Jan', revenue: 654000, orders: 248 },
-  { label: 'Feb', revenue: 720000, orders: 290 },
-  { label: 'Mar', revenue: 862000, orders: 341 },
-];
-
-const SAMPLE_TOP_PRODUCTS: TopProduct[] = [
-  { productId: 'P-1001', name: 'Classic Cotton Shirt', unitsSold: 142, revenue: 354358 },
-  { productId: 'P-1006', name: 'Premium Denim Jacket', unitsSold: 98, revenue: 489510 },
-  { productId: 'P-1003', name: 'Running Shoe Pro', unitsSold: 86, revenue: 537614 },
-  { productId: 'P-1008', name: 'Slim Fit Chinos', unitsSold: 74, revenue: 221926 },
-  { productId: 'P-1012', name: 'Leather Belt Classic', unitsSold: 68, revenue: 101932 },
-];
-
-const SAMPLE_CATEGORIES: CategoryBreakdown[] = [
-  { category: 'Men', revenue: 486000, percentage: 38, color: '#E67E22' },
-  { category: 'Women', revenue: 382000, percentage: 30, color: '#3B82F6' },
-  { category: 'Shoes', revenue: 204000, percentage: 16, color: '#8B5CF6' },
-  { category: 'Accessories', revenue: 128000, percentage: 10, color: '#10B981' },
-  { category: 'Kids', revenue: 76000, percentage: 6, color: '#F59E0B' },
-];
-
-const buildSummary = (chart: RevenuePoint[]): FinancialSummary => {
-  const totalRevenue = chart.reduce((s, p) => s + p.revenue, 0);
-  const totalOrders = chart.reduce((s, p) => s + p.orders, 0);
-  const platformFee = totalRevenue * 0.12; // 12% platform commission
-  const totalIncome = totalRevenue - platformFee;
-  const shippingCost = totalOrders * 120;
-  const refundsAmount = Math.round(totalRevenue * 0.03); // ~3% returns
-  const adSpend = Math.round(totalRevenue * 0.05);
-  const totalExpenses = shippingCost + refundsAmount + adSpend;
-  const netProfit = totalIncome - totalExpenses;
-  return {
-    totalRevenue,
-    totalIncome,
-    totalExpenses,
-    netProfit,
-    totalOrders,
-    avgOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
-    conversionRate: 4.8,
-    returnsCount: Math.round(totalOrders * 0.03),
-    refundsAmount,
-  };
+const emptySummary: FinancialSummary = {
+  totalRevenue: 0,
+  totalIncome: 0,
+  totalExpenses: 0,
+  netProfit: 0,
+  totalOrders: 0,
+  avgOrderValue: 0,
+  conversionRate: 0,
+  returnsCount: 0,
+  refundsAmount: 0,
 };
 
 const initialState: BrandAnalyticsState = {
   period: '7d',
-  summary: buildSummary(SAMPLE_REVENUE_7D),
-  revenueChart: SAMPLE_REVENUE_7D,
-  topProducts: SAMPLE_TOP_PRODUCTS,
-  categoryBreakdown: SAMPLE_CATEGORIES,
-  previousPeriodRevenue: 312000,
+  summary: emptySummary,
+  revenueChart: [],
+  topProducts: [],
+  categoryBreakdown: [],
+  previousPeriodRevenue: 0,
   loading: false,
+  error: null,
 };
+
+// ── Thunks ──────────────────────────────────
+
+export const fetchBrandAnalytics = createAsyncThunk(
+  'brandAnalytics/fetch',
+  async (period: AnalyticsPeriod, { rejectWithValue }) => {
+    try {
+      const res = await fetchVendorAnalyticsApi({ period });
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load analytics');
+    }
+  }
+);
 
 // ── Slice ───────────────────────────────────
 
@@ -129,24 +94,27 @@ const brandAnalyticsSlice = createSlice({
   reducers: {
     setPeriod(state, action: PayloadAction<AnalyticsPeriod>) {
       state.period = action.payload;
-      // Swap chart data based on period
-      switch (action.payload) {
-        case '7d':
-          state.revenueChart = SAMPLE_REVENUE_7D;
-          state.previousPeriodRevenue = 312000;
-          break;
-        case '30d':
-          state.revenueChart = SAMPLE_REVENUE_30D;
-          state.previousPeriodRevenue = 780000;
-          break;
-        case '90d':
-        case 'all':
-          state.revenueChart = SAMPLE_REVENUE_90D;
-          state.previousPeriodRevenue = 2100000;
-          break;
-      }
-      state.summary = buildSummary(state.revenueChart);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchBrandAnalytics.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBrandAnalytics.fulfilled, (state, action) => {
+        const data = action.payload;
+        state.loading = false;
+        state.summary = data.summary;
+        state.revenueChart = data.revenueChart;
+        state.topProducts = data.topProducts;
+        state.categoryBreakdown = data.categoryBreakdown;
+        state.previousPeriodRevenue = data.previousPeriodRevenue;
+      })
+      .addCase(fetchBrandAnalytics.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 

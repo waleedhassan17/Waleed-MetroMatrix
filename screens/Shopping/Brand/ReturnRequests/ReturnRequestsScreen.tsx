@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { CheckCircle2, ChevronLeft, RotateCcw, XCircle, AlertTriangle, MessageSquare } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { selectReturnRequests, updateReturnStatus } from './returnRequestsSlice';
+import { fetchReturnRequests, selectReturnRequests, updateReturnStatus } from './returnRequestsSlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -50,6 +50,10 @@ const ReturnRequestsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { requests } = useAppSelector(selectReturnRequests);
+
+  useEffect(() => {
+    dispatch(fetchReturnRequests());
+  }, [dispatch]);
 
   const renderRequest = ({ item: request }: { item: typeof requests[0] }) => {
     const statusStyle = STATUS_STYLES[request.status] || STATUS_STYLES.pending;

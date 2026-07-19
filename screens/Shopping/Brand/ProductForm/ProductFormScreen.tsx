@@ -21,7 +21,8 @@ import {
 } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { resetDraft, selectProductForm, setError, setField, setSaving, toggleFlag } from './productFormSlice';
+import { loadProductDraft, resetDraft, saveProductDraft, selectProductForm, setField, toggleFlag } from './productFormSlice';
+import { upsertProduct } from '../BrandProducts/brandProductsSlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -52,21 +53,26 @@ const ProductFormScreen: React.FC = () => {
   const isEdit = Boolean(productId);
 
   useEffect(() => {
-    if (!productId) { dispatch(resetDraft()); }
+    if (!productId) {
+      dispatch(resetDraft());
+    } else {
+      dispatch(loadProductDraft(productId));
+    }
   }, [dispatch, productId]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!draft.name.trim()) {
       Alert.alert('Validation', 'Product name is required.');
       return;
     }
-    dispatch(setSaving(true));
-    setTimeout(() => {
-      dispatch(setSaving(false));
-      dispatch(setError(null));
+    const result = await dispatch(saveProductDraft());
+    if (saveProductDraft.fulfilled.match(result)) {
+      dispatch(upsertProduct(result.payload));
       Alert.alert('Saved', isEdit ? 'Product has been updated.' : 'Product has been created.');
       navigation.goBack();
-    }, 500);
+    } else {
+      Alert.alert('Could not save', (result.payload as string) || 'Please try again.');
+    }
   };
 
   return (

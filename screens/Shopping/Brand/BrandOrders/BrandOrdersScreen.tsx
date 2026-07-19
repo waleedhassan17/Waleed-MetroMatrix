@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import {
 import { Shadows } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { selectBrandOrders, setStatusFilter } from './brandOrdersSlice';
+import { fetchBrandOrders, selectBrandOrders, setStatusFilter } from './brandOrdersSlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -77,6 +77,10 @@ const BrandOrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { orders, statusFilter } = useAppSelector(selectBrandOrders);
+
+  useEffect(() => {
+    dispatch(fetchBrandOrders());
+  }, [dispatch]);
 
   const filteredOrders = useMemo(() => {
     return statusFilter === 'all' ? orders : orders.filter((order) => order.orderStatus === statusFilter);

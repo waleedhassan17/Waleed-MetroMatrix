@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
   selectBrandAnalytics,
+  fetchBrandAnalytics,
   setPeriod,
   type AnalyticsPeriod,
 } from './brandAnalyticsSlice';
@@ -77,6 +78,10 @@ const BrandAnalyticsScreen: React.FC = () => {
     categoryBreakdown,
     previousPeriodRevenue,
   } = useAppSelector(selectBrandAnalytics);
+
+  useEffect(() => {
+    dispatch(fetchBrandAnalytics(period));
+  }, [dispatch, period]);
 
   const revenueTrend = previousPeriodRevenue > 0
     ? ((summary.totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100

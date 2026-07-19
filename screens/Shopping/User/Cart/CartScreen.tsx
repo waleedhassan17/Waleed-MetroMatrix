@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import {
+  fetchCart,
   removeItem,
   updateQuantity,
   removeCoupon,
@@ -58,6 +59,11 @@ const CartScreen: React.FC = () => {
   const error = useAppSelector(selectCartError);
 
   const [couponInput, setCouponInput] = useState('');
+
+  // The server owns the cart — sync on mount
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
   const [showCouponInput, setShowCouponInput] = useState(false);
 
   const handleRemoveItem = useCallback((itemId: string) => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { ChevronLeft, Minus, Plus, Search, Warehouse, X, AlertTriangle } from 'l
 import { useNavigation } from '@react-navigation/native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { selectInventory, updateStock } from './inventorySlice';
+import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -44,6 +44,10 @@ const InventoryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { rows } = useAppSelector(selectInventory);
+
+  useEffect(() => {
+    dispatch(fetchInventory());
+  }, [dispatch]);
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {

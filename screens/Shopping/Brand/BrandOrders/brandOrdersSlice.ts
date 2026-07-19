@@ -1,16 +1,63 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { Order, OrderStatus } from '../../../../types/shopping';
-import { SAMPLE_ORDERS } from '../../../../networks/shopping/dummyData';
+import {
+  fetchVendorOrdersApi,
+  updateVendorOrderStatusApi,
+} from '../../../../networks/shopping/vendorApi';
 
 export interface BrandOrdersState {
-  orders: Order[];
+  orders: (Order & { customerName?: string })[];
   statusFilter: 'all' | OrderStatus;
+  loading: boolean;
+  error: string | null;
 }
 
 const initialState: BrandOrdersState = {
-  orders: SAMPLE_ORDERS,
+  orders: [],
   statusFilter: 'all',
+  loading: false,
+  error: null,
 };
+
+export const fetchBrandOrders = createAsyncThunk(
+  'brandOrders/fetch',
+  async (status: string | void, { rejectWithValue }) => {
+    try {
+      const res = await fetchVendorOrdersApi({
+        page: 1,
+        limit: 50,
+        status: status && status !== 'all' ? status : undefined,
+      });
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load orders');
+    }
+  }
+);
+
+export const updateOrderStatus = createAsyncThunk(
+  'brandOrders/updateStatus',
+  async (
+    {
+      orderId,
+      orderStatus,
+      trackingNumber,
+      note,
+    }: { orderId: string; orderStatus: OrderStatus; trackingNumber?: string; note?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await updateVendorOrderStatusApi(orderId, {
+        status: orderStatus,
+        trackingNumber,
+        note,
+      });
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update order status');
+    }
+  }
+);
 
 const brandOrdersSlice = createSlice({
   name: 'brandOrders',
@@ -19,19 +66,35 @@ const brandOrdersSlice = createSlice({
     setStatusFilter(state, action: PayloadAction<BrandOrdersState['statusFilter']>) {
       state.statusFilter = action.payload;
     },
-    updateOrderStatus(state, action: PayloadAction<{ orderId: string; orderStatus: OrderStatus; trackingNumber?: string }>) {
-      const order = state.orders.find((item) => item.orderId === action.payload.orderId);
-      if (order) {
-        order.orderStatus = action.payload.orderStatus;
-        if (action.payload.trackingNumber) {
-          order.trackingNumber = action.payload.trackingNumber;
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchBrandOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBrandOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders = action.payload;
+      })
+      .addCase(fetchBrandOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updateOrderStatus.fulfilled, (state, action) => {
+        const updated = action.payload;
+        const index = state.orders.findIndex((order) => order.orderId === updated.orderId);
+        if (index !== -1) {
+          state.orders[index] = { ...state.orders[index], ...updated };
         }
-      }
-    },
+      })
+      .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { setStatusFilter, updateOrderStatus } = brandOrdersSlice.actions;
+export const { setStatusFilter } = brandOrdersSlice.actions;
 export const selectBrandOrders = (state: { brandOrders: BrandOrdersState }) => state.brandOrders;
 export const selectBrandOrderById = (orderId: string) => (state: { brandOrders: BrandOrdersState }) =>
   state.brandOrders.orders.find((order) => order.orderId === orderId) || null;

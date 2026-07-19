@@ -1,26 +1,33 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, RotateCcw } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { resetReturnRequest, selectReturnRequest, setDetails, setReason, setSubmitting } from './returnRequestSlice';
+import { resetReturnRequest, selectReturnRequest, setDetails, setReason, submitReturnRequest } from './returnRequestSlice';
 
 const reasons = ['Size issue', 'Damaged item', 'Wrong item', 'Late delivery'] as const;
 
 const ReturnRequestScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const { reason, details, submitting } = useAppSelector(selectReturnRequest);
+  const orderId = route.params?.orderId as string | undefined;
 
-  const handleSubmit = () => {
-    dispatch(setSubmitting(true));
-    setTimeout(() => {
-      dispatch(setSubmitting(false));
+  const handleSubmit = async () => {
+    if (!orderId) {
+      Alert.alert('Missing order', 'Open this screen from a delivered order to request a return.');
+      return;
+    }
+    const result = await dispatch(submitReturnRequest({ orderId }));
+    if (submitReturnRequest.fulfilled.match(result)) {
       dispatch(resetReturnRequest());
       Alert.alert('Request submitted', 'We received your return request.');
       navigation.goBack();
-    }, 500);
+    } else {
+      Alert.alert('Could not submit', (result.payload as string) || 'Please try again.');
+    }
   };
 
   return (

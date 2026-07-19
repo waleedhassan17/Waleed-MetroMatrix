@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, ClipboardList } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { selectMyOrders, setStatusFilter } from './myOrdersSlice';
+import { fetchMyOrders, selectMyOrders, setStatusFilter } from './myOrdersSlice';
 
 const filters = ['all', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 
@@ -13,6 +13,11 @@ const MyOrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { orders, statusFilter } = useAppSelector(selectMyOrders);
+
+  useEffect(() => {
+    dispatch(fetchMyOrders());
+  }, [dispatch]);
+
   const filtered = useMemo(() => (statusFilter === 'all' ? orders : orders.filter((order) => order.status === statusFilter)), [orders, statusFilter]);
 
   return (

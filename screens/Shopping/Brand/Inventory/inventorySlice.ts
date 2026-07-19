@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { fetchInventoryApi, updateStockApi } from '../../../../networks/shopping/vendorApi';
 
 export interface InventoryRow {
   variantId: string;
@@ -10,29 +11,78 @@ export interface InventoryRow {
 
 export interface InventoryState {
   rows: InventoryRow[];
+  loading: boolean;
+  error: string | null;
 }
 
 const initialState: InventoryState = {
-  rows: [
-    { variantId: 'V-1', productName: 'Classic Cotton Shirt - M', sku: 'SKU-1001-M', stockQuantity: 4, threshold: 5 },
-    { variantId: 'V-2', productName: 'Slim Fit Trouser - L', sku: 'SKU-1002-L', stockQuantity: 1, threshold: 5 },
-    { variantId: 'V-3', productName: 'Running Shoe - 42', sku: 'SKU-1003-42', stockQuantity: 0, threshold: 3 },
-  ],
+  rows: [],
+  loading: false,
+  error: null,
 };
+
+export const fetchInventory = createAsyncThunk(
+  'inventory/fetch',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetchInventoryApi();
+      return res.data.map((row) => ({
+        variantId: row.variantId,
+        productName: row.variantLabel ? `${row.productName} - ${row.variantLabel}` : row.productName,
+        sku: row.sku,
+        stockQuantity: row.stockQuantity,
+        // The server computes low/out flags from the platform threshold;
+        // reconstruct a display threshold from the flag for the badge logic.
+        threshold: row.lowStock ? Math.max(row.stockQuantity, 1) : 5,
+      }));
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load inventory');
+    }
+  }
+);
+
+export const updateStock = createAsyncThunk(
+  'inventory/updateStock',
+  async (
+    { variantId, stockQuantity, reason }: { variantId: string; stockQuantity: number; reason?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      await updateStockApi(variantId, stockQuantity, reason);
+      return { variantId, stockQuantity };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update stock');
+    }
+  }
+);
 
 const inventorySlice = createSlice({
   name: 'inventory',
   initialState,
-  reducers: {
-    updateStock(state, action: PayloadAction<{ variantId: string; stockQuantity: number }>) {
-      const row = state.rows.find((item) => item.variantId === action.payload.variantId);
-      if (row) {
-        row.stockQuantity = action.payload.stockQuantity;
-      }
-    },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchInventory.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchInventory.fulfilled, (state, action) => {
+        state.loading = false;
+        state.rows = action.payload;
+      })
+      .addCase(fetchInventory.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updateStock.fulfilled, (state, action) => {
+        const row = state.rows.find((item) => item.variantId === action.payload.variantId);
+        if (row) row.stockQuantity = action.payload.stockQuantity;
+      })
+      .addCase(updateStock.rejected, (state, action) => {
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { updateStock } = inventorySlice.actions;
 export const selectInventory = (state: { inventory: InventoryState }) => state.inventory;
 export default inventorySlice.reducer;

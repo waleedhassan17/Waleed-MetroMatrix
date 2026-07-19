@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { fetchOrderTrackingApi } from '../../../../networks/shopping/orderApi';
 
 export interface TrackingStep {
   key: string;
@@ -16,21 +17,31 @@ export interface OrderTrackingState {
   courierName: string;
   trackingNumber: string;
   steps: TrackingStep[];
+  loading: boolean;
+  error: string | null;
 }
 
-const buildSteps = (status: OrderTrackingState['orderStatus']): TrackingStep[] => {
-  const all: { key: string; title: string; subtitle: string }[] = [
-    { key: 'confirmed', title: 'Order Confirmed', subtitle: 'Your order has been placed' },
-    { key: 'processing', title: 'Processing', subtitle: 'Seller is preparing your order' },
-    { key: 'shipped', title: 'Shipped', subtitle: 'Package handed to courier' },
-    { key: 'out_for_delivery', title: 'Out for Delivery', subtitle: 'Arriving today' },
-    { key: 'delivered', title: 'Delivered', subtitle: 'Package delivered' },
-  ];
-  const statusOrder = ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
-  const currentIdx = statusOrder.indexOf(status === 'pending' ? 'confirmed' : status);
-  return all.map((s, i) => ({
+const STEP_DEFS: { key: string; title: string; subtitle: string }[] = [
+  { key: 'confirmed', title: 'Order Confirmed', subtitle: 'Your order has been placed' },
+  { key: 'processing', title: 'Processing', subtitle: 'Seller is preparing your order' },
+  { key: 'shipped', title: 'Shipped', subtitle: 'Package handed to courier' },
+  { key: 'out_for_delivery', title: 'Out for Delivery', subtitle: 'Arriving today' },
+  { key: 'delivered', title: 'Delivered', subtitle: 'Package delivered' },
+];
+const STATUS_ORDER = ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
+
+const buildSteps = (
+  status: OrderTrackingState['orderStatus'],
+  history: { status: string; changedAt: string }[] = []
+): TrackingStep[] => {
+  const currentIdx = STATUS_ORDER.indexOf(status === 'pending' ? 'confirmed' : status);
+  const timestampFor = (key: string): string | null => {
+    const entry = history.find((h) => h.status === key);
+    return entry ? entry.changedAt : null;
+  };
+  return STEP_DEFS.map((s, i) => ({
     ...s,
-    timestamp: i <= currentIdx ? new Date(Date.now() - (currentIdx - i) * 86400000).toISOString() : null,
+    timestamp: i <= currentIdx ? timestampFor(s.key) : null,
     completed: i < currentIdx,
     current: i === currentIdx,
   }));
@@ -38,12 +49,27 @@ const buildSteps = (status: OrderTrackingState['orderStatus']): TrackingStep[] =
 
 const initialState: OrderTrackingState = {
   currentOrderId: null,
-  orderStatus: 'shipped',
-  estimatedDelivery: new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-PK', { weekday: 'long', month: 'short', day: 'numeric' }),
-  courierName: 'TCS Express',
-  trackingNumber: 'TCS-29847261',
-  steps: buildSteps('shipped'),
+  orderStatus: 'pending',
+  estimatedDelivery: '',
+  courierName: 'Courier',
+  trackingNumber: '',
+  steps: buildSteps('pending'),
+  loading: false,
+  error: null,
 };
+
+// Fetch real tracking (statusHistory + trackingNumber) for an order or group id
+export const fetchTracking = createAsyncThunk(
+  'orderTracking/fetch',
+  async (orderId: string, { rejectWithValue }) => {
+    try {
+      const res = await fetchOrderTrackingApi(orderId);
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load tracking');
+    }
+  }
+);
 
 const orderTrackingSlice = createSlice({
   name: 'orderTracking',
@@ -74,6 +100,36 @@ const orderTrackingSlice = createSlice({
       if (trackingNumber) state.trackingNumber = trackingNumber;
       if (estimatedDelivery) state.estimatedDelivery = estimatedDelivery;
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchTracking.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchTracking.fulfilled, (state, action) => {
+        const data = action.payload;
+        state.loading = false;
+        state.currentOrderId = data.orderId;
+        const status = (
+          ['cancelled', 'returned', 'refunded'].includes(data.orderStatus)
+            ? 'delivered'
+            : data.orderStatus
+        ) as OrderTrackingState['orderStatus'];
+        state.orderStatus = status;
+        state.trackingNumber = data.trackingNumber || '';
+        state.steps = buildSteps(status, data.statusHistory);
+        const confirmed = data.statusHistory.find((h) => h.status === 'confirmed');
+        if (confirmed) {
+          state.estimatedDelivery = new Date(
+            new Date(confirmed.changedAt).getTime() + 5 * 86400000
+          ).toLocaleDateString('en-PK', { weekday: 'long', month: 'short', day: 'numeric' });
+        }
+      })
+      .addCase(fetchTracking.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 

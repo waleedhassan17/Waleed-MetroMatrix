@@ -1,11 +1,11 @@
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { CartState } from '../Cart/cartSlice';
-import { clearCart } from '../Cart/cartSlice';
+import { fetchCart } from '../Cart/cartSlice';
 import type { CheckoutAddressState } from '../CheckoutAddress/checkoutAddressSlice';
 import type { CheckoutDeliveryState } from '../CheckoutDelivery/checkoutDeliverySlice';
 import type { CheckoutPaymentState } from '../CheckoutPayment/checkoutPaymentSlice';
 import { addOrder } from '../MyOrders/myOrdersSlice';
-import { setTrackingData } from '../OrderTracking/orderTrackingSlice';
+import { checkoutApi } from '../../../../networks/shopping/orderApi';
 
 export interface OrderSummaryItem {
   id: string;
@@ -46,46 +46,47 @@ export const placeOrder = createAsyncThunk(
   'checkoutReview/placeOrder',
   async (_, { getState, dispatch, rejectWithValue }) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      const orderId = `ORD-${Date.now()}`;
-
       const state = getState() as RootSlices;
-      const { items, subtotal } = state.cart;
-      const delivery = state.checkoutDelivery.selectedOption;
-      const total = subtotal + (delivery?.cost ?? 0) - state.cart.couponDiscount;
+      const { items } = state.cart;
+      if (items.length === 0) {
+        return rejectWithValue('Your cart is empty');
+      }
 
-      // Build title from first item(s)
+      const address = state.checkoutAddress.selectedAddress;
+      if (!address) {
+        return rejectWithValue('Please select a delivery address');
+      }
+
+      const methodId = state.checkoutPayment.selectedMethod?.id;
+      if (methodId !== 'wallet' && methodId !== 'cod') {
+        return rejectWithValue('Please select a payment method');
+      }
+
+      // Real checkout: server revalidates stock, recomputes totals,
+      // splits the cart into one order per brand and takes payment.
+      const res = await checkoutApi({
+        addressId: address.id,
+        paymentMethod: methodId,
+      });
+      const group = res.data;
+
       const title = items.length > 0
         ? items.map((i) => i.productName).slice(0, 2).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
         : 'Order';
 
-      // Add to My Orders
+      // Show immediately in My Orders (server refresh happens on screen focus)
       dispatch(addOrder({
-        orderId,
+        orderId: group.groupId,
         title,
-        status: 'processing',
-        total,
+        status: 'pending',
+        total: group.total,
         createdAt: 'Just now',
       }));
 
-      // Initialize order tracking
-      const estDelivery = new Date(Date.now() + 5 * 86400000).toLocaleDateString('en-PK', {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-      });
-      dispatch(setTrackingData({
-        orderId,
-        status: 'confirmed',
-        courierName: 'TCS Express',
-        trackingNumber: `TCS-${Math.floor(Math.random() * 90000000) + 10000000}`,
-        estimatedDelivery: estDelivery,
-      }));
+      // Server cleared the cart during checkout — sync local state
+      dispatch(fetchCart());
 
-      // Clear the cart after successful order placement
-      dispatch(clearCart());
-
-      return { orderId };
+      return { orderId: group.groupId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to place order');
     }

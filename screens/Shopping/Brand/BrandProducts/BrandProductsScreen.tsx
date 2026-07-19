@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import type { Product } from '../../../../types/shopping';
-import { removeProduct, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
+import { fetchBrandProducts,
+  removeProduct, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -55,6 +56,10 @@ const BrandProductsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { products, searchQuery, stockFilter } = useAppSelector(selectBrandProducts);
+
+  useEffect(() => {
+    dispatch(fetchBrandProducts());
+  }, [dispatch]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {

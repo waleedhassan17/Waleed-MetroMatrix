@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { Product, ProductVariant } from '../../../../types/shopping';
+import { createProductApi, updateProductApi, fetchProductByIdApi } from '../../../../networks/shopping/productApi';
 
 export interface ProductFormState {
   saving: boolean;
@@ -40,6 +41,57 @@ const initialState: ProductFormState = {
   },
 };
 
+// Load an existing product into the draft (edit mode)
+export const loadProductDraft = createAsyncThunk(
+  'productForm/load',
+  async (productId: string, { rejectWithValue }) => {
+    try {
+      const res = await fetchProductByIdApi(productId);
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load product');
+    }
+  }
+);
+
+// Persist the draft: create when it's a new draft, update otherwise
+export const saveProductDraft = createAsyncThunk(
+  'productForm/save',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { productForm } = getState() as { productForm: ProductFormState };
+      const draft = productForm.draft;
+      const payload: any = {
+        sku: draft.sku,
+        name: draft.name,
+        description: draft.description,
+        images: draft.images,
+        categoryId: draft.categoryId || undefined,
+        variants: draft.variants.map((v) => ({
+          size: v.size,
+          color: v.color,
+          colorCode: v.colorCode,
+          additionalPrice: v.additionalPrice,
+          stockQuantity: v.stockQuantity,
+          sku: v.sku,
+        })),
+        basePrice: draft.basePrice,
+        salePrice: draft.salePrice,
+        isFeatured: draft.isFeatured,
+        isNewArrival: draft.isNewArrival,
+        tags: draft.tags,
+      };
+      const isNew = draft.productId === 'draft-product' || !draft.productId;
+      const res = isNew
+        ? await createProductApi(payload)
+        : await updateProductApi(draft.productId, payload);
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to save product');
+    }
+  }
+);
+
 const productFormSlice = createSlice({
   name: 'productForm',
   initialState,
@@ -62,6 +114,31 @@ const productFormSlice = createSlice({
     resetDraft(state) {
       Object.assign(state, initialState);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loadProductDraft.pending, (state) => {
+        state.saving = false;
+        state.error = null;
+      })
+      .addCase(loadProductDraft.fulfilled, (state, action) => {
+        state.draft = action.payload;
+      })
+      .addCase(loadProductDraft.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+      .addCase(saveProductDraft.pending, (state) => {
+        state.saving = true;
+        state.error = null;
+      })
+      .addCase(saveProductDraft.fulfilled, (state, action) => {
+        state.saving = false;
+        state.draft = action.payload;
+      })
+      .addCase(saveProductDraft.rejected, (state, action) => {
+        state.saving = false;
+        state.error = action.payload as string;
+      });
   },
 });
 

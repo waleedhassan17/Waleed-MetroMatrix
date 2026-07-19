@@ -1,24 +1,31 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Star } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { resetReview, selectWriteReview, setComment, setRating, setSubmitting, setTitle } from './writeReviewSlice';
+import { resetReview, selectWriteReview, setComment, setRating, setTitle, submitReview } from './writeReviewSlice';
 
 const WriteReviewScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const { rating, title, comment, submitting } = useAppSelector(selectWriteReview);
+  const productId = route.params?.productId as string | undefined;
 
-  const handleSubmit = () => {
-    dispatch(setSubmitting(true));
-    setTimeout(() => {
-      dispatch(setSubmitting(false));
+  const handleSubmit = async () => {
+    if (!productId) {
+      Alert.alert('Missing product', 'Open this screen from a product to review it.');
+      return;
+    }
+    const result = await dispatch(submitReview({ productId }));
+    if (submitReview.fulfilled.match(result)) {
       dispatch(resetReview());
       Alert.alert('Review submitted', 'Thanks for sharing your feedback.');
       navigation.goBack();
-    }, 500);
+    } else {
+      Alert.alert('Could not submit', (result.payload as string) || 'Please try again.');
+    }
   };
 
   return (

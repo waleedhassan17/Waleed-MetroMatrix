@@ -1,11 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Heart, ShoppingCart, Trash2, X } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { clearWishlist, removeWishlistItem, selectWishlist, type WishlistItemState } from './wishlistSlice';
+import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, type WishlistItemState } from './wishlistSlice';
 
 const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', danger: '#E74C3C' };
 const CURRENCY = 'PKR';
@@ -14,6 +14,10 @@ const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { items } = useAppSelector(selectWishlist);
+
+  useEffect(() => {
+    dispatch(fetchWishlist());
+  }, [dispatch]);
 
   const handleRemove = useCallback((productId: string, name: string) => {
     Alert.alert('Remove Item', `Remove "${name}" from your wishlist?`, [

@@ -1,4 +1,14 @@
-import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
+import { createAsyncThunk, PayloadAction, createSelector, createSlice } from '@reduxjs/toolkit';
+import {
+  fetchCartApi,
+  addToCartApi,
+  updateCartItemApi,
+  removeCartItemApi,
+  clearCartApi,
+  applyCouponApi,
+  removeCouponApi,
+  type CartView,
+} from '../../../../networks/shopping/cartApi';
 
 // ── Cart Item State (with display fields) ───
 
@@ -55,148 +65,170 @@ const initialState: CartState = {
   error: null,
 };
 
-// ── Constants ───────────────────────────────
+// The server owns the cart: every thunk below returns the recomputed
+// server cart, which is mapped back onto this state shape.
 
-const SHIPPING_PER_BRAND = 150;
-const FREE_SHIPPING_THRESHOLD = 3000;
+const applyServerCart = (state: CartState, cart: CartView) => {
+  state.items = cart.items.map((it) => ({
+    itemId: it.itemId,
+    productId: it.productId,
+    brandId: it.brandId,
+    brandName: it.brandName || '',
+    variantId: it.variantId,
+    quantity: it.quantity,
+    unitPrice: it.unitPrice,
+    totalPrice: it.totalPrice,
+    productName: it.productName || '',
+    productImage: it.productImage || '',
+    size: it.size,
+    color: it.color,
+    colorCode: it.colorCode,
+  }));
+  state.subtotal = cart.subtotal;
+  state.discount = cart.discount;
+  state.couponDiscount = cart.discount;
+  state.shippingFee = cart.shippingFee;
+  state.total = cart.total;
+  state.appliedCoupon = cart.appliedCoupon
+    ? {
+        code: cart.appliedCoupon,
+        discountType: 'fixed',
+        discountValue: cart.discount,
+        minOrderAmount: 0,
+      }
+    : null;
+};
 
-// ── Helpers ─────────────────────────────────
+// ── Async Thunks (server-backed) ────────────
 
-function calculateTotals(items: CartItemState[]): number {
-  return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-}
-
-function calculateShipping(items: CartItemState[]): number {
-  const brandIds = [...new Set(items.map((i) => i.brandId))];
-  return brandIds.reduce((fee, brandId) => {
-    const brandSubtotal = items
-      .filter((i) => i.brandId === brandId)
-      .reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-    return fee + (brandSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_PER_BRAND);
-  }, 0);
-}
-
-function applyCoupon(subtotal: number, coupon: Coupon | null): number {
-  if (!coupon || subtotal < coupon.minOrderAmount) return 0;
-  let discount =
-    coupon.discountType === 'percentage'
-      ? (subtotal * coupon.discountValue) / 100
-      : coupon.discountValue;
-  if (coupon.maxDiscount && discount > coupon.maxDiscount) {
-    discount = coupon.maxDiscount;
+export const fetchCart = createAsyncThunk('cart/fetchCart', async (_, { rejectWithValue }) => {
+  try {
+    const res = await fetchCartApi();
+    return res.data;
+  } catch (error: any) {
+    return rejectWithValue(error.message || 'Failed to load cart');
   }
-  return Math.round(discount);
-}
+});
 
-function recalcCart(state: CartState) {
-  const subtotal = calculateTotals(state.items);
-  const shipping = calculateShipping(state.items);
-  const couponDiscount = applyCoupon(subtotal, state.appliedCoupon);
-  state.subtotal = subtotal;
-  state.shippingFee = shipping;
-  state.couponDiscount = couponDiscount;
-  state.total = subtotal + shipping - couponDiscount;
-}
+export const addItem = createAsyncThunk(
+  'cart/addItem',
+  async (item: CartItemState, { rejectWithValue }) => {
+    try {
+      const res = await addToCartApi({
+        productId: item.productId,
+        brandId: item.brandId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      });
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to add item to cart');
+    }
+  }
+);
 
-// ── Async Thunks ────────────────────────────
+export const updateQuantity = createAsyncThunk(
+  'cart/updateQuantity',
+  async ({ itemId, quantity }: { itemId: string; quantity: number }, { rejectWithValue }) => {
+    try {
+      const res = await updateCartItemApi(itemId, Math.max(1, quantity));
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update quantity');
+    }
+  }
+);
+
+export const removeItem = createAsyncThunk(
+  'cart/removeItem',
+  async (itemId: string, { rejectWithValue }) => {
+    try {
+      const res = await removeCartItemApi(itemId);
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to remove item');
+    }
+  }
+);
 
 export const applyCouponAsync = createAsyncThunk(
   'cart/applyCouponAsync',
   async (code: string, { rejectWithValue }) => {
     try {
-      // Simulate API call for coupon validation
-      const validCoupons: Record<string, Coupon> = {
-        SAVE10: { code: 'SAVE10', discountType: 'percentage', discountValue: 10, minOrderAmount: 2000, maxDiscount: 1000 },
-        SAVE20: { code: 'SAVE20', discountType: 'percentage', discountValue: 20, minOrderAmount: 5000, maxDiscount: 2000 },
-        FLAT500: { code: 'FLAT500', discountType: 'fixed', discountValue: 500, minOrderAmount: 3000 },
-        WELCOME: { code: 'WELCOME', discountType: 'percentage', discountValue: 15, minOrderAmount: 1500, maxDiscount: 1500 },
-      };
-      const coupon = validCoupons[code.toUpperCase()];
-      if (!coupon) {
-        return rejectWithValue('Invalid coupon code');
-      }
-      return coupon;
+      const res = await applyCouponApi(code.trim());
+      return res.data;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to apply coupon');
     }
   }
 );
 
+export const removeCoupon = createAsyncThunk(
+  'cart/removeCoupon',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await removeCouponApi();
+      return res.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to remove coupon');
+    }
+  }
+);
+
+export const clearCart = createAsyncThunk('cart/clearCart', async (_, { rejectWithValue }) => {
+  try {
+    await clearCartApi();
+    return true;
+  } catch (error: any) {
+    return rejectWithValue(error.message || 'Failed to clear cart');
+  }
+});
+
 // ── Slice ───────────────────────────────────
+
+const serverCartThunks = [fetchCart, addItem, updateQuantity, removeItem, applyCouponAsync, removeCoupon] as const;
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    addItem(state, action: PayloadAction<CartItemState>) {
-      const newItem = action.payload;
-      const existingIndex = state.items.findIndex(
-        (i) => i.productId === newItem.productId && i.variantId === newItem.variantId
-      );
-      if (existingIndex >= 0) {
-        state.items[existingIndex].quantity += newItem.quantity;
-        state.items[existingIndex].totalPrice =
-          state.items[existingIndex].unitPrice * state.items[existingIndex].quantity;
-      } else {
-        state.items.push(newItem);
-      }
-      recalcCart(state);
-    },
-    removeItem(state, action: PayloadAction<string>) {
-      state.items = state.items.filter((i) => i.itemId !== action.payload);
-      recalcCart(state);
-      if (state.items.length === 0) {
-        state.appliedCoupon = null;
-      }
-    },
-    updateQuantity(state, action: PayloadAction<{ itemId: string; quantity: number }>) {
-      const { itemId, quantity } = action.payload;
-      const item = state.items.find((i) => i.itemId === itemId);
-      if (item) {
-        item.quantity = Math.max(1, quantity);
-        item.totalPrice = item.unitPrice * item.quantity;
-      }
-      recalcCart(state);
-    },
-    removeCoupon(state) {
-      state.appliedCoupon = null;
-      state.couponDiscount = 0;
-      recalcCart(state);
-    },
-    clearCart(state) {
-      Object.assign(state, initialState);
-    },
+    // Local sync fallback (offline demo only)
     syncCart(state, action: PayloadAction<CartItemState[]>) {
       state.items = action.payload;
-      recalcCart(state);
+    },
+    clearCartError(state) {
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
+    serverCartThunks.forEach((thunk) => {
+      builder
+        .addCase(thunk.pending, (state) => {
+          state.loading = true;
+          state.error = null;
+        })
+        .addCase(thunk.fulfilled, (state, action) => {
+          state.loading = false;
+          applyServerCart(state, action.payload as CartView);
+        })
+        .addCase(thunk.rejected, (state, action) => {
+          state.loading = false;
+          state.error = action.payload as string;
+        });
+    });
     builder
-      .addCase(applyCouponAsync.pending, (state) => {
+      .addCase(clearCart.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(applyCouponAsync.fulfilled, (state, action) => {
-        state.loading = false;
-        state.appliedCoupon = action.payload;
-        recalcCart(state);
-      })
-      .addCase(applyCouponAsync.rejected, (state, action) => {
+      .addCase(clearCart.fulfilled, () => ({ ...initialState }))
+      .addCase(clearCart.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
   },
 });
 
-export const {
-  addItem,
-  removeItem,
-  updateQuantity,
-  removeCoupon,
-  clearCart,
-  syncCart,
-} = cartSlice.actions;
+export const { syncCart, clearCartError } = cartSlice.actions;
 
 // ── Selectors ───────────────────────────────
 

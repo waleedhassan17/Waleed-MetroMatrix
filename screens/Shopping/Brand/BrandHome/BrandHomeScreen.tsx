@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,8 +25,8 @@ import {
 } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
-import { useAppSelector } from '../../../../store/hooks';
-import { selectBrandHome } from './brandHomeSlice';
+import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { fetchBrandDashboard, selectBrandHome } from './brandHomeSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
@@ -59,7 +59,12 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 
 const BrandHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const dispatch = useAppDispatch();
   const { kpis, weeklySales, recentOrders, lowStockAlerts } = useAppSelector(selectBrandHome);
+
+  useEffect(() => {
+    dispatch(fetchBrandDashboard());
+  }, [dispatch]);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
   const currencySym = walletCurrency.toLowerCase() === 'pkr' ? '₨' : '$';

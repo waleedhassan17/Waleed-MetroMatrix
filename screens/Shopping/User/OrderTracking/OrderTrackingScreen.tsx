@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Truck, Package, CheckCircle2, Circle, Clock, Copy, Phone } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { setCurrentOrderId, selectOrderTracking, type TrackingStep } from './orderTrackingSlice';
+import { fetchTracking, selectOrderTracking, type TrackingStep } from './orderTrackingSlice';
 
 const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', success: '#27AE60', successLight: '#E8F8F0' };
 
@@ -16,7 +16,7 @@ const OrderTrackingScreen: React.FC = () => {
   const { currentOrderId, estimatedDelivery, courierName, trackingNumber, steps } = useAppSelector(selectOrderTracking);
 
   useEffect(() => {
-    if (orderId) dispatch(setCurrentOrderId(orderId));
+    if (orderId) dispatch(fetchTracking(orderId));
   }, [dispatch, orderId]);
 
   const formatTime = (iso: string | null) => {

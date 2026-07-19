@@ -1,4 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { fetchVendorOrdersApi } from '../../../../networks/shopping/vendorApi';
+import type { Order } from '../../../../types/shopping';
 
 // ── Types ───────────────────────────────────
 
@@ -44,124 +46,44 @@ export interface BrandDeliveriesState {
   shipments: Shipment[];
   courierStats: CourierStats[];
   loading: boolean;
+  error: string | null;
 }
 
-// ── Sample Data ─────────────────────────────
+// ── Order → shipment mapping ────────────────
+// Deliveries are the fulfilment view of my brand's orders: everything
+// from 'processing' (awaiting pickup) onwards appears as a shipment.
 
-const SAMPLE_SHIPMENTS: Shipment[] = [
-  {
-    shipmentId: 'SHP-4001',
-    orderId: 'ORD-20018',
-    customerName: 'Ayesha Khan',
-    customerCity: 'Lahore',
-    courier: 'TCS Express',
-    trackingNumber: 'TCS-29847261',
-    status: 'in_transit',
-    estimatedDelivery: 'Tomorrow',
-    dispatchedAt: 'Today, 2:30 PM',
-    itemCount: 3,
-    totalValue: 12400,
-  },
-  {
-    shipmentId: 'SHP-4002',
-    orderId: 'ORD-20017',
-    customerName: 'Hassan Ali',
-    customerCity: 'Karachi',
-    courier: 'Leopards',
-    trackingNumber: 'LEO-83742156',
-    status: 'out_for_delivery',
-    estimatedDelivery: 'Today',
-    dispatchedAt: 'Yesterday',
-    itemCount: 1,
-    totalValue: 8600,
-  },
-  {
-    shipmentId: 'SHP-4003',
-    orderId: 'ORD-20016',
-    customerName: 'Maya Noor',
-    customerCity: 'Islamabad',
-    courier: 'TCS Express',
-    trackingNumber: 'TCS-29847260',
-    status: 'delivered',
-    estimatedDelivery: 'May 8',
-    dispatchedAt: 'May 6',
-    deliveredAt: 'May 8, 11:20 AM',
-    itemCount: 2,
-    totalValue: 15650,
-  },
-  {
-    shipmentId: 'SHP-4004',
-    orderId: 'ORD-20015',
-    customerName: 'Ahmed Raza',
-    customerCity: 'Rawalpindi',
-    courier: 'DHL',
-    trackingNumber: 'DHL-91823456',
-    status: 'pending_pickup',
-    estimatedDelivery: 'May 14',
-    dispatchedAt: '-',
-    itemCount: 4,
-    totalValue: 22100,
-  },
-  {
-    shipmentId: 'SHP-4005',
-    orderId: 'ORD-20014',
-    customerName: 'Fatima Syed',
-    customerCity: 'Faisalabad',
-    courier: 'Leopards',
-    trackingNumber: 'LEO-83742155',
-    status: 'failed',
-    estimatedDelivery: 'May 7',
-    dispatchedAt: 'May 5',
-    itemCount: 1,
-    totalValue: 4500,
-  },
-  {
-    shipmentId: 'SHP-4006',
-    orderId: 'ORD-20013',
-    customerName: 'Usman Tariq',
-    customerCity: 'Multan',
-    courier: 'TCS Express',
-    trackingNumber: 'TCS-29847259',
-    status: 'delivered',
-    estimatedDelivery: 'May 6',
-    dispatchedAt: 'May 4',
-    deliveredAt: 'May 6, 3:45 PM',
-    itemCount: 2,
-    totalValue: 9800,
-  },
-  {
-    shipmentId: 'SHP-4007',
-    orderId: 'ORD-20012',
-    customerName: 'Sana Malik',
-    customerCity: 'Lahore',
-    courier: 'DHL',
-    trackingNumber: 'DHL-91823455',
-    status: 'in_transit',
-    estimatedDelivery: 'May 12',
-    dispatchedAt: 'Today, 10:15 AM',
-    itemCount: 5,
-    totalValue: 31200,
-  },
-  {
-    shipmentId: 'SHP-4008',
-    orderId: 'ORD-20011',
-    customerName: 'Bilal Shah',
-    customerCity: 'Peshawar',
-    courier: 'Leopards',
-    trackingNumber: 'LEO-83742154',
-    status: 'returned',
-    estimatedDelivery: 'May 5',
-    dispatchedAt: 'May 3',
-    itemCount: 1,
-    totalValue: 6200,
-  },
-];
+const ORDER_TO_DELIVERY: Record<string, DeliveryStatus> = {
+  processing: 'pending_pickup',
+  shipped: 'in_transit',
+  out_for_delivery: 'out_for_delivery',
+  delivered: 'delivered',
+  cancelled: 'failed',
+  returned: 'returned',
+  refunded: 'returned',
+};
 
-const SAMPLE_COURIER_STATS: CourierStats[] = [
-  { courierName: 'TCS Express', totalShipments: 42, delivered: 38, avgDeliveryDays: 2.4, successRate: 96.2 },
-  { courierName: 'Leopards', totalShipments: 28, delivered: 24, avgDeliveryDays: 3.1, successRate: 91.5 },
-  { courierName: 'DHL', totalShipments: 14, delivered: 13, avgDeliveryDays: 1.8, successRate: 98.0 },
-];
+const shortDate = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' }) : '-';
+
+const toShipment = (order: Order & { customerName?: string }): Shipment | null => {
+  const status = ORDER_TO_DELIVERY[order.orderStatus];
+  if (!status) return null;
+  return {
+    shipmentId: `SHP-${order.odexId}`,
+    orderId: order.orderId,
+    customerName: order.customerName || order.shippingAddress?.fullName || '',
+    customerCity: order.shippingAddress?.city || '',
+    courier: order.trackingNumber ? order.trackingNumber.split('-')[0] : 'Courier',
+    trackingNumber: order.trackingNumber || '—',
+    status,
+    estimatedDelivery: shortDate(order.createdAt ? new Date(new Date(order.createdAt).getTime() + 5 * 86400000).toISOString() : undefined),
+    dispatchedAt: shortDate(order.createdAt),
+    deliveredAt: order.orderStatus === 'delivered' ? shortDate((order as any).deliveredAt || order.createdAt) : undefined,
+    itemCount: order.items.reduce((s, i) => s + i.quantity, 0),
+    totalValue: order.total,
+  };
+};
 
 const buildKpis = (shipments: Shipment[]): DeliveryKpis => ({
   totalShipments: shipments.length,
@@ -169,17 +91,53 @@ const buildKpis = (shipments: Shipment[]): DeliveryKpis => ({
   inTransit: shipments.filter((s) => s.status === 'in_transit' || s.status === 'out_for_delivery').length,
   delivered: shipments.filter((s) => s.status === 'delivered').length,
   failed: shipments.filter((s) => s.status === 'failed' || s.status === 'returned').length,
-  avgDeliveryTime: '2.6 days',
+  avgDeliveryTime: '—',
 });
+
+const buildCourierStats = (shipments: Shipment[]): CourierStats[] => {
+  const byCourier = new Map<string, Shipment[]>();
+  shipments.forEach((s) => {
+    const list = byCourier.get(s.courier) || [];
+    list.push(s);
+    byCourier.set(s.courier, list);
+  });
+  return [...byCourier.entries()].map(([courierName, list]) => {
+    const delivered = list.filter((s) => s.status === 'delivered').length;
+    return {
+      courierName,
+      totalShipments: list.length,
+      delivered,
+      avgDeliveryDays: 0,
+      successRate: list.length ? Math.round((delivered / list.length) * 1000) / 10 : 0,
+    };
+  });
+};
 
 const initialState: BrandDeliveriesState = {
   filter: 'all',
   searchQuery: '',
-  kpis: buildKpis(SAMPLE_SHIPMENTS),
-  shipments: SAMPLE_SHIPMENTS,
-  courierStats: SAMPLE_COURIER_STATS,
+  kpis: buildKpis([]),
+  shipments: [],
+  courierStats: [],
   loading: false,
+  error: null,
 };
+
+// ── Thunks ──────────────────────────────────
+
+export const fetchDeliveries = createAsyncThunk(
+  'brandDeliveries/fetch',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetchVendorOrdersApi({ page: 1, limit: 100 });
+      return res.data
+        .map(toShipment)
+        .filter((s): s is Shipment => s !== null);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load deliveries');
+    }
+  }
+);
 
 // ── Slice ───────────────────────────────────
 
@@ -203,6 +161,23 @@ const brandDeliveriesSlice = createSlice({
       }
       state.kpis = buildKpis(state.shipments);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchDeliveries.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDeliveries.fulfilled, (state, action) => {
+        state.loading = false;
+        state.shipments = action.payload;
+        state.kpis = buildKpis(action.payload);
+        state.courierStats = buildCourierStats(action.payload);
+      })
+      .addCase(fetchDeliveries.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
