@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, ClipboardList, Package, Truck, CheckCircle2, Clock, XCircle, ChevronRight } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
@@ -41,13 +41,21 @@ const getStatusDetails = (status: string) => {
 const MyOrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { orders, statusFilter } = useAppSelector(selectMyOrders);
+  const { orders, statusFilter, loading, error } = useAppSelector(selectMyOrders);
 
   useEffect(() => {
     dispatch(fetchMyOrders());
   }, [dispatch]);
 
-  const filtered = useMemo(() => (statusFilter === 'all' ? orders : orders.filter((order) => order.status === statusFilter)), [orders, statusFilter]);
+  // The server filters by status (matching the backend's real filter
+  // semantics exactly) — a client-only filter over a single 50-item page
+  // would silently hide older orders once a customer has more than that.
+  const handleFilterPress = useCallback((filter: typeof filters[number]) => {
+    dispatch(setStatusFilter(filter));
+    dispatch(fetchMyOrders(filter === 'all' ? undefined : filter));
+  }, [dispatch]);
+
+  const filtered = orders;
 
   return (
     <View style={styles.container}>
@@ -65,7 +73,7 @@ const MyOrdersScreen: React.FC = () => {
           {filters.map((filter) => {
             const active = statusFilter === filter;
             return (
-              <TouchableOpacity key={filter} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => dispatch(setStatusFilter(filter))}>
+              <TouchableOpacity key={filter} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => handleFilterPress(filter)}>
                 <Text style={[styles.filterText, active && styles.filterTextActive]}>
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Text>
@@ -74,6 +82,25 @@ const MyOrdersScreen: React.FC = () => {
           })}
         </ScrollView>
       </View>
+
+      {loading && orders.length === 0 && (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={ShopColors.primary} />
+        </View>
+      )}
+
+      {error && orders.length === 0 && !loading && (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Couldn't load your orders</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => dispatch(fetchMyOrders(statusFilter === 'all' ? undefined : statusFilter))}
+          >
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {filtered.map((order) => {
@@ -220,7 +247,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
-  emptySubtitle: { fontSize: 13, color: Colors.text.tertiary },
+  emptySubtitle: { fontSize: 13, color: Colors.text.tertiary, textAlign: 'center', marginTop: 4, paddingHorizontal: Spacing.xl },
+  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
+  retryBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.xl, paddingVertical: 10, borderRadius: BorderRadius.full, backgroundColor: ShopColors.primary },
+  retryBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 });
 
 export default MyOrdersScreen;

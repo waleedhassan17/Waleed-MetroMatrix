@@ -315,6 +315,8 @@ const ProductDetailScreen: React.FC = () => {
             <View style={styles.optionRow}>
               {availableColors.map(({ name, code }) => {
                 const isActive = selectedColor === name;
+                const variant = product.variants.find((v) => v.color === name && (selectedSize ? v.size === selectedSize : true));
+                const isAvailable = variant ? variant.stockQuantity > 0 : false;
                 return (
                   <TouchableOpacity
                     key={name}
@@ -323,7 +325,9 @@ const ProductDetailScreen: React.FC = () => {
                       { backgroundColor: code },
                       code === '#FFFFFF' && styles.colorSwatchWhite,
                       isActive && { borderColor: ShopColors.primary, borderWidth: 3 },
+                      !isAvailable && styles.colorSwatchDisabled,
                     ]}
+                    disabled={!isAvailable}
                     onPress={() => dispatch(setSelectedColor(name))}
                   >
                     {isActive && (
@@ -331,6 +335,7 @@ const ProductDetailScreen: React.FC = () => {
                         <Text style={{ color: code === '#FFFFFF' || code === '#F1C40F' ? '#333' : '#FFF', fontSize: 12, fontWeight: '700' }}>✓</Text>
                       </View>
                     )}
+                    {!isAvailable && <View style={styles.colorSwatchStrike} />}
                   </TouchableOpacity>
                 );
               })}
@@ -726,6 +731,16 @@ const styles = StyleSheet.create({
   },
   colorSwatchWhite: {
     borderColor: Colors.borderDark,
+  },
+  colorSwatchDisabled: {
+    opacity: 0.35,
+  },
+  colorSwatchStrike: {
+    position: 'absolute',
+    width: 40,
+    height: 2,
+    backgroundColor: Colors.text.tertiary,
+    transform: [{ rotate: '45deg' }],
   },
   colorCheck: {
     width: 20,

@@ -38,6 +38,8 @@ const FIELDS: { key: keyof CheckoutAddressForm; label: string; placeholder: stri
   { key: 'address', label: 'Address', placeholder: 'House, street' },
   { key: 'city', label: 'City', placeholder: 'Lahore' },
   { key: 'area', label: 'Area', placeholder: 'Gulberg III' },
+  { key: 'state', label: 'State/Province', placeholder: 'Punjab' },
+  { key: 'postalCode', label: 'Postal Code', placeholder: '54000' },
   { key: 'landmark', label: 'Landmark (optional)', placeholder: 'Near…' },
 ];
 

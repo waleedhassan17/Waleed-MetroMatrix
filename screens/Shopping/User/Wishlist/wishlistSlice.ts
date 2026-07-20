@@ -90,16 +90,32 @@ export const toggleWishlistItem = createAsyncThunk(
   }
 );
 
-const serverThunks = [fetchWishlist, addToWishlist, removeWishlistItem, toggleWishlistItem] as const;
+// There is no bulk-clear endpoint on the backend, only a per-product DELETE
+// — "Clear Wishlist" has to remove every item that way or it's not actually
+// persisted server-side (the next fetchWishlist() would just bring them back).
+export const clearWishlist = createAsyncThunk(
+  'wishlist/clear',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { wishlist } = getState() as { wishlist: WishlistState };
+      let lastResponse: WishlistItemState[] = wishlist.items;
+      for (const item of wishlist.items) {
+        const res = await removeFromWishlistApi(item.productId);
+        lastResponse = mapServerItems(res.data);
+      }
+      return lastResponse;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to clear wishlist');
+    }
+  }
+);
+
+const serverThunks = [fetchWishlist, addToWishlist, removeWishlistItem, toggleWishlistItem, clearWishlist] as const;
 
 const wishlistSlice = createSlice({
   name: 'wishlist',
   initialState,
-  reducers: {
-    clearWishlist(state) {
-      state.items = [];
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     serverThunks.forEach((thunk) => {
       builder
@@ -119,7 +135,6 @@ const wishlistSlice = createSlice({
   },
 });
 
-export const { clearWishlist } = wishlistSlice.actions;
 export const selectWishlist = (state: { wishlist: WishlistState }) => state.wishlist;
 export const selectWishlistItems = (state: { wishlist: WishlistState }) => state.wishlist.items;
 export const selectWishlistCount = (state: { wishlist: WishlistState }) => state.wishlist.items.length;

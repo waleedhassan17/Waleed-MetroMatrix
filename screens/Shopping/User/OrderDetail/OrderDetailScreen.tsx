@@ -53,7 +53,14 @@ const OrderDetailScreen: React.FC = () => {
       {
         text: 'Cancel Order',
         style: 'destructive',
-        onPress: () => dispatch(cancelSubOrder({ orderId: order.orderId, reason: 'Cancelled by customer' })),
+        onPress: async () => {
+          const result = await dispatch(
+            cancelSubOrder({ orderId: order.orderId, reason: 'Cancelled by customer' })
+          );
+          if (cancelSubOrder.rejected.match(result)) {
+            Alert.alert('Could not cancel order', (result.payload as string) || 'Please try again.');
+          }
+        },
       },
     ]);
   }, [dispatch]);

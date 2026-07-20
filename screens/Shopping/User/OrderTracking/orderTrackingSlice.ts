@@ -10,9 +10,20 @@ export interface TrackingStep {
   current: boolean;
 }
 
+export type OrderTrackingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'shipped'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'cancelled'
+  | 'returned'
+  | 'refunded';
+
 export interface OrderTrackingState {
   currentOrderId: string | null;
-  orderStatus: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'out_for_delivery' | 'delivered';
+  orderStatus: OrderTrackingStatus;
   estimatedDelivery: string;
   courierName: string;
   trackingNumber: string;
@@ -31,14 +42,72 @@ const STEP_DEFS: { key: string; title: string; subtitle: string }[] = [
 const STATUS_ORDER = ['confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
 
 const buildSteps = (
-  status: OrderTrackingState['orderStatus'],
+  status: OrderTrackingStatus,
   history: { status: string; changedAt: string }[] = []
 ): TrackingStep[] => {
-  const currentIdx = STATUS_ORDER.indexOf(status === 'pending' ? 'confirmed' : status);
   const timestampFor = (key: string): string | null => {
     const entry = history.find((h) => h.status === key);
     return entry ? entry.changedAt : null;
   };
+
+  // Cancellation can happen from pending/confirmed/processing (see backend
+  // ALLOWED_TRANSITIONS) — completed steps are whatever's actually in the
+  // history, and the chain stops there. It must never be shown as delivered.
+  if (status === 'cancelled') {
+    const reachedKeys = new Set(history.map((h) => h.status));
+    const normalSteps = STEP_DEFS.filter((s) => s.key !== 'delivered').map((s) => ({
+      ...s,
+      timestamp: reachedKeys.has(s.key) ? timestampFor(s.key) : null,
+      completed: reachedKeys.has(s.key),
+      current: false,
+    }));
+    return [
+      ...normalSteps,
+      {
+        key: 'cancelled',
+        title: 'Order Cancelled',
+        subtitle: 'This order was cancelled',
+        timestamp: timestampFor('cancelled'),
+        completed: true,
+        current: true,
+      },
+    ];
+  }
+
+  // returned/refunded only happen after a real delivery (delivered → returned
+  // → refunded), so the normal steps genuinely did complete — but the extra
+  // terminal step must be shown too, not silently dropped.
+  if (status === 'returned' || status === 'refunded') {
+    const normalSteps = STEP_DEFS.map((s) => ({
+      ...s,
+      timestamp: timestampFor(s.key),
+      completed: true,
+      current: false,
+    }));
+    const extraSteps: TrackingStep[] = [
+      {
+        key: 'returned',
+        title: 'Returned',
+        subtitle: 'Item returned to seller',
+        timestamp: timestampFor('returned'),
+        completed: true,
+        current: status === 'returned',
+      },
+    ];
+    if (status === 'refunded') {
+      extraSteps.push({
+        key: 'refunded',
+        title: 'Refunded',
+        subtitle: 'Refund completed to your wallet',
+        timestamp: timestampFor('refunded'),
+        completed: true,
+        current: true,
+      });
+    }
+    return [...normalSteps, ...extraSteps];
+  }
+
+  const currentIdx = STATUS_ORDER.indexOf(status === 'pending' ? 'confirmed' : status);
   return STEP_DEFS.map((s, i) => ({
     ...s,
     timestamp: i <= currentIdx ? timestampFor(s.key) : null,
@@ -78,7 +147,7 @@ const orderTrackingSlice = createSlice({
     setCurrentOrderId(state, action: PayloadAction<string>) {
       state.currentOrderId = action.payload;
     },
-    setOrderStatus(state, action: PayloadAction<OrderTrackingState['orderStatus']>) {
+    setOrderStatus(state, action: PayloadAction<OrderTrackingStatus>) {
       state.orderStatus = action.payload;
       state.steps = buildSteps(action.payload);
     },
@@ -86,7 +155,7 @@ const orderTrackingSlice = createSlice({
       state,
       action: PayloadAction<{
         orderId: string;
-        status: OrderTrackingState['orderStatus'];
+        status: OrderTrackingStatus;
         courierName?: string;
         trackingNumber?: string;
         estimatedDelivery?: string;
@@ -111,11 +180,7 @@ const orderTrackingSlice = createSlice({
         const data = action.payload;
         state.loading = false;
         state.currentOrderId = data.orderId;
-        const status = (
-          ['cancelled', 'returned', 'refunded'].includes(data.orderStatus)
-            ? 'delivered'
-            : data.orderStatus
-        ) as OrderTrackingState['orderStatus'];
+        const status = data.orderStatus as OrderTrackingStatus;
         state.orderStatus = status;
         state.trackingNumber = data.trackingNumber || '';
         state.steps = buildSteps(status, data.statusHistory);

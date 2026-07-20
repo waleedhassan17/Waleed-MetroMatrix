@@ -1,19 +1,41 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Truck, Package, CheckCircle2, Circle, Clock, Copy, Phone } from 'lucide-react-native';
+import { ChevronLeft, Truck, Package, CheckCircle2, Circle, Clock, Copy, Phone, XCircle, RotateCcw } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { fetchTracking, selectOrderTracking, type TrackingStep } from './orderTrackingSlice';
+import {
+  fetchTracking,
+  selectOrderTracking,
+  type OrderTrackingStatus,
+  type TrackingStep,
+} from './orderTrackingSlice';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', success: '#27AE60', successLight: '#E8F8F0' };
+const ShopColors = {
+  primary: '#E67E22', primaryLight: '#FFF3E6',
+  success: '#27AE60', successLight: '#E8F8F0',
+  danger: '#E74C3C', dangerLight: '#FDEBEA',
+};
+
+const STATUS_BADGE: Record<OrderTrackingStatus, { label: string; icon: typeof Truck; color: string; bg: string }> = {
+  pending: { label: 'Pending', icon: Clock, color: Colors.text.secondary, bg: Colors.backgroundAlt },
+  confirmed: { label: 'Confirmed', icon: CheckCircle2, color: ShopColors.primary, bg: ShopColors.primaryLight },
+  processing: { label: 'Processing', icon: Package, color: ShopColors.primary, bg: ShopColors.primaryLight },
+  shipped: { label: 'Shipped', icon: Truck, color: ShopColors.primary, bg: ShopColors.primaryLight },
+  out_for_delivery: { label: 'Out for Delivery', icon: Truck, color: ShopColors.primary, bg: ShopColors.primaryLight },
+  delivered: { label: 'Delivered', icon: CheckCircle2, color: ShopColors.success, bg: ShopColors.successLight },
+  cancelled: { label: 'Cancelled', icon: XCircle, color: ShopColors.danger, bg: ShopColors.dangerLight },
+  returned: { label: 'Returned', icon: RotateCcw, color: ShopColors.danger, bg: ShopColors.dangerLight },
+  refunded: { label: 'Refunded', icon: RotateCcw, color: ShopColors.danger, bg: ShopColors.dangerLight },
+};
 
 const OrderTrackingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const orderId = route.params?.orderId as string | undefined;
-  const { currentOrderId, estimatedDelivery, courierName, trackingNumber, steps } = useAppSelector(selectOrderTracking);
+  const { currentOrderId, orderStatus, estimatedDelivery, courierName, trackingNumber, steps, loading, error } =
+    useAppSelector(selectOrderTracking);
 
   useEffect(() => {
     if (orderId) dispatch(fetchTracking(orderId));
@@ -65,6 +87,22 @@ const OrderTrackingScreen: React.FC = () => {
         <View style={{ width: 40 }} />
       </View>
 
+      {loading && steps.length === 0 && (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="small" color={ShopColors.primary} />
+          <Text style={styles.helperText}>Loading tracking...</Text>
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorWrap}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => orderId && dispatch(fetchTracking(orderId))}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Order ID Card */}
         <View style={styles.orderCard}>
@@ -73,9 +111,14 @@ const OrderTrackingScreen: React.FC = () => {
               <Text style={styles.orderLabel}>Order ID</Text>
               <Text style={styles.orderValue}>{currentOrderId || orderId || '—'}</Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: ShopColors.primaryLight }]}>
-              <Truck size={14} stroke={ShopColors.primary} strokeWidth={2} />
-              <Text style={[styles.statusText, { color: ShopColors.primary }]}>In Transit</Text>
+            <View style={[styles.statusBadge, { backgroundColor: STATUS_BADGE[orderStatus].bg }]}>
+              {(() => {
+                const Icon = STATUS_BADGE[orderStatus].icon;
+                return <Icon size={14} stroke={STATUS_BADGE[orderStatus].color} strokeWidth={2} />;
+              })()}
+              <Text style={[styles.statusText, { color: STATUS_BADGE[orderStatus].color }]}>
+                {STATUS_BADGE[orderStatus].label}
+              </Text>
             </View>
           </View>
         </View>
@@ -126,6 +169,12 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scrollContent: { padding: Spacing.lg },
+  loaderWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+  helperText: { fontSize: 12, color: Colors.text.tertiary },
+  errorWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: Spacing.lg, marginTop: Spacing.md, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: ShopColors.dangerLight },
+  errorText: { flex: 1, fontSize: 12, color: ShopColors.danger, fontWeight: '600' },
+  retryBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.md, backgroundColor: ShopColors.danger, marginLeft: Spacing.sm },
+  retryText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
 
   // Order Card
   orderCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.small },

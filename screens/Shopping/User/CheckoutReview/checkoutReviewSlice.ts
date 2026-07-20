@@ -149,16 +149,19 @@ export const selectCheckoutOrderSummary = createSelector(
 
     const paymentMethod = payment?.name ?? 'No payment selected';
 
-    const deliveryFee = delivery?.cost ?? 0;
-
+    // The backend has no delivery-speed-tier concept — shipping is a flat
+    // per-brand fee it computes itself (see cart.shippingFee). The delivery
+    // screen's cost is cosmetic/ETA-only and is never sent to checkoutApi,
+    // so the total shown here must be built from the server's real numbers
+    // or it will diverge from what actually gets charged.
     return {
       items,
       deliveryAddress,
       deliveryOption,
       paymentMethod,
       subtotal: cart.subtotal,
-      deliveryFee,
-      total: cart.subtotal + deliveryFee - cart.couponDiscount,
+      deliveryFee: cart.shippingFee,
+      total: cart.total,
     };
   }
 );

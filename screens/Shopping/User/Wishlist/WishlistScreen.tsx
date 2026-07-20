@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Heart, ShoppingCart, Trash2, X } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
@@ -13,7 +13,7 @@ const CURRENCY = 'PKR';
 const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { items } = useAppSelector(selectWishlist);
+  const { items, loading, error } = useAppSelector(selectWishlist);
 
   useEffect(() => {
     dispatch(fetchWishlist());
@@ -68,21 +68,41 @@ const WishlistScreen: React.FC = () => {
     );
   }, [handleRemove, handleViewProduct]);
 
-  const renderEmpty = () => (
-    <View style={styles.empty}>
-      <View style={styles.emptyIcon}>
-        <Heart size={48} stroke={Colors.borderDark} strokeWidth={1} />
+  const renderEmpty = () => {
+    if (loading) {
+      return (
+        <View style={styles.empty}>
+          <ActivityIndicator size="small" color={ShopColors.primary} />
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Couldn't load your wishlist</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+          <TouchableOpacity style={styles.browseBtn} onPress={() => dispatch(fetchWishlist())}>
+            <Text style={styles.browseBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyIcon}>
+          <Heart size={48} stroke={Colors.borderDark} strokeWidth={1} />
+        </View>
+        <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
+        <Text style={styles.emptySubtitle}>Items you save will appear here so you can easily find them later.</Text>
+        <TouchableOpacity
+          style={styles.browseBtn}
+          onPress={() => navigation.navigate(ShoppingRouteNames.ShoppingHome)}
+        >
+          <Text style={styles.browseBtnText}>Start Shopping</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
-      <Text style={styles.emptySubtitle}>Items you save will appear here so you can easily find them later.</Text>
-      <TouchableOpacity
-        style={styles.browseBtn}
-        onPress={() => navigation.navigate(ShoppingRouteNames.ShoppingHome)}
-      >
-        <Text style={styles.browseBtnText}>Start Shopping</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>

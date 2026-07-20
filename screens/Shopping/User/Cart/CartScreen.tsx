@@ -66,14 +66,19 @@ const CartScreen: React.FC = () => {
   }, [dispatch]);
   const [showCouponInput, setShowCouponInput] = useState(false);
 
-  const handleRemoveItem = useCallback((itemId: string) => {
-    dispatch(removeItem(itemId));
+  const handleRemoveItem = useCallback(async (itemId: string) => {
+    const result = await dispatch(removeItem(itemId));
+    if (removeItem.rejected.match(result)) {
+      Alert.alert('Could not remove item', (result.payload as string) || 'Please try again.');
+    }
   }, [dispatch]);
 
-  const handleUpdateQuantity = useCallback((itemId: string, delta: number) => {
+  const handleUpdateQuantity = useCallback(async (itemId: string, delta: number) => {
     const item = cart.items.find((i) => i.itemId === itemId);
-    if (item) {
-      dispatch(updateQuantity({ itemId, quantity: Math.max(1, item.quantity + delta) }));
+    if (!item) return;
+    const result = await dispatch(updateQuantity({ itemId, quantity: Math.max(1, item.quantity + delta) }));
+    if (updateQuantity.rejected.match(result)) {
+      Alert.alert('Could not update quantity', (result.payload as string) || 'Please try again.');
     }
   }, [dispatch, cart.items]);
 

@@ -14,7 +14,7 @@ export const SHOPPING_API_URL = `${API_BASE_URL}/shopping`;
 
 // Offline demo fallback ONLY. When true, networks/shopping/* return the
 // bundled Outfitters fixtures from dummyData.ts instead of hitting the API.
-export const USE_SHOPPING_DUMMY_DATA = true;
+export const USE_SHOPPING_DUMMY_DATA = false;
 
 // Home Services offline demo fallback ONLY (HS6). When true, the
 // networks/serviceProviders/* modules return bundled fixtures instead of

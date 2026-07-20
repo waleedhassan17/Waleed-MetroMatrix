@@ -20,6 +20,7 @@ import {
   deleteAddress,
   fetchAddresses,
   resetNewAddressForm,
+  selectCheckoutAddressError,
   selectCheckoutAddressForm,
   selectCheckoutAddressLoading,
   selectCheckoutAddresses,
@@ -41,6 +42,7 @@ const CheckoutAddressScreen: React.FC = () => {
   const selectedAddress = useAppSelector(selectSelectedCheckoutAddress);
   const form = useAppSelector(selectCheckoutAddressForm);
   const loading = useAppSelector(selectCheckoutAddressLoading);
+  const error = useAppSelector(selectCheckoutAddressError);
 
   useEffect(() => {
     dispatch(fetchAddresses());
@@ -53,13 +55,16 @@ const CheckoutAddressScreen: React.FC = () => {
     [dispatch]
   );
 
-  const handleSaveAddress = useCallback(() => {
+  const handleSaveAddress = useCallback(async () => {
     if (!form.name || !form.phone || !form.address || !form.city || !form.area) {
       Alert.alert('Missing information', 'Please fill in the required address fields.');
       return;
     }
 
-    dispatch(addNewAddress(form));
+    const result = await dispatch(addNewAddress(form));
+    if (!addNewAddress.fulfilled.match(result)) {
+      Alert.alert('Could not save address', (result.payload as string) || 'Please try again.');
+    }
   }, [dispatch, form]);
 
   const handleEditAddress = useCallback(
@@ -170,6 +175,7 @@ const CheckoutAddressScreen: React.FC = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Add New Address</Text>
+          {error && <Text style={styles.errorText}>{error}</Text>}
 
           <View style={styles.formGrid}>
             {[
@@ -178,6 +184,8 @@ const CheckoutAddressScreen: React.FC = () => {
               { field: 'address', placeholder: 'Address' },
               { field: 'city', placeholder: 'City' },
               { field: 'area', placeholder: 'Area' },
+              { field: 'state', placeholder: 'State/Province' },
+              { field: 'postalCode', placeholder: 'Postal Code' },
               { field: 'landmark', placeholder: 'Landmark' },
             ].map((item) => (
               <TextInput
@@ -292,6 +300,7 @@ const styles = StyleSheet.create({
   cardActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardActionText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   helperText: { fontSize: 12, color: Colors.text.tertiary, marginTop: Spacing.xs },
+  errorText: { fontSize: 12, color: Colors.error, marginBottom: Spacing.sm },
   formGrid: { gap: Spacing.sm, marginTop: Spacing.md },
   input: {
     borderWidth: 1,

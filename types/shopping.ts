@@ -36,7 +36,7 @@ export interface BrandConfig {
   contactEmail: string;
   contactPhone: string;
   website: string;
-  socialLinks: BrandSocialLinks;
+  socialLinks?: BrandSocialLinks;
   isActive: boolean;
   createdAt: string;
 }
@@ -286,6 +286,8 @@ export interface OrderGroupView {
 export interface SavedAddressView extends ShippingAddress {
   addressId: string;
   label?: string;
+  area?: string;
+  landmark?: string;
   isDefault: boolean;
 }
 

@@ -16,10 +16,15 @@ export interface CheckoutDeliveryState {
   error: string | null;
 }
 
+// The backend has no delivery-speed-tier pricing — shipping is a single flat
+// per-brand fee it computes at checkout (see cart.shippingFee), and this
+// screen's chosen option/id is informational only (never sent to checkoutApi).
+// cost stays 0 for every option so nothing here implies a charge the order
+// review/payment screens won't actually collect.
 const sampleOptions: DeliveryOption[] = [
-  { id: 'standard', name: 'Standard', eta: '5-7 days', cost: 0, description: 'Free on eligible orders' },
-  { id: 'express', name: 'Express', eta: '2-3 days', cost: 300, description: 'Faster delivery for urgent orders' },
-  { id: 'same-day', name: 'Same Day', eta: 'Today', cost: 500, description: 'Available in select cities only' },
+  { id: 'standard', name: 'Standard', eta: '5-7 days', cost: 0, description: 'Our regular delivery window' },
+  { id: 'express', name: 'Express', eta: '2-3 days', cost: 0, description: 'Faster delivery for urgent orders' },
+  { id: 'same-day', name: 'Same Day', eta: 'Today', cost: 0, description: 'Available in select cities only' },
 ];
 
 const initialState: CheckoutDeliveryState = {
@@ -48,7 +53,7 @@ const checkoutDeliverySlice = createSlice({
     calculateDeliveryFee(state, action: PayloadAction<string>) {
       const selected = state.deliveryOptions.find((option) => option.id === action.payload) || null;
       state.selectedOption = selected;
-      state.estimatedDelivery = selected ? `${selected.eta} · PKR ${selected.cost.toLocaleString()}` : 'Select a delivery option';
+      state.estimatedDelivery = selected ? selected.eta : 'Select a delivery option';
     },
   },
   extraReducers: (builder) => {

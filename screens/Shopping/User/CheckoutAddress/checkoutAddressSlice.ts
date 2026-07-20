@@ -14,6 +14,8 @@ export interface CheckoutAddressForm {
   city: string;
   area: string;
   landmark: string;
+  state: string;
+  postalCode: string;
   isDefault: boolean;
 }
 
@@ -36,6 +38,8 @@ const initialForm: CheckoutAddressForm = {
   city: '',
   area: '',
   landmark: '',
+  state: '',
+  postalCode: '',
   isDefault: false,
 };
 
@@ -57,6 +61,8 @@ const fromServer = (a: SavedAddressView & { area?: string; landmark?: string }):
   city: a.city,
   area: a.area || a.addressLine2 || '',
   landmark: a.landmark || '',
+  state: a.state || '',
+  postalCode: a.postalCode || '',
   isDefault: a.isDefault,
 });
 
@@ -67,6 +73,8 @@ const toServer = (form: Partial<CheckoutAddressForm>) => ({
   city: form.city,
   area: form.area,
   landmark: form.landmark,
+  state: form.state,
+  postalCode: form.postalCode,
   isDefault: form.isDefault,
 });
 

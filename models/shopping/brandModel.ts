@@ -41,7 +41,7 @@ export const BrandConfigSchema = z.object({
   contactEmail: z.string(),
   contactPhone: z.string(),
   website: z.string(),
-  socialLinks: BrandSocialLinksSchema,
+  socialLinks: BrandSocialLinksSchema.optional(),
   isActive: z.boolean(),
   createdAt: z.string(),
 });

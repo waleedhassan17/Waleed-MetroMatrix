@@ -24,6 +24,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
+import { selectCartTotal } from '../Cart/cartSlice';
 import {
   fetchPaymentMethods,
   refreshWalletBalance,
@@ -53,7 +54,7 @@ const CheckoutPaymentScreen: React.FC = () => {
   const loading = useAppSelector(selectCheckoutPaymentLoading);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
-  const orderTotal = 2500; // Placeholder — in production pass from checkout state
+  const orderTotal = useAppSelector(selectCartTotal);
 
   useEffect(() => { dispatch(fetchPaymentMethods()); }, [dispatch]);
 
