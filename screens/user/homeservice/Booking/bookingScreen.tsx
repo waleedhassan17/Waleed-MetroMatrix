@@ -696,6 +696,19 @@ export default function BookingScreen() {
                   )}
                 </TouchableOpacity>
               ))}
+              <TouchableOpacity
+                style={styles.manageAddressesLink}
+                onPress={() => {
+                  setShowAddressModal(false);
+                  (navigation as any).navigate('AddressManagement');
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={serviceConfig.accentColor} />
+                <Text style={[styles.manageAddressesText, { color: serviceConfig.accentColor }]}>
+                  Manage addresses
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -1124,6 +1137,18 @@ const styles = StyleSheet.create({
   },
   addressList: {
     padding: 16,
+  },
+  manageAddressesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  manageAddressesText: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   addressItem: {
     flexDirection: 'row',

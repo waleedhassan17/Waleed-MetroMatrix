@@ -88,6 +88,19 @@ import AdminClinicManagementScreen from "../screens/admin/healthcare/AdminClinic
 import AdminReviewModerationScreen from "../screens/admin/healthcare/AdminReviewModeration/AdminReviewModerationScreen";
 import AdminHealthcareSettingsScreen from "../screens/admin/healthcare/AdminHealthcareSettings/AdminHealthcareSettingsScreen";
 
+// HS8: remaining Home Services customer + admin screens
+import AddressManagementScreen from "../screens/user/homeservice/address-management/AddressManagementScreen";
+import BookingDetailScreen from "../screens/user/homeservice/booking-detail/BookingDetailScreen";
+import RaiseDisputeScreen from "../screens/user/homeservice/raise-dispute/RaiseDisputeScreen";
+import HomeServiceNotificationsScreen from "../screens/user/homeservice/notifications/HomeServiceNotificationsScreen";
+import AdminHSBookingsScreen from "../screens/admin/homeservice/AdminBookings/AdminBookingsScreen";
+import AdminHSBookingDetailScreen from "../screens/admin/homeservice/AdminBookingDetail/AdminBookingDetailScreen";
+import AdminHSDisputesScreen from "../screens/admin/homeservice/AdminDisputes/AdminDisputesScreen";
+import AdminHSPayoutsScreen from "../screens/admin/homeservice/AdminPayouts/AdminPayoutsScreen";
+import AdminHSServiceCategoriesScreen from "../screens/admin/homeservice/AdminServiceCategories/AdminServiceCategoriesScreen";
+import AdminHSAnalyticsScreen from "../screens/admin/homeservice/AdminHomeServiceAnalytics/AdminHomeServiceAnalyticsScreen";
+import AdminHSSettingsScreen from "../screens/admin/homeservice/AdminHomeServiceSettings/AdminHomeServiceSettingsScreen";
+
 // Route names enum for type safety
 export const BaseRouteNames = {
   // Onboarding
@@ -162,6 +175,19 @@ export const BaseRouteNames = {
   ProviderJobChat: "ProviderJobChat",
   ProviderCallScreen: "ProviderCallScreen",
   ProviderAvailability: "ProviderAvailability",
+
+  // HS8: remaining customer + admin Home Services screens
+  AddressManagement: "AddressManagement",
+  BookingDetail: "BookingDetail",
+  RaiseDispute: "RaiseDispute",
+  HomeServiceNotifications: "HomeServiceNotifications",
+  AdminHSBookings: "AdminHSBookings",
+  AdminHSBookingDetail: "AdminHSBookingDetail",
+  AdminHSDisputes: "AdminHSDisputes",
+  AdminHSPayouts: "AdminHSPayouts",
+  AdminHSServiceCategories: "AdminHSServiceCategories",
+  AdminHSAnalytics: "AdminHSAnalytics",
+  AdminHSSettings: "AdminHSSettings",
 
   // Shopping
   Shopping: "Shopping",
@@ -262,6 +288,19 @@ export type RootStackParamList = {
   ProviderJobChat: { bookingId: string; customerName?: string };
   ProviderCallScreen: { bookingId: string; customerName?: string; customerPhone?: string };
   ProviderAvailability: undefined;
+
+  // HS8
+  AddressManagement: undefined;
+  BookingDetail: { bookingId: string };
+  RaiseDispute: { bookingId: string };
+  HomeServiceNotifications: undefined;
+  AdminHSBookings: undefined;
+  AdminHSBookingDetail: { bookingId: string };
+  AdminHSDisputes: undefined;
+  AdminHSPayouts: undefined;
+  AdminHSServiceCategories: undefined;
+  AdminHSAnalytics: undefined;
+  AdminHSSettings: undefined;
 
   // Shopping
   Shopping: undefined;
@@ -697,6 +736,63 @@ export const BaseRoutes: IRoute[] = [
       headerShown: false,
       animation: 'slide_from_right',
     }
+  },
+
+  // HS8: remaining customer + admin Home Services screens
+  {
+    component: AddressManagementScreen,
+    title: BaseRouteNames.AddressManagement,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: BookingDetailScreen,
+    title: BaseRouteNames.BookingDetail,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: RaiseDisputeScreen,
+    title: BaseRouteNames.RaiseDispute,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: HomeServiceNotificationsScreen,
+    title: BaseRouteNames.HomeServiceNotifications,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSBookingsScreen,
+    title: BaseRouteNames.AdminHSBookings,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSBookingDetailScreen,
+    title: BaseRouteNames.AdminHSBookingDetail,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSDisputesScreen,
+    title: BaseRouteNames.AdminHSDisputes,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSPayoutsScreen,
+    title: BaseRouteNames.AdminHSPayouts,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSServiceCategoriesScreen,
+    title: BaseRouteNames.AdminHSServiceCategories,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSAnalyticsScreen,
+    title: BaseRouteNames.AdminHSAnalytics,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminHSSettingsScreen,
+    title: BaseRouteNames.AdminHSSettings,
+    options: { headerShown: false, animation: 'slide_from_right' }
   },
 
   // Shopping Route

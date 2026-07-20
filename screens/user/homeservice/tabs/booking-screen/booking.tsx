@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import {
   MoreHorizontal,
   AlertCircle,
@@ -249,6 +250,7 @@ interface BookingCardProps {
 }
 
 const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
+  const navigation = useNavigation<any>();
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -305,6 +307,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
         activeOpacity={1}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        onPress={() => navigation.navigate('BookingDetail', { bookingId: booking.id })}
         style={styles.bookingCard}
       >
         {/* Status Indicator Line */}
