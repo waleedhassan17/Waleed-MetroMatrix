@@ -4,9 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
   TextInput,
   ActivityIndicator,
@@ -19,11 +17,10 @@ import {
   X,
   Clock,
   TrendingUp,
-  Star,
   Trash2,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
 import {
@@ -42,8 +39,9 @@ import {
   selectProductSearch,
   POPULAR_SEARCHES,
 } from './productSearchSlice';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
+import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
 const ShopColors = {
   primary: '#E67E22',
@@ -65,6 +63,9 @@ const ProductSearchScreen: React.FC = () => {
   const suggestions = useAppSelector(selectSuggestions);
   const loading = useAppSelector(selectSearchLoading);
   const { hasSearched, hasMore, page } = useAppSelector(selectProductSearch);
+  const wishlistItems = useAppSelector(selectWishlistItems);
+  const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
+  const { cardWidth, imageHeight } = useProductGridSizing();
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -124,34 +125,39 @@ const ProductSearchScreen: React.FC = () => {
 
   // ── Render Product Result ─────────────────
 
-  const renderProductResult = ({ item }: { item: Product }) => {
-    const hasDiscount = item.salePrice && item.salePrice < item.basePrice;
-    return (
-      <TouchableOpacity
-        style={styles.resultRow}
-        activeOpacity={0.7}
-        onPress={() => navigateToProductDetail(item.productId, item.brandId)}
-      >
-        <Image source={{ uri: item.images[0] }} style={styles.resultImage} />
-        <View style={styles.resultInfo}>
-          <Text style={styles.resultName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.resultRating}>
-            <Star size={11} stroke={ShopColors.accent} fill={ShopColors.accent} />
-            <Text style={styles.resultRatingText}>{item.rating.toFixed(1)}</Text>
-            <Text style={styles.resultReviewCount}>({item.totalReviews})</Text>
-          </View>
-          <View style={styles.resultPriceRow}>
-            <Text style={styles.resultPrice}>
-              PKR {hasDiscount ? item.salePrice!.toLocaleString() : item.basePrice.toLocaleString()}
-            </Text>
-            {hasDiscount && (
-              <Text style={styles.resultOriginalPrice}>PKR {item.basePrice.toLocaleString()}</Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleToggleWishlist = useCallback((item: Product) => {
+    dispatch(toggleWishlistItem({
+      productId: item.productId,
+      productName: item.name,
+      productImage: item.images?.[0] ?? '',
+      brandId: item.brandId,
+      brandName: item.brandId,
+      price: item.salePrice ?? item.basePrice,
+      originalPrice: item.salePrice ? item.basePrice : undefined,
+    }));
+  }, [dispatch]);
+
+  const renderProductResult = ({ item }: { item: Product }) => (
+    <ProductCard
+      product={{
+        productId: item.productId,
+        brandId: item.brandId,
+        name: item.name,
+        image: item.images?.[0],
+        basePrice: item.basePrice,
+        salePrice: item.salePrice,
+        rating: item.rating,
+        totalReviews: item.totalReviews,
+        inStock: item.inStock,
+        isNewArrival: item.isNewArrival,
+      }}
+      width={cardWidth}
+      imageHeight={imageHeight}
+      onPress={navigateToProductDetail}
+      onWishlist={() => handleToggleWishlist(item)}
+      isWishlisted={wishlistIds.has(item.productId)}
+    />
+  );
 
   const renderFooter = () => {
     if (!loading || results.length === 0) return null;
@@ -271,15 +277,24 @@ const ProductSearchScreen: React.FC = () => {
         <>
           {/* ── Live Results ────────────────── */}
           {loading && results.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={ShopColors.primary} />
-              <Text style={styles.loadingText}>Searching...</Text>
-            </View>
+            <FlatList
+              data={Array.from({ length: 6 })}
+              keyExtractor={(_, i) => `skeleton-${i}`}
+              renderItem={() => <ProductCardSkeleton width={cardWidth} imageHeight={imageHeight} />}
+              numColumns={2}
+              columnWrapperStyle={styles.columnWrapper}
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+              contentContainerStyle={styles.resultsList}
+              scrollEnabled={false}
+            />
           ) : (
             <FlatList
               data={results}
               renderItem={renderProductResult}
               keyExtractor={(item) => item.productId}
+              numColumns={2}
+              columnWrapperStyle={styles.columnWrapper}
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
               contentContainerStyle={styles.resultsList}
               showsVerticalScrollIndicator={false}
               ListFooterComponent={renderFooter}
@@ -313,16 +328,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: Spacing.sm,
-    fontSize: 13,
-    color: Colors.text.tertiary,
   },
 
   // Header
@@ -430,68 +435,16 @@ const styles = StyleSheet.create({
 
   // Results
   resultsList: {
+    paddingHorizontal: Spacing.lg,
     paddingBottom: 100,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
   resultCountText: {
     fontSize: 12,
     color: Colors.text.tertiary,
-    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    gap: Spacing.md,
-  },
-  resultImage: {
-    width: 72,
-    height: 72,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  resultInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  resultName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.text.primary,
-    lineHeight: 19,
-  },
-  resultRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 3,
-  },
-  resultRatingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  resultReviewCount: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-  },
-  resultPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
-  },
-  resultPrice: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: ShopColors.primary,
-  },
-  resultOriginalPrice: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    textDecorationLine: 'line-through',
   },
 
   // Empty

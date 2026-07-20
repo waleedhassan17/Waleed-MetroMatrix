@@ -6,20 +6,21 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, ShoppingCart, Search, Star, Heart, SlidersHorizontal } from 'lucide-react-native';
+import { ChevronLeft, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';
+import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 import type { Product, Category } from '../../../../types/shopping';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
+import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import {
   fetchBrandStore,
   fetchBrandProducts,
@@ -34,8 +35,6 @@ import {
   selectBrandStoreLoading,
 } from './brandStoreSlice';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
 const BANNER_HEIGHT = 200;
 
 const BrandStoreScreen: React.FC = () => {
@@ -57,6 +56,7 @@ const BrandStoreScreen: React.FC = () => {
   const cartItemCount = 0; // Will be wired to cart slice later
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
+  const { cardWidth, imageHeight } = useProductGridSizing();
 
   useEffect(() => {
     if (brandId) {
@@ -116,8 +116,8 @@ const BrandStoreScreen: React.FC = () => {
     }
   }, [dispatch, brandId, selectedCategory]);
 
-  const navigateToProductDetail = (productId: string) => {
-    navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId });
+  const navigateToProductDetail = (productId: string, pBrandId?: string) => {
+    navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId: pBrandId || brandId });
   };
 
   const navigateToSearch = () => {
@@ -155,65 +155,35 @@ const BrandStoreScreen: React.FC = () => {
     );
   };
 
-  const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
-    const hasDiscount = item.salePrice && item.salePrice < item.basePrice;
-    return (
-      <TouchableOpacity
-        style={[styles.productCard, index % 2 === 0 ? { marginRight: Spacing.md } : {}]}
-        activeOpacity={0.7}
-        onPress={() => navigateToProductDetail(item.productId)}
-      >
-        <View style={styles.productImageWrap}>
-          <Image source={{ uri: item.images[0] }} style={styles.productImage} />
-          {hasDiscount && (
-            <View style={[styles.saleBadge, { backgroundColor: theme.accentColor }]}>
-              <Text style={styles.saleBadgeText}>
-                {Math.round(((item.basePrice - item.salePrice!) / item.basePrice) * 100)}% OFF
-              </Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.wishlistBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              dispatch(toggleWishlistItem({
-                productId: item.productId,
-                productName: item.name,
-                productImage: item.images?.[0] ?? '',
-                brandId: item.brandId,
-                brandName: item.brandId,
-                price: item.salePrice ?? item.basePrice,
-                originalPrice: item.salePrice ? item.basePrice : undefined,
-              }));
-            }}
-          >
-            <Heart
-              size={16}
-              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
-              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
-              strokeWidth={1.75}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.ratingRow}>
-            <Star size={12} stroke="#F39C12" fill="#F39C12" />
-            <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
-            <Text style={styles.reviewCount}>({item.totalReviews})</Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={[styles.priceText, { color: theme.primaryColor }]}>
-              PKR {hasDiscount ? item.salePrice!.toLocaleString() : item.basePrice.toLocaleString()}
-            </Text>
-            {hasDiscount && (
-              <Text style={styles.originalPrice}>PKR {item.basePrice.toLocaleString()}</Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderProductCard = ({ item }: { item: Product }) => (
+    <ProductCard
+      product={{
+        productId: item.productId,
+        brandId: item.brandId,
+        name: item.name,
+        image: item.images?.[0],
+        basePrice: item.basePrice,
+        salePrice: item.salePrice,
+        rating: item.rating,
+        totalReviews: item.totalReviews,
+        inStock: item.inStock,
+        isNewArrival: item.isNewArrival,
+      }}
+      width={cardWidth}
+      imageHeight={imageHeight}
+      onPress={navigateToProductDetail}
+      onWishlist={() => dispatch(toggleWishlistItem({
+        productId: item.productId,
+        productName: item.name,
+        productImage: item.images?.[0] ?? '',
+        brandId: item.brandId,
+        brandName: item.brandId,
+        price: item.salePrice ?? item.basePrice,
+        originalPrice: item.salePrice ? item.basePrice : undefined,
+      }))}
+      isWishlisted={wishlistIds.has(item.productId)}
+    />
+  );
 
   const renderEmpty = () => {
     if (productsLoading || loading) return null;
@@ -339,26 +309,40 @@ const BrandStoreScreen: React.FC = () => {
       </View>
 
       {/* ── Products Grid ───────────────────── */}
-      <FlatList
-        data={products}
-        renderItem={renderProductCard}
-        keyExtractor={(item) => item.productId}
-        numColumns={2}
-        contentContainerStyle={styles.gridContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.3}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.primaryColor}
-            colors={[theme.primaryColor]}
-          />
-        }
-      />
+      {productsLoading && products.length === 0 ? (
+        <FlatList
+          data={Array.from({ length: 6 })}
+          keyExtractor={(_, i) => `skeleton-${i}`}
+          renderItem={() => <ProductCardSkeleton width={cardWidth} imageHeight={imageHeight} />}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={styles.gridContent}
+        />
+      ) : (
+        <FlatList
+          data={products}
+          renderItem={renderProductCard}
+          keyExtractor={(item) => item.productId}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={styles.gridContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.primaryColor}
+              colors={[theme.primaryColor]}
+            />
+          }
+        />
+      )}
     </View>
   );
 };
@@ -518,87 +502,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: 100,
   },
-  productCard: {
-    width: PRODUCT_CARD_WIDTH,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-    ...Shadows.small,
-  },
-  productImageWrap: {
-    width: '100%',
-    height: PRODUCT_CARD_WIDTH * 1.1,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  saleBadge: {
-    position: 'absolute',
-    top: Spacing.sm,
-    left: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.xs,
-  },
-  saleBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  wishlistBtn: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 30,
-    height: 30,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productInfo: {
-    padding: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.text.primary,
-    lineHeight: 18,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 3,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
-  },
-  priceText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    textDecorationLine: 'line-through',
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
 
   // Empty

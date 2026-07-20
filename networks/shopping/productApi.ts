@@ -23,6 +23,7 @@ import {
 export interface FetchProductsParams {
   brandId?: string;
   categoryId?: string;
+  gender?: string;
   search?: string;
   sortBy?: 'price_asc' | 'price_desc' | 'rating' | 'newest' | 'popular';
   minPrice?: number;

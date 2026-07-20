@@ -33,6 +33,7 @@ export interface ProductListState {
   // Context from navigation
   contextBrandId: string | null;
   contextCategoryId: string | null;
+  contextGender: string | null;
   contextSearch: string | null;
 }
 
@@ -60,6 +61,7 @@ const initialState: ProductListState = {
   totalResults: 0,
   contextBrandId: null,
   contextCategoryId: null,
+  contextGender: null,
   contextSearch: null,
 };
 
@@ -73,7 +75,7 @@ export const fetchProducts = createAsyncThunk(
   ) => {
     try {
       const state = getState() as { productList: ProductListState };
-      const { filters, sorting, contextBrandId, contextCategoryId, contextSearch } = state.productList;
+      const { filters, sorting, contextBrandId, contextCategoryId, contextGender, contextSearch } = state.productList;
 
       const params: FetchProductsParams = {
         page,
@@ -81,6 +83,7 @@ export const fetchProducts = createAsyncThunk(
         sortBy: sorting === 'relevance' ? 'popular' : sorting,
         brandId: filters.brandId || contextBrandId || undefined,
         categoryId: contextCategoryId || undefined,
+        gender: contextGender || undefined,
         search: contextSearch || undefined,
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
@@ -145,9 +148,10 @@ const productListSlice = createSlice({
       state.page = 1;
       state.hasMore = true;
     },
-    setContext(state, action: PayloadAction<{ brandId?: string; categoryId?: string; search?: string }>) {
+    setContext(state, action: PayloadAction<{ brandId?: string; categoryId?: string; gender?: string; search?: string }>) {
       state.contextBrandId = action.payload.brandId || null;
       state.contextCategoryId = action.payload.categoryId || null;
+      state.contextGender = action.payload.gender || null;
       state.contextSearch = action.payload.search || null;
     },
     resetProductList(state) {

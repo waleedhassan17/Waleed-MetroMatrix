@@ -7,18 +7,17 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Search, ShoppingCart, Star, Heart, Wallet } from 'lucide-react-native';
+import { Search, ShoppingCart, Wallet, Mars, Venus, Baby, LucideIcon } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
-import type { BrandConfig, Product } from '../../../../types/shopping';
+import type { Product } from '../../../../types/shopping';
 import {
   fetchHomeData,
   refreshHomeData,
@@ -33,11 +32,24 @@ import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
+import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BANNER_WIDTH = SCREEN_WIDTH - Spacing.lg * 2;
+// Only sections that actually exist in the seeded catalogue (both brands tag
+// products with their gender section — see brands.seed.js — Kids exists on
+// Cougar only, so it stays in the list even though Outfitters has none).
+interface CategoryDef {
+  id: string;
+  name: string;
+  Icon: LucideIcon;
+}
+const CATEGORIES: CategoryDef[] = [
+  { id: 'men', name: 'Men', Icon: Mars },
+  { id: 'women', name: 'Women', Icon: Venus },
+  { id: 'kids', name: 'Kids', Icon: Baby },
+];
+
 const BANNER_HEIGHT = 180;
-const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
 
 // ── Shopping Colors ─────────────────────────
 const ShopColors = {
@@ -64,6 +76,10 @@ const ShoppingHomeScreen: React.FC = () => {
 
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const BANNER_WIDTH = screenWidth - Spacing.lg * 2;
+  const { cardWidth, imageHeight } = useProductGridSizing();
 
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerRef = useRef<FlatList>(null);
@@ -116,7 +132,7 @@ const ShoppingHomeScreen: React.FC = () => {
 
   const renderBanner = ({ item }: { item: any }) => (
     <TouchableOpacity
-      style={styles.bannerCard}
+      style={[styles.bannerCard, { width: BANNER_WIDTH }]}
       activeOpacity={0.9}
       onPress={() => {
         if (item.brandId) navigateToBrandStore(item.brandId);
@@ -132,74 +148,39 @@ const ShoppingHomeScreen: React.FC = () => {
 
 
 
-  const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
-    const hasDiscount = Boolean(item.salePrice && item.salePrice < item.basePrice);
-    return (
-      <TouchableOpacity
-        style={[styles.productCard, index % 2 === 0 ? { marginRight: Spacing.md } : {}]}
-        activeOpacity={0.7}
-        onPress={() => navigateToProductDetail(item.productId, item.brandId)}
-      >
-        <View style={styles.productImageWrap}>
-          <Image source={{ uri: item.images[0] }} style={styles.productImage} />
-          {hasDiscount && (
-            <View style={styles.saleBadge}>
-              <Text style={styles.saleBadgeText}>
-                {Math.round(((item.basePrice - item.salePrice!) / item.basePrice) * 100)}% OFF
-              </Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.wishlistBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              dispatch(toggleWishlistItem({
-                productId: item.productId,
-                productName: item.name,
-                productImage: item.images?.[0] ?? '',
-                brandId: item.brandId,
-                brandName: item.brandId,
-                price: item.salePrice ?? item.basePrice,
-                originalPrice: item.salePrice ? item.basePrice : undefined,
-              }));
-            }}
-          >
-            <Heart
-              size={16}
-              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
-              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
-              strokeWidth={1.75}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.ratingRow}>
-            <Star size={12} stroke={ShopColors.accent} fill={ShopColors.accent} />
-            <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
-            <Text style={styles.reviewCount}>({item.totalReviews})</Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceText}>
-              PKR {hasDiscount ? item.salePrice!.toLocaleString() : item.basePrice.toLocaleString()}
-            </Text>
-            {hasDiscount && (
-              <Text style={styles.originalPrice}>PKR {item.basePrice.toLocaleString()}</Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleToggleWishlist = useCallback((item: Product) => {
+    dispatch(toggleWishlistItem({
+      productId: item.productId,
+      productName: item.name,
+      productImage: item.images?.[0] ?? '',
+      brandId: item.brandId,
+      brandName: item.brandId,
+      price: item.salePrice ?? item.basePrice,
+      originalPrice: item.salePrice ? item.basePrice : undefined,
+    }));
+  }, [dispatch]);
 
-  const renderCategoryCard = ({ item }: { item: any }) => (
+  const toProductCardData = (item: Product) => ({
+    productId: item.productId,
+    brandId: item.brandId,
+    name: item.name,
+    image: item.images?.[0],
+    basePrice: item.basePrice,
+    salePrice: item.salePrice,
+    rating: item.rating,
+    totalReviews: item.totalReviews,
+    inStock: item.inStock,
+    isNewArrival: item.isNewArrival,
+  });
+
+  const renderCategoryCard = ({ item }: { item: CategoryDef }) => (
     <TouchableOpacity
       style={styles.categoryCard}
       activeOpacity={0.7}
-      onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never, { categoryId: item.id } as never)}
+      onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never, { gender: item.id } as never)}
     >
       <View style={styles.categoryIconWrap}>
-        <Text style={styles.categoryEmoji}>{item.icon}</Text>
+        <item.Icon size={26} stroke={ShopColors.primary} strokeWidth={1.75} />
       </View>
       <Text style={styles.categoryName} numberOfLines={1}>{item.name}</Text>
     </TouchableOpacity>
@@ -212,17 +193,20 @@ const ShoppingHomeScreen: React.FC = () => {
     { id: '3', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', title: 'Top Brands', subtitle: 'Shop from the best' },
   ];
 
-  // ── Categories ────────────────────────────
-  const categories = [
-    { id: 'men', name: 'Men', icon: '👨' },
-    { id: 'women', name: 'Women', icon: '👩' },
-    { id: 'kids', name: 'Kids', icon: '🧒' },
-    { id: 'accessories', name: 'Accessories', icon: '⌚' },
-    { id: 'shoes', name: 'Footwear', icon: '👟' },
-    { id: 'winter', name: 'Winter', icon: '🧥' },
-    { id: 'summer', name: 'Summer', icon: '👕' },
-    { id: 'fragrances', name: 'Fragrance', icon: '🧴' },
-  ];
+  // Trending Now is bounded to 6 items and rendered as explicit two-item
+  // rows (not flexWrap, not a nested vertical FlatList inside this
+  // ScrollView — either would fight the outer scroll/virtualisation).
+  const trendingRows = useMemo(() => {
+    const items = featuredProducts.slice(0, 6);
+    const rows: Product[][] = [];
+    for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+    return rows;
+  }, [featuredProducts]);
+
+  const newArrivals = useMemo(
+    () => featuredProducts.filter((p) => p.isNewArrival).slice(0, 8),
+    [featuredProducts]
+  );
 
   if (loading && featuredBrands.length === 0) {
     return (
@@ -354,7 +338,7 @@ const ShoppingHomeScreen: React.FC = () => {
             </View>
           </View>
           <FlatList
-            data={categories}
+            data={CATEGORIES}
             renderItem={renderCategoryCard}
             keyExtractor={(item) => item.id}
             horizontal
@@ -381,9 +365,20 @@ const ShoppingHomeScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             <View style={styles.productGrid}>
-              {featuredProducts.slice(0, 6).map((product, index) => (
-                <View key={product.productId} style={{ width: PRODUCT_CARD_WIDTH }}>
-                  {renderProductCard({ item: product, index })}
+              {trendingRows.map((row, rowIndex) => (
+                <View key={rowIndex} style={styles.productRow}>
+                  {row.map((product) => (
+                    <ProductCard
+                      key={product.productId}
+                      product={toProductCardData(product)}
+                      width={cardWidth}
+                      imageHeight={imageHeight}
+                      onPress={navigateToProductDetail}
+                      onWishlist={() => handleToggleWishlist(product)}
+                      isWishlisted={wishlistIds.has(product.productId)}
+                    />
+                  ))}
+                  {row.length === 1 && <View style={{ width: cardWidth }} />}
                 </View>
               ))}
             </View>
@@ -391,7 +386,7 @@ const ShoppingHomeScreen: React.FC = () => {
         )}
 
         {/* ── New Arrivals ────────────────────── */}
-        {featuredProducts.filter(p => p.isNewArrival).length > 0 && (
+        {newArrivals.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
@@ -400,11 +395,16 @@ const ShoppingHomeScreen: React.FC = () => {
               </View>
             </View>
             <FlatList
-              data={featuredProducts.filter(p => p.isNewArrival).slice(0, 8)}
-              renderItem={({ item, index }) => (
-                <View style={{ width: PRODUCT_CARD_WIDTH, marginRight: index % 2 === 0 ? Spacing.md : 0 }}>
-                  {renderProductCard({ item, index })}
-                </View>
+              data={newArrivals}
+              renderItem={({ item }) => (
+                <ProductCard
+                  product={toProductCardData(item)}
+                  width={cardWidth}
+                  imageHeight={imageHeight}
+                  onPress={navigateToProductDetail}
+                  onWishlist={() => handleToggleWishlist(item)}
+                  isWishlisted={wishlistIds.has(item.productId)}
+                />
               )}
               keyExtractor={(item) => `new-${item.productId}`}
               horizontal
@@ -574,7 +574,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   bannerCard: {
-    width: BANNER_WIDTH,
     height: BANNER_HEIGHT,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
@@ -670,9 +669,6 @@ const styles = StyleSheet.create({
     ...Shadows.small,
     marginBottom: Spacing.xs,
   },
-  categoryEmoji: {
-    fontSize: 28,
-  },
   categoryName: {
     fontSize: 11,
     fontWeight: '500',
@@ -680,97 +676,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-
-
-  // Product Cards
+  // Product Cards — explicit two-up rows (no flexWrap on the outer
+  // ScrollView, no nested vertical FlatList fighting it for scroll).
   productGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: Spacing.lg,
   },
-  productCard: {
-    width: PRODUCT_CARD_WIDTH,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
+  productRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
-    ...Shadows.small,
-  },
-  productImageWrap: {
-    width: '100%',
-    height: PRODUCT_CARD_WIDTH * 1.1,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  saleBadge: {
-    position: 'absolute',
-    top: Spacing.sm,
-    left: Spacing.sm,
-    backgroundColor: ShopColors.badge,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.xs,
-  },
-  saleBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  wishlistBtn: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 30,
-    height: 30,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productInfo: {
-    padding: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.text.primary,
-    lineHeight: 18,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 3,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
-  },
-  priceText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: ShopColors.primary,
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    textDecorationLine: 'line-through',
   },
 });
 

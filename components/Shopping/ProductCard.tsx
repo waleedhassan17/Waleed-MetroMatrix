@@ -1,21 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   ViewStyle,
 } from 'react-native';
 import { Heart, Star } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
-import type { Product } from '../../types/shopping';
 import SaleBadge from './SaleBadge';
 import PriceDisplay from './PriceDisplay';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
 
 const ShopColors = {
   primary: '#E67E22',
@@ -24,25 +19,50 @@ const ShopColors = {
   newBadge: '#3498DB',
 };
 
+const FALLBACK_IMAGE = 'https://placehold.co/600x800/F1F1F1/999999?text=No+Image';
+
+// Fixed content-area height (below the image) so two cards in the same row
+// always line up, whether one title wraps to 2 lines and its neighbour to 1.
+const INFO_HEIGHT = 88;
+
+export interface ProductCardData {
+  productId: string;
+  brandId: string;
+  brandName?: string;
+  name: string;
+  image?: string;
+  basePrice: number;
+  salePrice?: number | null;
+  rating?: number;
+  totalReviews?: number;
+  inStock?: boolean;
+  isNewArrival?: boolean;
+}
+
 interface ProductCardProps {
-  product: Product;
+  product: ProductCardData;
+  width: number;
+  imageHeight: number;
   onPress: (productId: string, brandId: string) => void;
   onWishlist?: (productId: string) => void;
   isWishlisted?: boolean;
-  width?: number;
   style?: ViewStyle;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
   product,
+  width,
+  imageHeight,
   onPress,
   onWishlist,
   isWishlisted = false,
-  width = CARD_WIDTH,
   style,
 }) => {
+  const [imageFailed, setImageFailed] = useState(false);
   const hasDiscount = !!product.salePrice && product.salePrice < product.basePrice;
-  const imageHeight = width * 1.15;
+  const inStock = product.inStock !== false;
+  const rating = product.rating ?? 0;
+  const totalReviews = product.totalReviews ?? 0;
 
   return (
     <TouchableOpacity
@@ -53,8 +73,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
       {/* Image */}
       <View style={[styles.imageWrap, { height: imageHeight }]}>
         <Image
-          source={{ uri: product.images[0] }}
+          source={{ uri: imageFailed || !product.image ? FALLBACK_IMAGE : product.image }}
           style={styles.image}
+          onError={() => setImageFailed(true)}
         />
 
         {/* Badges */}
@@ -86,41 +107,58 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         {/* Out of stock overlay */}
-        {!product.inStock && (
+        {!inStock && (
           <View style={styles.oosOverlay}>
             <Text style={styles.oosText}>Out of Stock</Text>
           </View>
         )}
       </View>
 
-      {/* Info */}
-      <View style={styles.info}>
+      {/* Info — fixed height so every card in a row matches regardless of
+          title length */}
+      <View style={[styles.info, { height: INFO_HEIGHT }]}>
+        {product.brandName ? (
+          <Text style={styles.brandName} numberOfLines={1}>{product.brandName}</Text>
+        ) : null}
         <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
 
-        {/* Rating */}
-        <View style={styles.ratingRow}>
-          <Star size={11} stroke={ShopColors.accent} fill={ShopColors.accent} strokeWidth={1.5} />
-          <Text style={styles.ratingText}>{product.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({product.totalReviews})</Text>
+        <View style={styles.bottomRow}>
+          <View style={styles.ratingRow}>
+            <Star size={11} stroke={ShopColors.accent} fill={ShopColors.accent} strokeWidth={1.5} />
+            <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            <Text style={styles.reviewCount}>({totalReviews})</Text>
+          </View>
+          <PriceDisplay
+            basePrice={product.basePrice}
+            salePrice={product.salePrice ?? undefined}
+            size="sm"
+          />
         </View>
-
-        {/* Price */}
-        <PriceDisplay
-          basePrice={product.basePrice}
-          salePrice={product.salePrice}
-          size="sm"
-        />
       </View>
     </TouchableOpacity>
   );
 };
+
+export const ProductCardSkeleton: React.FC<{ width: number; imageHeight: number; style?: ViewStyle }> = ({
+  width,
+  imageHeight,
+  style,
+}) => (
+  <View style={[styles.card, { width }, style]}>
+    <View style={[styles.imageWrap, styles.skeletonBlock, { height: imageHeight }]} />
+    <View style={[styles.info, { height: INFO_HEIGHT }]}>
+      <View style={[styles.skeletonBlock, styles.skeletonLine]} />
+      <View style={[styles.skeletonBlock, styles.skeletonLineShort]} />
+      <View style={[styles.skeletonBlock, styles.skeletonPrice]} />
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-    marginBottom: Spacing.md,
     ...Shadows.small,
   },
   imageWrap: {
@@ -177,17 +215,28 @@ const styles = StyleSheet.create({
   },
   info: {
     padding: Spacing.sm,
+    justifyContent: 'space-between',
+  },
+  brandName: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: ShopColors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   name: {
     fontSize: 13,
     fontWeight: '500',
     color: Colors.text.primary,
-    lineHeight: 18,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  bottomRow: {
+    marginTop: 'auto',
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
     gap: 3,
   },
   ratingText: {
@@ -198,6 +247,27 @@ const styles = StyleSheet.create({
   reviewCount: {
     fontSize: 11,
     color: Colors.text.tertiary,
+  },
+
+  // Skeleton
+  skeletonBlock: {
+    backgroundColor: Colors.borderLight,
+    borderRadius: BorderRadius.xs,
+  },
+  skeletonLine: {
+    height: 12,
+    width: '90%',
+    marginTop: 4,
+  },
+  skeletonLineShort: {
+    height: 12,
+    width: '60%',
+    marginTop: 6,
+  },
+  skeletonPrice: {
+    height: 14,
+    width: '40%',
+    marginTop: 'auto',
   },
 });
 

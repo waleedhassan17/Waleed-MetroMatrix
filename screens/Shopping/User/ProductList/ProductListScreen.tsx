@@ -4,9 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
@@ -18,13 +16,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ChevronLeft,
   SlidersHorizontal,
-  Star,
-  Heart,
   X,
   Check,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
 import {
@@ -44,9 +40,8 @@ import {
 } from './productListSlice';
 import type { SortOption, ProductFilters } from './productListSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2;
+import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
 const ShopColors = {
   primary: '#E67E22',
@@ -82,6 +77,7 @@ const ProductListScreen: React.FC = () => {
 
   const brandId = route.params?.brandId as string | undefined;
   const categoryId = route.params?.categoryId as string | undefined;
+  const gender = route.params?.gender as string | undefined;
   const search = route.params?.search as string | undefined;
 
   const products = useAppSelector(selectProducts);
@@ -93,6 +89,7 @@ const ProductListScreen: React.FC = () => {
 
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
+  const { cardWidth, imageHeight } = useProductGridSizing();
 
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
@@ -101,12 +98,12 @@ const ProductListScreen: React.FC = () => {
   const [localFilters, setLocalFilters] = useState<ProductFilters>({ ...filters });
 
   useEffect(() => {
-    dispatch(setContext({ brandId, categoryId, search }));
+    dispatch(setContext({ brandId, categoryId, gender, search }));
     dispatch(fetchProducts({ page: 1, refresh: true }));
     return () => {
       dispatch(resetProductList());
     };
-  }, [dispatch, brandId, categoryId, search]);
+  }, [dispatch, brandId, categoryId, gender, search]);
 
   const handleRefresh = useCallback(() => {
     dispatch(fetchProducts({ page: 1, refresh: true }));
@@ -151,65 +148,39 @@ const ProductListScreen: React.FC = () => {
 
   // ── Render Product Card ───────────────────
 
-  const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
-    const hasDiscount = item.salePrice && item.salePrice < item.basePrice;
-    return (
-      <TouchableOpacity
-        style={[styles.productCard, index % 2 === 0 ? { marginRight: Spacing.md } : {}]}
-        activeOpacity={0.7}
-        onPress={() => navigateToProductDetail(item.productId, item.brandId)}
-      >
-        <View style={styles.productImageWrap}>
-          <Image source={{ uri: item.images[0] }} style={styles.productImage} />
-          {hasDiscount && (
-            <View style={styles.saleBadge}>
-              <Text style={styles.saleBadgeText}>
-                {Math.round(((item.basePrice - item.salePrice!) / item.basePrice) * 100)}% OFF
-              </Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={styles.wishlistBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              dispatch(toggleWishlistItem({
-                productId: item.productId,
-                productName: item.name,
-                productImage: item.images?.[0] ?? '',
-                brandId: item.brandId,
-                brandName: item.brandId,
-                price: item.salePrice ?? item.basePrice,
-                originalPrice: item.salePrice ? item.basePrice : undefined,
-              }));
-            }}
-          >
-            <Heart
-              size={16}
-              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
-              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
-              strokeWidth={1.75}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.ratingRow}>
-            <Star size={12} stroke={ShopColors.accent} fill={ShopColors.accent} />
-            <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
-            <Text style={styles.reviewCount}>({item.totalReviews})</Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceText}>
-              PKR {hasDiscount ? item.salePrice!.toLocaleString() : item.basePrice.toLocaleString()}
-            </Text>
-            {hasDiscount && (
-              <Text style={styles.originalPrice}>PKR {item.basePrice.toLocaleString()}</Text>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleToggleWishlist = useCallback((item: Product) => {
+    dispatch(toggleWishlistItem({
+      productId: item.productId,
+      productName: item.name,
+      productImage: item.images?.[0] ?? '',
+      brandId: item.brandId,
+      brandName: item.brandId,
+      price: item.salePrice ?? item.basePrice,
+      originalPrice: item.salePrice ? item.basePrice : undefined,
+    }));
+  }, [dispatch]);
+
+  const renderProductCard = ({ item }: { item: Product }) => (
+    <ProductCard
+      product={{
+        productId: item.productId,
+        brandId: item.brandId,
+        name: item.name,
+        image: item.images?.[0],
+        basePrice: item.basePrice,
+        salePrice: item.salePrice,
+        rating: item.rating,
+        totalReviews: item.totalReviews,
+        inStock: item.inStock,
+        isNewArrival: item.isNewArrival,
+      }}
+      width={cardWidth}
+      imageHeight={imageHeight}
+      onPress={navigateToProductDetail}
+      onWishlist={() => handleToggleWishlist(item)}
+      isWishlisted={wishlistIds.has(item.productId)}
+    />
+  );
 
   const renderFooter = () => {
     if (!loadingMore) return <View style={{ height: 100 }} />;
@@ -300,15 +271,24 @@ const ProductListScreen: React.FC = () => {
 
       {/* ── Products Grid ───────────────────── */}
       {loading && products.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ShopColors.primary} />
-        </View>
+        <FlatList
+          data={Array.from({ length: 6 })}
+          keyExtractor={(_, i) => `skeleton-${i}`}
+          renderItem={() => <ProductCardSkeleton width={cardWidth} imageHeight={imageHeight} />}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={styles.gridContent}
+          scrollEnabled={false}
+        />
       ) : (
         <FlatList
           data={products}
           renderItem={renderProductCard}
           keyExtractor={(item) => item.productId}
           numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
@@ -499,12 +479,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
   // Header
   header: {
     flexDirection: 'row',
@@ -591,89 +565,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: 100,
   },
-  productCard: {
-    width: PRODUCT_CARD_WIDTH,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-    ...Shadows.small,
-  },
-  productImageWrap: {
-    width: '100%',
-    height: PRODUCT_CARD_WIDTH * 1.1,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  saleBadge: {
-    position: 'absolute',
-    top: Spacing.sm,
-    left: Spacing.sm,
-    backgroundColor: ShopColors.badge,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.xs,
-  },
-  saleBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  wishlistBtn: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 30,
-    height: 30,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productInfo: {
-    padding: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.text.primary,
-    lineHeight: 18,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 3,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 6,
-  },
-  priceText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: ShopColors.primary,
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    textDecorationLine: 'line-through',
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
 
   // Empty

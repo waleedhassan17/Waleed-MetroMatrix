@@ -1,19 +1,21 @@
 import React, { useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Heart, ShoppingCart, Trash2, X } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { ChevronLeft, Heart, Trash2 } from 'lucide-react-native';
+import { Colors, BorderRadius, Spacing } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, type WishlistItemState } from './wishlistSlice';
+import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
 const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', danger: '#E74C3C' };
-const CURRENCY = 'PKR';
 
 const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { items, loading, error } = useAppSelector(selectWishlist);
+  const { cardWidth, imageHeight } = useProductGridSizing();
 
   useEffect(() => {
     dispatch(fetchWishlist());
@@ -41,32 +43,24 @@ const WishlistScreen: React.FC = () => {
     });
   }, [navigation]);
 
-  const renderItem = useCallback(({ item }: { item: WishlistItemState }) => {
-    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
-    return (
-      <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => handleViewProduct(item)}>
-        <Image source={{ uri: item.productImage }} style={styles.cardImage} />
-        <View style={styles.cardBody}>
-          <Text style={styles.brandLabel}>{item.brandName}</Text>
-          <Text style={styles.itemTitle} numberOfLines={2}>{item.productName}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceText}>{CURRENCY} {item.price.toLocaleString()}</Text>
-            {hasDiscount && (
-              <Text style={styles.originalPrice}>{CURRENCY} {item.originalPrice!.toLocaleString()}</Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(item.productId, item.productName)}>
-            <X size={16} stroke={Colors.text.tertiary} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cartBtn} onPress={() => handleViewProduct(item)}>
-            <ShoppingCart size={16} stroke="#FFF" strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [handleRemove, handleViewProduct]);
+  const renderItem = useCallback(({ item }: { item: WishlistItemState }) => (
+    <ProductCard
+      product={{
+        productId: item.productId,
+        brandId: item.brandId,
+        brandName: item.brandName,
+        name: item.productName,
+        image: item.productImage,
+        basePrice: item.originalPrice ?? item.price,
+        salePrice: item.originalPrice && item.originalPrice > item.price ? item.price : undefined,
+      }}
+      width={cardWidth}
+      imageHeight={imageHeight}
+      onPress={() => handleViewProduct(item)}
+      onWishlist={() => handleRemove(item.productId, item.productName)}
+      isWishlisted
+    />
+  ), [handleRemove, handleViewProduct, cardWidth, imageHeight]);
 
   const renderEmpty = () => {
     if (loading) {
@@ -121,14 +115,30 @@ const WishlistScreen: React.FC = () => {
         )}
       </View>
 
-      <FlatList
-        data={items}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.productId}
-        contentContainerStyle={items.length === 0 ? styles.emptyContainer : styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmpty}
-      />
+      {loading && items.length === 0 ? (
+        <FlatList
+          data={Array.from({ length: 4 })}
+          keyExtractor={(_, i) => `skeleton-${i}`}
+          renderItem={() => <ProductCardSkeleton width={cardWidth} imageHeight={imageHeight} />}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={styles.listContent}
+          scrollEnabled={false}
+        />
+      ) : (
+        <FlatList
+          data={items}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.productId}
+          numColumns={2}
+          columnWrapperStyle={items.length > 0 ? styles.columnWrapper : undefined}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          contentContainerStyle={items.length === 0 ? styles.emptyContainer : styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmpty}
+        />
+      )}
     </View>
   );
 };
@@ -139,20 +149,8 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   listContent: { padding: Spacing.lg, paddingBottom: 100 },
+  columnWrapper: { justifyContent: 'space-between' },
   emptyContainer: { flex: 1, justifyContent: 'center' },
-
-  // Card
-  card: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, marginBottom: Spacing.md, overflow: 'hidden', ...Shadows.small },
-  cardImage: { width: 100, height: 120, resizeMode: 'cover', backgroundColor: Colors.backgroundAlt },
-  cardBody: { flex: 1, padding: Spacing.md, justifyContent: 'center' },
-  brandLabel: { fontSize: 11, fontWeight: '600', color: ShopColors.primary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  itemTitle: { fontSize: 14, fontWeight: '600', color: Colors.text.primary, lineHeight: 20 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  priceText: { fontSize: 15, fontWeight: '700', color: ShopColors.primary },
-  originalPrice: { fontSize: 12, color: Colors.text.tertiary, textDecorationLine: 'line-through' },
-  cardActions: { justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, paddingRight: Spacing.sm },
-  removeBtn: { width: 32, height: 32, borderRadius: BorderRadius.full, backgroundColor: Colors.backgroundAlt, justifyContent: 'center', alignItems: 'center' },
-  cartBtn: { width: 36, height: 36, borderRadius: BorderRadius.full, backgroundColor: ShopColors.primary, justifyContent: 'center', alignItems: 'center' },
 
   // Empty
   empty: { alignItems: 'center', paddingHorizontal: Spacing.xl },
