@@ -21,8 +21,12 @@ import DoctorReviewsScreen from '../screens/providers/healthcare/doctor-reviews/
 import DoctorNotificationsScreen from '../screens/providers/healthcare/notifications/DoctorNotificationsScreen';
 import DoctorPatientsScreen from '../screens/providers/healthcare/patients/DoctorPatientsScreen';
 import ManageSlotsScreen from '../screens/providers/healthcare/manage-slots/manageSlots';
-import WalletScreen from '../screens/user/wallet/WalletScreen';
-import TopUpWebViewScreen from '../screens/user/wallet/TopUpWebViewScreen';
+// Wallet + top-up live ONLY in the root navigator (navigation-maps/Base.tsx)
+// now — DoctorStack used to own a local copy of both routes, which shadowed
+// the shared one for anything navigating from inside this stack. React
+// Navigation bubbles an unresolved route name up to the parent navigator
+// automatically, so navigate('WalletScreen') from any doctor screen still
+// reaches the one, shared WalletScreen.
 
 const Stack = createNativeStackNavigator<DoctorStackParamList>();
 
@@ -78,22 +82,6 @@ const DoctorStack: React.FC = () => {
       <Stack.Screen
         name={DoctorRouteNames.ManageSlots}
         component={ManageSlotsScreen}
-      />
-      <Stack.Screen
-        name="WalletScreen"
-        component={WalletScreen}
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen
-        name="TopUpWebView"
-        component={TopUpWebViewScreen}
-        options={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
       />
       <Stack.Screen
         name={DoctorRouteNames.DoctorVideoConsultation}

@@ -24,6 +24,7 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
+import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SPECIALTY_CARD_WIDTH = 88;
@@ -543,6 +544,9 @@ const HealthcareHomeScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </Animated.View>
+
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4) */}
+        <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
         {/* ── Quick Actions ──────────────────── */}
         <View style={styles.quickActionsContainer}>

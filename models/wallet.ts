@@ -14,7 +14,22 @@ export type TransactionSource =
   | 'transfer_in'
   | 'transfer_out'
   | 'transfer_fee'
+  | 'homeservice_payment'
+  | 'homeservice_earning'
+  | 'healthcare_payment'
+  | 'healthcare_earning'
+  | 'shopping_payment'
+  | 'shopping_earning'
+  | 'commission'
   | string; // forward-compatible
+
+// The module a transaction belongs to, as derived server-side from its
+// source (GET /api/wallet/transactions) — backs the unified history screen's
+// module filter (home services / healthcare / shopping / top-up / payout).
+export type TransactionModule = 'homeservice' | 'healthcare' | 'shopping' | 'topup' | 'payout';
+
+// What a transaction's relatedTo.kind traces back to.
+export type RelatedToKind = 'Booking' | 'Appointment' | 'Order' | 'OrderGroup' | 'PayoutRequest';
 
 export type CounterpartyType = 'User' | 'Provider';
 
@@ -46,6 +61,14 @@ export interface WalletTransaction {
   stripeTransferId?: string;
   stripePayoutId?: string;
   stripeConnectAccountId?: string;
+
+  // Present on responses from GET /api/wallet/transactions — which module
+  // caused this transaction, derived server-side from `source`.
+  module?: TransactionModule | null;
+  // Points back to the Booking/Appointment/Order/OrderGroup/PayoutRequest
+  // that caused this transaction (Part C.2 — populated by every module's
+  // payment code going through settle()/settlePayout()).
+  relatedTo?: { kind: RelatedToKind; id: string } | null;
 
   metadata?: Record<string, any>;
   createdAt: string;

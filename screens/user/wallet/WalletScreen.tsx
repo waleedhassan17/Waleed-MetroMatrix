@@ -54,6 +54,19 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Color
 import { KeyForStorage, retrieveData } from '../../../utils/storage_utils/storageUtils';
 import TransferSheet from '../../../components/wallet/TransferSheet';
 import PayoutSheet from '../../../components/wallet/PayoutSheet';
+// Shared with TransactionHistoryScreen so a transaction reads identically
+// wherever it's shown (Part 2.6 consistency).
+import {
+  splitMoney,
+  getDateBucket,
+  formatTime,
+  formatFullDateTime,
+  prettySource,
+  getSourceIcon,
+  getCurrencySymbol,
+  formatMoney,
+  STATUS_COLOR_KEY,
+} from '../../../utils/wallet_utils/transactionFormat';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
 
@@ -61,93 +74,9 @@ const QUICK_AMOUNTS = [10, 25, 50, 100];
 type TxFilter = 'all' | 'credit' | 'debit';
 
 // ============================================================
-// FORMATTING HELPERS
+// FORMATTING HELPERS (see utils/wallet_utils/transactionFormat.ts for the
+// currency/date/source helpers imported above)
 // ============================================================
-const getCurrencySymbol = (code: string): string => {
-  const map: Record<string, string> = {
-    usd: '$', eur: '€', gbp: '£', pkr: '₨', inr: '₹', aed: 'د.إ', sar: '﷼',
-  };
-  return map[(code || '').toLowerCase()] || code.toUpperCase();
-};
-
-const formatMoney = (amount: number, currency: string): string => {
-  const safe = typeof amount === 'number' && isFinite(amount) ? amount : 0;
-  const symbol = getCurrencySymbol(currency);
-  const formatted = Math.abs(safe).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `${symbol}${formatted}`;
-};
-
-// Split balance into integer + decimal parts so we can render the cents lighter,
-// the way fintech apps do for visual rhythm.
-const splitMoney = (amount: number) => {
-  const safe = typeof amount === 'number' && isFinite(amount) ? amount : 0;
-  const fixed = Math.abs(safe).toFixed(2);
-  const [whole, cents] = fixed.split('.');
-  const withCommas = parseInt(whole, 10).toLocaleString();
-  return { whole: withCommas, cents };
-};
-
-const startOfDay = (d: Date) => {
-  const nd = new Date(d);
-  nd.setHours(0, 0, 0, 0);
-  return nd;
-};
-
-const getDateBucket = (iso: string): string => {
-  const date = new Date(iso);
-  const today = startOfDay(new Date());
-  const yesterday = startOfDay(new Date(today.getTime() - 86400000));
-  const weekAgo = startOfDay(new Date(today.getTime() - 7 * 86400000));
-  const txDay = startOfDay(date);
-
-  if (txDay.getTime() === today.getTime()) return 'Today';
-  if (txDay.getTime() === yesterday.getTime()) return 'Yesterday';
-  if (txDay.getTime() > weekAgo.getTime()) return 'This week';
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-};
-
-const formatTime = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch { return ''; }
-};
-
-const formatFullDateTime = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium', timeStyle: 'short',
-    });
-  } catch { return iso; }
-};
-
-const prettySource = (source: string): string => {
-  const map: Record<string, string> = {
-    stripe_topup: 'Top-up',
-    service_payment: 'Service payment',
-    refund: 'Refund',
-    admin_adjustment: 'Adjustment',
-    payout: 'Bank payout',
-    transfer_in: 'Received',
-    transfer_out: 'Sent',
-    transfer_fee: 'Fee',
-  };
-  return map[source] || source.replace(/_/g, ' ');
-};
-
-const getSourceIcon = (source: string, type: 'credit' | 'debit') => {
-  switch (source) {
-    case 'payout': return Building2;
-    case 'transfer_in': return ArrowDownLeft;
-    case 'transfer_out': return Send;
-    case 'transfer_fee': return Banknote;
-    default: return type === 'credit' ? ArrowDownLeft : ArrowUpRight;
-  }
-};
 
 // ============================================================
 // SKELETON
@@ -297,13 +226,15 @@ const WalletScreen: React.FC = () => {
   const symbol = getCurrencySymbol(wallet.currency);
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return Colors.success;
-      case 'pending': return Colors.warning;
-      case 'failed': return Colors.error;
-      case 'refunded': return Colors.info;
-      default: return Colors.text.tertiary;
-    }
+    const key = STATUS_COLOR_KEY[status] || 'tertiary';
+    const colorMap = {
+      success: Colors.success,
+      warning: Colors.warning,
+      error: Colors.error,
+      info: Colors.info,
+      tertiary: Colors.text.tertiary,
+    };
+    return colorMap[key];
   };
 
   const sections = useMemo(() => {
@@ -547,20 +478,33 @@ const WalletScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Provider payout strip */}
+      {/* Provider-only: pending vs available earnings, then Connect status
+          + payout action. Same screen, role-aware section — no second
+          wallet screen. */}
       {isProvider && (
-        <ProviderPayoutCard
-          connect={connect}
-          onStartOnboarding={handleStartOnboarding}
-          onOpenPayout={handleOpenPayout}
-          onRefresh={() => dispatch(fetchConnectStatus())}
-        />
+        <>
+          <ProviderEarningsSplit transactions={wallet.transactions} currency={wallet.currency} />
+          <ProviderPayoutCard
+            connect={connect}
+            onStartOnboarding={handleStartOnboarding}
+            onOpenPayout={handleOpenPayout}
+            onRefresh={() => dispatch(fetchConnectStatus())}
+          />
+        </>
       )}
 
       {/* Activity */}
       <View style={styles.activityHeader}>
         <Text style={styles.activityTitle}>Activity</Text>
-        {renderFilterChips()}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('TransactionHistoryScreen')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.seeAllLink}>See all</Text>
+          </TouchableOpacity>
+          {renderFilterChips()}
+        </View>
       </View>
 
       {isLoadingInitial ? (
@@ -765,6 +709,72 @@ const WalletScreen: React.FC = () => {
 // ============================================================
 // PROVIDER PAYOUT STRIP
 // ============================================================
+/**
+ * Pending vs available earnings — computed from the transaction list
+ * already in state (no extra endpoint). "Available" is the current wallet
+ * balance (spendable / withdrawable now); "Pending" is the sum of credits
+ * still settling (e.g. a cash-collected commission the provider's balance
+ * couldn't yet absorb — see WALLET_DESIGN.md Part C, homeservice confirmCash).
+ */
+function ProviderEarningsSplit({
+  transactions,
+  currency,
+}: {
+  transactions: WalletTransaction[];
+  currency: string;
+}) {
+  const pending = transactions
+    .filter((t) => t.type === 'credit' && t.status === 'pending')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  if (pending === 0) return null; // nothing settling — no need for the extra card
+
+  return (
+    <View style={providerEarningsStyles.card}>
+      <View style={providerEarningsStyles.col}>
+        <Text style={providerEarningsStyles.label}>Pending</Text>
+        <Text style={providerEarningsStyles.pendingValue}>
+          {formatMoney(pending, currency)}
+        </Text>
+        <Text style={providerEarningsStyles.hint}>Still settling</Text>
+      </View>
+    </View>
+  );
+}
+
+const providerEarningsStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  col: { flex: 1 },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B45309',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  pendingValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#92400E',
+    marginTop: 2,
+  },
+  hint: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 2,
+  },
+});
+
 interface ProviderPayoutCardProps {
   connect: {
     status: ConnectStatus;
@@ -1112,6 +1122,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderLight,
+  },
+  seeAllLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   activityTitle: {
     fontSize: 15,

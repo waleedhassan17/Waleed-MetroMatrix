@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 
 import { Colors } from '../../../../../constants/Colors';
+import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 import {
   setSingleCategory,
   refreshHomeData,
@@ -242,6 +243,9 @@ export default function HomeScreen() {
 
           <View style={styles.headerActionBtn} />
         </Animated.View>
+
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4) */}
+        <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
         {/* Section Divider */}
         <View style={styles.sectionDivider} />

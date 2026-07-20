@@ -1,4 +1,3 @@
-import axios from "axios";
 import {
   WalletResponse,
   TopUpSessionResponse,
@@ -9,8 +8,7 @@ import {
   PayoutRequest,
   PayoutResponse,
 } from "../../models/wallet";
-import { KeyForStorage, retrieveData, clearAuthData } from "../../utils/storage_utils/storageUtils";
-import { API_URL } from "../network/network";
+import { API, API_URL } from "../network/network";
 
 /**
  * Wallet API Configuration
@@ -18,8 +16,17 @@ import { API_URL } from "../network/network";
  * The MetroMatrix Wallet API is mounted under `/api/wallet` on the
  * main backend. Both users and providers authenticate using the same JWT
  * access token - the backend identifies the account type from the token.
+ *
+ * This module previously created its OWN axios instance with its own token
+ * injection and 401-handling interceptors — the fourth base URL / interceptor
+ * set in this app, alongside networks/network/network.ts,
+ * networks/shopping/shoppingAxios.ts and networks/serviceProviders/config.ts.
+ * It now rides the ONE shared `API` instance from network.ts, which already
+ * injects the token and handles 401s. Every exported function's signature
+ * and return type is unchanged, so no caller needed editing.
  */
 export const WALLET_API_URL = `${API_URL}/wallet`;
+const WALLET_PREFIX = "wallet";
 
 /**
  * Generate a UUID v4 for idempotency keys.
@@ -33,81 +40,6 @@ export const generateIdempotencyKey = (): string => {
     return v.toString(16);
   });
 };
-
-const TIMEOUT = 30000;
-
-// Dedicated axios instance for wallet endpoints
-const WalletAxiosInstance = axios.create({
-  baseURL: WALLET_API_URL,
-  responseType: "json",
-  timeout: TIMEOUT,
-  headers: {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  },
-});
-
-const isValidToken = (token: any): token is string => {
-  if (!token || typeof token !== "string") return false;
-  const invalid = ["null", "undefined", "", "false", "0"];
-  if (invalid.includes(token.trim().toLowerCase())) return false;
-  return token.trim().length >= 10;
-};
-
-// Request interceptor: inject JWT for every wallet call
-WalletAxiosInstance.interceptors.request.use(
-  async (config) => {
-    try {
-      // Prefer admin token (if logged in as admin), else user/provider token
-      let token = await retrieveData(KeyForStorage.adminToken);
-      let source = "admin";
-
-      if (!isValidToken(token)) {
-        token = await retrieveData(KeyForStorage.accessToken);
-        source = "user/provider";
-      }
-
-      if (isValidToken(token)) {
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log(`💳 [Wallet] Injected ${source} token`);
-      } else {
-        console.warn("⚠️ [Wallet] No valid token for request:", config.url);
-      }
-    } catch (err) {
-      console.error("❌ [Wallet] Token retrieval error:", err);
-    }
-
-    console.log(
-      "💳 [Wallet] Request:",
-      (config.method || "").toUpperCase(),
-      `${config.baseURL}/${config.url}`
-    );
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor: logging + 401 handling
-WalletAxiosInstance.interceptors.response.use(
-  (response) => {
-    console.log("✅ [Wallet] Response:", response.status, response.config.url);
-    return response;
-  },
-  async (error) => {
-    console.error("❌ [Wallet] Response error:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url,
-    });
-
-    if (error.response?.status === 401) {
-      console.warn("⚠️ [Wallet] 401 - clearing auth data");
-      await clearAuthData();
-    }
-
-    return Promise.reject(error);
-  }
-);
 
 // ============================================================
 // Error extraction helper
@@ -129,18 +61,38 @@ const extractError = (e: any, fallback: string): string => {
 // ============================================================
 export const fetchWalletApi = async ({ page = 1, limit = 20 } = {}) => {
   try {
-    console.log("📤 Fetching wallet data (page:", page, "limit:", limit, ")");
-
-    const response = await WalletAxiosInstance.get("/me", {
+    const response = await API.GET({
+      URL: `${WALLET_PREFIX}/me`,
       params: { page, limit },
     });
-
-    console.log("✅ Wallet data fetched successfully");
     return response.data as WalletResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to fetch wallet data");
-    console.error("❌ Fetch wallet error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to fetch wallet data"));
+  }
+};
+
+// ============================================================
+// 1b. Unified transaction history (Part C.5) — filterable by source,
+// module, type, date range. Same endpoint for users and providers.
+// GET /transactions
+// ============================================================
+export const fetchWalletTransactionsApi = async (params: {
+  page?: number;
+  limit?: number;
+  source?: string;
+  module?: string;
+  type?: "credit" | "debit";
+  from?: string;
+  to?: string;
+} = {}) => {
+  try {
+    const response = await API.GET({
+      URL: `${WALLET_PREFIX}/transactions`,
+      params,
+    });
+    return response.data as WalletResponse;
+  } catch (e: any) {
+    throw new Error(extractError(e, "Failed to fetch transaction history"));
   }
 };
 
@@ -157,18 +109,13 @@ export const createTopUpSessionApi = async ({ amount }: { amount: number }) => {
       throw new Error("Amount must be between 1 and 10000");
     }
 
-    console.log("📤 Creating top-up session for amount:", amount);
-
-    const response = await WalletAxiosInstance.post("/topup/checkout", {
-      amount,
+    const response = await API.POST({
+      URL: `${WALLET_PREFIX}/topup/checkout`,
+      data: { amount },
     });
-
-    console.log("✅ Top-up session created:", response.data?.sessionId);
     return response.data as TopUpSessionResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to create top-up session");
-    console.error("❌ Create top-up session error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to create top-up session"));
   }
 };
 
@@ -198,31 +145,13 @@ export const transferApi = async (payload: TransferRequest) => {
     // Always send an idempotency key — prevents double-debits on retries
     const key = idempotencyKey || generateIdempotencyKey();
 
-    console.log("📤 Transfer:", {
-      receiverType,
-      receiverId,
-      amount,
-      idempotencyKey: key,
+    const response = await API.POST({
+      URL: `${WALLET_PREFIX}/transfer`,
+      data: { receiverId, receiverType, amount, description, idempotencyKey: key },
     });
-
-    const response = await WalletAxiosInstance.post("/transfer", {
-      receiverId,
-      receiverType,
-      amount,
-      description,
-      idempotencyKey: key,
-    });
-
-    console.log(
-      "✅ Transfer completed:",
-      response.data?.transferGroupId,
-      response.data?.alreadyProcessed ? "(replayed)" : ""
-    );
     return response.data as TransferResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to complete transfer");
-    console.error("❌ Transfer error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to complete transfer"));
   }
 };
 
@@ -232,14 +161,10 @@ export const transferApi = async (payload: TransferRequest) => {
 // ============================================================
 export const startConnectOnboardingApi = async () => {
   try {
-    console.log("📤 Starting Connect onboarding");
-    const response = await WalletAxiosInstance.post("/connect/onboard");
-    console.log("✅ Connect onboarding link received");
+    const response = await API.POST({ URL: `${WALLET_PREFIX}/connect/onboard`, data: {} });
     return response.data as ConnectOnboardResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to start Stripe Connect onboarding");
-    console.error("❌ Connect onboarding error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to start Stripe Connect onboarding"));
   }
 };
 
@@ -249,14 +174,10 @@ export const startConnectOnboardingApi = async () => {
 // ============================================================
 export const getConnectStatusApi = async () => {
   try {
-    console.log("📤 Fetching Connect status");
-    const response = await WalletAxiosInstance.get("/connect/status");
-    console.log("✅ Connect status:", response.data?.status);
+    const response = await API.GET({ URL: `${WALLET_PREFIX}/connect/status` });
     return response.data as ConnectStatusResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to fetch Connect status");
-    console.error("❌ Connect status error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to fetch Connect status"));
   }
 };
 
@@ -274,19 +195,12 @@ export const requestPayoutApi = async (payload: PayoutRequest) => {
 
     const key = idempotencyKey || generateIdempotencyKey();
 
-    console.log("📤 Requesting payout:", { amount, idempotencyKey: key });
-
-    const response = await WalletAxiosInstance.post("/payout", {
-      amount,
-      description,
-      idempotencyKey: key,
+    const response = await API.POST({
+      URL: `${WALLET_PREFIX}/payout`,
+      data: { amount, description, idempotencyKey: key },
     });
-
-    console.log("✅ Payout initiated:", response.data?.stripe?.payoutId);
     return response.data as PayoutResponse;
   } catch (e: any) {
-    const errorMessage = extractError(e, "Failed to request payout");
-    console.error("❌ Payout error:", errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(extractError(e, "Failed to request payout"));
   }
 };

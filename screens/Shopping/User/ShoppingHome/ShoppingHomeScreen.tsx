@@ -29,6 +29,7 @@ import {
   selectShoppingHome,
 } from './shoppingHomeSlice';
 import { ShoppingHeader } from '../../../../components/shopping/ShoppingHeader';
+import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
@@ -338,6 +339,11 @@ const ShoppingHomeScreen: React.FC = () => {
             </View>
           )}
         </View>
+
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4).
+            The header chip above reads the SAME selectBalance/selectCurrency,
+            so the two never disagree. */}
+        <MiniWalletCard onPress={() => navigation.navigate('WalletScreen' as never)} />
 
         {/* ── Categories ──────────────────────── */}
         <View style={styles.section}>

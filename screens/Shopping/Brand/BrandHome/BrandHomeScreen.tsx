@@ -28,6 +28,7 @@ import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandDashboard, selectBrandHome } from './brandHomeSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
+import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -107,6 +108,12 @@ const BrandHomeScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4).
+            The header chip above reads the SAME selectBalance/selectCurrency,
+            resolved from THIS vendor's own JWT — independent from every
+            other provider's balance. */}
+        <MiniWalletCard onPress={() => navigation.navigate('WalletScreen' as never)} />
+
         {/* ── KPI Cards ── */}
         <View style={styles.kpiRow}>
           {[

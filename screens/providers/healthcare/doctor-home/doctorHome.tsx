@@ -25,6 +25,7 @@ import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
 import type { Appointment } from '../../../../models/healthcare/types';
 import SlideOutSidebar from '../../../../components/SlideOutSidebar/SlideOutSidebar';
+import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
@@ -265,6 +266,11 @@ const DoctorHomeScreen: React.FC = () => {
             ))}
           </View>
         </LinearGradient>
+
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4).
+            Resolved from THIS doctor's own JWT — independent from every
+            other provider's balance. */}
+        <MiniWalletCard onPress={() => navigation.navigate('WalletScreen')} />
 
         {/* ── Next Appointment ── */}
         {nextAppointment && (

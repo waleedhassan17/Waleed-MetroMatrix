@@ -15,6 +15,7 @@ export {
   walletSlice,
   // Actions
   fetchWallet,
+  fetchTransactionHistory,
   createTopUpSession,
   transfer,
   fetchConnectStatus,
@@ -30,6 +31,11 @@ export {
   selectBalance,
   selectCurrency,
   selectTransactions,
+  selectHistoryTransactions,
+  selectHistoryPagination,
+  selectHistoryLoading,
+  selectHistoryError,
+  selectHistoryFilters,
   selectLoading,
   selectToppingUp,
   selectTransferring,
@@ -41,11 +47,12 @@ export {
   selectConnect,
 } from './walletSlice';
 
-export type { WalletState, ConnectState } from './walletSlice';
+export type { WalletState, ConnectState, TransactionHistoryFilters } from './walletSlice';
 
 // ── Network API layer ──────────────────────────────────────
 export {
   fetchWalletApi,
+  fetchWalletTransactionsApi,
   createTopUpSessionApi,
   transferApi,
   startConnectOnboardingApi,

@@ -36,6 +36,12 @@ import {
   ServiceCategory,
 } from './paymentSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
+import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
+
+// 'jazzcash' and 'easypaisa' both ride the in-app wallet on the backend
+// (see MetroMatrix-Backend paymentController.js) — the wallet IS the
+// mobile-money stand-in for FYP scope. 'cash' and 'card' don't touch it.
+const WALLET_BACKED_METHODS: PaymentMethodType[] = ['jazzcash', 'easypaisa'];
 
 const { width, height } = Dimensions.get('window');
 
@@ -107,6 +113,17 @@ export default function PaymentScreen() {
   const formattedAmount = useSelector(selectFormattedPaymentAmount);
   const isPaymentValid = useSelector(selectIsPaymentValid);
   const paymentMethods = useSelector(selectEnabledPaymentMethods);
+
+  // Wallet balance — same slice, same source, as healthcare's and shopping's
+  // payment screens, so all three treat insufficient balance identically.
+  const walletBalance = useSelector(selectBalance) as number;
+  const walletCurrency = useSelector(selectCurrency) as string;
+  const isWalletBacked = selectedMethod ? WALLET_BACKED_METHODS.includes(selectedMethod) : false;
+  const insufficientBalance = isWalletBacked && walletBalance < paymentAmount;
+
+  useEffect(() => {
+    dispatch(fetchWallet());
+  }, [dispatch]);
 
   // Local state
   const [manualAmount, setManualAmount] = useState('');
@@ -279,6 +296,17 @@ export default function PaymentScreen() {
       }
       return;
     }
+    if (insufficientBalance) {
+      Alert.alert(
+        'Insufficient wallet balance',
+        `Your wallet has ${walletCurrency.toUpperCase()} ${walletBalance.toFixed(2)} but this payment is ${formattedAmount}.\n\nTop up your wallet or choose a different payment method.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Top Up', onPress: () => (navigation as any).navigate('WalletScreen') },
+        ]
+      );
+      return;
+    }
 
     Alert.alert(
       'Confirm Payment',
@@ -309,6 +337,10 @@ export default function PaymentScreen() {
     paymentMethods,
     bookingId,
     dispatch,
+    insufficientBalance,
+    walletBalance,
+    walletCurrency,
+    navigation,
   ]);
 
   // Loading state
@@ -647,6 +679,35 @@ export default function PaymentScreen() {
           );
         })}
       </View>
+
+      {/* Insufficient balance — same treatment as healthcare/shopping
+          payment screens, same slice, same top-up link. */}
+      {isWalletBacked && (
+        <View style={styles.walletBalanceRow}>
+          <Ionicons
+            name="wallet-outline"
+            size={13}
+            color={insufficientBalance ? '#EF4444' : '#64748B'}
+          />
+          <Text style={[styles.walletBalanceText, insufficientBalance && { color: '#EF4444' }]}>
+            Wallet balance: {walletCurrency.toUpperCase()} {walletBalance.toLocaleString()}
+          </Text>
+        </View>
+      )}
+      {insufficientBalance && (
+        <TouchableOpacity
+          style={styles.insufficientBanner}
+          onPress={() => (navigation as any).navigate('WalletScreen')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="alert-circle" size={16} color="#EF4444" />
+          <Text style={styles.insufficientBannerText}>
+            Insufficient balance — top up {walletCurrency.toUpperCase()}{' '}
+            {(paymentAmount - walletBalance).toLocaleString()} more
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#EF4444" />
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 
@@ -661,14 +722,14 @@ export default function PaymentScreen() {
       ]}
     >
       <TouchableOpacity
-        style={[styles.payButton, !isPaymentValid && styles.payButtonDisabled]}
+        style={[styles.payButton, (!isPaymentValid || insufficientBalance) && styles.payButtonDisabled]}
         onPress={handlePayment}
         activeOpacity={0.9}
-        disabled={!isPaymentValid || isProcessing}
+        disabled={!isPaymentValid || isProcessing || insufficientBalance}
       >
         <LinearGradient
           colors={
-            isPaymentValid && !isProcessing
+            isPaymentValid && !isProcessing && !insufficientBalance
               ? serviceConfig.gradient
               : ['#CBD5E1', '#94A3B8']
           }
@@ -1081,6 +1142,34 @@ const styles = StyleSheet.create({
   },
   methodsList: {
     gap: 12,
+  },
+  walletBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+  },
+  walletBalanceText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  insufficientBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 12,
+    marginTop: 10,
+  },
+  insufficientBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   methodCard: {
     borderRadius: 16,

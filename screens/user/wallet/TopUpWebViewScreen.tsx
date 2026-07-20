@@ -30,6 +30,11 @@ const TopUpWebViewScreen: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Distinct from showSuccess: we polled for up to 30s and the webhook
+  // still hadn't landed. Money isn't lost — Stripe already has the
+  // successful payment — but we genuinely don't know the balance updated
+  // yet, so say so rather than claiming success we haven't confirmed.
+  const [showStillProcessing, setShowStillProcessing] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const cancelledRef = useRef(false);
   const successStartedRef = useRef(false);
@@ -59,7 +64,16 @@ const TopUpWebViewScreen: React.FC = () => {
     const finish = async (completed: boolean) => {
       if (cancelledRef.current) return;
       setIsUpdatingBalance(false);
-      setShowSuccess(true);
+      if (completed) {
+        setShowSuccess(true);
+      } else {
+        // Honest state: Stripe redirected to success, but 30s of polling
+        // never found a 'completed' transaction for this session — the
+        // webhook may still be in flight (or, per WALLET_DESIGN.md Part A,
+        // genuinely misconfigured). Don't claim the balance updated when we
+        // haven't confirmed it did.
+        setShowStillProcessing(true);
+      }
 
       // Always fetch wallet before navigating back — backend may have
       // updated the balance even if the transaction status field wasn't
@@ -73,7 +87,7 @@ const TopUpWebViewScreen: React.FC = () => {
       // Wait a bit longer for any final webhook processing
       setTimeout(() => {
         if (!cancelledRef.current) navigation.goBack();
-      }, completed ? 3000 : 2000);
+      }, completed ? 3000 : 3500);
     };
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -181,6 +195,22 @@ const TopUpWebViewScreen: React.FC = () => {
             </View>
             <Text style={styles.statusTitle}>Payment received</Text>
             <Text style={styles.statusSub}>Your balance is being updated.</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Still-Processing Overlay — polled 30s, no confirmation yet */}
+      {showStillProcessing && (
+        <View style={styles.overlay} pointerEvents="auto">
+          <View style={styles.statusCard}>
+            <View style={styles.statusIconPending}>
+              <ActivityIndicator size="small" color={Colors.warning} />
+            </View>
+            <Text style={styles.statusTitle}>Your top-up is processing</Text>
+            <Text style={styles.statusSub}>
+              Stripe confirmed your payment, but it's taking longer than usual to reflect in
+              your balance. Check back in a minute — it will update automatically.
+            </Text>
           </View>
         </View>
       )}
@@ -323,6 +353,12 @@ const styles = StyleSheet.create({
   statusIconCancel: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: Colors.backgroundAlt,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+  },
+  statusIconPending: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: '#FEF3C7',
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 14,
   },

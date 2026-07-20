@@ -53,6 +53,7 @@ import CallScreen from "../screens/user/homeservice/call-screen/callScreen";
 // Centralized User Screens
 import UserProfileScreen from "../screens/user/shared/profile/UserProfileScreen";
 import WalletScreen from "../screens/user/wallet/WalletScreen";
+import TransactionHistoryScreen from "../screens/user/wallet/TransactionHistoryScreen";
 import TopUpWebViewScreen from "../screens/user/wallet/TopUpWebViewScreen";
 
 // Provider Job Flow Screens
@@ -150,6 +151,7 @@ export const BaseRouteNames = {
   CallScreen: "CallScreen",
   UserProfileScreen: "UserProfileScreen",
   WalletScreen: "WalletScreen",
+  TransactionHistoryScreen: "TransactionHistoryScreen",
   TopUpWebView: "TopUpWebView",
   WalletTopUpSuccess: "WalletTopUpSuccess",
   WalletTopUpCancel: "WalletTopUpCancel",
@@ -251,6 +253,7 @@ export type RootStackParamList = {
   ProviderChatScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
   CallScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
   UserWalletScreen: undefined;
+  TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
   UserProfileScreen: undefined;
   
@@ -625,6 +628,14 @@ export const BaseRoutes: IRoute[] = [
   {
     component: WalletScreen,
     title: BaseRouteNames.WalletScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: TransactionHistoryScreen,
+    title: BaseRouteNames.TransactionHistoryScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

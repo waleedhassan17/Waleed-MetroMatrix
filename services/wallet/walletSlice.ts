@@ -16,6 +16,7 @@
 import { createAppSlice } from "../../store/createAppSlice";
 import {
   fetchWalletApi,
+  fetchWalletTransactionsApi,
   createTopUpSessionApi,
   transferApi,
   startConnectOnboardingApi,
@@ -48,11 +49,28 @@ export interface ConnectState {
   onboarding: boolean;
 }
 
+export interface TransactionHistoryFilters {
+  module?: string;
+  source?: string;
+  type?: 'credit' | 'debit';
+  from?: string;
+  to?: string;
+}
+
 export interface WalletState {
   balance: number;
   currency: string;
   transactions: WalletTransaction[];
   pagination: WalletPagination;
+
+  // Unified TransactionHistory screen (Part 2.5) — a SEPARATE, filterable,
+  // paginated list from the wallet home screen's `transactions` above, so
+  // filtering history doesn't disturb what the home screen shows.
+  historyTransactions: WalletTransaction[];
+  historyPagination: WalletPagination;
+  historyLoading: boolean;
+  historyError: string | null;
+  historyFilters: TransactionHistoryFilters;
 
   loading: boolean;
   toppingUp: boolean;
@@ -86,9 +104,15 @@ const initialConnect: ConnectState = {
 
 const initialState: WalletState = {
   balance: 0,
-  currency: 'usd',
+  currency: 'PKR',
   transactions: [],
   pagination: { page: 1, limit: 20, total: 0, pages: 0 },
+
+  historyTransactions: [],
+  historyPagination: { page: 1, limit: 20, total: 0, pages: 0 },
+  historyLoading: false,
+  historyError: null,
+  historyFilters: {},
 
   loading: false,
   toppingUp: false,
@@ -145,6 +169,51 @@ export const walletSlice = createAppSlice({
         rejected: (state, action) => {
           state.loading = false;
           state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Async Thunk: Unified transaction history — filterable by module,
+    // source, type and date range (Part C.5 backend, Part 2.5 frontend).
+    // `append: true` (e.g. "load more" pagination) concatenates onto the
+    // existing list instead of replacing it.
+    fetchTransactionHistory: create.asyncThunk(
+      async (
+        args: (TransactionHistoryFilters & { page?: number; limit?: number; append?: boolean }) | undefined,
+        { rejectWithValue }
+      ) => {
+        try {
+          const { append, ...params } = args || {};
+          const response = await fetchWalletTransactionsApi(params);
+          return { ...response, append: !!append, filters: params };
+        } catch (error: any) {
+          return rejectWithValue(error.message || 'Failed to fetch transaction history');
+        }
+      },
+      {
+        pending: (state) => {
+          state.historyLoading = true;
+          state.historyError = null;
+        },
+        fulfilled: (state, action) => {
+          state.historyLoading = false;
+          state.historyTransactions = action.payload.append
+            ? [...state.historyTransactions, ...action.payload.transactions]
+            : action.payload.transactions;
+          if (action.payload.pagination) {
+            state.historyPagination = action.payload.pagination;
+          }
+          state.historyFilters = action.payload.filters;
+          state.historyError = null;
+          // Same wallet, freshest read — keep the balance in sync too.
+          if (action.payload.wallet) {
+            state.balance = action.payload.wallet.balance;
+            state.currency = action.payload.wallet.currency;
+          }
+        },
+        rejected: (state, action) => {
+          state.historyLoading = false;
+          state.historyError = action.payload as string;
         },
       }
     ),
@@ -322,6 +391,11 @@ export const walletSlice = createAppSlice({
     selectBalance: (state) => state.balance,
     selectCurrency: (state) => state.currency,
     selectTransactions: (state) => state.transactions,
+    selectHistoryTransactions: (state) => state.historyTransactions,
+    selectHistoryPagination: (state) => state.historyPagination,
+    selectHistoryLoading: (state) => state.historyLoading,
+    selectHistoryError: (state) => state.historyError,
+    selectHistoryFilters: (state) => state.historyFilters,
     selectLoading: (state) => state.loading,
     selectToppingUp: (state) => state.toppingUp,
     selectTransferring: (state) => state.transferring,
@@ -339,6 +413,7 @@ export const walletSlice = createAppSlice({
 // ============================================
 export const {
   fetchWallet,
+  fetchTransactionHistory,
   createTopUpSession,
   transfer,
   fetchConnectStatus,
@@ -359,6 +434,11 @@ export const {
   selectBalance,
   selectCurrency,
   selectTransactions,
+  selectHistoryTransactions,
+  selectHistoryPagination,
+  selectHistoryLoading,
+  selectHistoryError,
+  selectHistoryFilters,
   selectLoading,
   selectToppingUp,
   selectTransferring,

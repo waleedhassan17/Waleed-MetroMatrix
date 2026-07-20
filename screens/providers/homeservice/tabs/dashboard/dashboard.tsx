@@ -45,6 +45,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
 import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
+import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 
 type RootStackParamList = {
   JobDetail: { job?: JobData };
@@ -500,6 +501,11 @@ export default function Dashboard() {
           />
         }
       >
+        {/* Wallet — one component, one data source, everywhere (W2 Part 4).
+            Resolved from THIS provider's own JWT — independent from every
+            other provider's balance. */}
+        <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
+
         <StatsCard />
         <PerformanceSection />
         <JobsSection />
