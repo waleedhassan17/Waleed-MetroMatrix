@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ import {
   selectCreatedOutletId,
 } from './addOutletSlice';
 import type { OutletWizardStep } from './addOutletSlice';
+import { fetchAdminBrandsApi, type AdminBrandView } from '../../../../networks/shopping/adminShoppingApi';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
 
@@ -70,15 +71,6 @@ const STEPS: { num: OutletWizardStep; label: string; icon: React.ElementType }[]
   { num: 5, label: 'Colors', icon: Palette },
 ];
 
-// Dummy brand list – in production this would come from the brandList Redux state
-const SAMPLE_BRANDS = [
-  { brandId: 'brand-001', name: 'Outfitters', primaryColor: '#E74C3C', secondaryColor: '#2C3E50', accentColor: '#F39C12' },
-  { brandId: 'brand-002', name: 'Bonanza Satrangi', primaryColor: '#8E44AD', secondaryColor: '#2C3E50', accentColor: '#F1C40F' },
-  { brandId: 'brand-003', name: 'Junaid Jamshed', primaryColor: '#27AE60', secondaryColor: '#1A252F', accentColor: '#F39C12' },
-  { brandId: 'brand-004', name: 'Khaadi', primaryColor: '#E67E22', secondaryColor: '#2C3E50', accentColor: '#BDC3C7' },
-  { brandId: 'brand-005', name: 'Sapphire', primaryColor: '#2980B9', secondaryColor: '#1A252F', accentColor: '#ECF0F1' },
-];
-
 const COLOR_PRESETS = [
   '#E67E22', '#C0392B', '#2980B9', '#27AE60', '#8E44AD',
   '#D35400', '#E74C3C', '#3498DB', '#2ECC71', '#9B59B6',
@@ -94,6 +86,13 @@ const AddOutletScreen: React.FC = () => {
   const saving = useAppSelector(selectOutletIsSaving);
   const createError = useAppSelector(selectOutletCreateError);
   const createdOutletId = useAppSelector(selectCreatedOutletId);
+
+  const [brands, setBrands] = useState<AdminBrandView[]>([]);
+  useEffect(() => {
+    fetchAdminBrandsApi({ page: 1, limit: 100 })
+      .then((res) => setBrands(res.data || []))
+      .catch(() => setBrands([]));
+  }, []);
 
   useEffect(() => {
     if (createdOutletId) {
@@ -357,7 +356,7 @@ const AddOutletScreen: React.FC = () => {
         <Text style={styles.brandOptionText}>No brand (standalone outlet)</Text>
         {!data.brandId && <Check size={16} stroke={COLORS.success} strokeWidth={2.5} />}
       </TouchableOpacity>
-      {SAMPLE_BRANDS.map((brand) => (
+      {brands.map((brand) => (
         <TouchableOpacity
           key={brand.brandId}
           style={[styles.brandOption, data.brandId === brand.brandId && styles.brandOptionSelected]}

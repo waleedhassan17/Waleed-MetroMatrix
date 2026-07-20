@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,7 @@ import {
   selectOutletDetailSuccess,
   selectOutletActiveTab,
 } from './outletDetailSlice';
+import { fetchAdminBrandsApi, type AdminBrandView } from '../../../../networks/shopping/adminShoppingApi';
 
 type Props = NativeStackScreenProps<AdminShoppingParamList, 'AdminOutletDetail'>;
 
@@ -71,14 +72,6 @@ const COLOR_PRESETS = [
   '#F39C12', '#1ABC9C', '#2C3E50', '#7F8C8D', '#ECF0F1',
 ];
 
-const SAMPLE_BRANDS = [
-  { brandId: 'brand-001', name: 'Outfitters', primaryColor: '#E74C3C', secondaryColor: '#2C3E50', accentColor: '#F39C12' },
-  { brandId: 'brand-002', name: 'Bonanza Satrangi', primaryColor: '#8E44AD', secondaryColor: '#2C3E50', accentColor: '#F1C40F' },
-  { brandId: 'brand-003', name: 'Junaid Jamshed', primaryColor: '#27AE60', secondaryColor: '#1A252F', accentColor: '#F39C12' },
-  { brandId: 'brand-004', name: 'Khaadi', primaryColor: '#E67E22', secondaryColor: '#2C3E50', accentColor: '#BDC3C7' },
-  { brandId: 'brand-005', name: 'Sapphire', primaryColor: '#2980B9', secondaryColor: '#1A252F', accentColor: '#ECF0F1' },
-];
-
 const OutletDetailScreen: React.FC<Props> = ({ route }) => {
   const { outletId } = route.params;
   const navigation = useNavigation<NativeStackNavigationProp<AdminShoppingParamList>>();
@@ -93,6 +86,13 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
   const error = useAppSelector(selectOutletDetailError);
   const successMessage = useAppSelector(selectOutletDetailSuccess);
   const activeTab = useAppSelector(selectOutletActiveTab);
+
+  const [brands, setBrands] = useState<AdminBrandView[]>([]);
+  useEffect(() => {
+    fetchAdminBrandsApi({ page: 1, limit: 100 })
+      .then((res) => setBrands(res.data || []))
+      .catch(() => setBrands([]));
+  }, []);
 
   useEffect(() => { dispatch(fetchOutletDetail(outletId)); }, [dispatch, outletId]);
 
@@ -129,7 +129,7 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
     dispatch(applyColorScheme({ outletId, colorScheme: cs as OutletColorScheme }));
   }, [dispatch, outletId, edited, outlet]);
 
-  const handleApplyBrandColors = useCallback((brand: typeof SAMPLE_BRANDS[0]) => {
+  const handleApplyBrandColors = useCallback((brand: AdminBrandView) => {
     const cs: OutletColorScheme = {
       primaryColor: brand.primaryColor,
       secondaryColor: brand.secondaryColor,
@@ -268,7 +268,7 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
       )}
 
       <Text style={styles.sectionLabel}>Available Brands</Text>
-      {SAMPLE_BRANDS.map((brand) => {
+      {brands.map((brand) => {
         const isCurrentBrand = outlet.brandId === brand.brandId;
         return (
           <TouchableOpacity
@@ -353,7 +353,7 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
         {outlet.brandId && (
           <>
             <Text style={styles.sectionLabel}>Import from Brand</Text>
-            {SAMPLE_BRANDS.filter((b) => b.brandId === outlet.brandId).map((brand) => (
+            {brands.filter((b) => b.brandId === outlet.brandId).map((brand) => (
               <TouchableOpacity
                 key={brand.brandId}
                 style={styles.importBrandBtn}

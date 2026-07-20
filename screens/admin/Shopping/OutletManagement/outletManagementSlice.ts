@@ -101,12 +101,18 @@ const outletManagementSlice = createSlice({
         state.outlets = state.outlets.filter((o) => o.outletId !== action.payload);
         state.filteredOutlets = applyFilters(state.outlets, state.statusFilter, state.searchQuery);
       })
+      .addCase(deleteOutlet.rejected, (state, action) => {
+        state.error = action.error.message || 'Failed to delete outlet';
+      })
       .addCase(toggleOutletStatus.fulfilled, (state, action) => {
         const idx = state.outlets.findIndex((o) => o.outletId === action.payload.outletId);
         if (idx !== -1) {
           state.outlets[idx] = action.payload;
           state.filteredOutlets = applyFilters(state.outlets, state.statusFilter, state.searchQuery);
         }
+      })
+      .addCase(toggleOutletStatus.rejected, (state, action) => {
+        state.error = action.error.message || 'Failed to update outlet status';
       });
   },
 });

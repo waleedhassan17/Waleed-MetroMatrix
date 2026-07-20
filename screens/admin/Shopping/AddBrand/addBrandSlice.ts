@@ -88,6 +88,36 @@ export const createBrandAsync = createAsyncThunk(
   }
 );
 
+// Pure validator shared by the `validateStep` reducer and the screen's
+// goNext handler — the screen needs the result synchronously (a dispatched
+// reducer updates the store immediately, but the component's own `errors`
+// selector value is still the PREVIOUS render's snapshot until React
+// re-renders, so reading it right after dispatch silently uses stale data).
+export const computeStepErrors = (
+  step: WizardStep,
+  data: Partial<BrandConfig>
+): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  switch (step) {
+    case 1:
+      if (!data.name?.trim()) errors.name = 'Brand name is required';
+      if (!data.slug?.trim()) errors.slug = 'Slug is required';
+      if (!data.description?.trim()) errors.description = 'Description is required';
+      break;
+    case 2:
+      if (!data.primaryColor) errors.primaryColor = 'Primary color is required';
+      break;
+    case 4:
+      if (data.policies?.returnDays == null || data.policies.returnDays < 0)
+        errors.returnDays = 'Invalid return days';
+      break;
+    case 5:
+      if (!data.contactEmail?.trim()) errors.contactEmail = 'Email is required';
+      break;
+  }
+  return errors;
+};
+
 // ── Slice ─────────────────────────────────────
 
 const addBrandSlice = createSlice({
@@ -109,29 +139,7 @@ const addBrandSlice = createSlice({
       }
     },
     validateStep(state, action: PayloadAction<WizardStep>) {
-      const step = action.payload;
-      const errors: Record<string, string> = {};
-      const data = state.brandData;
-
-      switch (step) {
-        case 1:
-          if (!data.name?.trim()) errors.name = 'Brand name is required';
-          if (!data.slug?.trim()) errors.slug = 'Slug is required';
-          if (!data.description?.trim()) errors.description = 'Description is required';
-          break;
-        case 2:
-          if (!data.primaryColor) errors.primaryColor = 'Primary color is required';
-          break;
-        case 4:
-          if (data.policies?.returnDays == null || data.policies.returnDays < 0)
-            errors.returnDays = 'Invalid return days';
-          break;
-        case 5:
-          if (!data.contactEmail?.trim()) errors.contactEmail = 'Email is required';
-          break;
-      }
-
-      state.errors = errors;
+      state.errors = computeStepErrors(action.payload, state.brandData);
     },
     clearErrors(state) {
       state.errors = {};

@@ -43,6 +43,7 @@ import {
   selectCreateError,
   selectCreatedBrandId,
 } from './addBrandSlice';
+import { computeStepErrors } from './addBrandSlice';
 import type { WizardStep } from './addBrandSlice';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
@@ -93,12 +94,16 @@ const AddBrandScreen: React.FC = () => {
   }, [step, dispatch, navigation]);
 
   const goNext = useCallback(() => {
+    // Compute synchronously against the current data rather than reading
+    // the `errors` selector right after dispatch — that value is still the
+    // previous render's snapshot until React re-renders, so it silently
+    // let every step through regardless of real validation errors.
+    const errs = computeStepErrors(step, data);
     dispatch(validateStep(step));
-    const errs = errors; // will be updated after dispatch
     if (Object.keys(errs).length === 0) {
       if (step < 6) dispatch(setStep((step + 1) as WizardStep));
     }
-  }, [step, dispatch, errors]);
+  }, [step, dispatch, data]);
 
   const handleCreate = useCallback(() => {
     dispatch(createBrandAsync());
