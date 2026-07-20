@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DashboardScreen from './dashboard/dashboard';
 import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
-import ProfileScreen from '../profie-screen/profile';
+import ProfileScreen from '../profile-screen/profile';
 
 // Navigation Types
 type TabParamList = {

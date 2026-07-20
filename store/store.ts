@@ -51,7 +51,7 @@ import providerChatReducer from "../screens/user/homeservice/providers-chat/prov
 import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
 import providerJobsReducer from "../screens/providers/homeservice/tabs/jobs/jobSlice";
 import providerEarningsReducer from "../screens/providers/homeservice/tabs/earnings/earningSlice";
-import providerHomeProfileReducer from "../screens/providers/homeservice/profie-screen/profileSlice";
+import providerHomeProfileReducer from "../screens/providers/homeservice/profile-screen/profileSlice";
 
 // Provider Job Flow slices
 import jobDetailReducer from "../screens/providers/homeservice/jobdetail-screen/jobDetailSlice";

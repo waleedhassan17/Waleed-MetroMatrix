@@ -9,6 +9,8 @@ import {
   Linking,
   Alert,
   Animated,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +27,8 @@ import {
   arriveAtLocation,
 } from './mapSlice';
 import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
+import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
+import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
 
 const { width, height } = Dimensions.get('window');
 const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
@@ -85,46 +89,95 @@ const NavigationMapScreen: React.FC = () => {
     return () => pulse.stop();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required for navigation');
-        return;
-      }
+  // HS7: share position with the customer ONLY while the job is EN_ROUTE or
+  // ARRIVED (socket first, REST fallback), and stop entirely when the app is
+  // backgrounded for more than 60 s or the job leaves the active phase —
+  // supports the battery and NFR-08 privacy claims.
+  const watchSubRef = useRef<Location.LocationSubscription | null>(null);
+  const backgroundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trackingActiveRef = useRef(true);
 
-      // Get initial location
-      const location = await Location.getCurrentPositionAsync({});
-      const newLocation = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setCurrentLocation(newLocation);
-      dispatch(updateCurrentLocation(newLocation));
+  const stopWatching = () => {
+    trackingActiveRef.current = false;
+    watchSubRef.current?.remove();
+    watchSubRef.current = null;
+  };
 
-      // Watch location updates
-      const subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 3000,
-          distanceInterval: 10,
-        },
-        (location) => {
-          const updatedLocation = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          };
-          setCurrentLocation(updatedLocation);
-          dispatch(updateCurrentLocation(updatedLocation));
-          
-          // Check if near destination
-          const dist = calculateDistance(updatedLocation, destinationCoords);
-          dispatch(setNearDestination(dist <= ARRIVAL_THRESHOLD));
-        }
+  const startWatching = async () => {
+    // Clear rationale: the customer sees the provider approach on the map.
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Location Permission Required',
+        'Your live position is shared with the customer only while you are en route, so they can see you approaching on the map.'
       );
+      return;
+    }
 
-      return () => subscription.remove();
-    })();
+    const location = await Location.getCurrentPositionAsync({});
+    const newLocation = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
+    setCurrentLocation(newLocation);
+    dispatch(updateCurrentLocation(newLocation));
+
+    trackingActiveRef.current = true;
+    watchSubRef.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 10,
+      },
+      async (loc) => {
+        if (!trackingActiveRef.current) return;
+        const updatedLocation = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        };
+        setCurrentLocation(updatedLocation);
+        dispatch(updateCurrentLocation(updatedLocation));
+
+        const dist = calculateDistance(updatedLocation, destinationCoords);
+        dispatch(setNearDestination(dist <= ARRIVAL_THRESHOLD));
+
+        // Broadcast to the booking room; backend enforces the EN_ROUTE/
+        // ARRIVED-only rule and the 3s throttle server-side.
+        if (job?.id) {
+          const ack = await emitEvent('provider_location', {
+            bookingId: job.id,
+            lat: updatedLocation.latitude,
+            lng: updatedLocation.longitude,
+          });
+          if (!ack.success && /unavailable/i.test(ack.message || '')) {
+            // Socket down (serverless host) — REST fallback keeps FR-09 alive.
+            updateProviderLocationApi({ ...updatedLocation, jobId: job.id });
+          }
+        }
+      }
+    );
+  };
+
+  useEffect(() => {
+    if (job?.id) joinBooking(job.id);
+    startWatching();
+
+    // Stop sharing when backgrounded > 60s; resume on foreground.
+    const onAppStateChange = (state: AppStateStatus) => {
+      if (state === 'background') {
+        backgroundTimerRef.current = setTimeout(stopWatching, 60000);
+      } else if (state === 'active') {
+        if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+        if (!watchSubRef.current) startWatching();
+      }
+    };
+    const sub = AppState.addEventListener('change', onAppStateChange);
+
+    return () => {
+      sub.remove();
+      if (backgroundTimerRef.current) clearTimeout(backgroundTimerRef.current);
+      stopWatching();
+    };
   }, []);
 
   const calculateDistance = (

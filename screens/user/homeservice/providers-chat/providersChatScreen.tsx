@@ -19,6 +19,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useBookingSocket } from '../../../../hooks/useBookingSocket';
+import { fetchChatData } from '../../../../networks/serviceProviders/chatNetwork';
 
 const { width, height } = Dimensions.get('window');
 const isAndroid = Platform.OS === 'android';
@@ -73,17 +75,21 @@ type ProviderChatScreenRouteParams = {
   serviceType?: 'electricians' | 'plumbers' | 'ac-repairers';
   jobDescription?: string;
   location?: string;
+  // HS7: when navigating from an active booking, chat is REAL — socket +
+  // REST history — instead of the scripted pre-booking conversation.
+  bookingId?: string;
 };
 
 export default function ProviderChatScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: ProviderChatScreenRouteParams }, 'params'>>();
 
-  const { 
-    provider, 
-    serviceType = 'ac-repairers', 
-    jobDescription = '', 
-    location = '' 
+  const {
+    provider,
+    serviceType = 'ac-repairers',
+    jobDescription = '',
+    location = '',
+    bookingId,
   } = route.params || {};
   
   const serviceConfig = SERVICE_CONFIG[serviceType] || SERVICE_CONFIG['ac-repairers'];
@@ -153,21 +159,66 @@ export default function ProviderChatScreen() {
     }
   }, [navigation, isConfirmed]);
 
+  // HS7: live layer for real bookings. Messages arriving over the socket are
+  // merged into the local list; sends go socket-first with REST fallback.
+  const {
+    messages: liveMessages,
+    seedMessages,
+    sendMessage: sendLiveMessage,
+    typing: providerTyping,
+  } = useBookingSocket(bookingId);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    // Real conversation: replace the scripted intro with server history.
+    setMessages([]);
+    fetchChatData(bookingId).then((res) => {
+      if (res.success && res.data) seedMessages(res.data.messages);
+    });
+  }, [bookingId, seedMessages]);
+
+  useEffect(() => {
+    if (!bookingId || liveMessages.length === 0) return;
+    setMessages(
+      liveMessages.map((m) => ({
+        id: m.id,
+        text: m.text,
+        sender: m.sender,
+        timestamp: new Date(m.timestamp),
+        status: m.status,
+      }))
+    );
+  }, [bookingId, liveMessages]);
+
   const handleSendMessage = useCallback(() => {
     if (!inputText.trim()) return;
+    const text = inputText.trim();
+    setInputText('');
 
+    if (bookingId) {
+      // Optimistic append; the authoritative copy comes back via the socket
+      // (or the REST response) and replaces it through liveMessages.
+      const optimistic: Message = {
+        id: `local-${Date.now()}`,
+        text,
+        sender: 'user',
+        timestamp: new Date(),
+        status: 'sent',
+      };
+      setMessages(prev => [...prev, optimistic]);
+      sendLiveMessage(text);
+      return;
+    }
+
+    // Pre-booking demo conversation (no booking yet)
     const newMessage: Message = {
       id: Date.now().toString(),
-      text: inputText.trim(),
+      text,
       sender: 'user',
       timestamp: new Date(),
       status: 'sent',
     };
-
     setMessages(prev => [...prev, newMessage]);
-    setInputText('');
-
-    // Simulate provider response
     setTimeout(() => {
       const response: Message = {
         id: (Date.now() + 1).toString(),
@@ -178,7 +229,7 @@ export default function ProviderChatScreen() {
       };
       setMessages(prev => [...prev, response]);
     }, 2000);
-  }, [inputText]);
+  }, [inputText, bookingId, sendLiveMessage]);
 
   const handleCall = useCallback(() => {
     Alert.alert(

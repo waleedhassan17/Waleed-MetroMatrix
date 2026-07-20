@@ -32,9 +32,11 @@ import {
   clearTrackingState,
   selectTrackingInfo,
   selectIsProviderNearby,
+  setProviderLocation,
   Coordinates,
 } from './liveTrackingSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
+import { useBookingSocket } from '../../../../hooks/useBookingSocket';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
@@ -97,6 +99,25 @@ export default function LiveTrackingScreen() {
   const locationError = useSelector((state: RootState) => state.liveTracking?.locationError);
   const trackingInfo = useSelector(selectTrackingInfo);
   const isProviderNearby = useSelector(selectIsProviderNearby);
+
+  // HS7: live provider_location_update events replace polling; the marker
+  // position flows through the existing Redux state so the map animates
+  // between updates instead of snapping.
+  const { providerLocation: liveLocation, bookingStatus: liveStatus } =
+    useBookingSocket(bookingId);
+  useEffect(() => {
+    if (liveLocation) {
+      dispatch(
+        setProviderLocation({
+          latitude: liveLocation.latitude,
+          longitude: liveLocation.longitude,
+        })
+      );
+    }
+  }, [liveLocation, dispatch]);
+  useEffect(() => {
+    if (liveStatus === 'ARRIVED') dispatch(updateStatusToArrived());
+  }, [liveStatus, dispatch]);
 
   // Local state
   const [isReady, setIsReady] = useState(false);

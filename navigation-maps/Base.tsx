@@ -62,6 +62,9 @@ import JobInProgressScreen from "../screens/providers/homeservice/job-InProgress
 import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-screen/awaitingScreen";
 import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
+import ProviderJobChatScreen from "../screens/providers/homeservice/provider-chat/providerChat";
+import ProviderCallScreenHS from "../screens/providers/homeservice/call-screen/providerCallScreen";
+import ProviderAvailabilityScreen from "../screens/providers/homeservice/availability/availabilityScreen";
 
 // Shopping Module
 import ShoppingStack from "../navigators/ShoppingStack";
@@ -155,6 +158,10 @@ export const BaseRouteNames = {
   AwaitingApproval: "AwaitingApproval",
   PaymentRequest: "PaymentRequest",
   JobCompletion: "JobCompletion",
+  // HS7: provider side of the two-party features + availability settings
+  ProviderJobChat: "ProviderJobChat",
+  ProviderCallScreen: "ProviderCallScreen",
+  ProviderAvailability: "ProviderAvailability",
 
   // Shopping
   Shopping: "Shopping",
@@ -252,6 +259,9 @@ export type RootStackParamList = {
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;
+  ProviderJobChat: { bookingId: string; customerName?: string };
+  ProviderCallScreen: { bookingId: string; customerName?: string; customerPhone?: string };
+  ProviderAvailability: undefined;
 
   // Shopping
   Shopping: undefined;
@@ -658,6 +668,31 @@ export const BaseRoutes: IRoute[] = [
   {
     component: JobCompletionScreen,
     title: BaseRouteNames.JobCompletion,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  // HS7: provider chat / call / availability
+  {
+    component: ProviderJobChatScreen,
+    title: BaseRouteNames.ProviderJobChat,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderCallScreenHS,
+    title: BaseRouteNames.ProviderCallScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_bottom',
+    }
+  },
+  {
+    component: ProviderAvailabilityScreen,
+    title: BaseRouteNames.ProviderAvailability,
     options: {
       headerShown: false,
       animation: 'slide_from_right',
