@@ -16,6 +16,11 @@ export const SHOPPING_API_URL = `${API_BASE_URL}/shopping`;
 // bundled Outfitters fixtures from dummyData.ts instead of hitting the API.
 export const USE_SHOPPING_DUMMY_DATA = true;
 
+// Home Services offline demo fallback ONLY (HS6). When true, the
+// networks/serviceProviders/* modules return bundled fixtures instead of
+// hitting the API. Must stay FALSE for the real backend flows.
+export const USE_HOMESERVICE_DUMMY_DATA = false;
+
 // Telemedicine BUILT (see TELEMEDICINE_DECISION.md): Jitsi Meet rooms in a
 // WebView on both patient and doctor sides, joined via /video-calls/join.
 export const FEATURE_TELEMEDICINE = true;
