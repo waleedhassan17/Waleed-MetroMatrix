@@ -7,12 +7,19 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { CheckCircle2, ChevronLeft, RotateCcw, XCircle, AlertTriangle, MessageSquare } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, Package, XCircle, AlertTriangle, MessageSquare } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { fetchReturnRequests, selectReturnRequests, updateReturnStatus } from './returnRequestsSlice';
+import {
+  fetchReturnRequests,
+  selectReturnRequests,
+  updateReturnStatus,
+  type ReturnServerStatus,
+} from './returnRequestsSlice';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -33,10 +40,29 @@ const B = {
   warningLight: '#FFFBEB',
 };
 
-const STATUS_STYLES: Record<string, { color: string; bg: string }> = {
-  pending: { color: B.warning, bg: B.warningLight },
-  approved: { color: B.success, bg: B.successLight },
-  rejected: { color: B.error, bg: B.errorLight },
+const STATUS_STYLES: Record<ReturnServerStatus, { color: string; bg: string; label: string }> = {
+  requested: { color: B.warning, bg: B.warningLight, label: 'Requested' },
+  approved: { color: B.success, bg: B.successLight, label: 'Approved' },
+  rejected: { color: B.error, bg: B.errorLight, label: 'Rejected' },
+  picked_up: { color: B.primary, bg: B.primaryLight, label: 'Picked Up' },
+  refunded: { color: B.textMuted, bg: B.bg, label: 'Refunded' },
+};
+
+// Mirrors the backend's RETURN_FLOW exactly (vendorOrderController.js) —
+// requested/rejected/refunded are terminal or single-branch; only these
+// transitions are ever legal to offer.
+const NEXT_RETURN_ACTIONS: Record<
+  ReturnServerStatus,
+  { status: ReturnServerStatus; label: string; color: string; icon: any }[]
+> = {
+  requested: [
+    { status: 'approved', label: 'Approve', color: B.success, icon: CheckCircle2 },
+    { status: 'rejected', label: 'Reject', color: B.error, icon: XCircle },
+  ],
+  approved: [{ status: 'picked_up', label: 'Mark Picked Up', color: B.primary, icon: Package }],
+  picked_up: [{ status: 'refunded', label: 'Confirm Refund', color: B.success, icon: CheckCircle2 }],
+  rejected: [],
+  refunded: [],
 };
 
 const getInitials = (name: string) => {
@@ -49,14 +75,22 @@ const getInitials = (name: string) => {
 const ReturnRequestsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { requests } = useAppSelector(selectReturnRequests);
+  const { requests, loading, error } = useAppSelector(selectReturnRequests);
 
   useEffect(() => {
     dispatch(fetchReturnRequests());
   }, [dispatch]);
 
+  const handleTransition = async (requestId: string, status: ReturnServerStatus) => {
+    const result = await dispatch(updateReturnStatus({ requestId, status }));
+    if (updateReturnStatus.rejected.match(result)) {
+      Alert.alert('Could not update return', (result.payload as string) || 'Please try again.');
+    }
+  };
+
   const renderRequest = ({ item: request }: { item: typeof requests[0] }) => {
-    const statusStyle = STATUS_STYLES[request.status] || STATUS_STYLES.pending;
+    const statusStyle = STATUS_STYLES[request.status] || STATUS_STYLES.requested;
+    const nextActions = NEXT_RETURN_ACTIONS[request.status] || [];
     const initials = getInitials(request.customerName);
 
     return (
@@ -71,7 +105,7 @@ const ReturnRequestsScreen: React.FC = () => {
             <Text style={styles.requestMeta}>{request.requestId} · Order {request.orderId}</Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.statusText, { color: statusStyle.color }]}>{request.status}</Text>
+            <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusStyle.label}</Text>
           </View>
         </View>
 
@@ -87,28 +121,25 @@ const ReturnRequestsScreen: React.FC = () => {
             <Text style={styles.refundText}>₨{request.refundAmount.toLocaleString()}</Text>
             <Text style={styles.refundLabel}>refund</Text>
           </View>
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.success }]}
-              onPress={() => dispatch(updateReturnStatus({ requestId: request.requestId, status: 'approved' }))}
-            >
-              <CheckCircle2 size={14} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Approve</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.error }]}
-              onPress={() => dispatch(updateReturnStatus({ requestId: request.requestId, status: 'rejected' }))}
-            >
-              <XCircle size={14} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.bg }]}
-              onPress={() => dispatch(updateReturnStatus({ requestId: request.requestId, status: 'pending' }))}
-            >
-              <RotateCcw size={14} stroke={B.primary} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+          {nextActions.length > 0 ? (
+            <View style={styles.actions}>
+              {nextActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <TouchableOpacity
+                    key={action.status}
+                    style={[styles.actionBtn, { backgroundColor: action.color }]}
+                    onPress={() => handleTransition(request.requestId, action.status)}
+                  >
+                    <Icon size={14} stroke="#FFF" strokeWidth={2} />
+                    <Text style={styles.actionText}>{action.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.finalStateText}>No further action</Text>
+          )}
         </View>
       </View>
     );
@@ -129,22 +160,36 @@ const ReturnRequestsScreen: React.FC = () => {
         <View style={{ width: 38 }} />
       </View>
 
-      <FlatList
-        data={requests}
-        keyExtractor={(item) => item.requestId}
-        renderItem={renderRequest}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <AlertTriangle size={32} stroke={B.textMuted} strokeWidth={1.5} />
+      {loading && requests.length === 0 ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={B.primary} />
+        </View>
+      ) : error && requests.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Couldn't load return requests</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => dispatch(fetchReturnRequests())}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={requests}
+          keyExtractor={(item) => item.requestId}
+          renderItem={renderRequest}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <AlertTriangle size={32} stroke={B.textMuted} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.emptyTitle}>No return requests</Text>
+              <Text style={styles.emptyText}>When customers submit return requests, they will appear here.</Text>
             </View>
-            <Text style={styles.emptyTitle}>No return requests</Text>
-            <Text style={styles.emptyText}>When customers submit return requests, they will appear here.</Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
     </View>
   );
 };
@@ -242,6 +287,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  finalStateText: { fontSize: 12, color: B.textMuted, fontStyle: 'italic' },
+  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: B.primary },
+  retryText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },

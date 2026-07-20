@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -27,6 +28,7 @@ import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Co
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandDashboard, selectBrandHome } from './brandHomeSlice';
+import { fetchMyBrand, selectBrandProfile } from '../BrandProfile/brandProfileSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
@@ -61,10 +63,12 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 const BrandHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { kpis, weeklySales, recentOrders, lowStockAlerts } = useAppSelector(selectBrandHome);
+  const { kpis, weeklySales, recentOrders, lowStockAlerts, loading, error } = useAppSelector(selectBrandHome);
+  const { brand } = useAppSelector(selectBrandProfile);
 
   useEffect(() => {
     dispatch(fetchBrandDashboard());
+    dispatch(fetchMyBrand());
   }, [dispatch]);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
@@ -89,7 +93,7 @@ const BrandHomeScreen: React.FC = () => {
       {/* ── Header ── */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.brandLabel}>OUTFITTERS</Text>
+          <Text style={styles.brandLabel}>{brand?.name ? brand.name.toUpperCase() : ' '}</Text>
           <Text style={styles.headerTitle}>Dashboard</Text>
         </View>
         <TouchableOpacity
@@ -113,6 +117,20 @@ const BrandHomeScreen: React.FC = () => {
             resolved from THIS vendor's own JWT — independent from every
             other provider's balance. */}
         <MiniWalletCard onPress={() => navigation.navigate('WalletScreen' as never)} />
+
+        {loading && kpis.orders === 0 && recentOrders.length === 0 && (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="small" color={B.primary} />
+          </View>
+        )}
+        {error && (
+          <View style={styles.dashboardErrorCard}>
+            <Text style={styles.dashboardErrorText}>{error}</Text>
+            <TouchableOpacity onPress={() => dispatch(fetchBrandDashboard())}>
+              <Text style={styles.dashboardRetryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── KPI Cards ── */}
         <View style={styles.kpiRow}>
@@ -155,10 +173,6 @@ const BrandHomeScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Weekly Sales</Text>
-            <View style={styles.trendBadge}>
-              <TrendingUp size={12} stroke={B.success} strokeWidth={2} />
-              <Text style={styles.trendText}>+18%</Text>
-            </View>
           </View>
           <View style={styles.chartContainer}>
             {weeklySales.map((value, index) => {
@@ -413,20 +427,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: B.primary,
   },
-  trendBadge: {
+  loaderWrap: { paddingVertical: Spacing.lg, alignItems: 'center' },
+  dashboardErrorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    backgroundColor: B.successLight,
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: B.errorLight,
+    marginBottom: Spacing.md,
   },
-  trendText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: B.success,
-  },
+  dashboardErrorText: { flex: 1, fontSize: 12, color: B.error, fontWeight: '600' },
+  dashboardRetryText: { fontSize: 12, fontWeight: '700', color: B.error, marginLeft: Spacing.sm },
 
   // Chart
   chartContainer: {

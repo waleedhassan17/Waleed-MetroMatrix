@@ -54,10 +54,35 @@ const B = {
 
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; label: string }> = {
   pending: { color: B.warning, bg: B.warningLight, icon: Clock, label: 'Pending' },
+  confirmed: { color: B.info, bg: B.infoLight, icon: CheckCircle2, label: 'Confirmed' },
   processing: { color: B.info, bg: B.infoLight, icon: Loader, label: 'Processing' },
   shipped: { color: B.purple, bg: B.purpleLight, icon: Truck, label: 'Shipped' },
+  out_for_delivery: { color: B.purple, bg: B.purpleLight, icon: Truck, label: 'Out for Delivery' },
   delivered: { color: B.success, bg: B.successLight, icon: CheckCircle2, label: 'Delivered' },
   cancelled: { color: B.error, bg: B.errorLight, icon: XCircle, label: 'Cancelled' },
+  returned: { color: B.warning, bg: B.warningLight, icon: XCircle, label: 'Returned' },
+  refunded: { color: B.textMuted, bg: B.bg, icon: XCircle, label: 'Refunded' },
+};
+
+// Mirrors the backend's ALLOWED_TRANSITIONS (orderService.js) exactly — the
+// vendor must only ever be offered a transition the server will actually
+// accept. cancelled/returned/refunded have no further vendor-driven moves.
+type NextStatus = 'confirmed' | 'processing' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled';
+const NEXT_ACTIONS: Record<string, { status: NextStatus; label: string; color: string; icon: any }[]> = {
+  pending: [
+    { status: 'confirmed', label: 'Confirm', color: B.info, icon: CheckCircle2 },
+    { status: 'cancelled', label: 'Cancel', color: B.error, icon: XCircle },
+  ],
+  confirmed: [
+    { status: 'processing', label: 'Processing', color: B.info, icon: Loader },
+    { status: 'cancelled', label: 'Cancel', color: B.error, icon: XCircle },
+  ],
+  processing: [
+    { status: 'shipped', label: 'Shipped', color: B.purple, icon: Truck },
+    { status: 'cancelled', label: 'Cancel', color: B.error, icon: XCircle },
+  ],
+  shipped: [{ status: 'out_for_delivery', label: 'Out for Delivery', color: B.purple, icon: Truck }],
+  out_for_delivery: [{ status: 'delivered', label: 'Delivered', color: B.success, icon: CheckCircle2 }],
 };
 
 const ProcessOrderScreen: React.FC = () => {
@@ -72,14 +97,27 @@ const ProcessOrderScreen: React.FC = () => {
     return () => { dispatch(resetProcessOrder()); };
   }, [dispatch]);
 
-  const handleUpdate = (nextStatus: 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
+  const handleUpdate = async (nextStatus: NextStatus) => {
+    if (nextStatus === 'shipped' && !trackingNumber.trim()) {
+      Alert.alert('Tracking number required', 'Enter a tracking number before marking this order shipped.');
+      return;
+    }
     dispatch(setSaving(true));
-    setTimeout(() => {
-      dispatch(updateOrderStatus({ orderId, orderStatus: nextStatus, trackingNumber: trackingNumber || undefined }));
-      dispatch(setSaving(false));
-      Alert.alert('Order Updated', `Status changed to "${nextStatus}".`);
-      navigation.navigate(BrandRouteNames.BrandOrders);
-    }, 500);
+    const result = await dispatch(
+      updateOrderStatus({
+        orderId,
+        orderStatus: nextStatus,
+        trackingNumber: trackingNumber || undefined,
+        note: notes || undefined,
+      })
+    );
+    dispatch(setSaving(false));
+    if (updateOrderStatus.rejected.match(result)) {
+      Alert.alert('Could not update order', (result.payload as string) || 'Please try again.');
+      return;
+    }
+    Alert.alert('Order Updated', `Status changed to "${nextStatus}".`);
+    navigation.navigate(BrandRouteNames.BrandOrders);
   };
 
   if (!order) {
@@ -102,6 +140,7 @@ const ProcessOrderScreen: React.FC = () => {
 
   const currentStatus = STATUS_META[order.orderStatus] || STATUS_META.pending;
   const CurrentIcon = currentStatus.icon;
+  const nextActions = NEXT_ACTIONS[order.orderStatus] || [];
 
   return (
     <View style={styles.container}>
@@ -194,44 +233,33 @@ const ProcessOrderScreen: React.FC = () => {
           />
         </View>
 
-        {/* Actions */}
-        <View style={styles.actionsCard}>
-          <Text style={styles.sectionTitle}>Update Status</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.info }]}
-              disabled={saving}
-              onPress={() => handleUpdate('processing')}
-            >
-              <Loader size={16} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Processing</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.purple }]}
-              disabled={saving}
-              onPress={() => handleUpdate('shipped')}
-            >
-              <Truck size={16} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Shipped</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.success }]}
-              disabled={saving}
-              onPress={() => handleUpdate('delivered')}
-            >
-              <CheckCircle2 size={16} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Delivered</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: B.error }]}
-              disabled={saving}
-              onPress={() => handleUpdate('cancelled')}
-            >
-              <XCircle size={16} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.actionText}>Cancel</Text>
-            </TouchableOpacity>
+        {/* Actions — only transitions the backend will actually accept from this order's current status */}
+        {nextActions.length > 0 ? (
+          <View style={styles.actionsCard}>
+            <Text style={styles.sectionTitle}>Update Status</Text>
+            <View style={styles.actionsGrid}>
+              {nextActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <TouchableOpacity
+                    key={action.status}
+                    style={[styles.actionBtn, { backgroundColor: action.color }]}
+                    disabled={saving}
+                    onPress={() => handleUpdate(action.status)}
+                  >
+                    <Icon size={16} stroke="#FFF" strokeWidth={2} />
+                    <Text style={styles.actionText}>{action.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.actionsCard}>
+            <Text style={styles.sectionTitle}>Update Status</Text>
+            <Text style={styles.emptyText}>This order is in a final state — no further status changes are possible.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );

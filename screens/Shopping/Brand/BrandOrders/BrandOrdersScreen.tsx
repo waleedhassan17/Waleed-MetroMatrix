@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -25,6 +26,7 @@ import { Shadows } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandOrders, selectBrandOrders, setStatusFilter } from './brandOrdersSlice';
+import type { OrderStatus } from '../../../../types/shopping';
 
 const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
@@ -49,21 +51,29 @@ const B = {
   purpleLight: '#F5F3FF',
 };
 
-const STATUS_MAP: Record<string, { bg: string; text: string; icon: any; label: string }> = {
+const STATUS_MAP: Record<OrderStatus, { bg: string; text: string; icon: any; label: string }> = {
   pending: { bg: B.warningLight, text: B.warning, icon: Clock, label: 'Pending' },
+  confirmed: { bg: B.infoLight, text: B.info, icon: CheckCircle2, label: 'Confirmed' },
   processing: { bg: B.infoLight, text: B.info, icon: Loader, label: 'Processing' },
   shipped: { bg: B.purpleLight, text: B.purple, icon: Truck, label: 'Shipped' },
+  out_for_delivery: { bg: B.purpleLight, text: B.purple, icon: Truck, label: 'Out for Delivery' },
   delivered: { bg: B.successLight, text: B.success, icon: CheckCircle2, label: 'Delivered' },
   cancelled: { bg: B.errorLight, text: B.error, icon: XCircle, label: 'Cancelled' },
+  returned: { bg: B.warningLight, text: B.warning, icon: XCircle, label: 'Returned' },
+  refunded: { bg: B.bg, text: B.textMuted, icon: XCircle, label: 'Refunded' },
 };
 
-const filters: { key: 'all' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'; label: string }[] = [
+const filters: { key: 'all' | OrderStatus; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
+  { key: 'confirmed', label: 'Confirmed' },
   { key: 'processing', label: 'Processing' },
   { key: 'shipped', label: 'Shipped' },
+  { key: 'out_for_delivery', label: 'Out for Delivery' },
   { key: 'delivered', label: 'Delivered' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'returned', label: 'Returned' },
+  { key: 'refunded', label: 'Refunded' },
 ];
 
 const getInitials = (name: string) => {
@@ -76,7 +86,7 @@ const getInitials = (name: string) => {
 const BrandOrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { orders, statusFilter } = useAppSelector(selectBrandOrders);
+  const { orders, statusFilter, loading, error } = useAppSelector(selectBrandOrders);
 
   useEffect(() => {
     dispatch(fetchBrandOrders());
@@ -184,26 +194,41 @@ const BrandOrdersScreen: React.FC = () => {
       </View>
 
       {/* Order List */}
-      <FlatList
-        data={filteredOrders}
-        keyExtractor={(item) => item.orderId}
-        renderItem={renderOrder}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <ClipboardList size={32} stroke={B.textMuted} strokeWidth={1.5} />
+      {loading && orders.length === 0 ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={B.primary} />
+        </View>
+      ) : error && orders.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Couldn't load orders</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity style={styles.refreshBtn} onPress={() => dispatch(fetchBrandOrders())}>
+            <RefreshCw size={14} stroke="#FFF" strokeWidth={2} />
+            <Text style={styles.refreshText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredOrders}
+          keyExtractor={(item) => item.orderId}
+          renderItem={renderOrder}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <ClipboardList size={32} stroke={B.textMuted} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.emptyTitle}>No orders found</Text>
+              <Text style={styles.emptyText}>There are no orders matching this filter.</Text>
+              <TouchableOpacity style={styles.refreshBtn} onPress={() => dispatch(setStatusFilter('all'))}>
+                <RefreshCw size={14} stroke="#FFF" strokeWidth={2} />
+                <Text style={styles.refreshText}>Show All Orders</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.emptyTitle}>No orders found</Text>
-            <Text style={styles.emptyText}>There are no orders matching this filter.</Text>
-            <TouchableOpacity style={styles.refreshBtn} onPress={() => dispatch(setStatusFilter('all'))}>
-              <RefreshCw size={14} stroke="#FFF" strokeWidth={2} />
-              <Text style={styles.refreshText}>Show All Orders</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+          }
+        />
+      )}
     </View>
   );
 };

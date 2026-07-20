@@ -8,6 +8,8 @@ import {
   StatusBar,
   Platform,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { ChevronLeft, Minus, Plus, Search, Warehouse, X, AlertTriangle } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -43,7 +45,7 @@ const getStockLevel = (qty: number) => {
 const InventoryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { rows } = useAppSelector(selectInventory);
+  const { rows, loading, error } = useAppSelector(selectInventory);
 
   useEffect(() => {
     dispatch(fetchInventory());
@@ -63,6 +65,13 @@ const InventoryScreen: React.FC = () => {
     return { total, low, out };
   }, [rows]);
 
+  const handleStockChange = async (variantId: string, stockQuantity: number) => {
+    const result = await dispatch(updateStock({ variantId, stockQuantity }));
+    if (updateStock.rejected.match(result)) {
+      Alert.alert('Could not update stock', (result.payload as string) || 'Please try again.');
+    }
+  };
+
   const renderRow = ({ item: row }: { item: typeof rows[0] }) => {
     const level = getStockLevel(row.stockQuantity);
     return (
@@ -81,7 +90,7 @@ const InventoryScreen: React.FC = () => {
           <View style={styles.qtySection}>
             <TouchableOpacity
               style={styles.qtyBtn}
-              onPress={() => dispatch(updateStock({ variantId: row.variantId, stockQuantity: Math.max(0, row.stockQuantity - 1) }))}
+              onPress={() => handleStockChange(row.variantId, Math.max(0, row.stockQuantity - 1))}
             >
               <Minus size={14} stroke={B.primary} strokeWidth={2.5} />
             </TouchableOpacity>
@@ -91,7 +100,7 @@ const InventoryScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={styles.qtyBtn}
-              onPress={() => dispatch(updateStock({ variantId: row.variantId, stockQuantity: row.stockQuantity + 1 }))}
+              onPress={() => handleStockChange(row.variantId, row.stockQuantity + 1)}
             >
               <Plus size={14} stroke={B.primary} strokeWidth={2.5} />
             </TouchableOpacity>
@@ -151,6 +160,18 @@ const InventoryScreen: React.FC = () => {
       </View>
 
       {/* List */}
+      {loading && rows.length === 0 ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={B.primary} />
+        </View>
+      ) : error && rows.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Couldn't load inventory</Text>
+          <TouchableOpacity onPress={() => dispatch(fetchInventory())}>
+            <Text style={[styles.emptyTitle, { color: B.primary, marginTop: 8 }]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.variantId}
@@ -160,7 +181,7 @@ const InventoryScreen: React.FC = () => {
         ListFooterComponent={
           <View style={styles.notice}>
             <Warehouse size={16} stroke={B.primary} strokeWidth={2} />
-            <Text style={styles.noticeText}>Stock changes are applied instantly in demo mode.</Text>
+            <Text style={styles.noticeText}>Stock changes are applied instantly and are visible to customers immediately.</Text>
           </View>
         }
         ListEmptyComponent={
@@ -170,6 +191,7 @@ const InventoryScreen: React.FC = () => {
           </View>
         }
       />
+      )}
     </View>
   );
 };

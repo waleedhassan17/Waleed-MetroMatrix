@@ -4,13 +4,18 @@ import {
   updateVendorReturnApi,
 } from '../../../../networks/shopping/vendorApi';
 
+// Kept as the backend's own vocabulary — 'pending'/'approved'/'rejected'
+// alone can't represent picked_up/refunded, and collapsing them made the
+// UI unable to show or gate those states at all.
+export type ReturnServerStatus = 'requested' | 'approved' | 'rejected' | 'picked_up' | 'refunded';
+
 export interface ReturnRequestItem {
   requestId: string;
   orderId: string;
   customerName: string;
   reason: string;
   refundAmount: number;
-  status: 'pending' | 'approved' | 'rejected';
+  status: ReturnServerStatus;
 }
 
 export interface ReturnRequestsState {
@@ -25,13 +30,6 @@ const initialState: ReturnRequestsState = {
   error: null,
 };
 
-// Server statuses: requested/approved/rejected/picked_up/refunded → screen chips
-const toScreenStatus = (status: string): ReturnRequestItem['status'] => {
-  if (status === 'requested') return 'pending';
-  if (status === 'rejected') return 'rejected';
-  return 'approved'; // approved / picked_up / refunded all render as approved
-};
-
 export const fetchReturnRequests = createAsyncThunk(
   'returnRequests/fetch',
   async (_, { rejectWithValue }) => {
@@ -43,7 +41,7 @@ export const fetchReturnRequests = createAsyncThunk(
         customerName: r.userId && typeof r.userId === 'object' ? r.userId.name || '' : '',
         reason: r.reason,
         refundAmount: r.refundAmount,
-        status: toScreenStatus(r.status),
+        status: r.status as ReturnServerStatus,
       })) as ReturnRequestItem[];
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to load return requests');
@@ -54,13 +52,19 @@ export const fetchReturnRequests = createAsyncThunk(
 export const updateReturnStatus = createAsyncThunk(
   'returnRequests/updateStatus',
   async (
-    { requestId, status }: { requestId: string; status: ReturnRequestItem['status'] },
+    { requestId, status, vendorNote }: { requestId: string; status: ReturnServerStatus; vendorNote?: string },
     { rejectWithValue }
   ) => {
     try {
-      const serverStatus = status === 'pending' ? 'requested' : status;
-      await updateVendorReturnApi(requestId, { status: serverStatus });
-      return { requestId, status };
+      // Apply the server's actual response (refundAmount/status it really
+      // set), not just an echo of what was requested — approve/reject can
+      // have real money and stock effects the client should never assume.
+      const res = await updateVendorReturnApi(requestId, { status, vendorNote });
+      return {
+        requestId,
+        status: res.data.status as ReturnServerStatus,
+        refundAmount: res.data.refundAmount,
+      };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update return request');
     }
@@ -87,7 +91,10 @@ const returnRequestsSlice = createSlice({
       })
       .addCase(updateReturnStatus.fulfilled, (state, action) => {
         const request = state.requests.find((item) => item.requestId === action.payload.requestId);
-        if (request) request.status = action.payload.status;
+        if (request) {
+          request.status = action.payload.status;
+          request.refundAmount = action.payload.refundAmount;
+        }
       })
       .addCase(updateReturnStatus.rejected, (state, action) => {
         state.error = action.payload as string;
