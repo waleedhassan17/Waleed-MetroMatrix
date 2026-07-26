@@ -393,7 +393,10 @@ const BrandListScreen: React.FC = () => {
       <ShoppingHeader
         title="Explore"
         subtitle="Discover premium brands & stores"
-        showBack={false}
+        // BrandList is NOT a tab root — it is only ever reached by drilling in
+        // from the shopping home, so without a back control the user is
+        // stranded here with no way out except the OS gesture.
+        showBack
         rightContent={
           <>
             <TouchableOpacity style={styles.headerBtn} onPress={navigateToSearch}>

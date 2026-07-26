@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppSelector } from '../../../../store/hooks';
 import { selectCartItemCount } from '../Cart/cartSlice';
 
-import BrandListScreen from '../BrandList/BrandListScreen';
+// BrandList is reached by drilling in from the shopping home, not as a tab —
+// it was imported here but never registered as a Tab.Screen.
 import ShoppingHomeScreen from '../ShoppingHome/ShoppingHomeScreen';
 import CartScreen from '../Cart/CartScreen';
 import WishlistScreen from '../Wishlist/WishlistScreen';

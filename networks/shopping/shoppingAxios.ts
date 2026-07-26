@@ -62,6 +62,20 @@ ShoppingAxiosInstance.interceptors.response.use(
 
 // Error extraction helper — use for every shopping error path
 export const extractShoppingError = (e: any, fallback: string): string => {
+  // Transport failures have no response body, so the old code fell through to
+  // `e.message` and showed the shopper raw axios text: "timeout of 30000ms
+  // exceeded" or "Network Error". Those are the two most common failures on a
+  // phone, and they are exactly the ones a user might act on — so say
+  // something they can actually act on.
+  if (!e?.response) {
+    if (e?.code === "ECONNABORTED" || /timeout/i.test(e?.message || "")) {
+      return "This is taking longer than usual. Check your connection and try again.";
+    }
+    if (/network/i.test(e?.message || "")) {
+      return "Can't reach the server. Check your internet connection and try again.";
+    }
+  }
+
   const data = e?.response?.data;
   if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
     const first = data.errors[0];
