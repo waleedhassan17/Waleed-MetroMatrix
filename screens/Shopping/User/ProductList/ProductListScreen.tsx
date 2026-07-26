@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
+import { ErrorState } from '../../../../components/Shopping/ScreenState';
 import {
   fetchProducts,
   loadMore,
@@ -193,6 +194,18 @@ const ProductListScreen: React.FC = () => {
 
   const renderEmpty = () => {
     if (loading) return null;
+    // A failed fetch used to fall through to "No products found", which claims
+    // the catalogue is empty rather than admitting the request failed — and
+    // offered no way to retry.
+    if (error) {
+      return (
+        <ErrorState
+          title="Couldn't load products"
+          message={error}
+          onRetry={() => dispatch(fetchProducts({ page: 1, refresh: true }))}
+        />
+      );
+    }
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>No products found</Text>

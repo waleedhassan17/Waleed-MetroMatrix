@@ -16,6 +16,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { ProductReview } from '../../../../types/shopping';
+import { ErrorState } from '../../../../components/Shopping/ScreenState';
 import {
   fetchReviews,
   loadMoreReviews,
@@ -46,7 +47,7 @@ const ProductReviewsScreen: React.FC = () => {
   const productId = route.params?.productId as string;
 
   const reviews = useAppSelector(selectFilteredReviews);
-  const { averageRating, totalReviews, loadingMore, hasMore } = useAppSelector(selectProductReviewsState);
+  const { averageRating, totalReviews, loadingMore, hasMore, error } = useAppSelector(selectProductReviewsState);
   const ratingBreakdown = useAppSelector(selectRatingBreakdown);
   const loading = useAppSelector(selectReviewsLoading);
   const filterRating = useAppSelector(selectFilterRating);
@@ -168,6 +169,14 @@ const ProductReviewsScreen: React.FC = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ShopColors.primary} />
         </View>
+      ) : error && reviews.length === 0 ? (
+        // Previously a failed fetch rendered an empty review list, which reads
+        // as "this product has no reviews" — a different and misleading claim.
+        <ErrorState
+          title="Couldn't load reviews"
+          message={error}
+          onRetry={() => dispatch(fetchReviews({ productId }))}
+        />
       ) : (
         <FlatList
           data={reviews}

@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
+import { ErrorState } from '../../../../components/Shopping/ScreenState';
 import {
   setSearchQuery,
   searchProducts,
@@ -62,7 +63,7 @@ const ProductSearchScreen: React.FC = () => {
   const recentSearches = useAppSelector(selectRecentSearches);
   const suggestions = useAppSelector(selectSuggestions);
   const loading = useAppSelector(selectSearchLoading);
-  const { hasSearched, hasMore, page } = useAppSelector(selectProductSearch);
+  const { hasSearched, hasMore, page, error } = useAppSelector(selectProductSearch);
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
   const { cardWidth, imageHeight } = useProductGridSizing();
@@ -286,6 +287,16 @@ const ProductSearchScreen: React.FC = () => {
               ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
               contentContainerStyle={styles.resultsList}
               scrollEnabled={false}
+            />
+          ) : error && results.length === 0 ? (
+            // Without this branch a failed search fell through to the list's
+            // "No results found" empty state — so a network error looked
+            // exactly like a search that genuinely had no matches, and there
+            // was no way to retry short of retyping the query.
+            <ErrorState
+              title="Search failed"
+              message={error}
+              onRetry={() => dispatch(searchProducts({ query: query.trim(), page: 1, brandId }))}
             />
           ) : (
             <FlatList

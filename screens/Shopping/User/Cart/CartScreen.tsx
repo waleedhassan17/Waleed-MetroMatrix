@@ -24,6 +24,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
+import { ErrorState, LoadingState } from '../../../../components/Shopping/ScreenState';
 import {
   fetchCart,
   removeItem,
@@ -98,6 +99,10 @@ const CartScreen: React.FC = () => {
     navigation.navigate(ShoppingRouteNames.Checkout);
   }, [navigation, cart.items.length]);
 
+  // An empty item list is NOT the same as "your cart is empty": it is also
+  // what you see while the cart is still loading, and what you saw when the
+  // fetch failed. Telling a shopper their cart is empty when it isn't is the
+  // worst of the three, so loading and error are handled before that claim.
   if (cart.items.length === 0) {
     return (
       <View style={styles.container}>
@@ -109,14 +114,24 @@ const CartScreen: React.FC = () => {
           <Text style={styles.headerTitle}>My Cart</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.emptyContainer}>
-          <ShoppingBag size={64} stroke={Colors.borderDark} strokeWidth={1} />
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Looks like you have not added anything to your cart yet.</Text>
-          <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate(ShoppingRouteNames.ShoppingHome)}>
-            <Text style={styles.browseBtnText}>Start Shopping</Text>
-          </TouchableOpacity>
-        </View>
+        {loading ? (
+          <LoadingState emoji="🛒" label="Loading your cart..." />
+        ) : error ? (
+          <ErrorState
+            title="Couldn't load your cart"
+            message={error}
+            onRetry={() => dispatch(fetchCart())}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <ShoppingBag size={64} stroke={Colors.borderDark} strokeWidth={1} />
+            <Text style={styles.emptyTitle}>Your cart is empty</Text>
+            <Text style={styles.emptySubtitle}>Looks like you have not added anything to your cart yet.</Text>
+            <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate(ShoppingRouteNames.ShoppingHome)}>
+              <Text style={styles.browseBtnText}>Start Shopping</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   }
