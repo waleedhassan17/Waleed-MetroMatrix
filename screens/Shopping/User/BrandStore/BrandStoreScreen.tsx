@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,11 @@ import useBrandTheme from '../../../../hooks/useBrandTheme';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 import type { Product, Category } from '../../../../types/shopping';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
+import { selectCartItemCount } from '../Cart/cartSlice';
+import { ErrorState } from '../../../../components/Shopping/ScreenState';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import { RawIcon } from '../../../../components/Icon';
+import { getCategoryIcon } from '../../../../constants/icons';
 import {
   fetchBrandStore,
   fetchBrandProducts,
@@ -49,14 +53,21 @@ const BrandStoreScreen: React.FC = () => {
   const categories = useAppSelector(selectBrandStoreCategories);
   const selectedCategory = useAppSelector(selectBrandStoreSelectedCategory);
   const loading = useAppSelector(selectBrandStoreLoading);
-  const { refreshing, productsLoading, hasMore, page, sortBy } = useAppSelector(selectBrandStore);
+  const { refreshing, productsLoading, hasMore, page, sortBy, error } = useAppSelector(selectBrandStore);
 
   // Dynamic theming from brand config
   const theme = useBrandTheme(brand);
-  const cartItemCount = 0; // Will be wired to cart slice later
+  // Was hardcoded to 0 ("will be wired to cart slice later"), so the cart badge
+  // on the brand store never showed anything however full the cart was.
+  const cartItemCount = useAppSelector(selectCartItemCount);
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
   const { cardWidth, imageHeight } = useProductGridSizing();
+
+  // Which top-level (gender) tab's sub-category row is showing — separate
+  // from selectedCategory, since selecting a sub-category (e.g. "T-Shirts")
+  // must keep that parent's row expanded rather than collapsing it.
+  const [expandedParentId, setExpandedParentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (brandId) {
@@ -133,7 +144,7 @@ const BrandStoreScreen: React.FC = () => {
   const renderCategoryTab = ({ item, isAll }: { item?: Category; isAll?: boolean }) => {
     const id = isAll ? null : item?.categoryId || null;
     const label = isAll ? 'All' : item?.name || '';
-    const isActive = selectedCategory === id;
+    const isActive = isAll ? selectedCategory === null && expandedParentId === null : expandedParentId === id;
     const tabBackgroundColor = isActive ? theme.primaryColor : Colors.surface;
     const tabBorderColor = isActive ? theme.primaryColor : Colors.border;
     const tabTextColor = isActive ? theme.textOnPrimary : Colors.text.primary;
@@ -144,11 +155,44 @@ const BrandStoreScreen: React.FC = () => {
           styles.categoryTab,
           { backgroundColor: tabBackgroundColor, borderColor: tabBorderColor },
         ]}
-        onPress={() => handleCategorySelect(id)}
+        onPress={() => {
+          setExpandedParentId(id);
+          handleCategorySelect(id);
+        }}
       >
         <Text
           style={[styles.categoryTabText, { color: tabTextColor }]}
         >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const expandedParent = categories.find((c) => c.categoryId === expandedParentId);
+
+  const renderSubCategoryChip = (item?: Category) => {
+    const id = item ? item.categoryId : expandedParentId;
+    const label = item ? item.name : `All ${expandedParent?.name || ''}`;
+    const icon = item ? getCategoryIcon(item.name) : null;
+    const isActive = selectedCategory === id;
+    return (
+      <TouchableOpacity
+        key={id || 'sub-all'}
+        style={[
+          styles.subCategoryChip,
+          isActive && { backgroundColor: `${theme.primaryColor}15`, borderColor: theme.primaryColor },
+        ]}
+        onPress={() => handleCategorySelect(id)}
+      >
+        {icon && (
+          <RawIcon
+            icon={icon}
+            size="sm"
+            color={isActive ? theme.primaryColor : Colors.text.secondary}
+          />
+        )}
+        <Text style={[styles.subCategoryChipText, isActive && { color: theme.primaryColor, fontWeight: '600' }]}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -221,6 +265,21 @@ const BrandStoreScreen: React.FC = () => {
     );
   }
 
+  // The slice has always tracked `error`, but nothing rendered it: a failed
+  // brand-store load left a blank screen with no explanation and no way back.
+  if (error && !brand) {
+    return (
+      <ErrorState
+        title="Couldn't load this store"
+        message={error}
+        onRetry={() => {
+          dispatch(fetchBrandStore(brandId));
+          dispatch(fetchBrandProducts({ brandId, page: 1 }));
+        }}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.primaryColor} />
@@ -281,6 +340,21 @@ const BrandStoreScreen: React.FC = () => {
           </View>
         ))}
       </ScrollView>
+
+      {/* ── Sub-category chips (T-Shirts, Jeans, Footwear...) ─────────── */}
+      {!!expandedParent?.children?.length && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.subCategoryRow}
+          contentContainerStyle={styles.subCategoryRowContent}
+        >
+          {renderSubCategoryChip()}
+          {expandedParent.children.map((child) => (
+            <View key={child.categoryId}>{renderSubCategoryChip(child)}</View>
+          ))}
+        </ScrollView>
+      )}
 
       {/* ── Sort Bar ────────────────────────── */}
       <View style={styles.sortBar}>
@@ -470,6 +544,36 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: 13,
     fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+
+  // Sub-category chips
+  subCategoryRow: {
+    backgroundColor: Colors.surface,
+    maxHeight: 44,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  subCategoryRowContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 6,
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  subCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  subCategoryChipText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: Colors.text.secondary,
   },
 

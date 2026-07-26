@@ -9,13 +9,18 @@ import {
   FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
 import { Fonts } from '../../../constants/Fonts';
 
 const { width, height } = Dimensions.get('window');
 
-const slides = [
+const slides: {
+  title: string;
+  description: string;
+  icon: React.ComponentProps<typeof Icon>['name'];
+  color: string;
+}[] = [
   {
     title: 'One App for Your City Life',
     description: 'MetroMatrix simplifies everything you need in one place.',

@@ -15,7 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
 import { setJobDetail, startNavigation, JobData } from './jobDetailSlice';
 import { setNavigationData } from '../map-screen/mapSlice';
@@ -126,8 +126,8 @@ const JobDetailScreen: React.FC = () => {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    const icons: { [key: string]: string } = {
+  const getCategoryIcon = (category: string): React.ComponentProps<typeof Icon>['name'] => {
+    const icons: { [key: string]: React.ComponentProps<typeof Icon>['name'] } = {
       'Plumbing': 'pipe-wrench',
       'HVAC': 'air-conditioner',
       'Electrical': 'lightning-bolt',

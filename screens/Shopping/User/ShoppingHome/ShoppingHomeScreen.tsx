@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Search, ShoppingCart, Wallet, Mars, Venus, Baby, LucideIcon } from 'lucide-react-native';
+import { Search, ShoppingCart, Wallet } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
@@ -38,15 +38,17 @@ import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 // Only sections that actually exist in the seeded catalogue (both brands tag
 // products with their gender section — see brands.seed.js — Kids exists on
 // Cougar only, so it stays in the list even though Outfitters has none).
+// Represented with real apparel photography rather than glyph icons — a
+// gendered symbol (Mars/Venus/Baby) reads as clinical next to product photos.
 interface CategoryDef {
   id: string;
   name: string;
-  Icon: LucideIcon;
+  image: string;
 }
 const CATEGORIES: CategoryDef[] = [
-  { id: 'men', name: 'Men', Icon: Mars },
-  { id: 'women', name: 'Women', Icon: Venus },
-  { id: 'kids', name: 'Kids', Icon: Baby },
+  { id: 'men', name: 'Men', image: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?w=300&q=70' },
+  { id: 'women', name: 'Women', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=300&q=70' },
+  { id: 'kids', name: 'Kids', image: 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=300&q=70' },
 ];
 
 const BANNER_HEIGHT = 180;
@@ -179,8 +181,8 @@ const ShoppingHomeScreen: React.FC = () => {
       activeOpacity={0.7}
       onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never, { gender: item.id } as never)}
     >
-      <View style={styles.categoryIconWrap}>
-        <item.Icon size={26} stroke={ShopColors.primary} strokeWidth={1.75} />
+      <View style={styles.categoryImageWrap}>
+        <Image source={{ uri: item.image }} style={styles.categoryImage} />
       </View>
       <Text style={styles.categoryName} numberOfLines={1}>{item.name}</Text>
     </TouchableOpacity>
@@ -655,19 +657,21 @@ const styles = StyleSheet.create({
   // Categories
   categoryCard: {
     alignItems: 'center',
-    width: 72,
+    width: 84,
   },
-  categoryIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: ShopColors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
+  categoryImageWrap: {
+    width: 84,
+    height: 100,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: Colors.backgroundAlt,
     ...Shadows.small,
     marginBottom: Spacing.xs,
+  },
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   categoryName: {
     fontSize: 11,
