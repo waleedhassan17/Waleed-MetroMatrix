@@ -5,14 +5,23 @@ import { initializeAuth, getAuth } from 'firebase/auth';
 import { getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ALIGNED to metromatrix-c44c6 (2026-08-02): this project must match the
+// backend's FIREBASE_PROJECT_ID exactly, because admin.auth().verifyIdToken()
+// on the backend checks the token's issuer/audience against ITS configured
+// project — a token minted against a different Firebase project (the old
+// value here was metromatrix-31f9f) is always rejected, regardless of
+// whether the token itself is otherwise perfectly valid. See
+// BUILD_AND_SHARE.md's "Blocking config mismatches" section for the full
+// trace of how this was found. Real values below are from the
+// metromatrix-c44c6 Firebase console (Project settings -> General -> Your
+// apps -> Web app -> SDK setup and configuration).
 const firebaseConfig = {
-  apiKey: "AIzaSyDR0ZrvsGGP_nVy0-nyqoRmouNbm8UbX8g",
-  authDomain: "metromatrix-31f9f.firebaseapp.com",
-  projectId: "metromatrix-31f9f",
-  storageBucket: "metromatrix-31f9f.firebasestorage.app",
-  messagingSenderId: "1007229712045",
-  appId: "1:1007229712045:web:87aba36a12808670d87824",
-  measurementId: "G-S8VTDKBZF1"
+  apiKey: "AIzaSyBKsfEEA2QNsCuDGZPMFd12exZ4etUKUq8",
+  authDomain: "metromatrix-c44c6.firebaseapp.com",
+  projectId: "metromatrix-c44c6",
+  storageBucket: "metromatrix-c44c6.firebasestorage.app",
+  messagingSenderId: "942315940095",
+  appId: "1:942315940095:web:38d64830e5185f390204ca",
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

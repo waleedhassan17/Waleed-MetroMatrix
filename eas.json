@@ -1,0 +1,44 @@
+{
+  // EAS CLI itself — a wide floor is fine, `eas build` prompts to upgrade
+  // if your installed eas-cli is too old for this file's features.
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    // Use for local dev with hot reload / Expo dev menu against a
+    // dev-client build: `eas build -p android --profile development`.
+    // Requires running `npx expo start --dev-client` alongside it.
+    // Not what you send to a teammate for a one-off install.
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+
+    // THE ONE TO SHARE: a standalone, installable .apk with no dev menu
+    // and no Metro/dev-server dependency — this is what a teammate
+    // sideloads to test Facebook/Google login on their own device.
+    // `eas build -p android --profile preview`
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "preview"
+    },
+
+    // Store-release config (produces an .aab, NOT sideloadable). Not used
+    // for teammate testing — kept here because most tooling/docs assume a
+    // "production" profile exists.
+    "production": {
+      "autoIncrement": true,
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

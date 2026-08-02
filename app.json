@@ -26,11 +26,11 @@
           },
           {
             "CFBundleURLSchemes": [
-              "fb2277966629368711"
+              "fb26818541697736156"
             ]
           }
         ],
-        "FacebookAppID": "2277966629368711",
+        "FacebookAppID": "26818541697736156",
         "FacebookDisplayName": "MetroMatrix",
         "LSApplicationQueriesSchemes": [
           "fbapi",
@@ -55,7 +55,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.waleed17.MetroMatrix",
+      "package": "com.metromatrix.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.INTERNET"
@@ -65,8 +65,8 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "metromatrix",
-    "facebookScheme": "fb2277966629368711",
-    "facebookAppId": "2277966629368711",
+    "facebookScheme": "fb26818541697736156",
+    "facebookAppId": "26818541697736156",
     "facebookDisplayName": "MetroMatrix",
     "facebookAutoLogAppEventsEnabled": false,
     "facebookAdvertiserIDCollectionEnabled": false,
@@ -76,10 +76,10 @@
       [
         "react-native-fbsdk-next",
         {
-          "appID": "2277966629368711",
-          "clientToken": "b4ca5891df6414d095cc27abfe52c6ae",
+          "appID": "26818541697736156",
+          "clientToken": "8e9ceae58a1d76247a99d80f3bf77403",
           "displayName": "MetroMatrix",
-          "scheme": "fb2277966629368711",
+          "scheme": "fb26818541697736156",
           "advertiserIDCollectionEnabled": false,
           "autoLogAppEventsEnabled": false,
           "isAutoInitEnabled": true
