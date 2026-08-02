@@ -129,39 +129,29 @@ export default function ProviderSignInScreen() {
   const handleSignIn = async () => {
     if (!validateForm()) return;
 
-    // ===== STATIC AUTHENTICATION - Bypass API for demo/dev =====
-    const STATIC_PROVIDERS: Record<string, { password: string; route: string; name: string }> = {
-      'drhira@gmail.com': { password: '123456', route: 'DoctorStack', name: 'Dr. Hira' },
-      'saim@gmail.com': { password: '123456', route: 'HomeServiceProviderDashboard', name: 'Saim' },
-      'outfitters@gmail.com': { password: '123456', route: 'BrandModule', name: 'Outfitters' },
-    };
-
-    const trimmedEmail = email.trim().toLowerCase();
-    const staticMatch = STATIC_PROVIDERS[trimmedEmail];
-    
-    if (staticMatch && password === staticMatch.password) {
-      // Known test account → route to their specific screen
-      console.log(`✅ [Static] Provider login: ${staticMatch.name} → ${staticMatch.route}`);
-      (navigation as any).reset({ index: 0, routes: [{ name: staticMatch.route }] });
-      Alert.alert('Success', `Welcome back, ${staticMatch.name}!`);
-      return;
-    }
-
-    // Generic static login → route based on selected provider type from Redux
-    let destination = 'HomeServiceProviderDashboard'; // default
-    if (providerType === 'doctor') {
-      destination = 'DoctorStack';
-    } else if (providerType === 'vendor') {
-      destination = 'BrandModule';
-    }
-
-    console.log(`✅ [Static] Provider login (${providerType || 'default'}) → ${destination}`);
     try {
+      const result = await dispatch(
+        submitProviderSignInAsync({ email: email.trim().toLowerCase(), password })
+      ).unwrap();
+
+      // Route based on the provider type the backend returned, not the
+      // Redux provider-selection state (which reflects signup flow choice
+      // and may be stale/empty for a returning provider signing in directly).
+      const backendProviderType = result.provider?.providerType || providerType;
+      let destination = 'HomeServiceProviderDashboard'; // default
+      if (backendProviderType === 'doctor') {
+        destination = 'DoctorStack';
+      } else if (backendProviderType === 'vendor') {
+        destination = 'BrandModule';
+      }
+
+      console.log(`✅ Provider login (${backendProviderType || 'default'}) → ${destination}`);
       (navigation as any).reset({ index: 0, routes: [{ name: destination }] });
-    } catch (navErr) {
-      console.log('⚠️ Navigation error:', navErr);
+    } catch (err: any) {
+      console.log('❌ Provider sign in failed:', err);
+      // Error is already set in Redux state and surfaced via the
+      // "Sign In Failed" alert effect above.
     }
-    Alert.alert('Success', 'Welcome back!');
   };
 
   const handleGoogleSignIn = async () => {

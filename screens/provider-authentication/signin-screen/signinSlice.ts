@@ -28,6 +28,8 @@ interface Provider {
   isVerified?: boolean;
   verificationStatus?: string;
   onboardingStatus?: 'pending_email' | 'pending_profile' | 'pending_approval' | 'approved' | 'rejected';
+  providerType?: string;
+  providerSubType?: string;
 }
 
 interface ProviderSignInSliceState {

@@ -212,29 +212,22 @@ const SignIn = () => {
       return;
     }
 
-    // ===== STATIC AUTHENTICATION - Bypass API for demo/dev =====
-    const trimmedEmail = email.trim().toLowerCase();
-
-    // Admin static login
-    if (trimmedEmail === 'waleedhassansfd@gmail.com' && password === '123456') {
-      console.log('✅ [Static] Admin login → AdminDashboard');
-      try {
-        (navigation as any).reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
-      } catch (navigationError) {
-        console.log('⚠️ Navigation error:', navigationError);
-      }
-      Alert.alert('Success', 'Welcome to Admin Dashboard!');
-      return;
-    }
-
-    // User static login - any valid email/password navigates to UserHome
-    console.log('✅ [Static] User login → UserHome');
     try {
-      (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
-    } catch (navigationError) {
-      console.log('⚠️ Navigation error:', navigationError);
+      const result = await dispatch(
+        submitSignInAsync({ email: email.trim().toLowerCase(), password })
+      ).unwrap();
+
+      if (result.type === 'admin') {
+        console.log('✅ Admin login successful → AdminDashboard');
+        (navigation as any).reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
+      } else {
+        console.log('✅ User login successful → UserHome');
+        (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
+      }
+    } catch (err: any) {
+      console.log('❌ Sign in failed:', err);
+      // Error is already set in Redux state and rendered above the form.
     }
-    Alert.alert('Success', 'Welcome back!');
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
