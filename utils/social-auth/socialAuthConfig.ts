@@ -197,35 +197,44 @@ export const signInWithGoogleNativeSDK = async (): Promise<SocialAuthResult> => 
 };
 
 /**
- * Hook for Google Sign-In - uses native SDK in dev builds, expo-auth-session in Expo Go
+ * Hook for Google Sign-In - uses native SDK in dev builds, expo-auth-session in Expo Go.
+ *
+ * Dev/production builds NEVER fall back to the expo-auth-session browser flow:
+ * expo-auth-session 7.x removed the auth.expo.io proxy entirely ("Remove all
+ * auth proxy APIs" in its changelog), so a hardcoded auth.expo.io redirect can
+ * never complete the round trip back into the app — it's the exact cause of
+ * "Something went wrong trying to finish signing in" after account selection.
+ * If the native module failed to load in a dev build, that's a build problem
+ * (the google-signin config plugin needs a native rebuild to take effect),
+ * not something a browser-proxy fallback can paper over — so we surface a
+ * clear error instead of silently opening the dead proxy.
  */
 export const useGoogleAuth = () => {
   // Check if running in Expo Go (development)
   const currentIsExpoGo = Constants.appOwnership === 'expo';
-  
+
   console.log('📱 Is Expo Go:', currentIsExpoGo);
-  
-  // For Expo Go, use the Expo auth proxy
-  const redirectUri = 'https://auth.expo.io/@waleed17/MetroMatrix';
-  
-  console.log('📱 Redirect URI:', redirectUri);
-  
-  // Use implicit flow (id_token) without PKCE for Expo Go compatibility
+
+  // The expo-auth-session request object is only needed in Expo Go, where the
+  // native module can never be linked. Use a native redirect (the app's own
+  // "metromatrix" scheme), not the dead auth.expo.io proxy.
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_WEB_CLIENT_ID,
-    redirectUri,
+    redirectUri: makeRedirectUri({ scheme: 'metromatrix' }),
   });
-  
-  console.log('📱 Auth request ready:', !!request);
 
-  // For dev builds, provide a native prompt function
-  const nativePromptAsync = async () => {
-    if (!currentIsExpoGo && GoogleSignin) {
-      // Use native Google Sign-In SDK
-      return signInWithGoogleNativeSDK();
+  // For dev/production builds, always go through the native SDK.
+  const nativePromptAsync = async (): Promise<SocialAuthResult> => {
+    if (!GoogleSignin) {
+      return {
+        type: 'error',
+        error:
+          'Google Sign-In native module is not loaded in this build. This usually means the dev ' +
+          'client was built before the @react-native-google-signin/google-signin plugin was added ' +
+          'to app.json — rebuild the dev client (eas build --profile development) and reinstall.',
+      };
     }
-    // Fall back to expo-auth-session for Expo Go
-    return promptAsync();
+    return signInWithGoogleNativeSDK();
   };
 
   return {
@@ -233,7 +242,7 @@ export const useGoogleAuth = () => {
     response,
     promptAsync: currentIsExpoGo ? promptAsync : nativePromptAsync,
     isReady: currentIsExpoGo ? !!request : true,
-    isNative: !currentIsExpoGo && !!GoogleSignin,
+    isNative: !currentIsExpoGo,
   };
 };
 
@@ -492,6 +501,23 @@ export const firebaseSignInWithFacebook = async (accessToken: string): Promise<U
     return userCredential;
   } catch (error: any) {
     console.error('❌ Firebase Facebook sign-in error:', error);
+
+    // Facebook error #100 ("App_id in the input_token did not match the
+    // Viewing App") means Firebase's own Facebook provider (Firebase Console
+    // -> Authentication -> Sign-in method -> Facebook) has a different App
+    // ID/Secret than the one that minted this token. Surface a clear,
+    // actionable message instead of Firebase's raw Graph API error text.
+    if (
+      error.code === 'auth/invalid-credential' &&
+      typeof error.message === 'string' &&
+      (error.message.includes('did not match the Viewing App') || error.message.includes('"code":100'))
+    ) {
+      throw new Error(
+        'Facebook app configuration mismatch: the Facebook App ID configured in the Firebase console ' +
+        `(Authentication -> Sign-in method -> Facebook) does not match this app's Facebook App ID ` +
+        `(${FACEBOOK_APP_ID}). Update the Firebase console's Facebook provider App ID/App Secret to match.`
+      );
+    }
 
     // Handle account-exists-with-different-credential
     if (error.code === 'auth/account-exists-with-different-credential') {
