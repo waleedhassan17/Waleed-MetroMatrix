@@ -4,20 +4,20 @@
 // ============================================
 
 import axios from "axios";
-import {
-  KeyForStorage,
-  retrieveData,
-  clearAuthData,
-} from "../../utils/storage_utils/storageUtils";
+import { clearAuthData } from "../../utils/storage_utils/storageUtils";
 import { SHOPPING_API_URL } from "../../config/env";
+import { Audience, tokenForRequest } from "../network/tokenSelection";
 
 const TIMEOUT = 30000;
 
-const isValidToken = (token: any): token is string => {
-  if (!token || typeof token !== "string") return false;
-  const invalid = ["null", "undefined", "", "false", "0"];
-  if (invalid.includes(token.trim().toLowerCase())) return false;
-  return token.trim().length >= 10;
+// Which audience a shopping path belongs to. The module mounts /admin/* for
+// admins and /vendor/* for providers; everything else (cart, wishlist, orders,
+// checkout, addresses, reviews) is a user route behind userOnly.
+const audienceForUrl = (url?: string): Audience => {
+  const path = (url || "").replace(/^\/+/, "");
+  if (path.startsWith("admin")) return "admin";
+  if (path.startsWith("vendor")) return "provider";
+  return "user";
 };
 
 const ShoppingAxiosInstance = axios.create({
@@ -30,16 +30,14 @@ const ShoppingAxiosInstance = axios.create({
   },
 });
 
-// Request interceptor: inject JWT (admin token first, then user/vendor token)
+// Request interceptor: attach the token that matches the route's audience.
 ShoppingAxiosInstance.interceptors.request.use(
   async (config) => {
     try {
-      let token = await retrieveData(KeyForStorage.adminToken);
-      if (!isValidToken(token)) {
-        token = await retrieveData(KeyForStorage.accessToken);
-      }
-      if (isValidToken(token)) {
+      const { token } = await tokenForRequest(audienceForUrl(config.url));
+      if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        (config as any).__sentAuth = true;
       }
     } catch {
       // proceed unauthenticated; protected endpoints will 401
@@ -49,11 +47,13 @@ ShoppingAxiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: 401 clears stale auth
+// Response interceptor: 401 clears stale auth — but only when we actually sent
+// a token. If we deliberately withheld a mismatched one, the session we still
+// hold is valid for its own audience and must not be wiped.
 ShoppingAxiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && error.config?.__sentAuth) {
       await clearAuthData();
     }
     return Promise.reject(error);

@@ -1,7 +1,8 @@
 import axios, { AxiosInstance as AxiosInstanceType } from "axios";
 import { Platform } from "react-native";
 import { store } from "../../store/store";
-import { KeyForStorage, retrieveData, clearAuthData } from "../../utils/storage_utils/storageUtils";
+import { clearAuthData } from "../../utils/storage_utils/storageUtils";
+import { Audience, tokenForRequest } from "./tokenSelection";
 
 // API Configuration
 // PRODUCTION (Vercel) — the one backend host for the whole app (see vercel.md).
@@ -78,6 +79,19 @@ const UNAUTHENTICATED_ENDPOINTS = [
   'provider/approval-status',
 ];
 
+/**
+ * The account type a path is guarded for, or null when it serves all three
+ * (auth/logout, auth/refresh, wallet/*, bookings/*, healthcare/*) — those fall
+ * back to whoever is currently signed in.
+ */
+const audienceForUrl = (url?: string): Audience | null => {
+  const path = (url || '').replace(/^\/+/, '');
+  if (path.startsWith('admin/') || path === 'admin') return 'admin';
+  if (path.startsWith('providers/') || path.startsWith('provider/')) return 'provider';
+  if (path.startsWith('users/') || path === 'users') return 'user';
+  return null;
+};
+
 // Request interceptor for Main API
 MainAxiosInstance.interceptors.request.use(
   async (config) => {
@@ -104,17 +118,17 @@ MainAxiosInstance.interceptors.request.use(
         console.log('✅ Authorization header already set, skipping interceptor token injection');
       } else {
         try {
-          // Try admin token first, then regular user token
-          let token = await retrieveData(KeyForStorage.adminToken);
-          let tokenSource = 'admin';
-          
-          if (!isValidToken(token)) {
-            token = await retrieveData(KeyForStorage.accessToken);
-            tokenSource = 'user';
-          }
-          
+          // Attach the token matching the route's audience. Falling back to
+          // "admin token first" here used to hijack requests for a signed-in
+          // user whenever a stale admin session sat in storage — a 403 on
+          // routes like users/profile that reads as a broken screen.
+          const { token, source: tokenSource } = await tokenForRequest(
+            audienceForUrl(config.url)
+          );
+
           if (isValidToken(token)) {
             config.headers.Authorization = `Bearer ${token}`;
+            (config as any).__sentAuth = true;
             console.log(`✅ Valid ${tokenSource} token injected by interceptor`);
           } else {
             console.warn('⚠️ No valid token found for request to:', config.url);
@@ -170,7 +184,10 @@ MainAxiosInstance.interceptors.response.use(
         error.config?.url?.includes(endpoint)
       );
       
-      if (!isUnauthenticatedEndpoint) {
+      // Only wipe the session if we actually presented a token. When the
+      // interceptor withheld a mismatched one, the session we still hold is
+      // valid for its own audience and must survive.
+      if (!isUnauthenticatedEndpoint && (error.config as any)?.__sentAuth) {
         console.warn('⚠️ 401 on authenticated endpoint - clearing auth data');
         await clearAuthData();
       }
