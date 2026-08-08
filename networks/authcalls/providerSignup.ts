@@ -86,64 +86,6 @@ export const providerAuthRegister = async (signUpInfo: {
 };
 
 /**
- * Provider Google OAuth Sign Up
- * GET /auth/google?type=provider
- */
-export const providerGoogleOAuthLogin = async () => {
-  try {
-    console.log('📤 Initiating Google OAuth for provider signup');
-
-    const response = await API.GET({
-      URL: "auth/google",
-      params: {
-        type: 'provider'
-      },
-    });
-
-    console.log('✅ Provider Google OAuth successful:', response.data);
-
-    return {
-      success: response.data.success,
-      provider: response.data.provider,
-      accessToken: response.data.accessToken,
-      refreshToken: response.data.refreshToken,
-    };
-  } catch (e: any) {
-    console.error("❌ Provider Google OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Google sign-up failed");
-  }
-};
-
-/**
- * Provider Facebook OAuth Sign Up
- * GET /auth/facebook?type=provider
- */
-export const providerFacebookOAuthLogin = async () => {
-  try {
-    console.log('📤 Initiating Facebook OAuth for provider signup');
-
-    const response = await API.GET({
-      URL: "auth/facebook",
-      params: {
-        type: 'provider'
-      },
-    });
-
-    console.log('✅ Provider Facebook OAuth successful:', response.data);
-
-    return {
-      success: response.data.success,
-      provider: response.data.provider,
-      accessToken: response.data.accessToken,
-      refreshToken: response.data.refreshToken,
-    };
-  } catch (e: any) {
-    console.error("❌ Provider Facebook OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Facebook sign-up failed");
-  }
-};
-
-/**
  * Check Email Availability for Provider
  */
 export const checkProviderEmailAvailability = async (email: string) => {

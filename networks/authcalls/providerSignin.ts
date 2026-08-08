@@ -156,50 +156,6 @@ export const providerAuthLogout = async () => {
 };
 
 /**
- * Provider Google OAuth Sign In
- * GET /auth/google?type=provider
- */
-export const providerGoogleOAuthLogin = async () => {
-  try {
-    console.log('📤 Initiating Google OAuth for provider');
-
-    const response = await API.GET({
-      URL: "auth/google",
-      params: {
-        type: 'provider'
-      },
-    });
-
-    return response.data;
-  } catch (e: any) {
-    console.error("❌ Provider Google OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Google sign-in failed");
-  }
-};
-
-/**
- * Provider Facebook OAuth Sign In
- * GET /auth/facebook?type=provider
- */
-export const providerFacebookOAuthLogin = async () => {
-  try {
-    console.log('📤 Initiating Facebook OAuth for provider');
-
-    const response = await API.GET({
-      URL: "auth/facebook",
-      params: {
-        type: 'provider'
-      },
-    });
-
-    return response.data;
-  } catch (e: any) {
-    console.error("❌ Provider Facebook OAuth error:", e);
-    throw new Error(e.response?.data?.message || e.message || "Facebook sign-in failed");
-  }
-};
-
-/**
  * Refresh Access Token
  * POST /auth/refresh
  */

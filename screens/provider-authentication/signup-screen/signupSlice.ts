@@ -1,10 +1,8 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
-import { 
+import {
   providerAuthRegister,
-  checkProviderEmailAvailability,
-  providerGoogleOAuthLogin,
-  providerFacebookOAuthLogin
+  checkProviderEmailAvailability
 } from '../../../networks/authcalls/providerSignup';
 import { sendVerificationEmailAPI } from '../../../networks/authcalls/emailVerification';
 import {
@@ -44,7 +42,6 @@ interface ProviderSignUpSliceState {
   showConfirmPassword: boolean;
   error: string;
   status: 'idle' | 'loading' | 'failed';
-  socialLoginStatus: 'idle' | 'loading' | 'failed';
   emailCheckStatus: 'idle' | 'checking' | 'available' | 'unavailable';
   accessToken: string;
   refreshToken: string;
@@ -80,7 +77,6 @@ const initialState: ProviderSignUpSliceState = {
   showConfirmPassword: false,
   error: '',
   status: 'idle',
-  socialLoginStatus: 'idle',
   emailCheckStatus: 'idle',
   accessToken: '',
   refreshToken: '',
@@ -149,7 +145,6 @@ export const providerSignUpSlice = createAppSlice({
       state.refreshToken = '';
       state.provider = null;
       state.status = 'idle';
-      state.socialLoginStatus = 'idle';
       state.emailCheckStatus = 'idle';
       state.registrationComplete = false;
       state.requiresEmailVerification = false;
@@ -306,123 +301,6 @@ export const providerSignUpSlice = createAppSlice({
       }
     ),
 
-    // Google OAuth Sign Up
-    submitProviderGoogleSignUpAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
-        console.log('📤 Provider Google sign up started');
-
-        try {
-          const result = await providerGoogleOAuthLogin();
-          console.log('📥 Provider Google sign up result');
-
-          return result;
-        } catch (error: any) {
-          console.log('❌ Provider Google sign up error:', error.message);
-          return rejectWithValue(error.message || 'Provider Google sign up failed');
-        }
-      },
-      {
-        pending: (state) => {
-          console.log('⏳ Provider Google sign up pending...');
-          state.socialLoginStatus = 'loading';
-          state.error = '';
-        },
-        fulfilled: (state, action) => {
-          console.log('✅ Provider Google sign up fulfilled');
-
-          state.socialLoginStatus = 'idle';
-          state.provider = action.payload.provider;
-          state.accessToken = action.payload.accessToken || '';
-          state.refreshToken = action.payload.refreshToken || '';
-          state.error = '';
-          state.registrationComplete = false;
-
-          // OAuth users are immediately authenticated (email already verified by OAuth provider)
-          const tokenToSave = action.payload.accessToken || '';
-          if (tokenToSave) {
-            saveData(KeyForStorage.accessToken, tokenToSave);
-            saveData(KeyForStorage.providerAccessToken, tokenToSave);
-          }
-          
-          if (action.payload.refreshToken) {
-            saveData(KeyForStorage.refreshToken, action.payload.refreshToken);
-          }
-          
-          if (action.payload.provider) {
-            saveUserInfo(action.payload.provider);
-            saveData(KeyForStorage.userType, 'provider');
-            saveData(KeyForStorage.isAuthenticated, true);
-          }
-
-          console.log('💾 Provider Google user data saved (authenticated)');
-        },
-        rejected: (state, action) => {
-          console.log('❌ Provider Google sign up rejected');
-
-          state.socialLoginStatus = 'failed';
-          state.error = (action.payload as string) || action.error.message || 'Provider Google sign up failed';
-        },
-      }
-    ),
-
-    // Facebook OAuth Sign Up
-    submitProviderFacebookSignUpAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
-        console.log('📤 Provider Facebook sign up started');
-
-        try {
-          const result = await providerFacebookOAuthLogin();
-          console.log('📥 Provider Facebook sign up result');
-
-          return result;
-        } catch (error: any) {
-          console.log('❌ Provider Facebook sign up error:', error.message);
-          return rejectWithValue(error.message || 'Provider Facebook sign up failed');
-        }
-      },
-      {
-        pending: (state) => {
-          console.log('⏳ Provider Facebook sign up pending...');
-          state.socialLoginStatus = 'loading';
-          state.error = '';
-        },
-        fulfilled: (state, action) => {
-          console.log('✅ Provider Facebook sign up fulfilled');
-
-          state.socialLoginStatus = 'idle';
-          state.provider = action.payload.provider;
-          state.accessToken = action.payload.accessToken || '';
-          state.refreshToken = action.payload.refreshToken || '';
-          state.error = '';
-          state.registrationComplete = false;
-
-          // OAuth users are immediately authenticated (email already verified by OAuth provider)
-          const tokenToSave = action.payload.accessToken || '';
-          if (tokenToSave) {
-            saveData(KeyForStorage.accessToken, tokenToSave);
-            saveData(KeyForStorage.providerAccessToken, tokenToSave);
-          }
-          
-          if (action.payload.refreshToken) {
-            saveData(KeyForStorage.refreshToken, action.payload.refreshToken);
-          }
-          
-          if (action.payload.provider) {
-            saveUserInfo(action.payload.provider);
-            saveData(KeyForStorage.userType, 'provider');
-            saveData(KeyForStorage.isAuthenticated, true);
-          }
-
-          console.log('💾 Provider Facebook user data saved (authenticated)');
-        },
-        rejected: (state, action) => {
-          console.log('❌ Provider Facebook sign up rejected');
-
-          state.socialLoginStatus = 'failed';
-          state.error = (action.payload as string) || action.error.message || 'Provider Facebook sign up failed';
-        },
-      }
-    ),
   }),
 
   selectors: {
@@ -434,7 +312,6 @@ export const providerSignUpSlice = createAppSlice({
     selectShowPassword: (state) => state.showPassword,
     selectShowConfirmPassword: (state) => state.showConfirmPassword,
     selectStatus: (state) => state.status,
-    selectSocialLoginStatus: (state) => state.socialLoginStatus,
     selectEmailCheckStatus: (state) => state.emailCheckStatus,
     selectError: (state) => state.error,
     selectAccessToken: (state) => state.accessToken,
@@ -442,7 +319,7 @@ export const providerSignUpSlice = createAppSlice({
     selectProvider: (state) => state.provider,
     selectRegistrationComplete: (state) => state.registrationComplete,
     selectRequiresEmailVerification: (state) => state.requiresEmailVerification,
-    selectIsLoading: (state) => state.status === 'loading' || state.socialLoginStatus === 'loading',
+    selectIsLoading: (state) => state.status === 'loading',
     selectIsFormComplete: (state) =>
       state.fullName.trim().length > 0 &&
       state.email.trim().length > 0 &&
@@ -472,8 +349,6 @@ export const {
   resetSignUpState,
   submitProviderSignUpAsync,
   checkProviderEmailAsync,
-  submitProviderGoogleSignUpAsync,
-  submitProviderFacebookSignUpAsync,
 } = providerSignUpSlice.actions;
 
 export const {
@@ -485,7 +360,6 @@ export const {
   selectShowPassword,
   selectShowConfirmPassword,
   selectStatus,
-  selectSocialLoginStatus,
   selectEmailCheckStatus,
   selectError,
   selectAccessToken,

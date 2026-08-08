@@ -25,8 +25,6 @@ import {
   togglePasswordVisibility,
   clearError,
   submitProviderSignUpAsync,
-  submitProviderGoogleSignUpAsync,
-  submitProviderFacebookSignUpAsync,
   selectFullName,
   selectEmail,
   selectPhoneNumber,
@@ -204,38 +202,6 @@ export default function ProviderSignUpScreen() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    console.log('🔘 Google sign up called');
-    
-    try {
-      const result = await dispatch(submitProviderGoogleSignUpAsync()).unwrap();
-      
-      console.log('✅ Provider Google sign up successful');
-      
-      // Navigate to PersonalInfo after successful Google signup
-      navigation.navigate('PersonalInfo');
-    } catch (err: any) {
-      console.error('❌ Google sign up error:', err);
-      // Error alert is already handled by the error useEffect
-    }
-  };
-
-  const handleFacebookSignUp = async () => {
-    console.log('🔘 Facebook sign up called');
-    
-    try {
-      const result = await dispatch(submitProviderFacebookSignUpAsync()).unwrap();
-      
-      console.log('✅ Provider Facebook sign up successful');
-      
-      // Navigate to PersonalInfo after successful Facebook signup
-      navigation.navigate('PersonalInfo');
-    } catch (err: any) {
-      console.error('❌ Facebook sign up error:', err);
-      // Error alert is already handled by the error useEffect
-    }
-  };
-
   const handleSignInPress = () => {
     navigation.navigate('ProviderSignIn');
   };
@@ -406,40 +372,6 @@ export default function ProviderSignUpScreen() {
             loading={isLoading}
             color="#6366f1"
           />
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Login Buttons */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={handleGoogleSignUp}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View style={styles.socialIconWrapper}>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-              </View>
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={handleFacebookSignUp}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View style={styles.socialIconWrapper}>
-                <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-              </View>
-              <Text style={styles.socialButtonText}>Facebook</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -591,55 +523,5 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
     marginLeft: 8,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginHorizontal: 16,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 50,
-    gap: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  socialIconWrapper: {
-    marginRight: 0,
-  },
-  socialButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1e293b',
   },
 });

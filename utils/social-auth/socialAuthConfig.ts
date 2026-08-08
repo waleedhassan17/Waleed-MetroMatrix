@@ -152,6 +152,15 @@ export const signInWithGoogleNativeSDK = async (): Promise<SocialAuthResult> => 
     // Check if Google Play Services are available
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     
+    // Clear the cached account first. Without this the native SDK silently
+    // reuses the last account it signed in with and never shows the picker,
+    // so a user can't switch accounts or sign in as someone else.
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // Nothing cached — first sign-in on this device.
+    }
+
     // Sign in
     const response = await GoogleSignin.signIn();
     
@@ -268,8 +277,11 @@ export const signInWithGoogleNative = async (promptAsync: () => Promise<any>): P
  */
 export const signOutFromGoogle = async () => {
   try {
-    // expo-auth-session doesn't maintain session state
-    // Sign out is handled by Firebase
+    // Clear the native SDK's cached account too — Firebase sign-out alone
+    // leaves it behind, so the next sign-in would silently reuse this account.
+    if (GoogleSignin) {
+      await GoogleSignin.signOut();
+    }
     console.log('✅ Signed out from Google');
   } catch (error) {
     console.error('❌ Error signing out from Google:', error);
@@ -308,6 +320,14 @@ export const signInWithFacebookNativeSDK = async (): Promise<FacebookProfileResu
 
   try {
     console.log('📱 Starting native Facebook Sign-In...');
+
+    // Drop the cached Facebook grant first, otherwise the SDK reuses the
+    // existing token and logs straight in without showing the account chooser.
+    try {
+      await LoginManagerNative.logOut();
+    } catch {
+      // Nothing cached to clear.
+    }
 
     const result = await LoginManagerNative.logInWithPermissions(['public_profile', 'email']);
 

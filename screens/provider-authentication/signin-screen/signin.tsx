@@ -23,8 +23,6 @@ import {
   togglePasswordVisibility,
   clearError,
   submitProviderSignInAsync,
-  submitProviderGoogleSignInAsync,
-  submitProviderFacebookSignInAsync,
   selectEmail,
   selectPassword,
   selectShowPassword,
@@ -153,25 +151,6 @@ export default function ProviderSignInScreen() {
       // "Sign In Failed" alert effect above.
     }
   };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await dispatch(submitProviderGoogleSignInAsync()).unwrap();
-      console.log('📋 Provider info available:', { providerType, providerSubType });
-    } catch (error) {
-      console.error('❌ Google sign in error:', error);
-    }
-  };
-
-  const handleFacebookSignIn = async () => {
-    try {
-      await dispatch(submitProviderFacebookSignInAsync()).unwrap();
-      console.log('📋 Provider info available:', { providerType, providerSubType });
-    } catch (error) {
-      console.error('❌ Facebook sign in error:', error);
-    }
-  };
-
 
 const handleForgotPassword = () => {
   (navigation as any).navigate('ForgotPassword', { userType: 'provider' });
@@ -335,40 +314,6 @@ const handleBackPress = () => {
             loading={isLoading}
             color="#6366f1"
           />
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Login Buttons */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={handleGoogleSignIn}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View style={styles.socialIconWrapper}>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-              </View>
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.socialButton}
-              onPress={handleFacebookSignIn}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View style={styles.socialIconWrapper}>
-                <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-              </View>
-              <Text style={styles.socialButtonText}>Facebook</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -529,55 +474,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#8B5CF6',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginHorizontal: 16,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 50,
-    gap: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  socialIconWrapper: {
-    marginRight: 0,
-  },
-  socialButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1e293b',
   },
 });

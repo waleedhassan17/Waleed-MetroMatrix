@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "942315940095-fvodke6uh00g3ooshvi56jcch6glk6oo.apps.googleusercontent.com",
+          "client_id": "942315940095-8jd0cjc3mpma197tslt0m57ljos62m3j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.metromatrix.app",
-            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+            "certificate_hash": "b4b1bd958ba08e889a64b661459073d685c866f4"
           }
         },
         {

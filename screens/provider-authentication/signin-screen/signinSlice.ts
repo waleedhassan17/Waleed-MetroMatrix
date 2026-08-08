@@ -1,9 +1,7 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
-import { 
+import {
   providerAuthLogin,
-  providerGoogleOAuthLogin,
-  providerFacebookOAuthLogin,
   getProviderVerificationStatus,
   ProviderLoginResponse
 } from '../../../networks/authcalls/providerSignin';
@@ -38,7 +36,6 @@ interface ProviderSignInSliceState {
   showPassword: boolean;
   error: string;
   status: 'idle' | 'loading' | 'failed';
-  socialLoginStatus: 'idle' | 'loading' | 'failed';
   accessToken: string;
   refreshToken: string;
   tokenType: 'LIMITED' | 'FULL' | null; // Token type for provider two-tier auth
@@ -67,7 +64,6 @@ const initialState: ProviderSignInSliceState = {
   showPassword: false,
   error: '',
   status: 'idle',
-  socialLoginStatus: 'idle',
   accessToken: '',
   refreshToken: '',
   tokenType: null,
@@ -117,7 +113,6 @@ export const providerSignInSlice = createAppSlice({
       state.tokenType = null;
       state.provider = null;
       state.status = 'idle';
-      state.socialLoginStatus = 'idle';
       state.isNotApproved = false;
       state.onboardingStatus = null;
     }),
@@ -279,110 +274,6 @@ export const providerSignInSlice = createAppSlice({
       }
     ),
 
-    // Google OAuth Sign In
-    submitProviderGoogleSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
-        console.log('📤 Provider Google sign in started');
-
-        try {
-          const result = await providerGoogleOAuthLogin();
-          console.log('📥 Provider Google sign in result:', JSON.stringify(result, null, 2));
-
-          return result;
-        } catch (error: any) {
-          console.log('❌ Provider Google sign in error:', error.message);
-          return rejectWithValue(error.message || 'Provider Google sign in failed');
-        }
-      },
-      {
-        pending: (state) => {
-          console.log('⏳ Provider Google sign in pending...');
-          state.socialLoginStatus = 'loading';
-          state.error = '';
-        },
-        fulfilled: (state, action) => {
-          console.log('✅ Provider Google sign in fulfilled');
-
-          state.socialLoginStatus = 'idle';
-          state.provider = action.payload.provider;
-          state.accessToken = action.payload.accessToken || '';
-          state.refreshToken = action.payload.refreshToken || '';
-          state.error = '';
-
-          // Save tokens and provider info to storage
-          saveData(KeyForStorage.accessToken, action.payload.accessToken);
-          if (action.payload.refreshToken) {
-            saveData(KeyForStorage.refreshToken, action.payload.refreshToken);
-          }
-          if (action.payload.provider) {
-            saveUserInfo(action.payload.provider);
-            saveData(KeyForStorage.userType, 'provider');
-            saveData(KeyForStorage.isAuthenticated, true);
-          }
-
-          console.log('💾 Provider Google user data saved to storage');
-        },
-        rejected: (state, action) => {
-          console.log('❌ Provider Google sign in rejected:', action.payload || action.error.message);
-
-          state.socialLoginStatus = 'failed';
-          state.error = (action.payload as string) || action.error.message || 'Provider Google sign in failed';
-        },
-      }
-    ),
-
-    // Facebook OAuth Sign In
-    submitProviderFacebookSignInAsync: create.asyncThunk(
-      async (_, { rejectWithValue }) => {
-        console.log('📤 Provider Facebook sign in started');
-
-        try {
-          const result = await providerFacebookOAuthLogin();
-          console.log('📥 Provider Facebook sign in result:', JSON.stringify(result, null, 2));
-
-          return result;
-        } catch (error: any) {
-          console.log('❌ Provider Facebook sign in error:', error.message);
-          return rejectWithValue(error.message || 'Provider Facebook sign in failed');
-        }
-      },
-      {
-        pending: (state) => {
-          console.log('⏳ Provider Facebook sign in pending...');
-          state.socialLoginStatus = 'loading';
-          state.error = '';
-        },
-        fulfilled: (state, action) => {
-          console.log('✅ Provider Facebook sign in fulfilled');
-
-          state.socialLoginStatus = 'idle';
-          state.provider = action.payload.provider;
-          state.accessToken = action.payload.accessToken || '';
-          state.refreshToken = action.payload.refreshToken || '';
-          state.error = '';
-
-          // Save tokens and provider info to storage
-          saveData(KeyForStorage.accessToken, action.payload.accessToken);
-          if (action.payload.refreshToken) {
-            saveData(KeyForStorage.refreshToken, action.payload.refreshToken);
-          }
-          if (action.payload.provider) {
-            saveUserInfo(action.payload.provider);
-            saveData(KeyForStorage.userType, 'provider');
-            saveData(KeyForStorage.isAuthenticated, true);
-          }
-
-          console.log('💾 Provider Facebook user data saved to storage');
-        },
-        rejected: (state, action) => {
-          console.log('❌ Provider Facebook sign in rejected:', action.payload || action.error.message);
-
-          state.socialLoginStatus = 'failed';
-          state.error = (action.payload as string) || action.error.message || 'Provider Facebook sign in failed';
-        },
-      }
-    ),
-
     // Fetch Provider Verification
     fetchProviderVerificationAsync: create.asyncThunk(
       async (_, { rejectWithValue }) => {
@@ -420,7 +311,6 @@ export const providerSignInSlice = createAppSlice({
     selectPassword: (state) => state.password,
     selectShowPassword: (state) => state.showPassword,
     selectStatus: (state) => state.status,
-    selectSocialLoginStatus: (state) => state.socialLoginStatus,
     selectError: (state) => state.error,
     selectAccessToken: (state) => state.accessToken,
     selectRefreshToken: (state) => state.refreshToken,
@@ -429,8 +319,7 @@ export const providerSignInSlice = createAppSlice({
     selectIsAuthenticated: (state) => !!state.provider && !!state.accessToken,
     selectProviderId: (state) => state.provider?.id,
     selectProviderFullName: (state) => state.provider?.fullName,
-    selectIsLoading: (state) => 
-      state.status === 'loading' || state.socialLoginStatus === 'loading',
+    selectIsLoading: (state) => state.status === 'loading',
     selectIsFormComplete: (state) =>
       state.email.trim().length > 0 && state.password.trim().length > 0,
     selectIsProfileComplete: (state) => state.provider?.profileComplete || false,
@@ -451,8 +340,6 @@ export const {
   logout,
   submitProviderSignInAsync,
   providerSignInWithPasswordAsync,
-  submitProviderGoogleSignInAsync,
-  submitProviderFacebookSignInAsync,
   fetchProviderVerificationAsync,
 } = providerSignInSlice.actions;
 
@@ -462,7 +349,6 @@ export const {
   selectPassword,
   selectShowPassword,
   selectStatus,
-  selectSocialLoginStatus,
   selectError,
   selectAccessToken,
   selectRefreshToken,
