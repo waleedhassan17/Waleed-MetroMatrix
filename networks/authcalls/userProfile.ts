@@ -343,8 +343,12 @@ export const uploadProfilePhoto = async (
       type: fileType || 'image/jpeg',
     };
 
-    // Backend expects field name 'photo'
-    formData.append('photo', file);
+    // Field name MUST be 'profilePhoto' — the backend route is
+    // uploadAvatar.single('profilePhoto') (src/middleware/uploadMiddleware.js).
+    // This used to send 'photo', which multer rejects as an unexpected field
+    // with a 400 before the controller ever runs. Together with the dead
+    // Heroku host above, that made profile-photo upload fail every time.
+    formData.append('profilePhoto', file);
 
     console.log('📤 Sending photo upload request via fetch to:', `${API_BASE_URL}/users/upload-photo`);
 
