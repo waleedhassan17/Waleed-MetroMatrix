@@ -389,7 +389,10 @@ const WalletScreen: React.FC = () => {
 
   const isLoadingInitial = wallet.loading && wallet.transactions.length === 0;
   const customAmountNum = parseFloat(customAmount);
-  const customAmountValid = !isNaN(customAmountNum) && customAmountNum >= 1 && customAmountNum <= 10000;
+  const customAmountValid =
+    !isNaN(customAmountNum) &&
+    customAmountNum >= MIN_TOPUP_PKR &&
+    customAmountNum <= MAX_TOPUP_PKR;
   const confirmDisabled =
     wallet.toppingUp ||
     (!isCustom && !selectedAmount) ||
@@ -594,7 +597,10 @@ const WalletScreen: React.FC = () => {
             )}
 
             {isCustom && customAmount.length > 0 && !customAmountValid && (
-              <Text style={styles.helperError}>Amount must be between 1 and 10,000</Text>
+              <Text style={styles.helperError}>
+                Amount must be between {MIN_TOPUP_PKR.toLocaleString()} and{' '}
+                {MAX_TOPUP_PKR.toLocaleString()} PKR
+              </Text>
             )}
 
             {wallet.error && (
@@ -614,6 +620,21 @@ const WalletScreen: React.FC = () => {
                 ? <ActivityIndicator size={18} color="#FFFFFF" />
                 : <Text style={styles.confirmButtonText}>Continue to payment</Text>}
             </TouchableOpacity>
+
+            {/* Stripe runs in test mode here (see WALLET_DESIGN.md — Stripe
+                does not operate in Pakistan), so no real card is ever charged.
+                Surfacing Stripe's published test card saves looking it up on
+                every demo. Stripe's hosted page cannot be prefilled with card
+                details — that boundary is theirs — but once you tick "save my
+                payment details" on the first payment, later top-ups show that
+                card ready to go, with controls to switch or remove it. */}
+            <View style={styles.testCardBox}>
+              <Text style={styles.testCardLabel}>TEST MODE — use this card</Text>
+              <Text style={styles.testCardNumber}>4242 4242 4242 4242</Text>
+              <Text style={styles.testCardMeta}>
+                Any future expiry · any 3-digit CVC · any postal code
+              </Text>
+            </View>
 
             <View style={styles.secureRow}>
               <Lock size={11} color={Colors.text.tertiary} strokeWidth={2} />
@@ -1433,6 +1454,35 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.1,
   },
+  testCardBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+    backgroundColor: Colors.backgroundAlt,
+  },
+  testCardLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: Colors.text.tertiary,
+  },
+  testCardNumber: {
+    marginTop: 5,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 1,
+    color: Colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  testCardMeta: {
+    marginTop: 4,
+    fontSize: 11,
+    color: Colors.text.secondary,
+  },
+
   secureRow: {
     flexDirection: 'row',
     alignItems: 'center',
