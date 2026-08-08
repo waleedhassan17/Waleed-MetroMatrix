@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppSelector } from '../../../../store/hooks';
 import { selectCartItemCount } from '../Cart/cartSlice';
@@ -11,7 +12,6 @@ import ShoppingHomeScreen from '../ShoppingHome/ShoppingHomeScreen';
 import CartScreen from '../Cart/CartScreen';
 import WishlistScreen from '../Wishlist/WishlistScreen';
 import MyOrdersScreen from '../MyOrders/MyOrdersScreen';
-import { Shadows } from '../../../../constants/Colors';
 
 // Shopping orange palette — matches the rest of the shopping module
 const COLORS = {
@@ -51,7 +51,22 @@ const CartIconWithBadge: React.FC<{ focused: boolean; color: string; size: numbe
   );
 };
 
+/** Icon row + label. The system inset is added on top of this. */
+const TAB_BAR_CONTENT_HEIGHT = 62;
+
 const ShoppingTabsNavigator: React.FC = () => {
+  // The bar is docked, not floating. Two reasons it had to change:
+  //
+  //  1. `position: 'absolute'` takes the bar out of the layout, so every screen
+  //     had to guess its height with a magic bottom padding — and product rows
+  //     still scrolled visibly underneath it. Docked, React Navigation gives
+  //     each screen the remaining space and nothing can slide beneath.
+  //  2. The app is edge-to-edge on Android (app.json), so the system nav bar
+  //     draws over the window. Pinned to a fixed `bottom: 16`, the pill sat
+  //     under the OS back/home/recents buttons. The inset is now reserved as
+  //     real padding instead.
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -60,16 +75,19 @@ const ShoppingTabsNavigator: React.FC = () => {
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
-          borderTopColor: 'transparent',
-          height: 64,
-          paddingBottom: 8,
+          height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom + 6,
           paddingTop: 8,
-          position: 'absolute',
-          bottom: 16,
-          left: 16,
-          right: 16,
-          borderRadius: 20,
-          ...Shadows.medium,
+          borderTopWidth: 0,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          // Lifts the bar off the content it now sits against (Shadows.medium
+          // casts downward, which reads as nothing on a bottom-docked edge).
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 12,
         },
         tabBarLabel: TAB_CONFIG[route.name]?.label ?? route.name,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2 },
