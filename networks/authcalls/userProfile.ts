@@ -1,11 +1,14 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API } from "../network/network";
+import { API, API_URL } from "../network/network";
 import { retrieveData, KeyForStorage } from "../../utils/storage_utils/storageUtils";
 import { ProfileCompletionData } from "../../models/user";
 
-// API Base URL
-const API_BASE_URL = 'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api';
+// Photo upload uses raw fetch (not the axios instance) so React Native sets
+// the multipart boundary itself, but it must still hit the SAME host as every
+// other call. It was pinned to a retired Heroku dyno, so profile-photo upload
+// failed against a dead host on every attempt.
+const API_BASE_URL = API_URL;
 
 // Error codes from backend
 export const UPLOAD_ERROR_CODES = {

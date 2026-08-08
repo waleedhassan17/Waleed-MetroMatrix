@@ -238,7 +238,7 @@ admin-dashboard, providers, pending-review, provider-review, provider-management
 
 ## 6. CONFIG DEFECTS (`networks/serviceProviders/config.ts`)
 
-1. **Third API host** — `BASE_URL = 'https://metromatrix-api-3445ddd9bd3a.herokuapp.com/api'`; `network.ts` uses `https://metro-matrix-backend.vercel.app/api` (the real host), `shoppingAxios.ts` historically a second Heroku host. One app, three hosts.
+1. ~~**Third API host** — `BASE_URL` pointed at a retired Heroku dyno while `network.ts` used the real Vercel host and `shoppingAxios.ts` a second Heroku host. One app, three hosts.~~ **RESOLVED** — `config.ts` now derives `BASE_URL` from the shared `API_BASE_URL`; every module talks to the one Vercel host.
 2. **No `Authorization` header, ever** — `apiRequest` uses raw `fetch` with only `Content-Type`. Blast radius: **every function in §1 except none** — all endpoints except the public provider search require auth, so ~44 of 46 calls 401 immediately once `USE_DUMMY_DATA=false`. (`fetchProviders`/`fetchProviderDetails` could be public; everything else dies.)
 3. **No timeout** — hung request hangs the screen forever, violating NFR-01.
 

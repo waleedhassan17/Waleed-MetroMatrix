@@ -418,51 +418,41 @@ export const emailVerificationSlice = createAppSlice({
             return result as ExtendedVerificationStatusResponse;
           }
           
-          // ✅ If email is verified but NO tokens, trigger auto-login
+          // ✅ Email verified but this response carried no tokens.
+          //
+          // This used to auto-login by replaying a raw password stashed in
+          // AsyncStorage at signup. That password is no longer persisted (it
+          // is a plaintext credential sitting on the device), so this branch
+          // now resolves the session the safe way: the emailed link opens the
+          // backend's /verify-email page, which deep-links back into the app
+          // as metromatrix://verify-success carrying real access/refresh
+          // tokens — handled by screens/verify-success. That is the normal
+          // path and it needs nothing from here.
+          //
+          // We only land here when the link was opened somewhere that could
+          // not deep-link back (a desktop browser, say) and the user then hit
+          // "I verified my email" in the app. With no tokens and no stored
+          // credential there is genuinely nothing to sign in with, so we ask
+          // for a normal sign-in instead of guessing.
           if (isEmailVerified && !result.accessToken) {
-            console.log("⚠️ Email verified but no tokens...");
-            
-            // Get temp credentials saved during signup
-            const tempEmailRaw = await retrieveData('tempEmail');
-            const tempPasswordRaw = await retrieveData('tempPassword');
-            const tempUserTypeRaw = await retrieveData('tempUserType') || userType || 'user';
-            
-            // ✅ CRITICAL FIX: Convert to strings (storage may return numbers for numeric-looking passwords like "12345678")
-            const tempEmail = tempEmailRaw ? String(tempEmailRaw).trim().toLowerCase() : null;
-            const tempPassword = tempPasswordRaw ? String(tempPasswordRaw) : null;
-            const tempUserType = String(tempUserTypeRaw);
-            
-            console.log("📊 Temp credentials check:", {
-              hasEmail: !!tempEmail,
-              hasPassword: !!tempPassword,
-              userType: tempUserType,
-              emailType: typeof tempEmail,
-              passwordType: typeof tempPassword,
-              rawEmailType: typeof tempEmailRaw,
-              rawPasswordType: typeof tempPasswordRaw,
-            });
+            const tempUserType = String(
+              (await retrieveData('tempUserType')) || userType || 'user'
+            );
+            const tempEmail = await retrieveData('tempEmail');
 
-            // ✅ PROVIDER FLOW: Skip auto-login for providers - they need admin approval first
+            console.log(
+              `✅ Email verified for ${tempUserType}, but no tokens in this response — routing to sign-in.`
+            );
+
             if (tempUserType === 'provider') {
-              console.log("👤 Provider detected - skipping auto-login (admin approval required)");
-              console.log("📍 Provider will navigate directly to PersonalInfo screen");
-              
-              // ✅ IMPORTANT: Save provider password for later use in PersonalInfo submission
-              // The personalInfo slice needs this to login before submitting
-              if (tempPassword) {
-                await saveData(KeyForStorage.providerTempPassword as any, tempPassword);
-                console.log("🔑 Provider password saved for PersonalInfo submission");
-              }
+              // Providers never auto-login anyway: they must submit their
+              // profile and be approved by an admin first.
               if (tempEmail) {
-                await saveData(KeyForStorage.providerTempEmail as any, tempEmail);
-                console.log("📧 Provider email saved for PersonalInfo submission");
+                await saveData(KeyForStorage.providerTempEmail as any, String(tempEmail));
               }
-              
-              // Clear generic temp credentials
               await removeData('tempEmail');
-              await removeData('tempPassword');
               await removeData('tempUserType');
-              
+
               const extendedResult: ExtendedVerificationStatusResponse = {
                 ...result,
                 skipAutoLoginForProvider: true,
@@ -470,49 +460,12 @@ export const emailVerificationSlice = createAppSlice({
               };
               return extendedResult;
             }
-            
-            // ✅ USER FLOW: Auto-login for regular users
-            if (tempEmail && tempPassword) {
-              console.log("🔐 Found valid temp credentials, performing auto-login for user...");
-              
-              // Import and call auto-login
-              const { autoLogin } = await import('./autoLoginAfterVerification');
-              const loginResult = await autoLogin(tempEmail, tempPassword, tempUserType as 'user' | 'provider');
-              
-              if (loginResult.success) {
-                console.log("✅ Auto-login successful!");
-                console.log("👤 User type from auto-login:", loginResult.userType);
-                
-                // Return a modified result with the tokens from auto-login
-                const extendedResult: ExtendedVerificationStatusResponse = {
-                  ...result,
-                  accessToken: loginResult.accessToken,
-                  refreshToken: loginResult.refreshToken,
-                  autoLoginUsed: true,
-                  // ✅ FIX: Include userType from auto-login result
-                  autoLoginUserType: loginResult.userType,
-                };
-                return extendedResult;
-              } else {
-                console.error("❌ Auto-login failed:", loginResult.message);
-                // Return original result - user will need to login manually
-                const extendedResult: ExtendedVerificationStatusResponse = {
-                  ...result,
-                  autoLoginFailed: true,
-                  autoLoginError: loginResult.message,
-                };
-                return extendedResult;
-              }
-            } else {
-              console.warn("⚠️ No temp credentials found for auto-login");
-              console.warn("📊 Raw values - Email:", tempEmailRaw, "Password:", tempPasswordRaw);
-              // Return result without tokens - navigation will need to handle this
-              const extendedResult: ExtendedVerificationStatusResponse = {
-                ...result,
-                noCredentialsForAutoLogin: true,
-              };
-              return extendedResult;
-            }
+
+            const extendedResult: ExtendedVerificationStatusResponse = {
+              ...result,
+              noCredentialsForAutoLogin: true,
+            };
+            return extendedResult;
           }
           
           return result as ExtendedVerificationStatusResponse;

@@ -1,15 +1,21 @@
 import axios, { AxiosInstance as AxiosInstanceType } from "axios";
 import { Platform } from "react-native";
 import { store } from "../../store/store";
-import { clearAuthData } from "../../utils/storage_utils/storageUtils";
+import {
+  clearAuthData,
+  getRefreshToken,
+  saveAuthTokens,
+} from "../../utils/storage_utils/storageUtils";
 import { Audience, tokenForRequest } from "./tokenSelection";
 
 // API Configuration
 // PRODUCTION (Vercel) — the one backend host for the whole app (see vercel.md).
+// Every network call must go through this constant. The app previously had
+// modules pinned to retired Heroku dynos (profile-photo upload among them),
+// which simply failed against a dead host.
 export const API_URL = "https://metro-matrix-backend.vercel.app/api";
 // Local testing (web): "http://localhost:5000/api"
 // LAN IP (for Expo Go on a physical device): "http://192.168.100.71:5000/api"
-// Legacy Heroku: "https://metromatrix-backend-8758842b3e4c.herokuapp.com/api"
 
 const TIMEOUT = 30000; // 30 seconds timeout
 
@@ -154,6 +160,67 @@ MainAxiosInstance.interceptors.request.use(
   }
 );
 
+/**
+ * Silent refresh-and-retry on 401.
+ *
+ * Access tokens are short-lived now (JWT_EXPIRE defaults to 15m on the
+ * backend) so that a stolen one expires quickly. That only works if the app
+ * can renew transparently — otherwise every user is thrown back to the login
+ * screen a quarter of an hour into the session.
+ *
+ * The refresh has to be single-flight. A screen that fires five requests at
+ * once gets five simultaneous 401s; refreshing five times would have four of
+ * them racing, and since /auth/refresh rotates the stored refresh token, the
+ * losers would present an already-replaced token and be rejected — logging
+ * the user out precisely when the mechanism was supposed to keep them in. So
+ * the first 401 performs the refresh and the rest wait on that same promise.
+ */
+let refreshPromise: Promise<string | null> | null = null;
+
+const performTokenRefresh = async (): Promise<string | null> => {
+  const refreshToken = await getRefreshToken();
+
+  if (!isValidToken(refreshToken)) {
+    console.warn('⚠️ No refresh token available — cannot renew session');
+    return null;
+  }
+
+  try {
+    // A bare axios call, not MainAxiosInstance: going through the instance
+    // would re-enter these interceptors and, on a 401 from the refresh
+    // itself, recurse.
+    const { data } = await axios.post(
+      `${API_URL}/auth/refresh`,
+      { refreshToken },
+      { timeout: TIMEOUT, headers: { 'Content-Type': 'application/json' } }
+    );
+
+    const newAccessToken = data?.accessToken;
+    const newRefreshToken = data?.refreshToken;
+
+    if (!isValidToken(newAccessToken)) {
+      console.warn('⚠️ Refresh response contained no usable access token');
+      return null;
+    }
+
+    await saveAuthTokens(newAccessToken, newRefreshToken);
+    console.log('🔄 Session refreshed successfully');
+    return newAccessToken;
+  } catch (refreshError: any) {
+    console.warn('⚠️ Token refresh failed:', refreshError?.response?.status || refreshError?.message);
+    return null;
+  }
+};
+
+const refreshSessionOnce = (): Promise<string | null> => {
+  if (!refreshPromise) {
+    refreshPromise = performTokenRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
 // Response interceptor for Main API
 MainAxiosInstance.interceptors.response.use(
   (response) => {
@@ -172,23 +239,54 @@ MainAxiosInstance.interceptors.response.use(
 
     if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
       console.error("Network is down or unreachable");
-      
+
       if (Platform.OS === 'android') {
         console.error('⚠️ Android: Check network security config');
       }
     }
 
-    // Only clear auth data for 401 errors on authenticated endpoints
+    // Only act on 401s from authenticated endpoints
     if (error.response && error.response.status === 401) {
-      const isUnauthenticatedEndpoint = UNAUTHENTICATED_ENDPOINTS.some(endpoint => 
-        error.config?.url?.includes(endpoint)
+      const originalRequest = error.config;
+
+      const isUnauthenticatedEndpoint = UNAUTHENTICATED_ENDPOINTS.some(endpoint =>
+        originalRequest?.url?.includes(endpoint)
       );
-      
-      // Only wipe the session if we actually presented a token. When the
+      const isRefreshCall = originalRequest?.url?.includes('auth/refresh');
+
+      // Only try to recover if we actually presented a token. When the
       // interceptor withheld a mismatched one, the session we still hold is
       // valid for its own audience and must survive.
-      if (!isUnauthenticatedEndpoint && (error.config as any)?.__sentAuth) {
-        console.warn('⚠️ 401 on authenticated endpoint - clearing auth data');
+      if (
+        !isUnauthenticatedEndpoint &&
+        !isRefreshCall &&
+        (originalRequest as any)?.__sentAuth &&
+        !(originalRequest as any)?.__retriedAfterRefresh
+      ) {
+        const newAccessToken = await refreshSessionOnce();
+
+        if (newAccessToken) {
+          // Replay the original request once with the fresh token.
+          (originalRequest as any).__retriedAfterRefresh = true;
+          originalRequest.headers = {
+            ...(originalRequest.headers || {}),
+            Authorization: `Bearer ${newAccessToken}`,
+          };
+          console.log('🔁 Retrying request with refreshed token:', originalRequest.url);
+          return MainAxiosInstance(originalRequest);
+        }
+
+        // The refresh itself failed — the session really is gone.
+        console.warn('⚠️ Refresh failed on 401 - clearing auth data');
+        await clearAuthData();
+      } else if (
+        !isUnauthenticatedEndpoint &&
+        (originalRequest as any)?.__sentAuth &&
+        (isRefreshCall || (originalRequest as any)?.__retriedAfterRefresh)
+      ) {
+        // A 401 on the refresh call, or on the one retry we allow, means the
+        // session cannot be recovered.
+        console.warn('⚠️ 401 persisted after refresh - clearing auth data');
         await clearAuthData();
       }
     }

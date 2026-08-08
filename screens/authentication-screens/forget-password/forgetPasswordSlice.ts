@@ -1,6 +1,6 @@
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { createAppSlice } from "../../../store/createAppSlice";
-import { forgotPasswordAPI, checkEmailExistsAPI } from "../../../networks/authcalls/forgetPassword";
+import { forgotPasswordAPI } from "../../../networks/authcalls/forgetPassword";
 
 type UserType = 'user' | 'provider';
 
@@ -50,44 +50,39 @@ export const forgotPasswordSlice = createAppSlice({
     }),
 
     /**
-     * Submit forgot password request
-     * First checks if email exists, then sends OTP
+     * Submit forgot password request — calls the reset endpoint directly.
      * POST /api/auth/forgot-password
      * Body: { email, userType }
+     *
+     * There used to be a `checkEmailExistsAPI` preflight here. The route it
+     * called (GET /api/auth/check-email-exists) does not exist on the
+     * backend, so it always 404'd, and the helper mapped 404 to
+     * "email doesn't exist" — which is why a perfectly real account got
+     * "No account found." (task.md Issue 3).
+     *
+     * The backend now answers every forgot-password request with the same
+     * generic success and only mails real accounts, so there is nothing to
+     * pre-check: advancing straight to the OTP screen is both correct and
+     * the anti-enumeration-safe behaviour.
      */
     submitForgotPasswordAsync: create.asyncThunk(
       async ({ email, userType }: { email: string; userType?: 'user' | 'provider' }, { getState, rejectWithValue }) => {
         console.log("📤 submitForgotPasswordAsync started with:", { email });
-        
+
         try {
           // Get userType from state if not provided
           const state = getState() as { forgotPassword: { userType: 'user' | 'provider' } };
           const effectiveUserType = userType || state.forgotPassword.userType || 'user';
-          
-          // ✅ Step 1: Check if email exists
-          console.log("🔍 Checking if email exists for userType:", effectiveUserType);
-          const emailCheck = await checkEmailExistsAPI({ 
+
+          const result = await forgotPasswordAPI({
             email: email.trim(),
             userType: effectiveUserType,
           });
-          
-          if (!emailCheck.exists) {
-            console.log("❌ Email not found:", email);
-            return rejectWithValue(`No ${effectiveUserType} account found with this email address`);
-          }
-          
-          console.log("✅ Email exists, sending OTP...");
-          
-          // ✅ Step 2: Send OTP
-          const result = await forgotPasswordAPI({ 
-            email: email.trim(),
-            userType: effectiveUserType,
-          });
-          
+
           console.log("📥 submitForgotPasswordAsync received result:", JSON.stringify(result, null, 2));
-          
-          return { 
-            email: email.trim(), 
+
+          return {
+            email: email.trim(),
             success: result.success,
             message: result.message,
           };

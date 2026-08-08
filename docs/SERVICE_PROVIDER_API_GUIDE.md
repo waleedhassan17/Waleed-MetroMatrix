@@ -37,7 +37,7 @@ The APIs are organized by user role:
 ## 2. Base Configuration
 
 ```
-Base URL: https://metromatrix-api.herokuapp.com/api
+Base URL: https://metro-matrix-backend.vercel.app/api
 Content-Type: application/json
 Authorization: Bearer <token>
 ```

@@ -2,7 +2,7 @@
 
 **Generated for Frontend Compatibility**  
 **Date:** December 9, 2025  
-**Base URL:** `https://metromatrix-api-2e35f5f074df.herokuapp.com/api`
+**Base URL:** `https://metro-matrix-backend.vercel.app/api`
 
 ---
 

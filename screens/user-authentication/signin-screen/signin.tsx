@@ -35,14 +35,9 @@ import {
 import {
   useGoogleAuth,
   processGoogleResponse,
-  firebaseSignInWithGoogle,
-  firebaseSignInWithFacebook,
+  resolveGoogleFirebaseIdToken,
   signInWithFacebookNativeSDK,
-  getFirebaseIdToken,
-  AccountExistsWithDifferentCredentialError,
 } from '../../../utils/social-auth/socialAuthConfig';
-import { auth } from '../../../firebaseConfig';
-import { saveData, saveUserInfo, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
 
 const isAndroid = Platform.OS === 'android';
 
@@ -85,23 +80,24 @@ const SignIn = () => {
     }
   }, [googleResponse]);
 
-  // Google login with token - Firebase auth + Backend API
+  // Google login — Firebase auth (needed: the backend verifies a FIREBASE ID
+  // token for Google, unlike Facebook) then our backend.
   const handleGoogleLoginWithToken = async (idToken: string) => {
     try {
-      // Step 1: Authenticate with Firebase using the raw Google token
-      const userCredential = await firebaseSignInWithGoogle(idToken);
-      const firebaseUser = userCredential.user;
-
-      console.log('✅ Firebase Google auth successful:', firebaseUser.email);
-
-      // Step 2: Get Firebase ID token for backend
-      const firebaseIdToken = await getFirebaseIdToken();
+      // Step 1: Exchange the raw Google token for a Firebase session. Unlike
+      // the Facebook path, this step is required — google-login calls
+      // admin.auth().verifyIdToken(), which only accepts Firebase ID tokens.
+      // resolveGoogleFirebaseIdToken absorbs
+      // auth/account-exists-with-different-credential instead of dead-ending
+      // on it, so an email already registered another way still signs in and
+      // gets linked by the backend (task.md Issue 2).
+      const firebaseIdToken = await resolveGoogleFirebaseIdToken(idToken);
 
       if (!firebaseIdToken) {
         throw new Error('Failed to get Firebase ID token');
       }
 
-      // Step 3: Call backend API to authenticate with Firebase ID token
+      // Step 2: Call backend API to authenticate with Firebase ID token
       await dispatch(submitGoogleSignInAsync({ idToken: firebaseIdToken })).unwrap();
 
       console.log('✅ Google login successful via backend, navigating to UserHome');
@@ -119,7 +115,16 @@ const SignIn = () => {
     }
   };
 
-  // Facebook login with native SDK (Firebase-only, backend API skipped - same as Google)
+  // Facebook login — native SDK straight to our backend, no Firebase step.
+  //
+  // The backend's /auth/facebook-login verifies the RAW Facebook access token
+  // itself (Graph debug_token, see config/facebook.js) and find-or-creates by
+  // facebookId OR email, auto-linking to an existing account. So the client
+  // never needed a Firebase credential here — and that extra
+  // signInWithCredential call was the sole source of Firebase's
+  // auth/account-exists-with-different-credential error, i.e. the dead-end
+  // "Account Already Exists" modal (task.md Issues 2 & 5). Dropping it
+  // removes the collision entirely and lets the backend do the linking.
   const handleFacebookLogin = async () => {
     try {
       console.log('📱 Starting native Facebook Sign-In...');
@@ -135,13 +140,6 @@ const SignIn = () => {
         return;
       }
 
-      // Step 1: Authenticate with Firebase using the Facebook access token
-      const userCredential = await firebaseSignInWithFacebook(result.accessToken);
-      const firebaseUser = userCredential.user;
-
-      console.log('✅ Firebase Facebook auth successful:', firebaseUser.email);
-
-      // Step 2: Call backend API with Facebook access token for authentication
       await dispatch(submitFacebookSignInAsync({ accessToken: result.accessToken })).unwrap();
 
       console.log('✅ Facebook login successful via backend, navigating to UserHome');
@@ -152,24 +150,6 @@ const SignIn = () => {
       });
     } catch (err: any) {
       console.error('❌ Facebook login error:', err);
-
-      if (err instanceof AccountExistsWithDifferentCredentialError) {
-        // Check if only non-Google providers remain (Google auto-link already tried and failed)
-        const nonGoogleProviders = err.existingProviders.filter((p: string) => p !== 'google.com');
-        const providerNames = err.existingProviders.map((p: string) => {
-          if (p === 'password') return 'Email/Password';
-          if (p === 'google.com') return 'Google';
-          if (p === 'facebook.com') return 'Facebook';
-          return p;
-        });
-        Alert.alert(
-          'Account Already Exists',
-          `The email ${err.email} is already registered with ${providerNames.join(', ')}. ` +
-          `Please sign in using ${providerNames[0] || 'your original method'} first, then your Facebook will be automatically linked.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
 
       Alert.alert(
         'Facebook Sign In Failed',

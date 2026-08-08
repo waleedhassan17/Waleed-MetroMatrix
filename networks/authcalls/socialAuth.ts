@@ -26,6 +26,13 @@ export interface SocialAuthResponse {
 /**
  * Google Signup
  * POST /auth/google-signup
+ *
+ * ⚠️ Not used by the sign-in OR sign-up screens, deliberately. This endpoint
+ * returns 409 when the email already exists, which is what produced the
+ * dead-end "Account Already Exists" flow. Both screens call googleLoginAPI
+ * below, which find-or-creates and auto-links. Kept only for callers that
+ * genuinely need create-only semantics.
+ *
  * @param idToken - Firebase ID token from Google Sign-in
  * @param userType - 'user' or 'provider'
  */
@@ -104,6 +111,10 @@ export const googleLoginAPI = async (idToken: string, userType: 'user' | 'provid
 /**
  * Facebook Signup
  * POST /auth/facebook-signup
+ *
+ * ⚠️ Same caveat as googleSignupAPI: 409s on an existing email. The screens
+ * use facebookLoginAPI below.
+ *
  * @param accessToken - Facebook access token
  * @param userType - 'user' or 'provider'
  */

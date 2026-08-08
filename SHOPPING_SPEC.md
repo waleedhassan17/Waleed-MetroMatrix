@@ -259,4 +259,4 @@ Settings live in the existing `AdminSettings` singleton under a new `shopping` s
 5. **`Checkout` route** already maps to CheckoutAddressScreen; `AddressSelection` becomes the saved-address manager the checkout flow pushes to.
 6. **Coupon scope at checkout:** a brand-scoped coupon discounts only that brand's lines; a platform coupon discounts the whole cart, split across child orders proportionally to their subtotals (largest-remainder rounding so the split reconciles to the group discount exactly).
 7. **Envelope divergence:** the rest of the backend uses ad-hoc envelopes; shopping uses the FE's `{success,data,pagination}` exactly, as required.
-8. **`shoppingAxios.ts` base URL** is hardcoded to Heroku. S6 moves it to a single shared config so dev/prod hosts are switchable app-wide.
+8. ~~**`shoppingAxios.ts` base URL** is hardcoded to Heroku.~~ **RESOLVED** — S6 moved it to `config/env.ts`, which derives from `network.ts`'s `API_URL`, so hosts are switchable app-wide from one place.

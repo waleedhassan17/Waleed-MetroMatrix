@@ -213,15 +213,17 @@ export const providerSignUpSlice = createAppSlice({
             console.log('⚠️ Email was normalized by backend! Using backend email for verification.');
           }
 
-          // ✅ Save temp credentials for email verification flow
-          // IMPORTANT: Use backendEmail (the email saved in database) not user input
-          console.log('💾 Saving temp credentials for email verification...');
+          // ✅ Save the email for the verification flow.
+          // The raw password is deliberately NOT persisted: device storage is
+          // not a safe place for a plaintext credential, and it isn't needed —
+          // after the emailed link is opened, the backend's /verify-email page
+          // deep-links back into the app with real access/refresh tokens
+          // (see screens/verify-success), which is what signs the user in.
+          console.log('💾 Saving verification email...');
           await saveData('tempEmail', String(backendEmail));
-          await saveData('tempPassword', String(password));
           await saveData('tempUserType', 'provider');
           await saveData(KeyForStorage.providerTempEmail, backendEmail);
-          await saveData(KeyForStorage.providerTempPassword, password);
-          console.log('✅ Temp credentials saved with backend email:', backendEmail);
+          console.log('✅ Verification email saved with backend email:', backendEmail);
             
           return {
             ...result,

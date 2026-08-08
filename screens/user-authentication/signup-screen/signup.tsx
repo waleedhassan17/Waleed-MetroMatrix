@@ -40,14 +40,9 @@ import {
 import {
   useGoogleAuth,
   processGoogleResponse,
-  firebaseSignInWithGoogle,
-  firebaseSignInWithFacebook,
+  resolveGoogleFirebaseIdToken,
   signInWithFacebookNativeSDK,
-  getFirebaseIdToken,
-  AccountExistsWithDifferentCredentialError,
 } from '../../../utils/social-auth/socialAuthConfig';
-import { auth } from '../../../firebaseConfig';
-import { saveData, saveUserInfo, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
 
 const isAndroid = Platform.OS === 'android';
 
@@ -104,23 +99,22 @@ const SignUp = () => {
     }
   }, [googleResponse]);
 
-  // Google signup - Firebase auth + Backend API
+  // Google signup — Firebase auth, then the auto-linking backend endpoint.
+  //
+  // submitGoogleSignUpAsync now calls the backend's /auth/google-LOGIN
+  // endpoint (see signupSlice.ts): /auth/google-signup rejects an existing
+  // email with 409, while google-login find-or-creates and auto-links.
+  // Social "sign up" and "sign in" are the same operation from the user's
+  // point of view — tapping "Continue with Google" on the signup screen with
+  // an email you already have must log you in, not error (task.md Issue 2).
   const handleGoogleSignupWithToken = async (idToken: string) => {
     try {
-      // Step 1: Authenticate with Firebase using the raw Google token
-      const userCredential = await firebaseSignInWithGoogle(idToken);
-      const firebaseUser = userCredential.user;
-
-      console.log('✅ Firebase Google auth successful:', firebaseUser.email);
-
-      // Step 2: Get Firebase ID token for backend
-      const firebaseIdToken = await getFirebaseIdToken();
+      const firebaseIdToken = await resolveGoogleFirebaseIdToken(idToken);
 
       if (!firebaseIdToken) {
         throw new Error('Failed to get Firebase ID token');
       }
 
-      // Step 3: Call backend API to register/authenticate via Firebase ID token
       await dispatch(submitGoogleSignUpAsync({ idToken: firebaseIdToken })).unwrap();
 
       console.log('✅ Google signup successful via backend, navigating to UserHome');
@@ -138,7 +132,10 @@ const SignUp = () => {
     }
   };
 
-  // Facebook signup with native SDK (Firebase-only, backend API skipped - same as Google)
+  // Facebook signup — native SDK straight to the auto-linking backend
+  // endpoint. No Firebase step: see the matching comment in signin.tsx for
+  // why that call was pure overhead and the sole cause of the
+  // "Account Already Exists" modal.
   const handleFacebookSignup = async () => {
     try {
       console.log('📱 Starting native Facebook Sign-Up...');
@@ -154,13 +151,6 @@ const SignUp = () => {
         return;
       }
 
-      // Step 1: Authenticate with Firebase using the Facebook access token
-      const userCredential = await firebaseSignInWithFacebook(result.accessToken);
-      const firebaseUser = userCredential.user;
-
-      console.log('✅ Firebase Facebook auth successful:', firebaseUser.email);
-
-      // Step 2: Call backend API with Facebook access token for registration
       await dispatch(submitFacebookSignUpAsync({ accessToken: result.accessToken })).unwrap();
 
       console.log('✅ Facebook signup successful via backend, navigating to UserHome');
@@ -171,28 +161,6 @@ const SignUp = () => {
       });
     } catch (err: any) {
       console.error('❌ Facebook signup error:', err);
-
-      if (err instanceof AccountExistsWithDifferentCredentialError) {
-        const providerNames = err.existingProviders.map((p: string) => {
-          if (p === 'password') return 'Email/Password';
-          if (p === 'google.com') return 'Google';
-          if (p === 'facebook.com') return 'Facebook';
-          return p;
-        });
-        Alert.alert(
-          'Account Already Exists',
-          `The email ${err.email} is already registered with ${providerNames.join(', ')}. ` +
-          `Please sign in using ${providerNames[0] || 'your original method'} first, then your Facebook will be automatically linked.`,
-          [
-            {
-              text: 'Go to Sign In',
-              onPress: () => navigation.navigate('SignIn'),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
-        return;
-      }
 
       Alert.alert(
         'Facebook Sign Up Failed',

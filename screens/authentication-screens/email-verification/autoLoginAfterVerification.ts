@@ -486,32 +486,35 @@ export const clearTemporarySignupData = async (): Promise<void> => {
 };
 
 /**
- * Get Temporary Credentials
- * Retrieves stored credentials for auto-login
- * 
- * @returns Promise<{ email: string | null; password: string | null; userType: string | null }>
+ * Get Temporary Signup Context
+ *
+ * Returns the email and account type recorded at signup so the verification
+ * screen knows who it is waiting on.
+ *
+ * NOTE: this used to also return a stored raw `password`. Signup no longer
+ * persists one — a plaintext credential on the device is not an acceptable
+ * trade for skipping a login form, and it isn't needed: the /verify-email
+ * deep link hands the app real tokens (see screens/verify-success).
+ *
+ * @returns Promise<{ email: string | null; userType: string | null }>
  */
 export const getTempCredentials = async (): Promise<{
   email: string | null;
-  password: string | null;
   userType: string | null;
 }> => {
   try {
     const emailRaw = await retrieveData('tempEmail');
-    const passwordRaw = await retrieveData('tempPassword');
     const userTypeRaw = await retrieveData('tempUserType');
-    
+
     // ✅ CRITICAL FIX: Convert to strings (storage may return numbers)
     return {
       email: emailRaw ? String(emailRaw) : null,
-      password: passwordRaw ? String(passwordRaw) : null,
       userType: userTypeRaw ? String(userTypeRaw) : null,
     };
   } catch (error) {
     console.error('Error getting temp credentials:', error);
     return {
       email: null,
-      password: null,
       userType: null,
     };
   }

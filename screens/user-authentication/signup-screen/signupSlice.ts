@@ -3,8 +3,8 @@ import { createAppSlice } from '../../../store/createAppSlice';
 import { authRegister } from '../../../networks/authcalls/userSignup';
 import { sendVerificationEmailAPI } from '../../../networks/authcalls/emailVerification';
 import {
-  googleSignupAPI,
-  facebookSignupAPI,
+  googleLoginAPI,
+  facebookLoginAPI,
   convertSocialToUserAuth,
   SocialAuthResponse,
 } from '../../../networks/authcalls/socialAuth';
@@ -233,13 +233,15 @@ export const signUpSlice = createAppSlice({
             console.log('⚠️ Email was normalized by backend! Using backend email for verification.');
           }
 
-          // ✅ CRITICAL FIX: Save temp credentials for auto-login after email verification
-          // IMPORTANT: Use backendEmail (the email saved in database) not user input
-          console.log('💾 Saving temp credentials for auto-login...');
+          // ✅ Save the email for the verification flow.
+          // The raw password is deliberately NOT persisted — see the matching
+          // note in the provider signup slice. Sign-in after verification
+          // comes from the tokens the /verify-email deep link returns, not
+          // from a stored credential.
+          console.log('💾 Saving verification email...');
           await saveData('tempEmail', String(backendEmail));
-          await saveData('tempPassword', String(password));
           await saveData('tempUserType', 'user');
-          console.log('✅ Temp credentials saved with backend email:', backendEmail);
+          console.log('✅ Verification email saved with backend email:', backendEmail);
 
           // ✅ Backend sends verification email automatically
           // No need to call sendVerificationEmailAPI here
@@ -302,7 +304,12 @@ export const signUpSlice = createAppSlice({
         console.log('📤 Google signup started');
 
         try {
-          const result: SocialAuthResponse = await googleSignupAPI(idToken, 'user');
+          // googleLoginAPI, not googleSignupAPI: /auth/google-signup 409s on
+          // an existing email, while /auth/google-login find-or-creates and
+          // auto-links googleId onto a matching account. Tapping "Continue
+          // with Google" from the signup screen with an already-registered
+          // email has to sign you in, not dead-end (task.md Issue 2).
+          const result: SocialAuthResponse = await googleLoginAPI(idToken, 'user');
           console.log('📥 Google signup result:', JSON.stringify(result, null, 2));
 
           // Convert to user format
@@ -364,7 +371,9 @@ export const signUpSlice = createAppSlice({
         console.log('📤 Facebook signup started');
 
         try {
-          const result: SocialAuthResponse = await facebookSignupAPI(accessToken, 'user');
+          // facebookLoginAPI, not facebookSignupAPI — same auto-linking
+          // reason as the Google thunk above (task.md Issue 5).
+          const result: SocialAuthResponse = await facebookLoginAPI(accessToken, 'user');
           console.log('📥 Facebook signup result:', JSON.stringify(result, null, 2));
 
           // Convert to user format

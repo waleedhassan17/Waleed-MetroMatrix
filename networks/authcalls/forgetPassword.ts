@@ -54,59 +54,18 @@ export interface ResetPasswordResponse {
   };
 }
 
-export interface CheckEmailExistsParams {
-  email: string;
-  userType?: 'user' | 'provider';
-}
-
-export interface CheckEmailExistsResponse {
-  exists: boolean;
-  message: string;
-}
-
-/**
- * Check if email exists before sending password reset OTP
- * GET /api/auth/check-email-exists
- * Query: { email, userType }
+/*
+ * `checkEmailExistsAPI` used to live here and was called before every reset.
+ * It hit GET /api/auth/check-email-exists, a route the backend never
+ * defined, and treated the resulting 404 as "this email isn't registered" —
+ * so password reset reported "No account found" for real accounts
+ * (task.md Issue 3).
+ *
+ * It is deliberately gone rather than fixed: the backend's forgot-password
+ * endpoint is now anti-enumeration (identical generic success whether or not
+ * the account exists), which means a client-side existence check is both
+ * unnecessary and something we specifically do not want to expose.
  */
-export const checkEmailExistsAPI = async (params: CheckEmailExistsParams): Promise<CheckEmailExistsResponse> => {
-  try {
-    console.log('📤 Checking if email exists:', params.email);
-    
-    const response = await axios.get(
-      `${API_URL}/auth/check-email-exists`,
-      {
-        params: {
-          email: params.email.trim(),
-          userType: params.userType || 'user',
-        }
-      }
-    );
-    
-    console.log('📥 Check email exists response:', response.data);
-    
-    return {
-      exists: response.data.exists || false,
-      message: response.data.message || '',
-    };
-  } catch (error: any) {
-    console.error('❌ Check email exists error:', error.response?.data || error.message);
-    
-    // If API returns 404, email doesn't exist
-    if (error.response?.status === 404) {
-      return {
-        exists: false,
-        message: 'No account found with this email address',
-      };
-    }
-    
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        'Failed to check email';
-    
-    throw new Error(errorMessage);
-  }
-};
 
 /**
  * Request password reset OTP - sends OTP code to user's email

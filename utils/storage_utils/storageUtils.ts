@@ -1,4 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  isSecureKey,
+  secureClearAll,
+  secureGetItem,
+  secureRemoveItem,
+  secureSetItem,
+} from './secureStorage';
+
+/**
+ * Every read/write in this module goes through `store`, which routes auth
+ * tokens to the Keychain/Keystore (see secureStorage.ts) and everything else
+ * to AsyncStorage. Routing here rather than at each call site means a new
+ * helper can't accidentally write a token in plaintext.
+ */
+const store = {
+  getItem: (key: string): Promise<string | null> =>
+    isSecureKey(key) ? secureGetItem(key) : AsyncStorage.getItem(key),
+
+  setItem: (key: string, value: string): Promise<void> =>
+    isSecureKey(key) ? secureSetItem(key, value) : AsyncStorage.setItem(key, value),
+
+  removeItem: (key: string): Promise<void> =>
+    isSecureKey(key) ? secureRemoveItem(key) : AsyncStorage.removeItem(key),
+};
 
 // Storage Keys Enum
 export enum KeyForStorage {
@@ -46,8 +70,13 @@ export enum KeyForStorage {
   profileComplete = 'profileComplete',
   profileStep = 'profileStep',
   
-  // Temporary credentials for auto-login
+  // Temporary signup context for the email-verification flow
   tempEmail = 'tempEmail',
+  /**
+   * ⚠️ DEPRECATED — never write to this. Kept only so clearTempCredentials()
+   * can delete a plaintext password left behind by an older build. Sign-in
+   * after verification uses the tokens from the /verify-email deep link.
+   */
   tempPassword = 'tempPassword',
   tempUserType = 'tempUserType',
   
@@ -60,8 +89,9 @@ export enum KeyForStorage {
   pendingProviderDocuments = 'pendingProviderDocuments',
   pendingProviderInfo = 'pendingProviderInfo',
   
-  // ✅ Provider temp credentials for PersonalInfo submission (after email verification)
+  /** ⚠️ DEPRECATED — see tempPassword. Cleanup-only. */
   providerTempPassword = 'providerTempPassword',
+  // ✅ Provider email for PersonalInfo submission (after email verification)
   providerTempEmail = 'providerTempEmail',
 }
 
@@ -88,19 +118,19 @@ export const saveData = async (
     // ✅ FIX: Don't save null/undefined values - remove key instead
     if (value === null || value === undefined) {
       console.warn(`⚠️ Attempted to save null/undefined to ${key}, removing key instead`);
-      await AsyncStorage.removeItem(key);
+      await store.removeItem(key);
       return true;
     }
     
     // ✅ FIX: Don't save string "null" or "undefined"
     if (typeof value === 'string' && ['null', 'undefined'].includes(value.toLowerCase())) {
       console.warn(`⚠️ Attempted to save string "${value}" to ${key}, removing key instead`);
-      await AsyncStorage.removeItem(key);
+      await store.removeItem(key);
       return true;
     }
     
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-    await AsyncStorage.setItem(key, stringValue);
+    await store.setItem(key, stringValue);
     console.log(`✅ Saved ${key} to storage`);
     return true;
   } catch (error) {
@@ -115,7 +145,7 @@ export const saveData = async (
  */
 export const retrieveData = async (key: KeyForStorage | string): Promise<any> => {
   try {
-    const value = await AsyncStorage.getItem(key);
+    const value = await store.getItem(key);
     
     // ✅ FIX: Check for null/undefined from storage
     if (value === null || value === undefined) {
@@ -127,7 +157,7 @@ export const retrieveData = async (key: KeyForStorage | string): Promise<any> =>
     if (value === 'null' || value === 'undefined' || value === '') {
       console.log(`📭 Invalid string value "${value}" found for ${key}, treating as null`);
       // Clean up the invalid value
-      await AsyncStorage.removeItem(key);
+      await store.removeItem(key);
       return null;
     }
     
@@ -163,7 +193,7 @@ export const removeData = async (
   key: KeyForStorage | string
 ): Promise<boolean> => {
   try {
-    await AsyncStorage.removeItem(key);
+    await store.removeItem(key);
     console.log(`🗑️ Removed ${key} from storage`);
     return true;
   } catch (error) {
@@ -179,7 +209,10 @@ export const removeKey = removeData;
  */
 export const clearAllData = async (): Promise<boolean> => {
   try {
-    await AsyncStorage.clear();
+    // AsyncStorage.clear() does not touch the Keychain/Keystore, so tokens
+    // would survive a "clear everything" and silently re-authenticate the
+    // previous account. Wipe secure storage explicitly too.
+    await Promise.all([AsyncStorage.clear(), secureClearAll()]);
     console.log('🗑️ Cleared all storage');
     return true;
   } catch (error) {
@@ -204,13 +237,23 @@ export const saveMultipleData = async (
       return true;
     });
     
-    const stringifiedItems = validItems.map(([key, value]) => [
+    const stringifiedItems = validItems.map(([key, value]): [string, string] => [
       key,
       typeof value === 'string' ? value : JSON.stringify(value),
     ]);
-    
+
+    // multiSet is AsyncStorage-only, so secure keys have to be split out —
+    // otherwise a token passed through this helper lands in plaintext.
+    const secureItems = stringifiedItems.filter(([key]) => isSecureKey(key));
+    const plainItems = stringifiedItems.filter(([key]) => !isSecureKey(key));
+
+    if (plainItems.length > 0) {
+      await AsyncStorage.multiSet(plainItems as any);
+    }
+    if (secureItems.length > 0) {
+      await Promise.all(secureItems.map(([key, value]) => secureSetItem(key, value)));
+    }
     if (stringifiedItems.length > 0) {
-      await AsyncStorage.multiSet(stringifiedItems as any);
       console.log('✅ Saved multiple items to storage');
     }
     return true;
@@ -290,7 +333,7 @@ export const saveAccessToken = async (token: string): Promise<boolean> => {
       return false;
     }
     
-    await AsyncStorage.setItem(KeyForStorage.accessToken, token);
+    await store.setItem(KeyForStorage.accessToken, token);
     console.log('✅ Saved access token to storage');
     return true;
   } catch (error) {
@@ -305,11 +348,11 @@ export const saveAccessToken = async (token: string): Promise<boolean> => {
 export const getAccessToken = async (): Promise<string | null> => {
   try {
     // Try main access token first
-    let token = await AsyncStorage.getItem(KeyForStorage.accessToken);
+    let token = await store.getItem(KeyForStorage.accessToken);
     
     // Fallback to provider-specific token
     if (!isValidToken(token)) {
-      token = await AsyncStorage.getItem(KeyForStorage.providerAccessToken);
+      token = await store.getItem(KeyForStorage.providerAccessToken);
     }
     
     // Validate retrieved token
@@ -330,7 +373,7 @@ export const getAccessToken = async (): Promise<string | null> => {
  */
 export const getRefreshToken = async (): Promise<string | null> => {
   try {
-    const token = await AsyncStorage.getItem(KeyForStorage.refreshToken);
+    const token = await store.getItem(KeyForStorage.refreshToken);
     
     if (!isValidToken(token)) {
       console.log('📭 No valid refresh token found');
@@ -354,10 +397,10 @@ export const saveAuthTokens = async (accessToken: string, refreshToken?: string)
       return false;
     }
     
-    await AsyncStorage.setItem(KeyForStorage.accessToken, accessToken);
+    await store.setItem(KeyForStorage.accessToken, accessToken);
     
     if (refreshToken && isValidToken(refreshToken)) {
-      await AsyncStorage.setItem(KeyForStorage.refreshToken, refreshToken);
+      await store.setItem(KeyForStorage.refreshToken, refreshToken);
     }
     
     console.log('✅ Saved auth tokens to storage');
@@ -511,34 +554,27 @@ export const clearTempCredentials = async (): Promise<boolean> => {
 };
 
 /**
- * ✅ Get provider temp credentials for auto-login
+ * ✅ Get the provider email recorded during signup.
+ *
+ * Previously returned a stored raw password too. Signup no longer persists
+ * one — see the note in autoLoginAfterVerification.getTempCredentials.
  */
 export const getProviderTempCredentials = async (): Promise<{
   email: string | null;
-  password: string | null;
 }> => {
   try {
-    // Try provider-specific keys first
+    // Try provider-specific key first, then the generic one.
     let email = await retrieveData(KeyForStorage.providerTempEmail);
-    let password = await retrieveData(KeyForStorage.providerTempPassword);
-    
-    // Fallback to generic temp keys
     if (!email) {
       email = await retrieveData(KeyForStorage.tempEmail);
     }
-    if (!password) {
-      password = await retrieveData(KeyForStorage.tempPassword);
-    }
-    
-    console.log('📦 Retrieved provider temp credentials:', { 
-      hasEmail: !!email, 
-      hasPassword: !!password 
-    });
-    
-    return { email, password };
+
+    console.log('📦 Retrieved provider temp email:', { hasEmail: !!email });
+
+    return { email };
   } catch (error) {
-    console.error('❌ Error getting provider temp credentials:', error);
-    return { email: null, password: null };
+    console.error('❌ Error getting provider temp email:', error);
+    return { email: null };
   }
 };
 
@@ -552,8 +588,15 @@ export const debugPrintStorage = async (): Promise<void> => {
     console.log('📦 Total keys:', keys.length);
     
     for (const key of keys) {
-      const value = await AsyncStorage.getItem(key);
-      const displayValue = value 
+      // Never echo a credential, not even truncated. (Tokens now live in
+      // SecureStore and so aren't in getAllKeys anyway — this is belt and
+      // braces for anything left over from an older build.)
+      if (isSecureKey(key)) {
+        console.log(`  ${key}: [SECURE]`);
+        continue;
+      }
+      const value = await store.getItem(key);
+      const displayValue = value
         ? (value.length > 50 ? `${value.substring(0, 50)}... (${value.length} chars)` : value)
         : 'NULL';
       console.log(`  ${key}: ${displayValue}`);

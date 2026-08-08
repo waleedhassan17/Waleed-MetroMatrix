@@ -458,6 +458,92 @@ export const firebaseSignInWithGoogle = async (idToken: string): Promise<UserCre
 };
 
 /**
+ * Sign in to Firebase with a raw Google ID token and return a Firebase ID
+ * token for the backend — without ever dead-ending on a provider collision.
+ *
+ * Why this exists (task.md Issue 2): `firebaseSignInWithGoogle` throws
+ * `auth/account-exists-with-different-credential` when the email is already
+ * registered in Firebase under another provider. The screens turned that into
+ * the "Account Already Exists" modal and stopped — even though our backend's
+ * /auth/google-login find-or-creates by googleId OR email and auto-links, so
+ * it would have signed the user straight in.
+ *
+ * Three things make the collision survivable here:
+ *  1. Google is a *trusted* provider for its own verified email, so Firebase
+ *     normally links automatically. The collision only appears when the
+ *     project is set to "one account per email address" — the config half of
+ *     this fix (Firebase Console → Authentication → Settings).
+ *  2. If we do collide, we try to link the pending Google credential onto the
+ *     currently signed-in Firebase user.
+ *  3. Failing that, we fall back to any usable Firebase session we already
+ *     have, so the backend still receives a valid ID token and can link by
+ *     email on its side.
+ *
+ * @param rawGoogleIdToken the ID token from the native Google SDK / auth session
+ * @returns a Firebase ID token to send to /auth/google-login
+ */
+export const resolveGoogleFirebaseIdToken = async (
+  rawGoogleIdToken: string,
+): Promise<string | null> => {
+  const credential = GoogleAuthProvider.credential(rawGoogleIdToken);
+
+  try {
+    const userCredential = await signInWithCredential(auth, credential);
+    console.log('✅ Firebase Google sign-in successful:', userCredential.user.email);
+    return await userCredential.user.getIdToken();
+  } catch (error: any) {
+    if (error.code !== 'auth/account-exists-with-different-credential') {
+      console.error('❌ Firebase Google sign-in error:', error);
+      throw error;
+    }
+
+    const email = error.customData?.email || '';
+    console.log(
+      '⚠️ Google credential collided with an existing Firebase account for:',
+      email,
+      '— attempting to link instead of failing.',
+    );
+
+    // (2) Link the pending Google credential onto the current session, if any.
+    const pendingCredential = GoogleAuthProvider.credentialFromError(error) || credential;
+    const currentUser = auth.currentUser;
+
+    if (currentUser) {
+      try {
+        const linked = await linkWithCredential(currentUser, pendingCredential);
+        console.log('✅ Google credential linked to the existing Firebase account');
+        return await linked.user.getIdToken();
+      } catch (linkError: any) {
+        if (linkError.code === 'auth/provider-already-linked') {
+          console.log('ℹ️ Google already linked to this account');
+          return await currentUser.getIdToken();
+        }
+        console.warn('⚠️ Could not link Google credential:', linkError.message);
+      }
+
+      // (3) Already signed in as the same person — good enough for the
+      // backend, which links by email.
+      return await currentUser.getIdToken();
+    }
+
+    // Nothing we can do client-side. Report it in terms of the actual fix
+    // rather than the old "go sign in another way first" dead end.
+    let existingProviders: string[] = [];
+    try {
+      existingProviders = await fetchSignInMethodsForEmail(auth, email);
+    } catch (fetchError) {
+      console.error('❌ Error fetching sign-in methods:', fetchError);
+    }
+
+    throw new AccountExistsWithDifferentCredentialError(
+      email,
+      existingProviders,
+      pendingCredential,
+    );
+  }
+};
+
+/**
  * Custom error for account-exists-with-different-credential
  */
 export class AccountExistsWithDifferentCredentialError extends Error {
