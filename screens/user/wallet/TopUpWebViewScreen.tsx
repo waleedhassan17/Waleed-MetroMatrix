@@ -50,6 +50,26 @@ const TopUpWebViewScreen: React.FC = () => {
     }).start();
   }, [progress, progressAnim]);
 
+  // react-native-webview is native-only — it ships WebView.android.js and
+  // WebView.ios.js but no web build — so <WebView> renders nothing in a
+  // browser and this screen sat on its spinner forever. On web, hand the
+  // browser to Stripe directly instead of trying to embed it.
+  //
+  // Trade-off: Stripe's return URL deep-links to APP_DEEP_LINK_SCHEME, which
+  // a desktop browser can't open, so the web flow ends on the backend's
+  // success page rather than returning here. Native keeps the full in-app
+  // flow (navigation-state detection, balance polling, the overlays below).
+  const isWeb = Platform.OS === 'web';
+
+  const openInBrowser = useCallback(() => {
+    const w = globalThis as any;
+    if (w?.location) w.location.href = url;
+  }, [url]);
+
+  useEffect(() => {
+    if (isWeb && url) openInBrowser();
+  }, [isWeb, url, openInBrowser]);
+
   const handleCancel = () => navigation.goBack();
 
   const handleSuccessFlow = useCallback(async () => {
@@ -241,21 +261,35 @@ const TopUpWebViewScreen: React.FC = () => {
         </View>
       )}
 
-      {/* WebView */}
-      <WebView
-        source={{ uri: url }}
-        onNavigationStateChange={handleNavigationStateChange}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
-        onLoadProgress={({ nativeEvent }) => setProgress(nativeEvent.progress)}
-        style={styles.webView}
-        startInLoadingState={false}
-        javaScriptEnabled
-        domStorageEnabled
-      />
+      {/* Checkout surface — embedded WebView on native, redirect on web */}
+      {isWeb ? (
+        <View style={styles.webRedirect}>
+          <ActivityIndicator size="small" color={Colors.text.tertiary} />
+          <Text style={styles.webRedirectTitle}>Opening secure checkout…</Text>
+          <Text style={styles.webRedirectSub}>
+            Taking you to Stripe. If your browser blocked the redirect, use the
+            button below.
+          </Text>
+          <TouchableOpacity style={styles.webRedirectBtn} onPress={openInBrowser}>
+            <Text style={styles.webRedirectBtnText}>Continue to Stripe</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <WebView
+          source={{ uri: url }}
+          onNavigationStateChange={handleNavigationStateChange}
+          onLoadStart={handleLoadStart}
+          onLoadEnd={handleLoadEnd}
+          onLoadProgress={({ nativeEvent }) => setProgress(nativeEvent.progress)}
+          style={styles.webView}
+          startInLoadingState={false}
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      )}
 
       {/* Initial loader (only while first chrome paints) */}
-      {isLoading && progress < 0.4 && (
+      {!isWeb && isLoading && progress < 0.4 && (
         <View style={styles.initialLoader} pointerEvents="none">
           <ActivityIndicator size="small" color={Colors.text.tertiary} />
         </View>
@@ -318,6 +352,40 @@ const styles = StyleSheet.create({
   },
 
   webView: { flex: 1 },
+
+  // Web-only: shown while the browser is being handed to Stripe.
+  webRedirect: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  webRedirectTitle: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    textAlign: 'center',
+  },
+  webRedirectSub: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  },
+  webRedirectBtn: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.text.primary,
+  },
+  webRedirectBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 
   initialLoader: {
     ...StyleSheet.absoluteFillObject,
