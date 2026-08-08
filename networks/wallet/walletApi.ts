@@ -105,8 +105,12 @@ export const createTopUpSessionApi = async ({ amount }: { amount: number }) => {
     if (typeof amount !== "number" || !isFinite(amount)) {
       throw new Error("Amount must be a valid number");
     }
-    if (amount < 1 || amount > 10000) {
-      throw new Error("Amount must be between 1 and 10000");
+    // PKR bounds, mirroring MIN_TOPUP_PKR/MAX_TOPUP_PKR in the backend's
+    // src/config/currency.js. The old 1..10000 range was from when the ledger
+    // was USD — it let through amounts the backend rejects (< PKR 150) while
+    // blocking legitimate ones (> PKR 10,000 ≈ USD 36).
+    if (amount < 150 || amount > 500000) {
+      throw new Error("Amount must be between PKR 150 and PKR 500,000");
     }
 
     const response = await API.POST({

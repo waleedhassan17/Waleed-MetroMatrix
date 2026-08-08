@@ -70,7 +70,13 @@ import {
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
 
-const QUICK_AMOUNTS = [10, 25, 50, 100];
+// The ledger is denominated in PKR (backend src/config/currency.js), and
+// /wallet/topup/checkout validates `amount` as PKR. These presets were left
+// over from the USD era — 10/25/50/100 all fall under the PKR 150 minimum, so
+// every one of them was rejected with "Validation failed".
+const MIN_TOPUP_PKR = 150;
+const MAX_TOPUP_PKR = 500000;
+const QUICK_AMOUNTS = [500, 1000, 2500, 5000];
 type TxFilter = 'all' | 'credit' | 'debit';
 
 // ============================================================
@@ -207,7 +213,7 @@ const WalletScreen: React.FC = () => {
 
   const handleConfirmTopUp = async () => {
     const amount = isCustom ? parseFloat(customAmount) : selectedAmount;
-    if (!amount || amount <= 0 || amount > 10000) return;
+    if (!amount || amount < MIN_TOPUP_PKR || amount > MAX_TOPUP_PKR) return;
 
     const result = await dispatch(createTopUpSession({ amount }));
     if (createTopUpSession.fulfilled.match(result)) {
