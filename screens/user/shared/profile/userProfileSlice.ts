@@ -415,9 +415,11 @@ export const {
 export const selectSidebarUserData = createSelector(
   [selectUser, selectUserStats],
   (user, stats) => ({
-    name: user?.name ?? 'Guest User',
+    name: user?.name ?? '',
     email: user?.email ?? '',
-    avatar: user?.avatar ?? 'https://i.pravatar.cc/200?img=68',
+    // No stock-photo fallback: it put a picture of a stranger where the
+    // signed-in user's face belongs. Callers render initials when empty.
+    avatar: user?.avatar ?? '',
     isPremium: user?.isPremium ?? false,
     isVerified: user?.isVerified ?? false,
     memberSince: stats?.memberSince ?? '',

@@ -32,7 +32,12 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
-import { selectSidebarUserData } from '../../screens/user/shared/profile/userProfileSlice';
+import {
+  selectSidebarUserData,
+  selectUser,
+  selectProfileLoading,
+  fetchUserProfile,
+} from '../../screens/user/shared/profile/userProfileSlice';
 import MiniWalletCard from '../MiniWalletCard/MiniWalletCard';
 
 const { width, height } = Dimensions.get('window');
@@ -56,6 +61,29 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const userData = useAppSelector(selectSidebarUserData);
+  const user = useAppSelector(selectUser);
+  const profileLoading = useAppSelector(selectProfileLoading);
+
+  // Only UserProfileScreen fetched the profile, so opening the sidebar first
+  // showed the "Guest User" fallback with zeroed stats until you had visited
+  // My Profile once. The sidebar is usually the first thing opened, so it has
+  // to be able to load the profile itself.
+  useEffect(() => {
+    if (isVisible && !user && !profileLoading) {
+      dispatch(fetchUserProfile());
+    }
+  }, [isVisible, user, profileLoading, dispatch]);
+
+  // "Guest User" is for a genuinely signed-out session, not for the moment
+  // before the profile has arrived.
+  const displayName = userData.name || (profileLoading ? 'Loading…' : 'Guest User');
+  const initials =
+    userData.name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || '?';
 
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -277,10 +305,13 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
             {/* User Info */}
             <View style={styles.userInfo}>
               <View style={styles.avatarContainer}>
-                <Image
-                  source={{ uri: userData.avatar }}
-                  style={styles.avatar}
-                />
+                {userData.avatar ? (
+                  <Image source={{ uri: userData.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarInitials}>{initials}</Text>
+                  </View>
+                )}
                 {userData.isVerified && (
                   <View style={styles.verifiedBadge}>
                     <Check size={10} color="#FFFFFF" strokeWidth={3} />
@@ -289,7 +320,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
               </View>
 
               <View style={styles.userTextContainer}>
-                <Text style={styles.userName}>{userData.name}</Text>
+                <Text style={styles.userName}>{displayName}</Text>
                 <Text style={styles.userEmail}>{userData.email}</Text>
               </View>
 
@@ -433,6 +464,17 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.3)',
+  },
+  avatarFallback: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   verifiedBadge: {
     position: 'absolute',
