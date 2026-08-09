@@ -1,6 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { TimeSlot, Clinic } from '../../../../models/healthcare/types';
-import { fetchManageSlotsApi, saveSlotsApi } from '../../../../networks/healthcare/providerApi';
+import {
+  fetchManageSlotsApi,
+  saveSlotsApi,
+  createClinicApi,
+  deleteClinicApi,
+  type ClinicInput,
+} from '../../../../networks/healthcare/providerApi';
 
 // ── Types ───────────────────────────────────
 
@@ -17,6 +23,9 @@ export interface ManageSlotsState {
   saving: boolean;
   error: string | null;
   saveSuccess: boolean;
+  /** Separate from `saving` so the slot Save button isn't disabled by it. */
+  clinicSaving: boolean;
+  clinicError: string | null;
 }
 
 const todayISO = new Date().toISOString().split('T')[0];
@@ -32,9 +41,40 @@ const initialState: ManageSlotsState = {
   saving: false,
   error: null,
   saveSuccess: false,
+  clinicSaving: false,
+  clinicError: null,
 };
 
 // ── Async Thunks ────────────────────────────
+
+/** Doctor-created clinic. The backend endpoint existed; nothing called it. */
+export const addClinic = createAsyncThunk<
+  Clinic,
+  ClinicInput,
+  { rejectValue: string }
+>('manageSlots/addClinic', async (input, { rejectWithValue }) => {
+  try {
+    const res = await createClinicApi(input);
+    if (!res.success) return rejectWithValue(res.message ?? 'Could not add clinic');
+    return res.data;
+  } catch {
+    return rejectWithValue('Could not add clinic');
+  }
+});
+
+export const removeClinic = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>('manageSlots/removeClinic', async (clinicId, { rejectWithValue }) => {
+  try {
+    const res = await deleteClinicApi(clinicId);
+    if (!res.success) return rejectWithValue(res.message ?? 'Could not remove clinic');
+    return clinicId;
+  } catch {
+    return rejectWithValue('Could not remove clinic');
+  }
+});
 
 export const fetchSlots = createAsyncThunk<
   { slots: TimeSlot[]; clinics: Clinic[] },
@@ -72,6 +112,9 @@ const manageSlotsSlice = createSlice({
   name: 'manageSlots',
   initialState,
   reducers: {
+    clearClinicError(state) {
+      state.clinicError = null;
+    },
     setSelectedClinic(state, action: PayloadAction<string>) {
       state.selectedClinic = action.payload;
       state.saveSuccess = false;
@@ -143,11 +186,38 @@ const manageSlotsSlice = createSlice({
       .addCase(saveSlots.rejected, (state, action) => {
         state.saving = false;
         state.error = action.payload ?? 'Failed to save';
+      })
+
+      // ── Clinics ──
+      .addCase(addClinic.pending, (state) => {
+        state.clinicSaving = true;
+        state.clinicError = null;
+      })
+      .addCase(addClinic.fulfilled, (state, action) => {
+        state.clinicSaving = false;
+        state.clinics.push(action.payload);
+        // Select it straight away — a doctor who just added a clinic wants to
+        // build its slots, not hunt for it in the picker.
+        state.selectedClinic = (action.payload as any).clinicId ?? state.selectedClinic;
+      })
+      .addCase(addClinic.rejected, (state, action) => {
+        state.clinicSaving = false;
+        state.clinicError = (action.payload as string) ?? 'Could not add clinic';
+      })
+      .addCase(removeClinic.fulfilled, (state, action) => {
+        state.clinics = state.clinics.filter((c) => c.clinicId !== action.payload);
+        if (state.selectedClinic === action.payload) {
+          state.selectedClinic = state.clinics[0]?.clinicId ?? null;
+        }
+      })
+      .addCase(removeClinic.rejected, (state, action) => {
+        state.clinicError = (action.payload as string) ?? 'Could not remove clinic';
       });
   },
 });
 
 export const {
+  clearClinicError,
   setSelectedClinic,
   setSelectedDate,
   setSlotDuration,

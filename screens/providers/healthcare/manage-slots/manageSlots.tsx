@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
+  Modal,
+  TextInput,
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,17 +32,62 @@ import {
   clearSaveSuccess,
   SlotDuration,
   toggleAllSlots,
+  addClinic,
+  removeClinic,
 } from './manageSlotsSlice';
 import { TimeSlot } from '../../../../models/healthcare/types';
 
 // Online (video) vs Onsite (in-clinic) slot badge styles.
 const msTypeStyles = StyleSheet.create({
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 2 },
-  typeText: { fontSize: 8, fontWeight: '700' },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 1 },
+  typeText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.2 },
 });
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+
+// Clinic management: adding, selecting and removing the doctor's own clinics.
+const msClinicStyles = StyleSheet.create({
+  addBtn: {
+    marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
+    backgroundColor: THEME.primaryLight,
+  },
+  addBtnText: { fontSize: 12, fontWeight: '800', color: THEME.primary },
+  empty: { alignItems: 'center', paddingVertical: 18, paddingHorizontal: 12 },
+  emptyTitle: { fontSize: 14, fontWeight: '800', color: THEME.textDark, marginTop: 8 },
+  emptyText: { fontSize: 12.5, color: THEME.textLight, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+  hint: { fontSize: 11.5, color: THEME.textLight, marginTop: 10, fontStyle: 'italic' },
+
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28,
+  },
+  sheetHandle: {
+    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#E2E8F0', marginBottom: 14,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: THEME.textDark },
+  sheetSub: { fontSize: 12.5, color: THEME.textLight, marginTop: 3, marginBottom: 16 },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: THEME.textDark, marginBottom: 6, marginTop: 12 },
+  input: {
+    borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: THEME.textDark,
+    backgroundColor: '#F8FBFF',
+  },
+  submit: {
+    marginTop: 22, height: 50, borderRadius: 14, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  submitGradient: {
+    ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center',
+  },
+  submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  submitDisabled: { backgroundColor: '#CBD5E1' },
+  cancel: { marginTop: 10, alignItems: 'center', paddingVertical: 10 },
+  cancelText: { color: THEME.textLight, fontWeight: '700', fontSize: 13.5 },
+});
 
 const DURATION_OPTIONS: { label: string; value: SlotDuration; sub: string }[] = [
   { label: '15', value: 15, sub: 'min' },
@@ -48,6 +96,19 @@ const DURATION_OPTIONS: { label: string; value: SlotDuration; sub: string }[] = 
 ];
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// A fixed 3-up grid. The cell used to carry `width: '30%'`, but the flex child
+// of the grid is the Animated.View WRAPPER, which had no width — so the
+// percentage resolved against a zero-width parent and every cell collapsed to
+// about one character wide ("6:0 0 P M" stacked vertically). Sizing the wrapper
+// in points removes the circular constraint entirely.
+const SLOT_COLUMNS = 3;
+const SLOT_GAP = 8;
+const SCREEN_W = Dimensions.get('window').width;
+// 16pt screen padding + 16pt card padding on each side.
+const SLOT_CELL_WIDTH = Math.floor(
+  (SCREEN_W - 64 - SLOT_GAP * (SLOT_COLUMNS - 1)) / SLOT_COLUMNS,
+);
 
 const formatTime12 = (time24: string): string => {
   const [h, m] = time24.split(':').map(Number);
@@ -102,7 +163,7 @@ const SlotGridItem: React.FC<{
   }
 
   return (
-    <Animated.View style={{ transform: [{ scale: pressAnim }] }}>
+    <Animated.View style={{ width: SLOT_CELL_WIDTH, transform: [{ scale: pressAnim }] }}>
       <TouchableOpacity
         style={[styles.slotCell, { backgroundColor: bg, borderColor }]}
         onPress={handlePress}
@@ -115,12 +176,15 @@ const SlotGridItem: React.FC<{
             size={9}
             color={slot.appointmentType === 'video' ? '#2A7FFF' : '#10B981'}
           />
-          <Text style={[msTypeStyles.typeText, { color: slot.appointmentType === 'video' ? '#2A7FFF' : '#10B981' }]}>
+          <Text
+            numberOfLines={1}
+            style={[msTypeStyles.typeText, { color: slot.appointmentType === 'video' ? '#2A7FFF' : '#10B981' }]}
+          >
             {slot.appointmentType === 'video' ? 'Online' : 'Onsite'}
           </Text>
         </View>
 
-        <Text style={[styles.slotTime, { color: timeColor }]}>
+        <Text numberOfLines={1} style={[styles.slotTime, { color: timeColor }]}>
           {formatTime12(slot.startTime)}
         </Text>
 
@@ -157,6 +221,7 @@ const ManageSlotsScreen: React.FC = () => {
     saving,
     error,
     saveSuccess,
+    clinicSaving,
   } = useAppSelector((state) => state.manageSlots);
 
   const successAnim = useRef(new Animated.Value(0)).current;
@@ -203,7 +268,45 @@ const ManageSlotsScreen: React.FC = () => {
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const handleClinicSelect = useCallback((id: string) => dispatch(setSelectedClinic(id)), [dispatch]);
+  const handleClinicSelect = useCallback(
+    (id: string | null) => dispatch(setSelectedClinic(id as any)),
+    [dispatch],
+  );
+
+  const [clinicFormVisible, setClinicFormVisible] = useState(false);
+  const [clinicForm, setClinicForm] = useState({ name: '', address: '', city: '', phone: '' });
+
+  const canSubmitClinic =
+    clinicForm.name.trim().length > 1 &&
+    clinicForm.address.trim().length > 2 &&
+    clinicForm.city.trim().length > 1;
+
+  const handleSubmitClinic = useCallback(async () => {
+    if (!canSubmitClinic) return;
+    const result = await dispatch(addClinic({
+      name: clinicForm.name.trim(),
+      address: clinicForm.address.trim(),
+      city: clinicForm.city.trim(),
+      phone: clinicForm.phone.trim() || undefined,
+    }));
+    if (addClinic.rejected.match(result)) {
+      Alert.alert('Could not add clinic', (result.payload as string) || 'Please try again.');
+      return;
+    }
+    setClinicForm({ name: '', address: '', city: '', phone: '' });
+    setClinicFormVisible(false);
+  }, [dispatch, clinicForm, canSubmitClinic]);
+
+  const handleRemoveClinic = useCallback((clinic: { clinicId: string; name: string }) => {
+    Alert.alert(
+      'Remove clinic',
+      `Remove "${clinic.name}"? Slots already created for it are not deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => dispatch(removeClinic(clinic.clinicId)) },
+      ],
+    );
+  }, [dispatch]);
   const handleDateSelect = useCallback((date: string) => dispatch(setSelectedDate(date)), [dispatch]);
   const handleDurationChange = useCallback((d: SlotDuration) => dispatch(setSlotDuration(d)), [dispatch]);
   const handleMaxPatientsChange = useCallback((n: number) => dispatch(setMaxPatientsPerSlot(n)), [dispatch]);
@@ -319,13 +422,33 @@ const ManageSlotsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── Clinic Selector ── */}
-        {clinics.length > 1 && (
-          <View style={styles.card}>
-            <View style={styles.cardLabelRow}>
-              <View style={styles.cardLabelDot} />
-              <Text style={styles.cardLabel}>Clinic</Text>
+        {/* ── Clinic Selector ──
+            Was gated on `clinics.length > 1`, so a doctor with none or one had
+            no way to reach clinic management at all — and no way to add their
+            own. Always shown, with an empty state and an add action. */}
+        <View style={styles.card}>
+          <View style={styles.cardLabelRow}>
+            <View style={styles.cardLabelDot} />
+            <Text style={styles.cardLabel}>Clinic</Text>
+            <TouchableOpacity
+              style={msClinicStyles.addBtn}
+              onPress={() => setClinicFormVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={14} color={THEME.primary} />
+              <Text style={msClinicStyles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {clinics.length === 0 ? (
+            <View style={msClinicStyles.empty}>
+              <Ionicons name="business-outline" size={26} color={THEME.textLight} />
+              <Text style={msClinicStyles.emptyTitle}>No clinics yet</Text>
+              <Text style={msClinicStyles.emptyText}>
+                Add the clinic you practise at so in-clinic slots can be assigned to it.
+              </Text>
             </View>
+          ) : (
             <View style={styles.clinicList}>
               {clinics.map((clinic) => {
                 const isActive = clinic.clinicId === selectedClinic;
@@ -333,7 +456,10 @@ const ManageSlotsScreen: React.FC = () => {
                   <TouchableOpacity
                     key={clinic.clinicId}
                     style={[styles.clinicCard, isActive && styles.clinicCardActive]}
-                    onPress={() => handleClinicSelect(clinic.clinicId)}
+                    // Tapping the active clinic deselects it, so a doctor can
+                    // work without pinning slots to a location.
+                    onPress={() => handleClinicSelect(isActive ? null : clinic.clinicId)}
+                    onLongPress={() => handleRemoveClinic(clinic)}
                     activeOpacity={0.8}
                   >
                     <View style={[styles.clinicIconWrap, isActive ? {} : { backgroundColor: THEME.primaryLight }]}>
@@ -359,9 +485,12 @@ const ManageSlotsScreen: React.FC = () => {
                   </TouchableOpacity>
                 );
               })}
+              <Text style={msClinicStyles.hint}>
+                Tap to select · tap again to deselect · long-press to remove
+              </Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* ── Date Picker ── */}
         <View style={styles.card}>
@@ -558,6 +687,79 @@ const ManageSlotsScreen: React.FC = () => {
 
         <View style={{ height: 120 }} />
       </Animated.ScrollView>
+
+      {/* ── Add Clinic ── */}
+      <Modal visible={clinicFormVisible} transparent animationType="slide" onRequestClose={() => setClinicFormVisible(false)}>
+        <View style={msClinicStyles.sheetOverlay}>
+          <View style={msClinicStyles.sheet}>
+            <View style={msClinicStyles.sheetHandle} />
+            <Text style={msClinicStyles.sheetTitle}>Add a clinic</Text>
+            <Text style={msClinicStyles.sheetSub}>
+              Patients see this location when they book an in-clinic visit.
+            </Text>
+
+            <Text style={msClinicStyles.fieldLabel}>Clinic name</Text>
+            <TextInput
+              style={msClinicStyles.input}
+              value={clinicForm.name}
+              onChangeText={(t) => setClinicForm((f) => ({ ...f, name: t }))}
+              placeholder="e.g. City Heart Clinic"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={msClinicStyles.fieldLabel}>Address</Text>
+            <TextInput
+              style={msClinicStyles.input}
+              value={clinicForm.address}
+              onChangeText={(t) => setClinicForm((f) => ({ ...f, address: t }))}
+              placeholder="e.g. 12-A, Main Boulevard, Gulberg III"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={msClinicStyles.fieldLabel}>City</Text>
+            <TextInput
+              style={msClinicStyles.input}
+              value={clinicForm.city}
+              onChangeText={(t) => setClinicForm((f) => ({ ...f, city: t }))}
+              placeholder="e.g. Lahore"
+              placeholderTextColor="#94A3B8"
+            />
+
+            <Text style={msClinicStyles.fieldLabel}>Phone (optional)</Text>
+            <TextInput
+              style={msClinicStyles.input}
+              value={clinicForm.phone}
+              onChangeText={(t) => setClinicForm((f) => ({ ...f, phone: t }))}
+              placeholder="e.g. 042-35761234"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+            />
+
+            <TouchableOpacity
+              style={[msClinicStyles.submit, !canSubmitClinic && msClinicStyles.submitDisabled]}
+              disabled={!canSubmitClinic || clinicSaving}
+              onPress={handleSubmitClinic}
+              activeOpacity={0.9}
+            >
+              {canSubmitClinic && (
+                <LinearGradient
+                  colors={THEME.gradient.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={msClinicStyles.submitGradient}
+                />
+              )}
+              {clinicSaving
+                ? <ActivityIndicator size="small" color="#FFFFFF" />
+                : <Text style={msClinicStyles.submitText}>Add clinic</Text>}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={msClinicStyles.cancel} onPress={() => setClinicFormVisible(false)}>
+              <Text style={msClinicStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Bottom Save Bar ── */}
       <View style={styles.bottomBar}>
@@ -1014,21 +1216,23 @@ const styles = StyleSheet.create({
   slotGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: SLOT_GAP,
   },
   slotCell: {
-    width: '30%',
-    flexGrow: 1,
+    width: '100%',
+    minHeight: 74,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderRadius: 12,
     borderWidth: 1.5,
-    gap: 5,
+    gap: 4,
   },
   slotTime: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   slotStatusDot: {
     width: 7,

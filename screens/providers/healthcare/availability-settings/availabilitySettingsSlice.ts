@@ -9,12 +9,29 @@ import {
 
 export type Weekday = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
 
-// A doctor can be available Online (video) and/or Onsite (in-clinic) on a given day,
-// each with its own consultation hours.
-export interface DayMode {
-  enabled: boolean;
+/** One continuous working period, e.g. 10:00-14:00. */
+export interface TimeRange {
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
+}
+
+/**
+ * A doctor can be available Online (video) and/or Onsite (in-clinic) on a given
+ * day, each with its own hours.
+ *
+ * `ranges` is a LIST, which is how breaks are expressed: 09:00-13:00 plus
+ * 14:00-17:00 is a working day with an hour off at one. The backend has always
+ * stored and generated slots from `ranges[]`
+ * (Doctor.weeklyAvailability, generateSlotsFromAvailability) — the app was
+ * collapsing it to a single start/end, so a doctor could not describe a break
+ * and the extra periods the server supported were unreachable.
+ */
+export interface DayMode {
+  enabled: boolean;
+  /** Ordered, non-overlapping. Gaps between entries are breaks. */
+  ranges: TimeRange[];
+  /** Onsite only: which clinic these hours are held at. */
+  clinicId?: string | null;
 }
 
 export interface DaySchedule {
@@ -60,8 +77,8 @@ const WEEKDAYS: Weekday[] = [
 const blankDay = (day: Weekday): DaySchedule => ({
   day,
   isWorking: false,
-  online: { enabled: false, startTime: '09:00', endTime: '13:00' },
-  onsite: { enabled: false, startTime: '14:00', endTime: '17:00' },
+  online: { enabled: false, ranges: [{ startTime: '09:00', endTime: '13:00' }] },
+  onsite: { enabled: false, ranges: [{ startTime: '14:00', endTime: '17:00' }], clinicId: null },
 });
 
 const blankWeeklySchedule = (): DaySchedule[] => WEEKDAYS.map(blankDay);
@@ -82,19 +99,31 @@ const initialState: AvailabilitySettingsState = {
 // Normalise any backend/legacy shape into the online/onsite DaySchedule.
 const normaliseDay = (raw: any, fallbackDay: Weekday): DaySchedule => {
   const day: Weekday = raw?.day || fallbackDay;
+  const toRanges = (mode: any, fallback: TimeRange): TimeRange[] => {
+    // Prefer the server's ranges[]; fall back to a legacy flat start/end.
+    const list = Array.isArray(mode?.ranges) ? mode.ranges : [];
+    const cleaned = list
+      .filter((r: any) => r?.startTime && r?.endTime)
+      .map((r: any) => ({ startTime: r.startTime, endTime: r.endTime }));
+    if (cleaned.length) return cleaned;
+    if (mode?.startTime && mode?.endTime) {
+      return [{ startTime: mode.startTime, endTime: mode.endTime }];
+    }
+    return [fallback];
+  };
+
   if (raw?.online || raw?.onsite) {
     return {
       day,
       isWorking: raw.isWorking ?? true,
       online: {
         enabled: raw.online?.enabled ?? false,
-        startTime: raw.online?.startTime ?? raw.online?.ranges?.[0]?.startTime ?? '09:00',
-        endTime: raw.online?.endTime ?? raw.online?.ranges?.[0]?.endTime ?? '13:00',
+        ranges: toRanges(raw.online, { startTime: '09:00', endTime: '13:00' }),
       },
       onsite: {
         enabled: raw.onsite?.enabled ?? false,
-        startTime: raw.onsite?.startTime ?? raw.onsite?.ranges?.[0]?.startTime ?? '14:00',
-        endTime: raw.onsite?.endTime ?? raw.onsite?.ranges?.[0]?.endTime ?? '17:00',
+        ranges: toRanges(raw.onsite, { startTime: '14:00', endTime: '17:00' }),
+        clinicId: raw.onsite?.clinicId ?? null,
       },
     };
   }
@@ -103,8 +132,9 @@ const normaliseDay = (raw: any, fallbackDay: Weekday): DaySchedule => {
   const d = blankDay(day);
   d.isWorking = raw?.isWorking ?? true;
   d.onsite.enabled = d.isWorking;
-  if (raw?.startTime) d.onsite.startTime = raw.startTime;
-  if (raw?.endTime) d.onsite.endTime = raw.endTime;
+  if (raw?.startTime && raw?.endTime) {
+    d.onsite.ranges = [{ startTime: raw.startTime, endTime: raw.endTime }];
+  }
   return d;
 };
 
@@ -204,14 +234,69 @@ const availabilitySettingsSlice = createSlice({
         state.saveSuccess = false;
       }
     },
+
+    /** Edit one endpoint of one period. */
+    updateRange(
+      state,
+      action: PayloadAction<{
+        day: Weekday;
+        mode: 'online' | 'onsite';
+        index: number;
+        field: 'startTime' | 'endTime';
+        value: string;
+      }>,
+    ) {
+      const { day, mode, index, field, value } = action.payload;
+      const range = state.weeklySchedule.find((s) => s.day === day)?.[mode].ranges[index];
+      if (range) {
+        range[field] = value;
+        state.saveSuccess = false;
+      }
+    },
+
+    /**
+     * Append a period after the last one. This is how a doctor adds a break:
+     * 09:00-13:00 then 14:00-17:00 leaves 13:00-14:00 free. Defaults to an
+     * hour's gap after the previous period so the intent is obvious.
+     */
+    addRange(state, action: PayloadAction<{ day: Weekday; mode: 'online' | 'onsite' }>) {
+      const m = state.weeklySchedule.find((s) => s.day === action.payload.day)?.[action.payload.mode];
+      if (!m) return;
+      const last = m.ranges[m.ranges.length - 1];
+      const toMin = (t: string) => { const [h, mm] = t.split(':').map(Number); return h * 60 + mm; };
+      const toStr = (n: number) =>
+        `${String(Math.floor((n % 1440) / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+      const start = last ? Math.min(toMin(last.endTime) + 60, 22 * 60) : 9 * 60;
+      m.ranges.push({ startTime: toStr(start), endTime: toStr(Math.min(start + 180, 23 * 60)) });
+      state.saveSuccess = false;
+    },
+
+    /** Remove a period. The last one is kept — a mode with no hours is just off. */
+    removeRange(state, action: PayloadAction<{ day: Weekday; mode: 'online' | 'onsite'; index: number }>) {
+      const m = state.weeklySchedule.find((s) => s.day === action.payload.day)?.[action.payload.mode];
+      if (m && m.ranges.length > 1) {
+        m.ranges.splice(action.payload.index, 1);
+        state.saveSuccess = false;
+      }
+    },
+
+    /** Which clinic the onsite hours are held at. */
+    setDayClinic(state, action: PayloadAction<{ day: Weekday; clinicId: string | null }>) {
+      const d = state.weeklySchedule.find((s) => s.day === action.payload.day);
+      if (d) {
+        d.onsite.clinicId = action.payload.clinicId;
+        state.saveSuccess = false;
+      }
+    },
     copySchedule(state) {
       const mon = state.weeklySchedule.find(s => s.day === 'Monday');
       if (!mon) return;
       state.weeklySchedule.forEach(s => {
         if (s.day !== 'Saturday' && s.day !== 'Sunday') {
           s.isWorking = mon.isWorking;
-          s.online = { ...mon.online };
-          s.onsite = { ...mon.onsite };
+          // Deep-copy the ranges, or every weekday would share one array.
+          s.online = { ...mon.online, ranges: mon.online.ranges.map((r) => ({ ...r })) };
+          s.onsite = { ...mon.onsite, ranges: mon.onsite.ranges.map((r) => ({ ...r })) };
         }
       });
       state.saveSuccess = false;
@@ -291,6 +376,10 @@ export const {
   toggleDayWorking,
   toggleDayMode,
   updateDayMode,
+  updateRange,
+  addRange,
+  removeRange,
+  setDayClinic,
   copySchedule,
   addVacation,
   removeVacation,

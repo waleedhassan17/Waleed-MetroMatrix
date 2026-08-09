@@ -28,6 +28,9 @@ import {
   toggleDayWorking,
   toggleDayMode,
   updateDayMode,
+  updateRange,
+  addRange,
+  removeRange,
   addVacation,
   removeVacation,
   toggleInstantBooking,
@@ -37,6 +40,7 @@ import {
   copySchedule,
   Weekday,
   DaySchedule,
+  DayMode,
   VacationDate,
 } from './availabilitySettingsSlice';
 
@@ -147,9 +151,11 @@ const DayScheduleRow: React.FC<{
   schedule: DaySchedule;
   onToggleWorking: () => void;
   onToggleMode: (mode: 'online' | 'onsite') => void;
-  onTimePress: (mode: 'online' | 'onsite', field: 'startTime' | 'endTime') => void;
+  onTimePress: (mode: 'online' | 'onsite', field: 'startTime' | 'endTime', index: number) => void;
+  onAddRange: (mode: 'online' | 'onsite') => void;
+  onRemoveRange: (mode: 'online' | 'onsite', index: number) => void;
   index: number;
-}> = ({ schedule, onToggleWorking, onToggleMode, onTimePress }) => {
+}> = ({ schedule, onToggleWorking, onToggleMode, onTimePress, onAddRange, onRemoveRange }) => {
   const dc = DAY_COLORS[schedule.day];
   const pressAnim = useRef(new Animated.Value(1)).current;
 
@@ -165,27 +171,63 @@ const DayScheduleRow: React.FC<{
     const m = schedule[mode];
     const meta = MODE_META[mode];
     return (
-      <View style={modeStyles.modeRow} key={mode}>
-        <TouchableOpacity
-          style={[modeStyles.modeTag, m.enabled && { backgroundColor: `${meta.color}14`, borderColor: meta.color }]}
-          onPress={() => onToggleMode(mode)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name={meta.icon} size={13} color={m.enabled ? meta.color : '#94A3B8'} />
-          <Text style={[modeStyles.modeTagText, { color: m.enabled ? meta.color : '#94A3B8' }]}>{meta.label}</Text>
-        </TouchableOpacity>
-        {m.enabled ? (
-          <View style={modeStyles.modeTimes}>
-            <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'startTime')} activeOpacity={0.75}>
-              <Text style={styles.timeChipText}>{formatTime12(m.startTime)}</Text>
-            </TouchableOpacity>
-            <View style={styles.timeDash} />
-            <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'endTime')} activeOpacity={0.75}>
-              <Text style={[styles.timeChipText, { color: '#1E6AE1' }]}>{formatTime12(m.endTime)}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={modeStyles.modeOff}>Not available</Text>
+      <View style={modeStyles.modeBlock} key={mode}>
+        <View style={modeStyles.modeRow}>
+          <TouchableOpacity
+            style={[modeStyles.modeTag, m.enabled && { backgroundColor: `${meta.color}14`, borderColor: meta.color }]}
+            onPress={() => onToggleMode(mode)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={meta.icon} size={13} color={m.enabled ? meta.color : '#94A3B8'} />
+            <Text style={[modeStyles.modeTagText, { color: m.enabled ? meta.color : '#94A3B8' }]}>{meta.label}</Text>
+          </TouchableOpacity>
+          {!m.enabled && <Text style={modeStyles.modeOff}>Not available</Text>}
+        </View>
+
+        {/* One row per working period. A gap between two periods IS the break —
+            09:00-13:00 + 14:00-17:00 means an hour off at one, and the server
+            generates slots per range so nothing lands inside the gap. */}
+        {m.enabled && m.ranges.map((range, i) => {
+          const prev = i > 0 ? m.ranges[i - 1] : null;
+          return (
+            <View key={i}>
+              {prev && (
+                <View style={modeStyles.breakRow}>
+                  <Ionicons name="cafe-outline" size={11} color="#94A3B8" />
+                  <Text style={modeStyles.breakText}>
+                    Break {formatTime12(prev.endTime)} – {formatTime12(range.startTime)}
+                  </Text>
+                </View>
+              )}
+              <View style={modeStyles.rangeRow}>
+                <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'startTime', i)} activeOpacity={0.75}>
+                  <Text style={styles.timeChipText}>{formatTime12(range.startTime)}</Text>
+                </TouchableOpacity>
+                <View style={styles.timeDash} />
+                <TouchableOpacity style={styles.timeChip} onPress={() => onTimePress(mode, 'endTime', i)} activeOpacity={0.75}>
+                  <Text style={[styles.timeChipText, { color: '#1E6AE1' }]}>{formatTime12(range.endTime)}</Text>
+                </TouchableOpacity>
+                {m.ranges.length > 1 && (
+                  <TouchableOpacity
+                    style={modeStyles.rangeRemove}
+                    onPress={() => onRemoveRange(mode, i)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={13} color={THEME.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {m.enabled && (
+          <TouchableOpacity style={modeStyles.addRangeBtn} onPress={() => onAddRange(mode)} activeOpacity={0.75}>
+            <Ionicons name="add" size={13} color={meta.color} />
+            <Text style={[modeStyles.addRangeText, { color: meta.color }]}>
+              {m.ranges.length === 1 ? 'Add a break' : 'Add another period'}
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -230,6 +272,16 @@ const DayScheduleRow: React.FC<{
 };
 
 const modeStyles = StyleSheet.create({
+  modeBlock: { marginTop: 8 },
+  rangeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 2 },
+  rangeRemove: {
+    marginLeft: 8, width: 24, height: 24, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEF2F2',
+  },
+  breakRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, paddingLeft: 2 },
+  breakText: { fontSize: 11, fontWeight: '600', color: '#94A3B8', fontStyle: 'italic' },
+  addRangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4 },
+  addRangeText: { fontSize: 12, fontWeight: '700' },
   dayRowCol: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
   dayHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   modesWrap: { gap: 8, paddingLeft: 4 },
@@ -443,6 +495,8 @@ const AvailabilitySettingsScreen: React.FC = () => {
     day: Weekday;
     mode: 'online' | 'onsite';
     field: 'startTime' | 'endTime';
+    /** Which working period on that day is being edited. */
+    index: number;
   } | null>(null);
   const [vacationModalVisible, setVacationModalVisible] = useState(false);
 
@@ -486,23 +540,38 @@ const AvailabilitySettingsScreen: React.FC = () => {
   }, [saveSuccess, dispatch]);
 
   const currentTimeValue = timePickerTarget
-    ? weeklySchedule.find((s) => s.day === timePickerTarget.day)?.[timePickerTarget.mode]?.[timePickerTarget.field] ?? '09:00'
+    ? weeklySchedule.find((s) => s.day === timePickerTarget.day)
+        ?.[timePickerTarget.mode]?.ranges?.[timePickerTarget.index]?.[timePickerTarget.field] ?? '09:00'
     : '09:00';
 
-  const handleOpenTimePicker = useCallback((day: Weekday, mode: 'online' | 'onsite', field: 'startTime' | 'endTime') => {
-    setTimePickerTarget({ day, mode, field });
-    setTimePickerVisible(true);
-  }, []);
+  const handleOpenTimePicker = useCallback(
+    (day: Weekday, mode: 'online' | 'onsite', field: 'startTime' | 'endTime', index: number) => {
+      setTimePickerTarget({ day, mode, field, index });
+      setTimePickerVisible(true);
+    },
+    [],
+  );
 
   const handleTimeSelect = useCallback((time: string) => {
     if (timePickerTarget) {
-      dispatch(updateDayMode({
+      dispatch(updateRange({
         day: timePickerTarget.day,
         mode: timePickerTarget.mode,
-        updates: { [timePickerTarget.field]: time },
+        index: timePickerTarget.index,
+        field: timePickerTarget.field,
+        value: time,
       }));
     }
   }, [dispatch, timePickerTarget]);
+
+  const handleAddRange = useCallback(
+    (day: Weekday, mode: 'online' | 'onsite') => dispatch(addRange({ day, mode })),
+    [dispatch],
+  );
+  const handleRemoveRange = useCallback(
+    (day: Weekday, mode: 'online' | 'onsite', index: number) => dispatch(removeRange({ day, mode, index })),
+    [dispatch],
+  );
 
   const handleToggleWorking = useCallback((day: Weekday) => {
     dispatch(toggleDayWorking({ day }));
@@ -541,11 +610,15 @@ const AvailabilitySettingsScreen: React.FC = () => {
     ]);
   }, [dispatch]);
 
-  const hoursOf = (m: { enabled: boolean; startTime: string; endTime: string }) => {
+  // Sums every period, so a break is genuinely excluded from the weekly total
+  // and from the slot estimate rather than being counted as working time.
+  const hoursOf = (m: DayMode) => {
     if (!m?.enabled) return 0;
-    const [sh, sm] = m.startTime.split(':').map(Number);
-    const [eh, em] = m.endTime.split(':').map(Number);
-    return Math.max(0, (eh + em / 60) - (sh + sm / 60));
+    return (m.ranges || []).reduce((total, r) => {
+      const [sh, sm] = r.startTime.split(':').map(Number);
+      const [eh, em] = r.endTime.split(':').map(Number);
+      return total + Math.max(0, (eh + em / 60) - (sh + sm / 60));
+    }, 0);
   };
   const workingDays = weeklySchedule.filter((s) => s.isWorking).length;
   const totalHours = weeklySchedule
@@ -737,7 +810,9 @@ const AvailabilitySettingsScreen: React.FC = () => {
                   index={index}
                   onToggleWorking={() => handleToggleWorking(schedule.day)}
                   onToggleMode={(mode) => handleToggleMode(schedule.day, mode)}
-                  onTimePress={(mode, field) => handleOpenTimePicker(schedule.day, mode, field)}
+                  onTimePress={(mode, field, i) => handleOpenTimePicker(schedule.day, mode, field, i)}
+                  onAddRange={(mode) => handleAddRange(schedule.day, mode)}
+                  onRemoveRange={(mode, i) => handleRemoveRange(schedule.day, mode, i)}
                 />
               ))}
             </View>

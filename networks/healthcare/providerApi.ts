@@ -248,6 +248,47 @@ export async function fetchManageSlotsApi(
   return { success: true, data: { slots, clinics }, message: 'Slots loaded' };
 }
 
+export interface ClinicInput {
+  name: string;
+  address: string;
+  city: string;
+  area?: string;
+  phone?: string;
+  coordinates?: { lat: number; lng: number };
+}
+
+/**
+ * Clinic CRUD. These endpoints have existed on the backend all along
+ * (POST/PATCH/DELETE /doctors/me/clinics) but nothing in the app called them,
+ * so a doctor could only ever use clinics an admin had created for them.
+ */
+export async function createClinicApi(input: ClinicInput): Promise<ApiResponse<Clinic>> {
+  const res = await healthcareApiRequest<any>('/doctors/me/clinics', {
+    method: 'POST',
+    data: input,
+  });
+  return res.success
+    ? { ...res, data: res.data?.clinic ?? res.data }
+    : (res as ApiResponse<Clinic>);
+}
+
+export async function updateClinicApi(
+  clinicId: string,
+  input: Partial<ClinicInput>,
+): Promise<ApiResponse<Clinic>> {
+  const res = await healthcareApiRequest<any>(`/doctors/me/clinics/${clinicId}`, {
+    method: 'PATCH',
+    data: input,
+  });
+  return res.success
+    ? { ...res, data: res.data?.clinic ?? res.data }
+    : (res as ApiResponse<Clinic>);
+}
+
+export async function deleteClinicApi(clinicId: string): Promise<ApiResponse<{ success: boolean }>> {
+  return healthcareApiRequest<any>(`/doctors/me/clinics/${clinicId}`, { method: 'DELETE' });
+}
+
 export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ success: boolean }>> {
   // Module slot-create endpoint takes an explicit slots array.
   const payload = {
@@ -311,14 +352,17 @@ export async function saveAvailabilitySettingsApi(settings: {
   const weeklyAvailability = (settings.weeklySchedule || []).map((d: any) => ({
     day: d.day,
     isWorking: d.isWorking,
+    // Send EVERY range. This used to send only [{startTime, endTime}] from a
+    // single flat pair, so a doctor could never express a break even though
+    // the server has always stored ranges[] and generates slots from each.
     online: {
       enabled: !!d.online?.enabled,
-      ranges: d.online?.enabled ? [{ startTime: d.online.startTime, endTime: d.online.endTime }] : [],
+      ranges: d.online?.enabled ? (d.online.ranges || []) : [],
     },
     onsite: {
       enabled: !!d.onsite?.enabled,
       clinicId: d.onsite?.clinicId || null,
-      ranges: d.onsite?.enabled ? [{ startTime: d.onsite.startTime, endTime: d.onsite.endTime }] : [],
+      ranges: d.onsite?.enabled ? (d.onsite.ranges || []) : [],
     },
   }));
   const absentDates = (settings.vacationDates || []).flatMap((v: any) => expandDateRange(v.startDate, v.endDate));
