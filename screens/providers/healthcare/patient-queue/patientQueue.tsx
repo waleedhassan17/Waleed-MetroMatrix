@@ -24,7 +24,6 @@ import {
   completeConsultation,
   skipPatient,
   callNextPatient,
-  resetPatientQueue,
   clearQueueActionError,
   QueuePatient,
   QueueStatus,

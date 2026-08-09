@@ -27,7 +27,6 @@ import {
   setMaxPatientsPerSlot,
   toggleSlot,
   clearSaveSuccess,
-  resetManageSlots,
   SlotDuration,
   toggleAllSlots,
 } from './manageSlotsSlice';

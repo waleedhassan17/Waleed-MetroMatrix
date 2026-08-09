@@ -168,26 +168,45 @@ export async function fetchDoctorTransactionsApi(): Promise<ApiResponse<EarningT
 // ═══════════════════════════════════════════
 
 export async function fetchPatientQueueApi(): Promise<ApiResponse<QueuePatient[]>> {
-  const res = await healthcareApiRequest<any>('/doctors/me/appointments?status=upcoming&limit=50');
+  // Ask for TODAY by date range, not `status=upcoming`. That status hard-filters
+  // the DB query to pending/confirmed (see healthcareDoctorController), so
+  // completed appointments never came back and the queue's "completed" side
+  // could only ever read 0. A from/to range returns every status for the day,
+  // which is what a queue actually needs. It also drops next week's
+  // appointments, which the old query happily listed under "Today's Queue".
+  const today = new Date().toISOString().split('T')[0];
+  const res = await healthcareApiRequest<any>(
+    `/doctors/me/appointments?from=${today}&to=${today}&limit=100`,
+  );
   if (res.success) {
     const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
-    const queue = list.map((a: any, idx: number) =>
-      queuePatientSerializer({
-        queueId: a.id || a._id,
-        patientId: a.patientId?._id || a.patientId,
-        patientName: a.patientId?.fullName || a.patientInfo?.name || '',
-        age: a.patientInfo?.age || 0,
-        gender: genderLabel(a.patientInfo?.gender),
-        appointmentId: a.id || a._id,
-        type: a.type,
-        timeSlot: { start: a.slotId?.startTime || '', end: a.slotId?.endTime || '' },
-        symptoms: a.symptoms || '',
-        status: a.status === 'confirmed' ? 'waiting' : a.status === 'completed' ? 'completed' : 'waiting',
-        tokenNumber: idx + 1,
-        estimatedWaitMinutes: idx * 15,
-        history: [],
-      })
-    );
+
+    const queue = list
+      // Only confirmed and completed belong in a queue. The old mapping sent
+      // EVERY unrecognised status to 'waiting', so cancelled and no-show
+      // appointments were presented to the doctor as patients waiting.
+      .filter((a: any) => a.status === 'confirmed' || a.status === 'completed')
+      .map((a: any, idx: number) =>
+        queuePatientSerializer({
+          queueId: a.id || a._id,
+          patientId: a.patientId?._id || a.patientId,
+          patientName: a.patientId?.fullName || a.patientInfo?.name || '',
+          // 0 rendered as "0y" on every card; undefined means "not known" and
+          // the card omits the demographics line entirely.
+          age: a.patientInfo?.age || undefined,
+          gender: a.patientInfo?.gender ? genderLabel(a.patientInfo.gender) : undefined,
+          appointmentId: a.id || a._id,
+          type: a.type,
+          timeSlot: { start: a.slotId?.startTime || '', end: a.slotId?.endTime || '' },
+          symptoms: a.symptoms || '',
+          status: a.status === 'completed' ? 'completed' : 'waiting',
+          // Position in today's list — NOT a clinic-issued token. The previous
+          // `estimatedWaitMinutes: idx * 15` was rendered as "~15 min wait",
+          // a clinically actionable figure invented from array position.
+          position: idx + 1,
+          history: [],
+        })
+      );
     return { ...res, data: queue };
   }
   return res as ApiResponse<QueuePatient[]>;

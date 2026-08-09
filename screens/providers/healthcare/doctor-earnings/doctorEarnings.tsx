@@ -23,7 +23,6 @@ import {
   fetchEarnings,
   fetchTransactions,
   setPeriodFilter,
-  resetDoctorEarnings,
   PeriodFilter,
   EarningTransaction,
   ChartDataPoint,

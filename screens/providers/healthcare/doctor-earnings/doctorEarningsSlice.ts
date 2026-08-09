@@ -58,7 +58,7 @@ const initialState: DoctorEarningsState = {
 // ── Async Thunks ────────────────────────────
 
 export const fetchEarnings = createAsyncThunk<
-  { total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[]; trendPercentage?: number },
+  { total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[] },
   PeriodFilter | undefined,
   { state: { doctorEarnings: DoctorEarningsState }; rejectValue: string }
 >('doctorEarnings/fetchEarnings', async (period, { getState, rejectWithValue }) => {

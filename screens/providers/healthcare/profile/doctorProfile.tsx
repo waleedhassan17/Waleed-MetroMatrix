@@ -21,7 +21,6 @@ import { Typography } from '../../../../constants/Fonts';
 import {
   fetchDoctorProfile,
   toggleAvailability,
-  resetDoctorProfile,
 } from './doctorProfileSlice';
 
 // ── Theme ─────────────────────────────────────

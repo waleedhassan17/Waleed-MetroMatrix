@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import React, {useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,6 @@ import {
   fetchSchedule,
   setSelectedDate,
   setViewMode,
-  resetDoctorSchedule,
   ViewMode,
 } from './doctorScheduleSlice';
 import { Appointment } from '../../../../models/healthcare/types';
@@ -274,10 +273,19 @@ const DoctorScheduleScreen: React.FC = () => {
   // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
   // so a mount-only fetch left every screen showing whatever was true when
   // the app started — completing a consultation never reached the dashboard.
+  // Keyed on the WEEK, not the day: the thunk fetches Sun-Sat around the
+  // anchor date, so tapping between days in the same week would otherwise
+  // re-request identical data on every tap.
+  const weekAnchor = useMemo(() => {
+    const d = new Date(`${selectedDate}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d.toISOString().split('T')[0];
+  }, [selectedDate]);
+
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchSchedule(selectedDate));
-    }, [dispatch, selectedDate])
+      dispatch(fetchSchedule(weekAnchor));
+    }, [dispatch, weekAnchor])
   );
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);

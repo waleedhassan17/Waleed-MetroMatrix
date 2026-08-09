@@ -34,7 +34,6 @@ import {
   toggleVideoConsultation,
   clearSaveSuccess,
   seedWeeklySchedule,
-  resetAvailabilitySettings,
   copySchedule,
   Weekday,
   DaySchedule,

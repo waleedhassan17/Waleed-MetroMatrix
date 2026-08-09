@@ -104,7 +104,6 @@ const DoctorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
@@ -117,8 +116,8 @@ const DoctorHomeScreen: React.FC = () => {
   // unmounted the ScrollView mid-fade. RN's AnimatedValue.__detach() writes the
   // partial value back and stops the animation, and the `hasAnimated` latch
   // meant it never re-ran — so every doctor screen rendered permanently washed
-  // out. Per-card entrance animations (StatCard etc.) own their own values
-  // alongside the nodes they drive, so they are unaffected and still play.
+  // out. Per-card entrance animations own their own values alongside the
+  // nodes they drive, so they are unaffected and still play.
   // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
   // so a mount-only fetch left every screen showing whatever was true when
   // the app started — completing a consultation never reached the dashboard.
