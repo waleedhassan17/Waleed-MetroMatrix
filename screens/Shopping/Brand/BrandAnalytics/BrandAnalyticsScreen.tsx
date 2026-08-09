@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -79,9 +79,13 @@ const BrandAnalyticsScreen: React.FC = () => {
     previousPeriodRevenue,
   } = useAppSelector(selectBrandAnalytics);
 
-  useEffect(() => {
-    dispatch(fetchBrandAnalytics(period));
-  }, [dispatch, period]);
+  // Recomputed on focus as well as on period change — figures shown here
+  // are stale the moment an order is fulfilled on another tab.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchBrandAnalytics(period));
+    }, [dispatch, period])
+  );
 
   const revenueTrend = previousPeriodRevenue > 0
     ? ((summary.totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100

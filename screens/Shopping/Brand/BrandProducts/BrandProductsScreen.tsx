@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ChevronLeft, Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
 import { Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
@@ -57,9 +57,13 @@ const BrandProductsScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { products, searchQuery, stockFilter } = useAppSelector(selectBrandProducts);
 
-  useEffect(() => {
-    dispatch(fetchBrandProducts());
-  }, [dispatch]);
+  // Refetch on focus: adding or editing a product elsewhere in the stack
+  // otherwise left this list stale until the app restarted.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchBrandProducts());
+    }, [dispatch])
+  );
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {

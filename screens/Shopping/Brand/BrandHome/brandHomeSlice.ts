@@ -3,6 +3,8 @@ import { fetchVendorDashboardApi } from '../../../../networks/shopping/vendorApi
 
 type BrandOrderSummary = {
   orderId: string;
+  /** Human-readable ODX code from the API; shown instead of the raw id. */
+  odexId: string;
   customerName: string;
   orderStatus: string;
   total: number;
@@ -81,6 +83,7 @@ const brandHomeSlice = createSlice({
         state.weeklySales = data.weeklySales;
         state.recentOrders = data.recentOrders.map((order) => ({
           orderId: order.orderId,
+          odexId: order.odexId,
           customerName: order.customerName,
           orderStatus: order.orderStatus,
           total: order.total,

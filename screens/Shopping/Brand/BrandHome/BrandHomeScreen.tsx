@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BarChart3,
@@ -33,6 +33,16 @@ import { fetchMyBrand, selectBrandProfile } from '../BrandProfile/brandProfileSl
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
+
+/** Short, quotable order number. odexId is already human-readable. */
+const formatOrderNumber = (id: string): string =>
+  id.startsWith('ODX') ? id : `#${id.substring(0, 8).toUpperCase()}`;
+
+/** "out_for_delivery" → "Out for delivery". */
+const humanizeStatus = (status: string): string => {
+  const words = status.replace(/_/g, ' ').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 const B = {
   primary: '#E67E22',
@@ -68,9 +78,35 @@ const BrandHomeScreen: React.FC = () => {
   const { brand } = useAppSelector(selectBrandProfile);
 
   useEffect(() => {
-    dispatch(fetchBrandDashboard());
     dispatch(fetchMyBrand());
   }, [dispatch]);
+
+  // Refetch on focus, not just on mount. This is a tab, so it stays mounted:
+  // after marking an order delivered on the Orders tab, coming back here still
+  // showed the status the dashboard had loaded when the app started.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchBrandDashboard());
+    }, [dispatch])
+  );
+
+  // The API returns one low-stock row per variant, so a product low in three
+  // sizes arrived three times — identical-looking rows, and three React
+  // children sharing the product's id as a key. Collapse to one row per
+  // product, carrying the worst stock level and how many variants are low.
+  const lowStockByProduct = useMemo(() => {
+    const byProduct = new Map<string, { productId: string; name: string; stock: number; variants: number }>();
+    lowStockAlerts.forEach((item) => {
+      const existing = byProduct.get(item.productId);
+      if (existing) {
+        existing.stock = Math.min(existing.stock, item.stock);
+        existing.variants += 1;
+      } else {
+        byProduct.set(item.productId, { ...item, variants: 1 });
+      }
+    });
+    return Array.from(byProduct.values()).sort((a, b) => a.stock - b.stock);
+  }, [lowStockAlerts]);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
   const currencySym = walletCurrency.toLowerCase() === 'pkr' ? '₨' : '$';
@@ -237,14 +273,18 @@ const BrandHomeScreen: React.FC = () => {
                 onPress={() => navigation.navigate(BrandRouteNames.BrandOrderDetail, { orderId: order.orderId })}
               >
                 <View style={styles.orderLeft}>
-                  <Text style={styles.orderCustomer}>{order.customerName}</Text>
-                  <Text style={styles.orderMeta}>{order.orderId} · {order.createdAt}</Text>
+                  <Text style={styles.orderCustomer} numberOfLines={1}>{order.customerName}</Text>
+                  {/* The full order id ran the row off the edge — vendors
+                      quote the short number, same as the customer sees. */}
+                  <Text style={styles.orderMeta} numberOfLines={1}>
+                    {formatOrderNumber(order.odexId || order.orderId)} · {order.createdAt}
+                  </Text>
                 </View>
                 <View style={styles.orderRight}>
                   <Text style={styles.orderTotal}>₨{order.total.toLocaleString()}</Text>
                   <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
                     <Text style={[styles.statusText, { color: statusStyle.text }]}>
-                      {order.orderStatus}
+                      {humanizeStatus(order.orderStatus)}
                     </Text>
                   </View>
                 </View>
@@ -269,15 +309,19 @@ const BrandHomeScreen: React.FC = () => {
                 <ChevronRight size={14} stroke={B.primary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
-            {lowStockAlerts.map((item, idx) => (
+            {lowStockByProduct.map((item, idx) => (
               <View
                 key={item.productId}
-                style={[styles.alertRow, idx < lowStockAlerts.length - 1 && styles.orderRowBorder]}
+                style={[styles.alertRow, idx < lowStockByProduct.length - 1 && styles.orderRowBorder]}
               >
                 <View style={styles.alertDot} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.alertName}>{item.name}</Text>
-                  <Text style={styles.alertSku}>{item.productId}</Text>
+                  <Text style={styles.alertName} numberOfLines={1}>{item.name}</Text>
+                  {/* Was the raw productId — a Mongo id passed off as a SKU.
+                      Which variants are short is the useful detail. */}
+                  <Text style={styles.alertSku}>
+                    {item.variants > 1 ? `${item.variants} variants low` : 'Running low'}
+                  </Text>
                 </View>
                 <View style={styles.stockBadge}>
                   <Text style={styles.stockBadgeText}>{item.stock} left</Text>

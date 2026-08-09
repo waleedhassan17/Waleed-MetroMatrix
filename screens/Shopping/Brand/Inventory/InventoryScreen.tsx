@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { ChevronLeft, Minus, Plus, Search, Warehouse, X, AlertTriangle } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
@@ -47,9 +47,13 @@ const InventoryScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { rows, loading, error } = useAppSelector(selectInventory);
 
-  useEffect(() => {
-    dispatch(fetchInventory());
-  }, [dispatch]);
+  // Stock moves whenever an order is processed, so re-read it on focus
+  // rather than trusting what was loaded at startup.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchInventory());
+    }, [dispatch])
+  );
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {

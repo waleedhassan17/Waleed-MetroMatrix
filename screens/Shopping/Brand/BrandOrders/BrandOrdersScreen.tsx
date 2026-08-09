@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   ChevronLeft,
   ChevronRight,
@@ -88,9 +88,13 @@ const BrandOrdersScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { orders, statusFilter, loading, error } = useAppSelector(selectBrandOrders);
 
-  useEffect(() => {
-    dispatch(fetchBrandOrders());
-  }, [dispatch]);
+  // Tabs stay mounted, so a mount-only fetch left this list showing what
+  // was true when the app started — a status changed elsewhere never landed.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchBrandOrders());
+    }, [dispatch])
+  );
 
   const filteredOrders = useMemo(() => {
     return statusFilter === 'all' ? orders : orders.filter((order) => order.orderStatus === statusFilter);
