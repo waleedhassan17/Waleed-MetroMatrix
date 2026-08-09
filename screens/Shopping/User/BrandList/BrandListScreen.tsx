@@ -11,8 +11,9 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Search, X, ShoppingBag, Star, ChevronRight, Heart, ShoppingCart } from 'lucide-react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ShoppingBag, Star, ChevronRight, Heart, Check, ClipboardList } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
@@ -20,6 +21,8 @@ import type { BrandConfig } from '../../../../types/shopping';
 import {
   fetchBrands,
   setSearchQuery,
+  setActiveBrand,
+  clearActiveBrand,
   selectBrands,
   selectBrandList,
   selectBrandListLoading,
@@ -68,6 +71,15 @@ const BrandListScreen: React.FC = () => {
     dispatch(fetchHomeData(false));
   }, [dispatch]);
 
+  // Being back on the brand chooser means no storefront is active. Clearing
+  // it here also covers leaving a brand by the OS back gesture, which never
+  // ran the in-app back handler.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(clearActiveBrand());
+    }, [dispatch])
+  );
+
   const handleRefresh = useCallback(() => {
     dispatch(fetchBrands({ page: 1, refresh: true }));
     dispatch(fetchHomeData(true));
@@ -100,20 +112,32 @@ const BrandListScreen: React.FC = () => {
     );
   }, [brands, searchQuery]);
 
-  const navigateToBrandStore = (brandId: string) => {
-    navigation.navigate(ShoppingRouteNames.ShoppingTabs, { brandId });
-  };
+  // Entering a brand makes it the active storefront: the tabs behind this
+  // navigation render that brand's name and only its wishlist items, so the
+  // identity has to be recorded before we push.
+  const openBrand = useCallback((brand: BrandConfig) => {
+    dispatch(setActiveBrand({
+      brandId: brand.brandId,
+      name: brand.name,
+      tagline: brand.tagline,
+    }));
+    navigation.navigate(ShoppingRouteNames.ShoppingTabs, { brandId: brand.brandId });
+  }, [dispatch, navigation]);
+
+  // Banners only carry a brandId, so resolve it against the loaded catalogue.
+  const openBrandById = useCallback((brandId: string) => {
+    const brand =
+      brands.find((b) => b.brandId === brandId) ??
+      featuredBrands.find((b) => b.brandId === brandId);
+    if (brand) {
+      openBrand(brand);
+    } else {
+      navigation.navigate(ShoppingRouteNames.ShoppingTabs, { brandId });
+    }
+  }, [brands, featuredBrands, openBrand, navigation]);
 
   const navigateToProductDetail = (productId: string, brandId: string) => {
     navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId });
-  };
-
-  const navigateToSearch = () => {
-    navigation.navigate(ShoppingRouteNames.SearchProducts);
-  };
-
-  const navigateToCart = () => {
-    navigation.navigate(ShoppingRouteNames.Cart);
   };
 
   const PRODUCT_CARD_WIDTH = 160;
@@ -125,7 +149,7 @@ const BrandListScreen: React.FC = () => {
       style={styles.bannerCard}
       activeOpacity={0.9}
       onPress={() => {
-        if (item.brandId) navigateToBrandStore(item.brandId);
+        if (item.brandId) openBrandById(item.brandId);
       }}
     >
       <Image source={{ uri: item.image }} style={styles.bannerImage} />
@@ -200,7 +224,7 @@ const BrandListScreen: React.FC = () => {
     <TouchableOpacity
       style={styles.smallBrandCard}
       activeOpacity={0.7}
-      onPress={() => navigateToBrandStore(item.brandId)}
+      onPress={() => openBrand(item)}
     >
       <View style={[styles.brandLogoWrap, { borderColor: item.primaryColor || ShopColors.primary }]}>
         <Image source={{ uri: item.logo }} style={styles.brandLogoSmall} />
@@ -221,50 +245,60 @@ const BrandListScreen: React.FC = () => {
 
   // ── Render: Large Brand Card ───────────────
 
-  const renderBrandCard = ({ item }: { item: BrandConfig }) => (
-    <TouchableOpacity
-      style={styles.heroCard}
-      activeOpacity={0.85}
-      onPress={() => navigateToBrandStore(item.brandId)}
-    >
-      <Image source={{ uri: item.bannerImage }} style={styles.heroBannerImg} />
-      <View style={styles.heroOverlay} />
-      <View style={styles.heroContent}>
-        <View style={styles.heroLogoRow}>
-          <View style={styles.heroLogoWrap}>
-            <Image source={{ uri: item.logo }} style={styles.heroLogo} />
+  const renderBrandCard = ({ item }: { item: BrandConfig }) => {
+    const visibleCategories = item.categories.slice(0, 2);
+    const overflowCount = item.categories.length - visibleCategories.length;
+
+    return (
+      <TouchableOpacity
+        style={styles.heroCard}
+        activeOpacity={0.9}
+        onPress={() => openBrand(item)}
+      >
+        <Image source={{ uri: item.bannerImage }} style={styles.heroBannerImg} />
+        {/* Bottom-weighted scrim rather than a flat wash: the banner stays
+            legible as artwork up top, while the copy sits on near-solid ink
+            so it reads on bright photos too. */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.10)', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0.88)']}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroContent}>
+          <View style={styles.heroNameRow}>
+            <Text style={styles.heroName} numberOfLines={1}>{item.name}</Text>
+            {item.isActive && (
+              <View style={styles.verifiedBadge}>
+                <Check size={11} stroke="#FFF" strokeWidth={3} />
+              </View>
+            )}
           </View>
-          <View style={styles.heroTextWrap}>
-            <View style={styles.heroNameRow}>
-              <Text style={styles.heroName}>{item.name}</Text>
-              {item.isActive && (
-                <View style={styles.verifiedBadge}>
-                  <Star size={10} stroke="#FFF" fill="#FFF" />
+          <Text style={styles.heroTagline} numberOfLines={1}>{item.tagline}</Text>
+          <Text style={styles.heroDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <View style={styles.heroFooter}>
+            <View style={styles.heroCategoriesRow}>
+              {visibleCategories.map((cat, i) => (
+                <View key={i} style={styles.heroCategoryChip}>
+                  <Text style={styles.heroCategoryText}>{cat}</Text>
+                </View>
+              ))}
+              {overflowCount > 0 && (
+                <View style={styles.heroCategoryChip}>
+                  <Text style={styles.heroCategoryText}>+{overflowCount}</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.heroTagline}>{item.tagline}</Text>
+            <View style={styles.heroShopBtn}>
+              <Text style={styles.heroShopBtnText}>Shop Now</Text>
+              <ChevronRight size={14} stroke="#FFF" strokeWidth={2.5} />
+            </View>
           </View>
         </View>
-        <Text style={styles.heroDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.heroFooter}>
-          <View style={styles.heroCategoriesRow}>
-            {item.categories.slice(0, 3).map((cat, i) => (
-              <View key={i} style={styles.heroCategoryChip}>
-                <Text style={styles.heroCategoryText}>{cat}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.heroShopBtn}>
-            <Text style={styles.heroShopBtnText}>Shop Now</Text>
-            <ChevronRight size={14} stroke="#FFF" strokeWidth={2.5} />
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   // ── Render: Section Header ─────────────────
 
@@ -398,14 +432,15 @@ const BrandListScreen: React.FC = () => {
         // stranded here with no way out except the OS gesture.
         showBack
         rightContent={
-          <>
-            <TouchableOpacity style={styles.headerBtn} onPress={navigateToSearch}>
-              <Search size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerBtn} onPress={navigateToCart}>
-              <ShoppingCart size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
-            </TouchableOpacity>
-          </>
+          // The per-brand tabs only show that brand's orders, so the full
+          // cross-brand history needs a way in from the brand chooser.
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => navigation.navigate(ShoppingRouteNames.MyOrders, { allBrands: true })}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ClipboardList size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
+          </TouchableOpacity>
         }
         showSearch={true}
         searchPlaceholder="Search brands..."
@@ -512,6 +547,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     height: 220,
+    // Placeholder ink so the card reads as a card while the banner loads,
+    // instead of flashing a white block against the grey list.
+    backgroundColor: '#1A1A2E',
     ...Shadows.medium,
   },
   heroBannerImg: {
@@ -519,48 +557,25 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   heroContent: {
     ...StyleSheet.absoluteFillObject,
     padding: 20,
     justifyContent: 'flex-end',
   },
-  heroLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  heroLogoWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  heroLogo: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-  },
-  heroTextWrap: {
-    marginLeft: 12,
-    flex: 1,
-  },
   heroNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
   },
   heroName: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: '#FFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   verifiedBadge: {
     width: 18,
@@ -572,51 +587,66 @@ const styles = StyleSheet.create({
   },
   heroTagline: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.92)',
+    marginTop: 3,
   },
   heroDescription: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12.5,
+    color: 'rgba(255,255,255,0.78)',
     lineHeight: 18,
+    marginTop: 8,
     marginBottom: 14,
   },
   heroFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
   },
   heroCategoriesRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
+    // Without this the chips push the button off the card edge — three
+    // categories used to clip "Shop Now" on narrow screens.
+    flexShrink: 1,
   },
   heroCategoryChip: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.32)',
   },
   heroCategoryText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#FFF',
+    letterSpacing: 0.2,
     textTransform: 'capitalize',
   },
   heroShopBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: ShopColors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 20,
     gap: 4,
+    flexShrink: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   heroShopBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFF',
+    letterSpacing: 0.2,
   },
 
   // Empty

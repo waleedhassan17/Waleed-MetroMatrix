@@ -6,6 +6,7 @@ import type { CheckoutDeliveryState } from '../CheckoutDelivery/checkoutDelivery
 import type { CheckoutPaymentState } from '../CheckoutPayment/checkoutPaymentSlice';
 import { addOrder } from '../MyOrders/myOrdersSlice';
 import { checkoutApi } from '../../../../networks/shopping/orderApi';
+import { fetchWallet } from '../../../../services/wallet';
 
 export interface OrderSummaryItem {
   id: string;
@@ -67,6 +68,9 @@ export const placeOrder = createAsyncThunk(
       const res = await checkoutApi({
         addressId: address.id,
         paymentMethod: methodId,
+        // The chosen speed was never sent, so the server could not price the
+        // upgrade — every tier effectively shipped as Standard.
+        deliveryOptionId: state.checkoutDelivery.selectedOption?.id,
       });
       const group = res.data;
 
@@ -80,11 +84,19 @@ export const placeOrder = createAsyncThunk(
         title,
         status: 'pending',
         total: group.total,
+        brandIds: [...new Set(group.orders.map((o) => o.brandId))],
         createdAt: 'Just now',
       }));
 
       // Server cleared the cart during checkout — sync local state
       dispatch(fetchCart());
+
+      // A wallet checkout is debited server-side, but nothing re-read the
+      // balance afterwards — so the header chip and wallet card kept showing
+      // the pre-purchase amount until the app was restarted.
+      if (methodId === 'wallet') {
+        dispatch(fetchWallet());
+      }
 
       return { orderId: group.groupId };
     } catch (error: any) {
@@ -149,19 +161,20 @@ export const selectCheckoutOrderSummary = createSelector(
 
     const paymentMethod = payment?.name ?? 'No payment selected';
 
-    // The backend has no delivery-speed-tier concept — shipping is a flat
-    // per-brand fee it computes itself (see cart.shippingFee). The delivery
-    // screen's cost is cosmetic/ETA-only and is never sent to checkoutApi,
-    // so the total shown here must be built from the server's real numbers
-    // or it will diverge from what actually gets charged.
+    // Two separate charges: the brand's flat shipping fee, which the server
+    // computes onto the cart, plus the surcharge for choosing a faster tier
+    // than Standard. The tier id is sent with the checkout so the server
+    // prices the same upgrade the shopper is being shown here.
+    const speedSurcharge = delivery?.cost ?? 0;
+
     return {
       items,
       deliveryAddress,
       deliveryOption,
       paymentMethod,
       subtotal: cart.subtotal,
-      deliveryFee: cart.shippingFee,
-      total: cart.total,
+      deliveryFee: cart.shippingFee + speedSurcharge,
+      total: cart.total + speedSurcharge,
     };
   }
 );

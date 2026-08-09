@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingCart, Wallet } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
@@ -32,6 +33,7 @@ import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
+import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
@@ -69,6 +71,7 @@ const ShopColors = {
 const ShoppingHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
 
   const featuredBrands = useAppSelector(selectFeaturedBrands);
   const featuredProducts = useAppSelector(selectFeaturedProducts);
@@ -78,6 +81,10 @@ const ShoppingHomeScreen: React.FC = () => {
 
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
+
+  // Reached by drilling into a brand from the brand list, so this screen is
+  // that brand's storefront — it should say so rather than the generic "Shop".
+  const activeBrand = useAppSelector(selectActiveBrand);
 
   const { width: screenWidth } = useWindowDimensions();
   const BANNER_WIDTH = screenWidth - Spacing.lg * 2;
@@ -119,7 +126,8 @@ const ShoppingHomeScreen: React.FC = () => {
   };
 
   const navigateToSearch = () => {
-    navigation.navigate(ShoppingRouteNames.SearchProducts);
+    // Search stays inside the storefront the shopper is in.
+    navigation.navigate(ShoppingRouteNames.SearchProducts, { brandId: activeBrand?.brandId });
   };
 
   const navigateToCart = () => {
@@ -129,6 +137,15 @@ const ShoppingHomeScreen: React.FC = () => {
   const navigateToBrandList = () => {
     navigation.navigate(ShoppingRouteNames.BrandList);
   };
+
+  const handleLeaveBrand = useCallback(() => {
+    dispatch(clearActiveBrand());
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate(ShoppingRouteNames.BrandList);
+    }
+  }, [dispatch, navigation]);
 
   // ── Render Helpers ────────────────────────
 
@@ -250,8 +267,12 @@ const ShoppingHomeScreen: React.FC = () => {
 
       {/* ── Header ──────────────────────────── */}
       <ShoppingHeader
-        title="Shop"
-        subtitle="Discover amazing brands"
+        title={activeBrand?.name ?? 'Shop'}
+        subtitle={activeBrand?.tagline ?? 'Discover amazing brands'}
+        // Without this there is no in-app way back out of a brand to switch
+        // to another one — only the OS back gesture.
+        showBack={!!activeBrand}
+        onBack={handleLeaveBrand}
         rightContent={
           <>
             <TouchableOpacity
@@ -275,7 +296,7 @@ const ShoppingHomeScreen: React.FC = () => {
           </>
         }
         showSearch={true}
-        searchPlaceholder="Search products, brands..."
+        searchPlaceholder="Search products"
         onSearchPress={navigateToSearch}
       />
 
@@ -417,8 +438,9 @@ const ShoppingHomeScreen: React.FC = () => {
           </View>
         )}
 
-        {/* ── Bottom spacer ───────────────────── */}
-        <View style={{ height: 100 }} />
+        {/* The tab bar is docked, so it already reserves its own space and the
+            system inset — this is just breathing room under the last row. */}
+        <View style={{ height: Spacing.xl }} />
       </ScrollView>
     </View>
   );

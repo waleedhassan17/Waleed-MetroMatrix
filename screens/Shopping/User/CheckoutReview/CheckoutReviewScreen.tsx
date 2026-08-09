@@ -1,11 +1,11 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowRight, ChevronLeft, Edit3, MapPin, Truck, CreditCard, ShoppingBag, AlertCircle } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
-import { clearError, placeOrder, selectCheckoutError, selectCheckoutOrderSummary, selectCheckoutPlacing } from './checkoutReviewSlice';
+import { placeOrder, selectCheckoutError, selectCheckoutOrderSummary, selectCheckoutPlacing } from './checkoutReviewSlice';
 
 const CheckoutReviewScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -18,10 +18,28 @@ const CheckoutReviewScreen: React.FC = () => {
   const handlePlaceOrder = useCallback(async () => {
     try {
       const result = await dispatch(placeOrder()).unwrap();
-      Alert.alert('Order placed', `Your order ${result.orderId} has been created successfully.`);
-      navigation.navigate(ShoppingRouteNames.OrderConfirmation, { orderId: result.orderId });
+
+      // No success alert: the confirmation screen says the same thing with
+      // room to say it properly. A system dialog stacked on top of it just
+      // put a raw database id in front of the shopper and made them tap OK
+      // before they could see their own order.
+      //
+      // The four checkout steps are spent once the order exists, so rebuild
+      // the stack as brand chooser → storefront → confirmation. Backing out
+      // of the confirmation now lands on the shop instead of walking back up
+      // through payment and delivery.
+      navigation.reset({
+        index: 2,
+        routes: [
+          { name: ShoppingRouteNames.BrandList },
+          { name: ShoppingRouteNames.ShoppingTabs },
+          { name: ShoppingRouteNames.OrderConfirmation, params: { orderId: result.orderId } },
+        ],
+      });
     } catch (err) {
-      dispatch(clearError());
+      // Leave the error in place — the rejected reducer just set it and the
+      // banner below renders it. Clearing here made every checkout failure
+      // silent: the button stopped spinning and nothing else happened.
     }
   }, [dispatch, navigation]);
 

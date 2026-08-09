@@ -352,7 +352,7 @@ export interface SingleResponse<T> {
 // ── Navigation Param Types ────────────────────
 
 export type ShoppingStackParamList = {
-  ShoppingTabs: undefined;
+  ShoppingTabs: { brandId?: string } | undefined;
   ShoppingHome: undefined;
   BrandList: undefined;
   BrandStore: { brandId: string };
@@ -365,7 +365,8 @@ export type ShoppingStackParamList = {
   CheckoutDelivery: { addressId?: string };
   CheckoutPayment: { addressId?: string; deliveryOptionId?: string };
   CheckoutReview: { addressId?: string; deliveryOptionId?: string; paymentMethodId?: string };
-  MyOrders: undefined;
+  /** allBrands: full cross-brand history; omitted inside a brand's tabs. */
+  MyOrders: { allBrands?: boolean } | undefined;
   OrderConfirmation: { orderId: string };
   OrderList: undefined;
   OrderDetail: { orderId: string };

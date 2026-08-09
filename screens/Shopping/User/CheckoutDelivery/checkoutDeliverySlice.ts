@@ -16,15 +16,14 @@ export interface CheckoutDeliveryState {
   error: string | null;
 }
 
-// The backend has no delivery-speed-tier pricing — shipping is a single flat
-// per-brand fee it computes at checkout (see cart.shippingFee), and this
-// screen's chosen option/id is informational only (never sent to checkoutApi).
-// cost stays 0 for every option so nothing here implies a charge the order
-// review/payment screens won't actually collect.
+// Surcharge on top of the brand's flat shipping fee (cart.shippingFee), which
+// the server computes separately. Standard is included at no extra cost; the
+// faster tiers are priced, and the chosen id now travels to POST /checkout so
+// the server can charge for the upgrade it is being asked to fulfil.
 const sampleOptions: DeliveryOption[] = [
   { id: 'standard', name: 'Standard', eta: '5-7 days', cost: 0, description: 'Our regular delivery window' },
-  { id: 'express', name: 'Express', eta: '2-3 days', cost: 0, description: 'Faster delivery for urgent orders' },
-  { id: 'same-day', name: 'Same Day', eta: 'Today', cost: 0, description: 'Available in select cities only' },
+  { id: 'express', name: 'Express', eta: '2-3 days', cost: 250, description: 'Faster delivery for urgent orders' },
+  { id: 'same-day', name: 'Same Day', eta: 'Today', cost: 500, description: 'Available in select cities only' },
 ];
 
 const initialState: CheckoutDeliveryState = {

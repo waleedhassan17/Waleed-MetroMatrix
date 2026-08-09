@@ -28,6 +28,8 @@ import {
   setSearchQuery,
   searchProducts,
   fetchSuggestions,
+  fetchPopularSearches,
+  clearResults,
   addRecentSearch,
   removeRecentSearch,
   clearRecentSearches,
@@ -35,11 +37,12 @@ import {
   selectSearchQuery,
   selectSearchResults,
   selectRecentSearches,
+  selectPopularSearches,
   selectSuggestions,
   selectSearchLoading,
   selectProductSearch,
-  POPULAR_SEARCHES,
 } from './productSearchSlice';
+import { selectActiveBrandId } from '../BrandList/brandListSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
@@ -57,10 +60,16 @@ const ProductSearchScreen: React.FC = () => {
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const brandId = route.params?.brandId as string | undefined;
+  // Falls back to the storefront being browsed: entering search from inside a
+  // brand used to search the whole catalogue, so a Cougar search returned
+  // Outfitters products that its own listing would never show.
+  const activeBrandId = useAppSelector(selectActiveBrandId);
+  const brandId = (route.params?.brandId as string | undefined) ?? activeBrandId ?? undefined;
+
   const query = useAppSelector(selectSearchQuery);
   const results = useAppSelector(selectSearchResults);
   const recentSearches = useAppSelector(selectRecentSearches);
+  const popularSearches = useAppSelector(selectPopularSearches);
   const suggestions = useAppSelector(selectSuggestions);
   const loading = useAppSelector(selectSearchLoading);
   const { hasSearched, hasMore, page, error } = useAppSelector(selectProductSearch);
@@ -73,9 +82,17 @@ const ProductSearchScreen: React.FC = () => {
     const timer = setTimeout(() => inputRef.current?.focus(), 300);
     return () => {
       clearTimeout(timer);
+      // A debounce left running fires a search into a screen that no longer
+      // exists, landing results in the store after resetSearch() cleared it.
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       dispatch(resetSearch());
     };
   }, [dispatch]);
+
+  // Popular searches come from this storefront's own categories.
+  useEffect(() => {
+    dispatch(fetchPopularSearches(brandId));
+  }, [dispatch, brandId]);
 
   // Debounced suggestions
   const handleQueryChange = useCallback((text: string) => {
@@ -83,12 +100,18 @@ const ProductSearchScreen: React.FC = () => {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (text.trim().length >= 2) {
-      debounceRef.current = setTimeout(() => {
-        dispatch(fetchSuggestions(text));
-        dispatch(searchProducts({ query: text, page: 1, brandId }));
-      }, 400);
+    // Below two characters there is nothing worth querying, but the previous
+    // query's results must not be left on screen underneath the new text —
+    // deleting back down to one character used to strand them there.
+    if (text.trim().length < 2) {
+      dispatch(clearResults());
+      return;
     }
+
+    debounceRef.current = setTimeout(() => {
+      dispatch(fetchSuggestions({ query: text, brandId }));
+      dispatch(searchProducts({ query: text, page: 1, brandId }));
+    }, 400);
   }, [dispatch, brandId]);
 
   const handleSubmitSearch = useCallback(() => {
@@ -187,7 +210,7 @@ const ProductSearchScreen: React.FC = () => {
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search products..."
+            placeholder="Search products"
             placeholderTextColor={Colors.text.tertiary}
             value={query}
             onChangeText={handleQueryChange}
@@ -259,9 +282,9 @@ const ProductSearchScreen: React.FC = () => {
                   <Text style={styles.sectionTitle}>Popular Searches</Text>
                 </View>
                 <View style={styles.tagWrap}>
-                  {POPULAR_SEARCHES.map((s) => (
+                  {popularSearches.map((s, i) => (
                     <TouchableOpacity
-                      key={s}
+                      key={`popular-${i}-${s}`}
                       style={styles.popularTag}
                       onPress={() => handleSearchFromTag(s)}
                     >

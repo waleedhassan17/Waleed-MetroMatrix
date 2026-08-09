@@ -58,7 +58,11 @@ const CheckoutDeliveryScreen: React.FC = () => {
             <Text style={styles.optionDesc}>{option.description}</Text>
           </View>
         </View>
-        <Text style={styles.optionPrice}>{option.cost === 0 ? 'Free' : `PKR ${option.cost.toLocaleString()}`}</Text>
+        {/* "+" marks it as a surcharge on top of the brand's shipping fee,
+            not the whole delivery cost. */}
+        <Text style={styles.optionPrice}>
+          {option.cost === 0 ? 'Free' : `+PKR ${option.cost.toLocaleString()}`}
+        </Text>
       </TouchableOpacity>
     );
   };

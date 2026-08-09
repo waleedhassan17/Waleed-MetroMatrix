@@ -4,8 +4,23 @@ import { fetchBrandsApi } from '../../../../networks/shopping/brandApi';
 
 // ── State Interface ─────────────────────────
 
+/**
+ * The brand the shopper has drilled into from the brand list.
+ *
+ * The shopping tabs are a per-brand storefront, not a global one — so
+ * everything inside them (the home title, the wishlist) scopes to this.
+ * Only the identity is kept, captured from the card that was tapped, so it
+ * is available immediately without waiting on a brand fetch.
+ */
+export interface ActiveBrand {
+  brandId: string;
+  name: string;
+  tagline?: string;
+}
+
 export interface BrandListState {
   brands: BrandConfig[];
+  activeBrand: ActiveBrand | null;
   searchQuery: string;
   categoryFilter: string | null;
   loading: boolean;
@@ -18,6 +33,7 @@ export interface BrandListState {
 
 const initialState: BrandListState = {
   brands: [],
+  activeBrand: null,
   searchQuery: '',
   categoryFilter: null,
   loading: false,
@@ -70,6 +86,12 @@ const brandListSlice = createSlice({
     setCategoryFilter(state, action: PayloadAction<string | null>) {
       state.categoryFilter = action.payload;
     },
+    setActiveBrand(state, action: PayloadAction<ActiveBrand>) {
+      state.activeBrand = action.payload;
+    },
+    clearActiveBrand(state) {
+      state.activeBrand = null;
+    },
     resetBrandList(state) {
       Object.assign(state, initialState);
     },
@@ -105,8 +127,13 @@ const brandListSlice = createSlice({
   },
 });
 
-export const { setSearchQuery, setCategoryFilter, resetBrandList } =
-  brandListSlice.actions;
+export const {
+  setSearchQuery,
+  setCategoryFilter,
+  setActiveBrand,
+  clearActiveBrand,
+  resetBrandList,
+} = brandListSlice.actions;
 
 // ── Selectors ───────────────────────────────
 
@@ -115,5 +142,8 @@ export const selectBrands = (state: { brandList: BrandListState }) => state.bran
 export const selectBrandListLoading = (state: { brandList: BrandListState }) => state.brandList.loading;
 export const selectBrandSearchQuery = (state: { brandList: BrandListState }) => state.brandList.searchQuery;
 export const selectBrandCategoryFilter = (state: { brandList: BrandListState }) => state.brandList.categoryFilter;
+export const selectActiveBrand = (state: { brandList: BrandListState }) => state.brandList.activeBrand;
+export const selectActiveBrandId = (state: { brandList: BrandListState }) =>
+  state.brandList.activeBrand?.brandId ?? null;
 
 export default brandListSlice.reducer;

@@ -93,13 +93,19 @@ export const toggleWishlistItem = createAsyncThunk(
 // There is no bulk-clear endpoint on the backend, only a per-product DELETE
 // — "Clear Wishlist" has to remove every item that way or it's not actually
 // persisted server-side (the next fetchWishlist() would just bring them back).
+//
+// Scoped by brand: the wishlist is shown per storefront, so clearing it from
+// inside one brand must not wipe what the shopper saved under another.
 export const clearWishlist = createAsyncThunk(
   'wishlist/clear',
-  async (_, { getState, rejectWithValue }) => {
+  async (brandId: string | null | undefined, { getState, rejectWithValue }) => {
     try {
       const { wishlist } = getState() as { wishlist: WishlistState };
+      const targets = brandId
+        ? wishlist.items.filter((i) => i.brandId === brandId)
+        : wishlist.items;
       let lastResponse: WishlistItemState[] = wishlist.items;
-      for (const item of wishlist.items) {
+      for (const item of targets) {
         const res = await removeFromWishlistApi(item.productId);
         lastResponse = mapServerItems(res.data);
       }
@@ -138,6 +144,11 @@ const wishlistSlice = createSlice({
 export const selectWishlist = (state: { wishlist: WishlistState }) => state.wishlist;
 export const selectWishlistItems = (state: { wishlist: WishlistState }) => state.wishlist.items;
 export const selectWishlistCount = (state: { wishlist: WishlistState }) => state.wishlist.items.length;
+/** Items saved under one storefront. Callers should memoise the result. */
+export const filterWishlistByBrand = (
+  items: WishlistItemState[],
+  brandId: string | null | undefined
+) => (brandId ? items.filter((i) => i.brandId === brandId) : items);
 export const selectIsInWishlist = (productId: string) => (state: { wishlist: WishlistState }) =>
   state.wishlist.items.some((i) => i.productId === productId);
 export default wishlistSlice.reducer;

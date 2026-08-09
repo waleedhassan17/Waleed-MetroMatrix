@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, ClipboardList, Package, Truck, CheckCircle2, Clock, XCircle, ChevronRight } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyOrders, selectMyOrders, setStatusFilter } from './myOrdersSlice';
+import { selectActiveBrand } from '../BrandList/brandListSlice';
 
 const ShopColors = {
   primary: '#E67E22',
@@ -40,8 +41,16 @@ const getStatusDetails = (status: string) => {
 
 const MyOrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const { orders, statusFilter, loading, error } = useAppSelector(selectMyOrders);
+  const activeBrand = useAppSelector(selectActiveBrand);
+
+  // Reached two ways: as a tab inside a brand's storefront, where it shows
+  // only that brand's orders, and from Explore with allBrands, where it is
+  // the shopper's complete history across every brand.
+  const allBrands = route.params?.allBrands === true;
+  const scopedBrand = allBrands ? null : activeBrand;
 
   useEffect(() => {
     dispatch(fetchMyOrders());
@@ -55,7 +64,13 @@ const MyOrdersScreen: React.FC = () => {
     dispatch(fetchMyOrders(filter === 'all' ? undefined : filter));
   }, [dispatch]);
 
-  const filtered = orders;
+  const filtered = useMemo(
+    () =>
+      scopedBrand
+        ? orders.filter((o) => o.brandIds?.includes(scopedBrand.brandId))
+        : orders,
+    [orders, scopedBrand]
+  );
 
   return (
     <View style={styles.container}>
@@ -64,7 +79,14 @@ const MyOrdersScreen: React.FC = () => {
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.title}>My Orders</Text>
+        <View style={styles.titleWrap}>
+          <Text style={styles.title}>My Orders</Text>
+          {/* Say which set is on screen, so a brand-scoped list is not read as
+              "I have no orders". */}
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {scopedBrand ? scopedBrand.name : 'All brands'}
+          </Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
       
@@ -144,7 +166,11 @@ const MyOrdersScreen: React.FC = () => {
               <ClipboardList size={48} stroke={ShopColors.primary} strokeWidth={1.5} />
             </View>
             <Text style={styles.emptyTitle}>No orders found</Text>
-            <Text style={styles.emptySubtitle}>You don't have any orders with this status.</Text>
+            <Text style={styles.emptySubtitle}>
+              {scopedBrand
+                ? `You haven't ordered from ${scopedBrand.name} yet. Your orders from other brands are under Orders on the Explore screen.`
+                : "You don't have any orders with this status."}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -168,7 +194,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', 
     backgroundColor: Colors.background, 
   },
+  titleWrap: { flex: 1, alignItems: 'center' },
   title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
+  subtitle: { fontSize: 12, color: Colors.text.tertiary, marginTop: 1 },
   
   filterWrapper: {
     backgroundColor: Colors.surface,

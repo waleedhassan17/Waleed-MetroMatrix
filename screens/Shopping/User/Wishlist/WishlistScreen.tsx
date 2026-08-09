@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Heart, Trash2 } from 'lucide-react-native';
 import { Colors, BorderRadius, Spacing } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, type WishlistItemState } from './wishlistSlice';
+import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, filterWishlistByBrand, type WishlistItemState } from './wishlistSlice';
+import { selectActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
@@ -14,8 +15,17 @@ const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', danger: '#E74C
 const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { items, loading, error } = useAppSelector(selectWishlist);
+  const { items: allItems, loading, error } = useAppSelector(selectWishlist);
   const { cardWidth, imageHeight } = useProductGridSizing();
+
+  // The backend keeps one wishlist per shopper, but the tabs are a per-brand
+  // storefront — showing every brand's saves here is what made a Cougar item
+  // appear while browsing Outfitters.
+  const activeBrand = useAppSelector(selectActiveBrand);
+  const items = useMemo(
+    () => filterWishlistByBrand(allItems, activeBrand?.brandId),
+    [allItems, activeBrand]
+  );
 
   useEffect(() => {
     dispatch(fetchWishlist());
@@ -30,11 +40,21 @@ const WishlistScreen: React.FC = () => {
 
   const handleClearAll = useCallback(() => {
     if (items.length === 0) return;
-    Alert.alert('Clear Wishlist', 'Remove all items from your wishlist?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear All', style: 'destructive', onPress: () => dispatch(clearWishlist()) },
-    ]);
-  }, [dispatch, items.length]);
+    Alert.alert(
+      'Clear Wishlist',
+      activeBrand
+        ? `Remove all ${activeBrand.name} items from your wishlist?`
+        : 'Remove all items from your wishlist?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => dispatch(clearWishlist(activeBrand?.brandId)),
+        },
+      ]
+    );
+  }, [dispatch, items.length, activeBrand]);
 
   const handleViewProduct = useCallback((item: WishlistItemState) => {
     navigation.navigate(ShoppingRouteNames.ProductDetail, {
@@ -86,8 +106,14 @@ const WishlistScreen: React.FC = () => {
         <View style={styles.emptyIcon}>
           <Heart size={48} stroke={Colors.borderDark} strokeWidth={1} />
         </View>
-        <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
-        <Text style={styles.emptySubtitle}>Items you save will appear here so you can easily find them later.</Text>
+        <Text style={styles.emptyTitle}>
+          {activeBrand ? `No ${activeBrand.name} saves yet` : 'Your wishlist is empty'}
+        </Text>
+        <Text style={styles.emptySubtitle}>
+          {activeBrand
+            ? `Items you save while browsing ${activeBrand.name} will appear here.`
+            : 'Items you save will appear here so you can easily find them later.'}
+        </Text>
         <TouchableOpacity
           style={styles.browseBtn}
           onPress={() => navigation.navigate(ShoppingRouteNames.ShoppingHome)}
@@ -148,7 +174,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: (StatusBar.currentHeight || 0) + 20, paddingBottom: Spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
-  listContent: { padding: Spacing.lg, paddingBottom: 100 },
+  listContent: { padding: Spacing.lg, paddingBottom: Spacing.xl },
   columnWrapper: { justifyContent: 'space-between' },
   emptyContainer: { flex: 1, justifyContent: 'center' },
 

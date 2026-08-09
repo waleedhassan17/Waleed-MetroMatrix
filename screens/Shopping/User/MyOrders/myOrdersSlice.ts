@@ -8,6 +8,12 @@ export interface MyOrdersItem {
   status: string;
   total: number;
   createdAt: string;
+  /**
+   * Brands this group contains — one checkout splits into one order per
+   * brand. Dropped from the mapping before, which is why an order placed in
+   * Cougar also showed up under Outfitters.
+   */
+  brandIds: string[];
 }
 
 export interface MyOrdersState {
@@ -64,6 +70,7 @@ export const fetchMyOrders = createAsyncThunk(
         title: titleFor(group),
         status: statusFor(group),
         total: group.total,
+        brandIds: [...new Set(group.orders.map((o) => o.brandId))],
         createdAt: new Date(group.createdAt).toLocaleDateString('en-PK', {
           month: 'short',
           day: 'numeric',
