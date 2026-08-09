@@ -436,7 +436,8 @@ export type HealthcareStackParamList = {
   SlotSelection: { doctorId: string; clinicId?: string };
   BookAppointment: { doctorId: string; clinicId?: string };
   BookingConfirmation: { doctorId: string; clinicId?: string };
-  AppointmentConfirm: { appointmentId: string };
+  /** confirmationCode comes from the booking response; absent on deep links. */
+  AppointmentConfirm: { appointmentId: string; confirmationCode?: string };
   MyAppointments: undefined;
   AppointmentDetail: { appointmentId: string };
   RescheduleAppointment: { appointmentId: string };

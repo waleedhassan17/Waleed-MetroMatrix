@@ -26,6 +26,7 @@ import {
   selectSlotsByPeriod,
 } from './slotSelectionSlice';
 import type { ConsultationType } from './slotSelectionSlice';
+import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { TimeSlot, HealthcareStackParamList } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -150,12 +151,27 @@ const SlotSelectionScreen: React.FC = () => {
     [dispatch],
   );
 
+  // A clinic chosen on the previous screen fixes this as an in-clinic visit.
+  const selectedClinic = useAppSelector((s) => s.clinicSelection?.selectedClinic);
+  const lockedToClinic = !!selectedClinic;
+
+  useEffect(() => {
+    if (lockedToClinic && consultationType !== 'in-clinic') {
+      dispatch(setConsultationType('in-clinic'));
+    }
+  }, [lockedToClinic, consultationType, dispatch]);
+
   const handleContinue = useCallback(() => {
     if (!selectedSlot) return;
-    navigation.navigate('AppointmentConfirm' as any, {
-      appointmentId: selectedSlot.slotId,
+    // This jumped straight to AppointmentConfirm, skipping the screen that
+    // actually calls bookAppointmentApi — so "Booking Confirmed!" was shown
+    // for an appointment that had never been created. Nothing reached the
+    // server, which is why it never appeared under My Appointments and the
+    // confirmation code fell back to the HC-XXXXXX placeholder.
+    navigation.navigate(HealthcareRouteNames.BookingConfirmation as any, {
+      doctorId,
     });
-  }, [navigation, selectedSlot]);
+  }, [navigation, selectedSlot, doctorId]);
 
   // ── Slot Chip ─────────────────────────────────
 
@@ -279,7 +295,30 @@ const SlotSelectionScreen: React.FC = () => {
         contentContainerStyle={styles.bodyContent}
       >
 
-        {/* ── Consultation Type Toggle ── */}
+        {/* ── Consultation Type ──
+            Picking a clinic on the previous screen already decided this. The
+            toggle still offered Video Call, which would have silently thrown
+            that choice away and booked a different kind of appointment — so
+            when a clinic is set, state it rather than offer it. */}
+        {lockedToClinic ? (
+          <View style={styles.toggleWrapper}>
+            <Text style={styles.toggleLabel}>Consultation Type</Text>
+            <View style={styles.lockedTypeRow}>
+              <View style={styles.lockedTypeIcon}>
+                <MaterialCommunityIcons name="hospital-building" size={18} color={THEME.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lockedTypeTitle}>In-Clinic Visit</Text>
+                <Text style={styles.lockedTypeSub} numberOfLines={1}>
+                  {selectedClinic?.name}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.lockedTypeChange}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
         <View style={styles.toggleWrapper}>
           <Text style={styles.toggleLabel}>Consultation Type</Text>
           <View style={styles.toggleContainer}>
@@ -344,6 +383,7 @@ const SlotSelectionScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+        )}
 
         {/* ── Date Picker ── */}
         <View style={styles.dateSection}>
@@ -516,6 +556,28 @@ const styles = StyleSheet.create({
   },
 
   // Toggle
+  lockedTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E3ECFB',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  lockedTypeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#EAF3FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockedTypeTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
+  lockedTypeSub: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
+  lockedTypeChange: { fontSize: 13, fontWeight: '700', color: '#2A7FFF' },
   toggleWrapper: {
     paddingHorizontal: 20,
     paddingTop: 20,

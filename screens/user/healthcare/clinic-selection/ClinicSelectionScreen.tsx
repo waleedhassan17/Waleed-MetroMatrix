@@ -26,6 +26,7 @@ import {
 import type { Clinic, ClinicTiming, HealthcareStackParamList } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -240,15 +241,15 @@ const ClinicCard: React.FC<ClinicCardProps> = React.memo(
             </View>
 
             <View style={styles.cardHeaderInfo}>
+              {/* The "Selected" chip that sat here was the third indicator of
+                  the same state — alongside the radio tick and the Selected
+                  button below — and it squeezed the name into an ellipsis
+                  ("Faisal Rehman Clinic DH…"). The radio and the button say
+                  it well enough; give the name the room instead. */}
               <View style={styles.clinicNameRow}>
-                <Text style={styles.clinicName} numberOfLines={1}>
+                <Text style={styles.clinicName} numberOfLines={2}>
                   {clinic.name}
                 </Text>
-                {isSelected && (
-                  <View style={styles.selectedBadge}>
-                    <Text style={styles.selectedBadgeText}>Selected</Text>
-                  </View>
-                )}
               </View>
               <Text style={styles.clinicCity}>{clinic.city}</Text>
             </View>
@@ -394,6 +395,7 @@ const ClinicSelectionScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const bottomBarAnim = useRef(new Animated.Value(100)).current;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     Animated.parallel([
@@ -558,6 +560,7 @@ const ClinicSelectionScreen: React.FC = () => {
       <Animated.View
         style={[
           styles.bottomBar,
+          { paddingBottom: Math.max(insets.bottom, 12) + 8 },
           { transform: [{ translateY: bottomBarAnim }] },
         ]}
       >
@@ -1006,7 +1009,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    // paddingBottom comes from the safe-area inset at the call site: the fixed
+    // value put Continue under the Android nav buttons.
   },
   bottomContent: {
     flexDirection: 'row',

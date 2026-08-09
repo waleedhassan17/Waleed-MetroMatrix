@@ -56,6 +56,7 @@ export interface BookingConfirmationState {
   couponLoading: boolean;
   bookingStatus: BookingStatus;
   confirmedAppointmentId: string | null;
+  confirmedCode: string | null;
   error: string | null;
   couponError: string | null;
   // Additional state
@@ -92,6 +93,7 @@ const initialState: BookingConfirmationState = {
   couponLoading: false,
   bookingStatus: 'idle',
   confirmedAppointmentId: null,
+  confirmedCode: null,
   error: null,
   couponError: null,
   termsAccepted: false,
@@ -332,6 +334,9 @@ const bookingConfirmationSlice = createSlice({
         state.bookingStatus = 'confirmed';
         state.loading = false;
         state.confirmedAppointmentId = action.payload.appointmentId;
+        // Kept so the success screen can show the real code instead of its
+        // HC-XXXXXX placeholder.
+        state.confirmedCode = action.payload.confirmationCode;
       })
       .addCase(confirmBooking.rejected, (state, action) => {
         state.bookingStatus = 'failed';
@@ -394,6 +399,8 @@ export const selectCouponError = (state: RootState) =>
 // Get confirmed appointment ID
 export const selectConfirmedAppointmentId = (state: RootState) =>
   state.bookingConfirmation.confirmedAppointmentId;
+export const selectConfirmedCode = (state: RootState) =>
+  state.bookingConfirmation.confirmedCode;
 
 // Get fee breakdown
 export const selectFeeBreakdown = (state: RootState): FeeBreakdown => {

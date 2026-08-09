@@ -39,6 +39,7 @@ import {
   getRating,
 } from '../../../../utils/healthcare/doctorDisplay';
 import { Typography } from '../../../../constants/Fonts';
+import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -238,6 +239,8 @@ const BookingConfirmationScreen: React.FC = () => {
     coupon,
     loading,
     bookingStatus,
+    confirmedAppointmentId,
+    confirmedCode,
     error,
   } = useAppSelector((s) => s.bookingConfirmation);
   
@@ -283,23 +286,17 @@ const BookingConfirmationScreen: React.FC = () => {
 
   // Navigate on confirmed
   useEffect(() => {
-    if (bookingStatus === 'confirmed') {
-      Alert.alert(
-        '🎉 Booking Confirmed!',
-        'Your appointment has been booked successfully. You will receive a confirmation SMS shortly.',
-        [
-          {
-            text: 'View Appointments',
-            onPress: () => navigation.navigate('MyAppointments' as any),
-          },
-          {
-            text: 'Done',
-            onPress: () => navigation.navigate('HealthcareHome' as any),
-          },
-        ]
-      );
-    }
-  }, [bookingStatus, navigation]);
+    if (bookingStatus !== 'confirmed' || !confirmedAppointmentId) return;
+
+    // Hand off to the success screen with the real ids rather than announcing
+    // the booking in a system dialog. That screen already exists and is far
+    // better at this — it just never received an appointment before, so it
+    // rendered its HC-XXXXXX placeholder.
+    navigation.replace(HealthcareRouteNames.AppointmentConfirm as any, {
+      appointmentId: confirmedAppointmentId,
+      confirmationCode: confirmedCode ?? undefined,
+    });
+  }, [bookingStatus, confirmedAppointmentId, confirmedCode, navigation]);
 
   // Handlers
   const handleApplyCoupon = useCallback(() => {

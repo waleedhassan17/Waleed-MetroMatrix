@@ -18,6 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
   setConfirmed,
+  setAppointmentId,
+  setConfirmationCode,
+  fetchConfirmedAppointment,
   setShowConfetti,
   addToCalendar,
   shareAppointmentDetails,
@@ -101,6 +104,20 @@ const AppointmentConfirmScreen: React.FC = () => {
   // Confetti
   const [confetti, setConfetti] = useState<ConfettiParticle[]>([]);
   const [showConfetti, setShowConfettiState] = useState(true);
+
+  // The booking screen hands over the real ids; without them this screen has
+  // no appointment to describe and falls back to its placeholders.
+  useEffect(() => {
+    const appointmentId: string | undefined = route.params?.appointmentId;
+    const confirmationCode: string | undefined = route.params?.confirmationCode;
+    if (appointmentId) {
+      dispatch(setAppointmentId(appointmentId));
+      dispatch(fetchConfirmedAppointment(appointmentId));
+    }
+    if (confirmationCode) {
+      dispatch(setConfirmationCode(confirmationCode));
+    }
+  }, [dispatch, route.params?.appointmentId, route.params?.confirmationCode]);
 
   useEffect(() => {
     dispatch(setConfirmed(true));
@@ -203,7 +220,14 @@ const AppointmentConfirmScreen: React.FC = () => {
   };
 
   const handleGoHome = () => {
-    navigation.navigate(HealthcareRouteNames.HealthcareHome);
+    // HealthcareHome is also registered as a bare stack screen, and navigating
+    // to that one dropped the shopper outside the tab shell — the bottom tab
+    // bar disappeared. Go to the tabs, and reset so the finished booking flow
+    // isn't left underneath.
+    navigation.reset({
+      index: 0,
+      routes: [{ name: HealthcareRouteNames.HealthcareTabs as never }],
+    });
   };
 
   const handleAddToCalendar = () => {
