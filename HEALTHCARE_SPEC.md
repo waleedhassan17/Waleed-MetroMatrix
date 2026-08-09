@@ -66,11 +66,11 @@ Verified OK: health-record update/delete check `record.userId === req.user._id`;
 - **Doctor (11 folders, `screens/providers/healthcare/`)**: doctor-home, doctor-schedule, patient-queue, medical-notes, prescription-writer, patient-history, doctor-earnings, manage-slots, availability-settings, profile, tabs.
 - **Admin (3)**: DoctorManagement, SpecialtyManagement, HealthcareAnalytics.
 
-All screens call `networks/healthcare/*` which run on **dummy fixtures** (`USE_HEALTHCARE_DUMMY_DATA = true` in `networks/healthcare/config.ts`; the comment claims "Real backend by default" — it isn't).
+All screens call `networks/healthcare/*`, which run against the **real backend**. The `USE_HEALTHCARE_DUMMY_DATA` flag and the bundled `dummyData.ts` fixtures it gated have been **removed** — the flag had been `false` for some time, so all 43 branches were unreachable and only shipped ~700 lines of duplicate fixtures that had drifted from the real API shapes. The demo dataset lives in the database; the backend owns it via `scripts/seed-healthcare.js`.
 
 ## 7. DUMMY DEPENDENCY MAP ⭐ (the key finding)
 
-49 `USE_HEALTHCARE_DUMMY_DATA` branches: `providerApi.ts` 22, `appointmentApi.ts` 11, `healthcareNetwork.ts` 8, `doctorApi.ts` 7, `config.ts` 1. `adminApi.ts` clean (already real).
+~~49 `USE_HEALTHCARE_DUMMY_DATA` branches~~ — all removed along with `dummyData.ts`.
 
 **Every branch except ONE already has a real-endpoint implementation with serializers written directly below the dummy branch.** This module was wired for the real backend and then left switched off. Classification:
 
