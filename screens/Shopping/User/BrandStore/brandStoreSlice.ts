@@ -71,9 +71,17 @@ export const fetchBrandProducts = createAsyncThunk(
   async (
     { brandId, page = 1, categoryId, sortBy, refresh = false }:
     { brandId: string; page?: number; categoryId?: string; sortBy?: string; refresh?: boolean },
-    { rejectWithValue }
+    { getState, rejectWithValue }
   ) => {
     try {
+      // The screen computes `page + 1` from rendered state, so repeated
+      // onEndReached calls in the same frame all ask for the page already in
+      // flight. Drop those here rather than spending a request on them.
+      const { brandStore } = getState() as { brandStore: BrandStoreState };
+      if (!refresh && page > 1 && (brandStore.productsLoading || page <= brandStore.page)) {
+        return rejectWithValue('Already loaded');
+      }
+
       const res = await fetchProductsApi({
         brandId,
         categoryId,
@@ -157,7 +165,15 @@ const brandStoreSlice = createSlice({
         if (refresh || page === 1) {
           state.products = products;
         } else {
-          state.products = [...state.products, ...products];
+          // Deduplicate on append. FlatList fires onEndReached several times
+          // before a re-render lands, so the same page can be requested more
+          // than once and blind concatenation repeated whole pages of
+          // products — duplicate React keys and duplicate cards in the grid.
+          const existingIds = new Set(state.products.map((p) => p.productId));
+          state.products = [
+            ...state.products,
+            ...products.filter((p) => !existingIds.has(p.productId)),
+          ];
         }
         state.page = page;
         state.totalPages = totalPages;

@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BarChart3,
   Boxes,
@@ -32,7 +33,6 @@ import { fetchMyBrand, selectBrandProfile } from '../BrandProfile/brandProfileSl
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
 const B = {
   primary: '#E67E22',
@@ -63,6 +63,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 const BrandHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
   const { kpis, weeklySales, recentOrders, lowStockAlerts, loading, error } = useAppSelector(selectBrandHome);
   const { brand } = useAppSelector(selectBrandProfile);
 
@@ -90,20 +91,38 @@ const BrandHomeScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={B.bg} />
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.brandLabel}>{brand?.name ? brand.name.toUpperCase() : ' '}</Text>
-          <Text style={styles.headerTitle}>Dashboard</Text>
+      {/* ── Header ──
+          Identity first: the store's mark and name carry the brand, with
+          "Dashboard" as the section beneath. The old header led with a
+          letter-spaced all-caps name and no mark, so nothing tied the screen
+          to the store it belongs to. */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.headerIdentity}>
+          {brand?.logo ? (
+            <Image source={{ uri: brand.logo }} style={styles.brandMark} />
+          ) : (
+            <View style={[styles.brandMark, styles.brandMarkFallback]}>
+              <Text style={styles.brandMarkText}>
+                {brand?.name?.trim()?.[0]?.toUpperCase() ?? 'B'}
+              </Text>
+            </View>
+          )}
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Dashboard</Text>
+            <Text style={styles.brandLabel} numberOfLines={1}>
+              {brand?.name ?? 'Your store'}
+            </Text>
+          </View>
         </View>
+
         <TouchableOpacity
           style={styles.walletChip}
           onPress={() => navigation.navigate('WalletScreen' as never)}
           activeOpacity={0.7}
         >
-          <Wallet size={14} stroke={B.primary} strokeWidth={2} />
+          <Wallet size={13} stroke={B.primary} strokeWidth={2} />
           <Text style={styles.walletChipText}>
-            {currencySym}{walletBalance.toFixed(0)}
+            {currencySym}{walletBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </Text>
         </TouchableOpacity>
       </View>
@@ -297,37 +316,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: STATUS_BAR_H + 12,
-    paddingBottom: 12,
+    paddingBottom: 14,
+    gap: 12,
     backgroundColor: B.surface,
     borderBottomWidth: 1,
     borderBottomColor: B.border,
   },
-  brandLabel: {
-    fontSize: 11,
+  headerIdentity: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  brandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: B.primaryLight,
+  },
+  brandMarkFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${B.primary}33`,
+  },
+  brandMarkText: {
+    fontSize: 18,
     fontWeight: '800',
     color: B.primary,
-    letterSpacing: 1.2,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: B.text,
-    marginTop: 2,
+    letterSpacing: -0.4,
+  },
+  brandLabel: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: B.textMuted,
+    marginTop: 1,
   },
   walletChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: B.primaryLight,
     borderWidth: 1,
     borderColor: `${B.primary}20`,
+    flexShrink: 0,
   },
   walletChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: B.primary,
   },
