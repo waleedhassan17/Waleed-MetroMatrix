@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchMyReviewsApi } from '../../../../networks/healthcare/providerApi';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const C = {
   primary: '#2A7FFF',
@@ -33,6 +34,9 @@ type ReviewRow = {
 };
 
 const DoctorReviewsScreen: React.FC = () => {
+  // react-native's SafeAreaView is a plain View on Android, so the back
+  // button was drawing against the status-bar icons.
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [summary, setSummary] = useState<{ average: number; total: number; breakdown: Record<string, number> }>({
@@ -88,7 +92,7 @@ const DoctorReviewsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={C.text} />
         </TouchableOpacity>
@@ -126,7 +130,7 @@ const DoctorReviewsScreen: React.FC = () => {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, filtered.length === 0 && styles.listEmpty]}
         refreshing={loading}
         onRefresh={load}
         renderItem={({ item }) => (
@@ -146,15 +150,28 @@ const DoctorReviewsScreen: React.FC = () => {
             <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
           ) : error ? (
             <View style={styles.center}>
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.medallion, styles.medallionError]}>
+                <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
+              </View>
+              <Text style={styles.emptyTitle}>Couldn't load</Text>
+              <Text style={styles.emptySub}>{error}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                <Text style={styles.retryText}>Retry</Text>
+                <Text style={styles.retryText}>Try Again</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.center}>
-              <Ionicons name="star-outline" size={44} color={C.textSec} />
-              <Text style={styles.emptyText}>No reviews {filter ? `with ${filter} stars` : 'yet'}</Text>
+              <View style={styles.medallion}>
+                <Ionicons name="star-outline" size={34} color={C.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {filter ? `No ${filter}-star reviews` : 'No reviews yet'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {filter
+                  ? 'Try clearing the filter to see all of your reviews.'
+                  : 'Patients can review you after a completed consultation.'}
+              </Text>
             </View>
           )
         }
@@ -164,10 +181,22 @@ const DoctorReviewsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+
+  // Shared doctor-screen chrome: safe-area header + a centred empty state.
+  headerText: { flex: 1, alignItems: 'center' },
+  subtitle: { fontSize: 12, color: C.textSec, marginTop: 1 },
+  listEmpty: { flexGrow: 1, justifyContent: 'center' },
+  medallion: {
+    width: 84, height: 84, borderRadius: 42, backgroundColor: C.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  medallionError: { backgroundColor: '#FEF2F2' },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+  emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
-  title: { fontSize: 17, fontWeight: '700', color: C.text },
+  title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   summaryCard: { flexDirection: 'row', backgroundColor: C.surface, marginHorizontal: 16, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border, gap: 16 },
   summaryLeft: { alignItems: 'center', gap: 4 },
   avg: { fontSize: 32, fontWeight: '800', color: C.text },
@@ -184,7 +213,7 @@ const styles = StyleSheet.create({
   patient: { fontSize: 14, fontWeight: '700', color: C.text },
   comment: { fontSize: 13, color: C.textSec, lineHeight: 19 },
   date: { fontSize: 11, color: C.textSec, marginTop: 6 },
-  center: { alignItems: 'center', marginTop: 40 },
+  center: { alignItems: 'center', paddingHorizontal: 8 },
   errorText: { color: C.textSec, textAlign: 'center', marginBottom: 12 },
   retryBtn: { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },

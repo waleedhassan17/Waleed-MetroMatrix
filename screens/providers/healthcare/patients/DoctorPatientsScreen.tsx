@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { fetchMyPatientsApi } from '../../../../networks/healthcare/providerApi';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const C = {
   primary: '#2A7FFF',
@@ -28,6 +29,9 @@ const C = {
 type PatientRow = { patientId: string; name: string; lastVisit: string; appointmentCount: number };
 
 const DoctorPatientsScreen: React.FC = () => {
+  // react-native's SafeAreaView is a plain View on Android, so the back
+  // button was drawing against the status-bar icons.
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [patients, setPatients] = useState<PatientRow[]>([]);
   const [search, setSearch] = useState('');
@@ -54,7 +58,7 @@ const DoctorPatientsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={C.text} />
         </TouchableOpacity>
@@ -76,7 +80,7 @@ const DoctorPatientsScreen: React.FC = () => {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.patientId}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, filtered.length === 0 && styles.listEmpty]}
         refreshing={loading}
         onRefresh={load}
         renderItem={({ item }) => (
@@ -106,16 +110,27 @@ const DoctorPatientsScreen: React.FC = () => {
             <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
           ) : error ? (
             <View style={styles.center}>
-              <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.medallion, styles.medallionError]}>
+                <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
+              </View>
+              <Text style={styles.emptyTitle}>Couldn't load</Text>
+              <Text style={styles.emptySub}>{error}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                <Text style={styles.retryText}>Retry</Text>
+                <Text style={styles.retryText}>Try Again</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.center}>
-              <Ionicons name="people-outline" size={44} color={C.textSec} />
-              <Text style={styles.emptyText}>
-                {search ? 'No patients match your search' : 'Patients appear here after their first appointment'}
+              <View style={styles.medallion}>
+                <Ionicons name="people-outline" size={34} color={C.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {search ? 'No matches' : 'No patients yet'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {search
+                  ? `Nothing matches "${search}". Try a different name.`
+                  : 'A patient appears here once they have had their first appointment with you.'}
               </Text>
             </View>
           )
@@ -126,10 +141,22 @@ const DoctorPatientsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+
+  // Shared doctor-screen chrome: safe-area header + a centred empty state.
+  headerText: { flex: 1, alignItems: 'center' },
+  subtitle: { fontSize: 12, color: C.textSec, marginTop: 1 },
+  listEmpty: { flexGrow: 1, justifyContent: 'center' },
+  medallion: {
+    width: 84, height: 84, borderRadius: 42, backgroundColor: C.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  medallionError: { backgroundColor: '#FEF2F2' },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+  emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
-  title: { fontSize: 17, fontWeight: '700', color: C.text },
+  title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, marginHorizontal: 16, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: C.border },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: C.text },
   list: { padding: 16, paddingBottom: 40 },

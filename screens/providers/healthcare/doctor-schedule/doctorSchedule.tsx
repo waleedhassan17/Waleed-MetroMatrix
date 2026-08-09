@@ -289,6 +289,7 @@ const DoctorScheduleScreen: React.FC = () => {
   );
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
+  const isPastDate = selectedDate < new Date().toISOString().split('T')[0];
 
   const appointmentsByDate = useMemo(() => {
     const map: Record<string, Appointment[]> = {};
@@ -510,8 +511,17 @@ const DoctorScheduleScreen: React.FC = () => {
                 <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
                   <Ionicons name="calendar-outline" size={36} color={THEME.primary} />
                 </LinearGradient>
-                <Text style={styles.emptyTitle}>No Appointments</Text>
-                <Text style={styles.emptySubtitle}>Your schedule is clear for this day</Text>
+                <Text style={styles.emptyTitle}>
+                  {isPastDate ? 'Nothing on this day' : 'No appointments'}
+                </Text>
+                {/* Don't claim a past day was "clear" — say what the day held.
+                    The week is fetched by range now, so an empty past day is a
+                    real answer rather than a gap in what we asked for. */}
+                <Text style={styles.emptySubtitle}>
+                  {isPastDate
+                    ? 'You had no appointments on this date.'
+                    : 'Your schedule is clear for this day'}
+                </Text>
               </View>
             ) : (
               <View style={styles.aptList}>
