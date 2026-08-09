@@ -23,11 +23,9 @@ import {
   ChevronRight,
   Award,
   Check,
-  MapPin,
   Bell,
   Moon,
   Globe,
-  Heart,
   Shield,
   Trash2,
   Crown,
@@ -132,14 +130,6 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
           onClose();
           navigation.navigate('UserProfileScreen');
           break;
-        case 'addresses':
-          onClose();
-          navigation.navigate('UserProfileScreen', { tab: 'addresses' });
-          break;
-        case 'favorites':
-          onClose();
-          navigation.navigate('UserProfileScreen', { tab: 'favorites' });
-          break;
         case 'notifications':
           onClose();
           navigation.navigate('UserProfileScreen', { tab: 'notifications' });
@@ -173,8 +163,6 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
 
   const mainMenuItems: MenuItem[] = [
     { id: 'profile', icon: User, label: 'My Profile' },
-    { id: 'addresses', icon: MapPin, label: 'My Addresses' },
-    { id: 'favorites', icon: Heart, label: 'Favorites' },
   ];
 
   const settingsMenuItems: MenuItem[] = [

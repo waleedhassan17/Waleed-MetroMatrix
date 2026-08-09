@@ -1,5 +1,8 @@
 import { PayloadAction, createSelector } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
+import { getUserProfile, updateUserProfile } from '../../../../networks/authcalls/userProfile';
+import { getProviderProfile } from '../../../../networks/authcalls/providerProfile';
+import { retrieveData, KeyForStorage } from '../../../../utils/storage_utils/storageUtils';
 
 // Types
 export interface UserAddress {
@@ -69,75 +72,112 @@ export interface UserProfileState {
   error: string | null;
 }
 
-// Mock User Data
-const mockUser: UserProfile = {
-  id: 'user-1',
-  name: 'Muhammad Ali',
-  email: 'muhammad.ali@email.com',
-  phone: '+92 300 1234567',
-  avatar: 'https://i.pravatar.cc/200?img=68',
-  isPremium: true,
-  isVerified: true,
-  language: 'en',
-  darkMode: false,
-  stats: {
-    totalBookings: 15,
-    homeServiceBookings: 8,
-    healthcareBookings: 7,
-    reviews: 12,
-    points: 340,
-    memberSince: 'Jan 2024',
-  },
-  notificationPreferences: {
-    pushEnabled: true,
-    emailEnabled: true,
-    smsEnabled: false,
-    promotionalEnabled: true,
-  },
-  // Example: User who is also a healthcare provider (remove this for regular users)
-  healthcareProvider: {
-    isProvider: true,
-    specialization: 'Cardiologist',
-    qualification: 'MD, FACC',
-    experience: 12,
-    pmcNumber: 'PMC-12345',
-    bio: 'Experienced cardiologist with over 12 years of practice in interventional cardiology and heart health management.',
-    clinicName: 'Heart Care Clinic',
-    clinicAddress: 'Medical Complex, Block C, Gulberg III, Lahore',
-    consultationFee: 2500,
-    videoConsultationFee: 1500,
-    currency: 'Rs',
-    languages: ['English', 'Urdu', 'Punjabi'],
-    rating: 4.8,
-    totalReviews: 156,
-    totalPatients: 3200,
-    isAvailable: true,
-  },
+// ── Backend → UserProfile mapping ───────────
+//
+// The screen used to render a hardcoded "Muhammad Ali / Premium Member /
+// Cardiologist" object that was seeded straight into initialState, so every
+// signed-in account saw the same fabricated identity and stats. Both shapes
+// below come from the live profile endpoints instead.
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  pushEnabled: true,
+  emailEnabled: true,
+  smsEnabled: false,
+  promotionalEnabled: true,
 };
 
-const mockAddresses: UserAddress[] = [
-  {
-    id: 'addr-1',
-    label: 'home',
-    address: '123 Main Street, Block A',
-    city: 'Lahore',
-    postalCode: '54000',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    label: 'work',
-    address: '456 Corporate Tower, Office 502',
-    city: 'Lahore',
-    postalCode: '54000',
-    isDefault: false,
-  },
-];
+const emptyStats: UserStats = {
+  totalBookings: 0,
+  homeServiceBookings: 0,
+  healthcareBookings: 0,
+  reviews: 0,
+  points: 0,
+  memberSince: '',
+};
 
-// Initial State
+/** "Jan 2024" from an ISO createdAt, for the "Since …" chip. */
+const formatMemberSince = (isoDate?: string): string => {
+  if (!isoDate) return '';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
+
+const composeAddress = (address: any): string =>
+  [address?.street, address?.area].filter(Boolean).join(', ') || address?.street || '';
+
+/** Backend keeps one address object on the account, not a list. */
+const mapAddresses = (address: any): UserAddress[] => {
+  if (!address || (!address.street && !address.city)) return [];
+  return [{
+    id: 'primary',
+    label: 'home',
+    address: composeAddress(address),
+    city: address.city ?? '',
+    postalCode: address.postalCode,
+    isDefault: true,
+  }];
+};
+
+const mapUserResponse = (raw: any): UserProfile => ({
+  id: raw?.id ?? raw?._id ?? '',
+  name: raw?.fullName ?? raw?.name ?? '',
+  email: raw?.email ?? '',
+  phone: raw?.phoneNumber ?? raw?.phone ?? '',
+  avatar: raw?.profilePhoto ?? raw?.profilePhotoUrl ?? raw?.avatar ?? '',
+  isPremium: raw?.isPremium ?? false,
+  isVerified: raw?.isVerified ?? raw?.emailVerified === 'active',
+  language: raw?.preferences?.language === 'ur' ? 'ur' : 'en',
+  darkMode: raw?.preferences?.theme === 'dark',
+  stats: {
+    ...emptyStats,
+    totalBookings: raw?.stats?.totalBookings ?? 0,
+    homeServiceBookings: raw?.stats?.homeServiceBookings ?? 0,
+    healthcareBookings: raw?.stats?.healthcareBookings ?? 0,
+    reviews: raw?.stats?.reviews ?? 0,
+    points: raw?.stats?.points ?? 0,
+    memberSince: formatMemberSince(raw?.createdAt),
+  },
+  notificationPreferences: {
+    ...defaultNotificationPreferences,
+    pushEnabled: raw?.preferences?.notifications ?? defaultNotificationPreferences.pushEnabled,
+  },
+});
+
+const mapProviderResponse = (raw: any): UserProfile => {
+  const base = mapUserResponse(raw);
+  const isDoctor = raw?.providerType === 'doctor';
+  return {
+    ...base,
+    // Only doctors carry clinical fields — a plumber rendered through the
+    // healthcare block was how "Cardiologist" ended up on every account.
+    healthcareProvider: isDoctor
+      ? {
+          isProvider: true,
+          specialization: raw?.specialization,
+          qualification: raw?.qualification,
+          experience: raw?.experience,
+          pmcNumber: raw?.pmcNumber,
+          bio: raw?.bio,
+          clinicName: raw?.clinicName,
+          clinicAddress: raw?.clinicAddress,
+          consultationFee: raw?.consultationFee,
+          videoConsultationFee: raw?.videoConsultationFee,
+          currency: raw?.currency ?? 'Rs',
+          languages: raw?.languages,
+          rating: raw?.rating,
+          totalReviews: raw?.totalReviews,
+          totalPatients: raw?.totalPatients,
+          isAvailable: raw?.isAvailable,
+        }
+      : undefined,
+  };
+};
+
+// Initial State — empty until the profile is fetched.
 const initialState: UserProfileState = {
-  user: mockUser,
-  addresses: mockAddresses,
+  user: null,
+  addresses: [],
   isLoading: false,
   isUpdating: false,
   error: null,
@@ -243,14 +283,30 @@ const userProfileSlice = createAppSlice({
     fetchUserProfile: create.asyncThunk(
       async (_, { rejectWithValue }) => {
         try {
-          // TODO: Replace with actual API call
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Which endpoint applies depends on how the account signed in — the
+          // provider record lives behind a different route than the customer.
+          const userType = await retrieveData(KeyForStorage.userType);
+
+          if (userType === 'provider') {
+            const res = await getProviderProfile();
+            const provider = res.provider;
+            return {
+              user: mapProviderResponse(provider),
+              addresses: mapAddresses(provider?.address ?? {
+                street: provider?.streetAddress,
+                city: provider?.city,
+                postalCode: provider?.postalCode,
+              }),
+            };
+          }
+
+          const user = await getUserProfile();
           return {
-            user: mockUser,
-            addresses: mockAddresses,
+            user: mapUserResponse(user),
+            addresses: mapAddresses(user?.address),
           };
-        } catch (error) {
-          return rejectWithValue('Failed to fetch user profile');
+        } catch (error: any) {
+          return rejectWithValue(error?.message || 'Failed to fetch user profile');
         }
       },
       {
@@ -273,11 +329,15 @@ const userProfileSlice = createAppSlice({
     saveUserProfile: create.asyncThunk(
       async (profileData: Partial<UserProfile>, { rejectWithValue }) => {
         try {
-          // TODO: Replace with actual API call
-          await new Promise(resolve => setTimeout(resolve, 800));
-          return profileData;
-        } catch (error) {
-          return rejectWithValue('Failed to save profile');
+          const res = await updateUserProfile({
+            fullName: profileData.name,
+            phoneNumber: profileData.phone,
+          });
+          // Prefer the server's echo so the screen shows what was persisted,
+          // not what was typed.
+          return res.user ? mapUserResponse(res.user) : profileData;
+        } catch (error: any) {
+          return rejectWithValue(error?.message || 'Failed to save profile');
         }
       },
       {

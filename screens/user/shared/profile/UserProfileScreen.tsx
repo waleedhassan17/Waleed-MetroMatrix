@@ -14,6 +14,7 @@ import {
   Switch,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -33,6 +34,8 @@ import {
   toggleDarkMode,
   setLanguage,
   fetchUserProfile,
+  selectProfileLoading,
+  selectProfileError,
 } from './userProfileSlice';
 import {
   User,
@@ -170,6 +173,8 @@ export default function UserProfileScreen() {
   const isPremium = useAppSelector(selectIsPremium);
   const isVerified = useAppSelector(selectIsVerified);
   const stats = useAppSelector(selectUserStats);
+  const isLoading = useAppSelector(selectProfileLoading);
+  const profileError = useAppSelector(selectProfileError);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'addresses' | 'settings'>('overview');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -186,6 +191,14 @@ export default function UserProfileScreen() {
   useEffect(() => {
     dispatch(fetchUserProfile());
   }, [dispatch]);
+
+  // The profile now arrives from the API after the first render, so the edit
+  // fields have to pick it up when it lands — seeding them once from the
+  // initial (empty) state left the modal blank.
+  useEffect(() => {
+    setEditName(user?.name ?? '');
+    setEditPhone(user?.phone ?? '');
+  }, [user?.name, user?.phone]);
 
   const handleSaveProfile = () => {
     dispatch(saveUserProfile({ name: editName, phone: editPhone }));
@@ -479,6 +492,32 @@ export default function UserProfileScreen() {
 
   const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
 
+  // The profile is fetched rather than seeded now, so the first paint has no
+  // user to render — show that it is loading instead of an empty green header.
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#10B981" />
+        ) : (
+          <>
+            <Text style={styles.stateTitle}>Couldn't load your profile</Text>
+            <Text style={styles.stateMessage}>
+              {profileError || 'Please check your connection and try again.'}
+            </Text>
+            <TouchableOpacity
+              style={styles.stateRetryBtn}
+              onPress={() => dispatch(fetchUserProfile())}
+            >
+              <Text style={styles.stateRetryText}>Try Again</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#10B981" translucent />
@@ -633,6 +672,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  stateTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  stateMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  stateRetryBtn: {
+    marginTop: 20,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  stateRetryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
