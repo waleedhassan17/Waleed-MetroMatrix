@@ -8,11 +8,9 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
-  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
-  ChevronLeft,
   Save,
   ImagePlus,
   Tag,
@@ -23,20 +21,10 @@ import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { loadProductDraft, resetDraft, saveProductDraft, selectProductForm, setField, toggleFlag } from './productFormSlice';
 import { upsertProduct } from '../BrandProducts/brandProductsSlice';
+import { B, formatOrderNumber } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-};
 
 const FLAG_LABELS: Record<string, string> = {
   isFeatured: 'Featured',
@@ -79,22 +67,20 @@ const ProductFormScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>{isEdit ? 'Edit Product' : 'New Product'}</Text>
-          <Text style={styles.subtitle}>{isEdit ? 'Update product details' : 'Add to your catalog'}</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.saveHeaderBtn, saving && { opacity: 0.5 }]}
-          disabled={saving}
-          onPress={handleSave}
-        >
-          <Save size={16} stroke="#FFF" strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+      <BrandHeader
+        title={isEdit ? 'Edit Product' : 'New Product'}
+        subtitle={isEdit ? 'Update product details' : 'Add to your catalog'}
+        showBack
+        actions={
+          <TouchableOpacity
+            style={[styles.saveHeaderBtn, saving && { opacity: 0.5 }]}
+            disabled={saving}
+            onPress={handleSave}
+          >
+            <Save size={16} stroke="#FFF" strokeWidth={2} />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Image placeholder */}
@@ -207,28 +193,6 @@ const ProductFormScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 18, fontWeight: '800', color: B.text },
-  subtitle: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
   saveHeaderBtn: {
     width: 38,
     height: 38,

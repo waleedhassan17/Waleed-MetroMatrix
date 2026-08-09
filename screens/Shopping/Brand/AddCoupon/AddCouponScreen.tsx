@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
@@ -18,8 +18,9 @@ import {
   selectBrandCoupons,
   updateBrandCoupon,
 } from '../BrandCoupons/brandCouponsSlice';
+import { ShopColors } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6' };
 
 const DAY_MS = 86400000;
 
@@ -92,13 +93,7 @@ const AddCouponScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{editing ? 'Edit Coupon' : 'New Coupon'}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <BrandHeader title={editing ? 'Edit Coupon' : 'New Coupon'} showBack />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.card}>
@@ -159,9 +154,6 @@ const AddCouponScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 4, marginTop: Spacing.sm },

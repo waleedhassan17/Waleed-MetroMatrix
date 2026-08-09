@@ -12,12 +12,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from '../BrandProfile/brandProfileSlice';
+import { ShopColors } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6' };
 const PAYMENT_OPTIONS = ['wallet', 'cod'];
 
 const BrandSettingsScreen: React.FC = () => {
@@ -70,13 +71,7 @@ const BrandSettingsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Brand Settings</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <BrandHeader title="Brand Settings" showBack />
 
       {loading && !brand ? (
         <View style={styles.center}><ActivityIndicator color={ShopColors.primary} size="large" /></View>
@@ -141,9 +136,6 @@ const BrandSettingsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
   retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },

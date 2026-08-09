@@ -6,35 +6,20 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  Platform,
   TextInput,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { ChevronLeft, Minus, Plus, Search, Warehouse, X, AlertTriangle } from 'lucide-react-native';
+import { Minus, Plus, Search, Warehouse, X, AlertTriangle } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
+import { B } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  warning: '#F59E0B',
-  warningLight: '#FFFBEB',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-};
+
 
 const getStockLevel = (qty: number) => {
   if (qty === 0) return { color: B.error, bg: B.errorLight, label: 'Out of stock' };
@@ -119,16 +104,7 @@ const InventoryScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Inventory</Text>
-          <Text style={styles.countLabel}>{stats.total} items</Text>
-        </View>
-        <View style={{ width: 38 }} />
-      </View>
+      <BrandHeader title="Inventory" subtitle={`${stats.total} items`} showBack />
 
       {/* Stats strip */}
       <View style={styles.statsStrip}>
@@ -202,28 +178,6 @@ const InventoryScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '800', color: B.text },
-  countLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
 
   // Stats
   statsStrip: {

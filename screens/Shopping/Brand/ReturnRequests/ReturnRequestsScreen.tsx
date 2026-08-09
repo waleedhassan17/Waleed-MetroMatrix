@@ -6,12 +6,11 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { CheckCircle2, ChevronLeft, Package, XCircle, AlertTriangle, MessageSquare } from 'lucide-react-native';
+import { CheckCircle2, Package, XCircle, AlertTriangle, MessageSquare } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
@@ -20,25 +19,11 @@ import {
   updateReturnStatus,
   type ReturnServerStatus,
 } from './returnRequestsSlice';
+import { B } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  warning: '#D97706',
-  warningLight: '#FFFBEB',
-};
+
 
 const STATUS_STYLES: Record<ReturnServerStatus, { color: string; bg: string; label: string }> = {
   requested: { color: B.warning, bg: B.warningLight, label: 'Requested' },
@@ -149,16 +134,11 @@ const ReturnRequestsScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Return Requests</Text>
-          <Text style={styles.countLabel}>{requests.length} request{requests.length !== 1 ? 's' : ''}</Text>
-        </View>
-        <View style={{ width: 38 }} />
-      </View>
+      <BrandHeader
+        title="Return Requests"
+        subtitle={`${requests.length} request${requests.length !== 1 ? 's' : ''}`}
+        showBack
+      />
 
       {loading && requests.length === 0 ? (
         <View style={styles.emptyState}>
@@ -196,28 +176,6 @@ const ReturnRequestsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '800', color: B.text },
-  countLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
 
   // Content
   content: { padding: 16, paddingBottom: 40 },

@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Plus, Tag } from 'lucide-react-native';
+import { Plus, Tag } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandCoupons, selectBrandCoupons, updateBrandCoupon } from './brandCouponsSlice';
+import { ShopColors } from '../theme';
+import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', success: '#27AE60', danger: '#E74C3C' };
 const CURRENCY = 'PKR';
 
 const BrandCouponsScreen: React.FC = () => {
@@ -30,18 +31,15 @@ const BrandCouponsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>My Coupons</Text>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => navigation.navigate(BrandRouteNames.AddCoupon, {})}
-        >
-          <Plus size={20} stroke={ShopColors.primary} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+      <BrandHeader
+        title="My Coupons"
+        showBack
+        actions={
+          <BrandHeaderAction onPress={() => navigation.navigate(BrandRouteNames.AddCoupon, {})}>
+            <Plus size={20} stroke={ShopColors.primary} strokeWidth={2} />
+          </BrandHeaderAction>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {loading && coupons.length === 0 && (
@@ -120,9 +118,6 @@ const BrandCouponsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, MessageSquare, Star } from 'lucide-react-native';
+import { MessageSquare, Star } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
@@ -20,8 +20,9 @@ import {
   selectBrandReviews,
   setRatingFilter,
 } from './brandReviewsSlice';
+import { ShopColors } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', star: '#F1C40F' };
 
 const BrandReviewsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -47,13 +48,7 @@ const BrandReviewsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Reviews</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <BrandHeader title="Reviews" showBack />
 
       <View style={styles.filterRow}>
         <TouchableOpacity
@@ -151,9 +146,6 @@ const BrandReviewsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   filterRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.full, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.surface },
   filterChipOn: { backgroundColor: ShopColors.primaryLight, borderColor: ShopColors.primary },

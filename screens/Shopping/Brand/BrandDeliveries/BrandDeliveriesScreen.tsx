@@ -7,11 +7,9 @@ import {
   TouchableOpacity,
   StatusBar,
   TextInput,
-  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ChevronLeft,
   Clock,
   MapPin,
   Package,
@@ -36,29 +34,11 @@ import {
   type Shipment,
   type DeliveryStatus,
 } from './brandDeliveriesSlice';
+import { B } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  info: '#3B82F6',
-  infoLight: '#EFF6FF',
-  amber: '#F59E0B',
-  amberLight: '#FFFBEB',
-  purple: '#8B5CF6',
-  purpleLight: '#F5F3FF',
-};
+
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string; bg: string; Icon: any }> = {
   pending_pickup: { label: 'Pending Pickup', color: B.amber, bg: B.amberLight, Icon: Clock },
@@ -216,13 +196,7 @@ const BrandDeliveriesScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={B.bg} />
 
       {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Deliveries</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <BrandHeader title="Deliveries" showBack />
 
       {/* ── Search ── */}
       <View style={styles.searchWrap}>
@@ -272,19 +246,6 @@ const BrandDeliveriesScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 12,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: B.text },
 
   // Search
   searchWrap: {

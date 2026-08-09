@@ -9,35 +9,20 @@ import {
   Image,
   Alert,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ChevronLeft, Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
+import { Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
 import { Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import type { Product } from '../../../../types/shopping';
 import { fetchBrandProducts,
   removeProduct, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
+import { B } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  warning: '#F59E0B',
-  warningLight: '#FFFBEB',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-};
+
 
 const getStockStyle = (qty: number) => {
   if (qty === 0) return { bg: B.errorLight, text: B.error, label: 'Out of stock' };
@@ -134,18 +119,16 @@ const BrandProductsScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Products</Text>
-          <Text style={styles.countLabel}>{products.length} total</Text>
-        </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate(BrandRouteNames.AddProduct)}>
-          <Plus size={18} stroke="#FFF" strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
+      <BrandHeader
+        title="Products"
+        subtitle={`${products.length} total`}
+        showBack
+        actions={
+          <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate(BrandRouteNames.AddProduct)}>
+            <Plus size={18} stroke="#FFF" strokeWidth={2.5} />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Search */}
       <View style={styles.searchSection}>
@@ -215,28 +198,6 @@ const BrandProductsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '800', color: B.text },
-  countLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
   addBtn: {
     width: 38,
     height: 38,

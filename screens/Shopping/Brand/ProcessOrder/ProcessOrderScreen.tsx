@@ -8,11 +8,9 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
-  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock,
   Loader,
@@ -28,29 +26,10 @@ import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { selectBrandOrderById, updateOrderStatus } from '../BrandOrders/brandOrdersSlice';
 import { resetProcessOrder, selectProcessOrder, setCarrier, setNotes, setSaving, setTrackingNumber } from './processOrderSlice';
+import { B, formatOrderNumber } from '../theme';
+import BrandHeader from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  info: '#3B82F6',
-  infoLight: '#EFF6FF',
-  purple: '#8B5CF6',
-  purpleLight: '#F5F3FF',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  warning: '#D97706',
-  warningLight: '#FFFBEB',
-};
 
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; label: string }> = {
   pending: { color: B.warning, bg: B.warningLight, icon: Clock, label: 'Pending' },
@@ -123,13 +102,7 @@ const ProcessOrderScreen: React.FC = () => {
   if (!order) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={20} stroke={B.text} strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Order Not Found</Text>
-          <View style={{ width: 38 }} />
-        </View>
+        <BrandHeader title="Order Not Found" showBack />
         <View style={styles.emptyWrap}>
           <Package size={32} stroke={B.textMuted} strokeWidth={1.5} />
           <Text style={styles.emptyText}>This order could not be found.</Text>
@@ -146,19 +119,17 @@ const ProcessOrderScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>{order.orderId}</Text>
-          <Text style={styles.subtitle}>Process Order</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: currentStatus.bg }]}>
-          <CurrentIcon size={12} stroke={currentStatus.color} strokeWidth={2} />
-          <Text style={[styles.statusBadgeText, { color: currentStatus.color }]}>{currentStatus.label}</Text>
-        </View>
-      </View>
+      <BrandHeader
+        title="Process Order"
+        subtitle={formatOrderNumber(order.odexId || order.orderId)}
+        showBack
+        actions={
+          <View style={[styles.statusBadge, { backgroundColor: currentStatus.bg }]}>
+            <CurrentIcon size={12} stroke={currentStatus.color} strokeWidth={2} />
+            <Text style={[styles.statusBadgeText, { color: currentStatus.color }]}>{currentStatus.label}</Text>
+          </View>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Customer & Payment */}
@@ -267,28 +238,6 @@ const ProcessOrderScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 18, fontWeight: '800', color: B.text },
-  subtitle: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',

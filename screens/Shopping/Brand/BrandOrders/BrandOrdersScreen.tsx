@@ -6,12 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
-  ChevronLeft,
   ChevronRight,
   ClipboardList,
   RefreshCw,
@@ -27,29 +25,11 @@ import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandOrders, selectBrandOrders, setStatusFilter } from './brandOrdersSlice';
 import type { OrderStatus } from '../../../../types/shopping';
+import { B } from '../theme';
+import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
 
-const STATUS_BAR_H = Platform.OS === 'android' ? StatusBar.currentHeight || 44 : 44;
 
-const B = {
-  primary: '#E67E22',
-  primaryLight: '#FFF5EB',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  warning: '#D97706',
-  warningLight: '#FFFBEB',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  info: '#3B82F6',
-  infoLight: '#EFF6FF',
-  purple: '#8B5CF6',
-  purpleLight: '#F5F3FF',
-};
+
 
 const STATUS_MAP: Record<OrderStatus, { bg: string; text: string; icon: any; label: string }> = {
   pending: { bg: B.warningLight, text: B.warning, icon: Clock, label: 'Pending' },
@@ -156,18 +136,16 @@ const BrandOrdersScreen: React.FC = () => {
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={B.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Orders</Text>
-          <Text style={styles.countLabel}>{orders.length} total</Text>
-        </View>
-        <TouchableOpacity style={styles.returnsBtn} onPress={() => navigation.navigate(BrandRouteNames.BrandReturnRequests)}>
-          <TriangleAlert size={16} stroke={B.warning} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+      <BrandHeader
+        title="Orders"
+        subtitle={`${orders.length} total`}
+        showBack
+        actions={
+          <BrandHeaderAction onPress={() => navigation.navigate(BrandRouteNames.BrandReturnRequests)}>
+            <TriangleAlert size={17} stroke={B.warning} strokeWidth={2} />
+          </BrandHeaderAction>
+        }
+      />
 
       {/* Filters */}
       <View style={styles.filterSection}>
@@ -239,36 +217,6 @@ const BrandOrdersScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: STATUS_BAR_H + 10,
-    paddingBottom: 12,
-    backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
-    gap: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.bg,
-  },
-  headerCenter: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '800', color: B.text },
-  countLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted, marginTop: 1 },
-  returnsBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: B.warningLight,
-  },
 
   // Filters
   filterSection: {

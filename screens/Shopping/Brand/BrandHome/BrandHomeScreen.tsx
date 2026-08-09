@@ -32,43 +32,8 @@ import { fetchBrandDashboard, selectBrandHome } from './brandHomeSlice';
 import { fetchMyBrand, selectBrandProfile } from '../BrandProfile/brandProfileSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
+import { B, statusTone, humanizeStatus, formatOrderNumber } from '../theme';
 
-
-/** Short, quotable order number. odexId is already human-readable. */
-const formatOrderNumber = (id: string): string =>
-  id.startsWith('ODX') ? id : `#${id.substring(0, 8).toUpperCase()}`;
-
-/** "out_for_delivery" → "Out for delivery". */
-const humanizeStatus = (status: string): string => {
-  const words = status.replace(/_/g, ' ').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-};
-
-const B = {
-  primary: '#E67E22',
-  primaryDark: '#D35400',
-  primaryLight: '#FFF5EB',
-  primaryMuted: 'rgba(230,126,34,0.08)',
-  surface: '#FFFFFF',
-  bg: '#F8F9FA',
-  text: '#1A1A2E',
-  textSec: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  info: '#3B82F6',
-};
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  pending: { bg: '#FEF3C7', text: '#D97706' },
-  processing: { bg: '#DBEAFE', text: '#2563EB' },
-  shipped: { bg: '#E0E7FF', text: '#4F46E5' },
-  delivered: { bg: '#ECFDF5', text: '#059669' },
-  cancelled: { bg: '#FEE2E2', text: '#DC2626' },
-};
 
 const BrandHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -264,7 +229,7 @@ const BrandHomeScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           {recentOrders.map((order, idx) => {
-            const statusStyle = STATUS_COLORS[order.orderStatus] || STATUS_COLORS.pending;
+            const statusStyle = statusTone(order.orderStatus);
             return (
               <TouchableOpacity
                 key={order.orderId}
