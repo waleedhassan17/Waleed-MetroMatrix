@@ -32,7 +32,8 @@ import {
   setSorting,
   setContext,
   resetProductList,
-  selectProducts,
+  defaultFilters,
+  selectVisibleProducts,
   selectProductList,
   selectProductFilters,
   selectProductSorting,
@@ -59,17 +60,10 @@ const SORT_OPTIONS: { key: SortOption; label: string }[] = [
   { key: 'rating', label: 'Top Rated' },
 ];
 
-const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const COLOR_OPTIONS = [
-  { name: 'Black', code: '#000000' },
-  { name: 'White', code: '#FFFFFF' },
-  { name: 'Red', code: '#E74C3C' },
-  { name: 'Blue', code: '#3498DB' },
-  { name: 'Green', code: '#27AE60' },
-  { name: 'Yellow', code: '#F1C40F' },
-  { name: 'Pink', code: '#E91E63' },
-  { name: 'Grey', code: '#95A5A6' },
-];
+// Rupee ceilings that bracket the actual catalogue (roughly PKR 1,200–4,300).
+// The old presets were dollar amounts — "Under $25" against PKR 1,349 tags
+// matched everything or nothing, so the control did nothing useful.
+const PRICE_CEILINGS = [1500, 2500, 3500, 5000, 10000];
 
 const ProductListScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -81,7 +75,7 @@ const ProductListScreen: React.FC = () => {
   const gender = route.params?.gender as string | undefined;
   const search = route.params?.search as string | undefined;
 
-  const products = useAppSelector(selectProducts);
+  const products = useAppSelector(selectVisibleProducts);
   const { refreshing, loadingMore, hasMore, totalResults, error } = useAppSelector(selectProductList);
   const filters = useAppSelector(selectProductFilters);
   const sorting = useAppSelector(selectProductSorting);
@@ -130,15 +124,7 @@ const ProductListScreen: React.FC = () => {
 
   const handleClearFilters = useCallback(() => {
     dispatch(clearFilters());
-    setLocalFilters({
-      minPrice: null,
-      maxPrice: null,
-      sizes: [],
-      colors: [],
-      brandId: null,
-      onSale: false,
-      inStock: false,
-    });
+    setLocalFilters({ ...defaultFilters });
     setShowFilters(false);
     dispatch(fetchProducts({ page: 1, refresh: true }));
   }, [dispatch]);
@@ -221,26 +207,6 @@ const ProductListScreen: React.FC = () => {
     );
   };
 
-  // ── Toggle helpers for local filters ──────
-
-  const toggleSize = (size: string) => {
-    setLocalFilters((prev) => ({
-      ...prev,
-      sizes: prev.sizes.includes(size)
-        ? prev.sizes.filter((s) => s !== size)
-        : [...prev.sizes, size],
-    }));
-  };
-
-  const toggleColor = (color: string) => {
-    setLocalFilters((prev) => ({
-      ...prev,
-      colors: prev.colors.includes(color)
-        ? prev.colors.filter((c) => c !== color)
-        : [...prev.colors, color],
-    }));
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
@@ -256,7 +222,11 @@ const ProductListScreen: React.FC = () => {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Products</Text>
           {totalResults > 0 && (
-            <Text style={styles.resultCount}>{totalResults} items</Text>
+            // "On Sale Only" is applied on the client, so the server total
+            // would overstate what is actually on screen.
+            <Text style={styles.resultCount}>
+              {filters.onSale ? `${products.length} on sale` : `${totalResults} items`}
+            </Text>
           )}
         </View>
         <View style={{ width: 40 }} />
@@ -366,20 +336,24 @@ const ProductListScreen: React.FC = () => {
                 <View style={styles.priceInputWrap}>
                   <Text style={styles.priceLabel}>Min</Text>
                   <Text style={styles.priceValue}>
-                    {localFilters.minPrice !== null ? `$${localFilters.minPrice}` : 'Any'}
+                    {localFilters.minPrice !== null
+                      ? `PKR ${localFilters.minPrice.toLocaleString()}`
+                      : 'Any'}
                   </Text>
                 </View>
                 <Text style={styles.priceDash}>–</Text>
                 <View style={styles.priceInputWrap}>
                   <Text style={styles.priceLabel}>Max</Text>
                   <Text style={styles.priceValue}>
-                    {localFilters.maxPrice !== null ? `$${localFilters.maxPrice}` : 'Any'}
+                    {localFilters.maxPrice !== null
+                      ? `PKR ${localFilters.maxPrice.toLocaleString()}`
+                      : 'Any'}
                   </Text>
                 </View>
               </View>
               {/* Quick price buttons */}
               <View style={styles.quickPriceRow}>
-                {[25, 50, 100, 200, 500].map((price) => (
+                {PRICE_CEILINGS.map((price) => (
                   <TouchableOpacity
                     key={price}
                     style={[
@@ -395,58 +369,10 @@ const ProductListScreen: React.FC = () => {
                       styles.quickPriceText,
                       localFilters.maxPrice === price && styles.quickPriceTextActive,
                     ]}>
-                      Under ${price}
+                      Under {price.toLocaleString()}
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </View>
-
-            {/* Size */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Size</Text>
-              <View style={styles.sizeRow}>
-                {SIZE_OPTIONS.map((size) => {
-                  const isActive = localFilters.sizes.includes(size);
-                  return (
-                    <TouchableOpacity
-                      key={size}
-                      style={[styles.sizeChip, isActive && styles.sizeChipActive]}
-                      onPress={() => toggleSize(size)}
-                    >
-                      <Text style={[styles.sizeChipText, isActive && styles.sizeChipTextActive]}>
-                        {size}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Color */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Color</Text>
-              <View style={styles.colorRow}>
-                {COLOR_OPTIONS.map((color) => {
-                  const isActive = localFilters.colors.includes(color.name);
-                  return (
-                    <TouchableOpacity
-                      key={color.name}
-                      style={styles.colorItem}
-                      onPress={() => toggleColor(color.name)}
-                    >
-                      <View style={[
-                        styles.colorCircle,
-                        { backgroundColor: color.code },
-                        color.code === '#FFFFFF' && styles.colorCircleWhite,
-                        isActive && { borderColor: ShopColors.primary, borderWidth: 3 },
-                      ]}>
-                        {isActive && <Check size={14} stroke={color.code === '#FFFFFF' ? ShopColors.primary : '#FFF'} strokeWidth={3} />}
-                      </View>
-                      <Text style={styles.colorName}>{color.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
               </View>
             </View>
 
@@ -753,59 +679,6 @@ const styles = StyleSheet.create({
   },
 
   // Size
-  sizeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  sizeChip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  sizeChipActive: {
-    backgroundColor: ShopColors.primary,
-    borderColor: ShopColors.primary,
-  },
-  sizeChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.text.secondary,
-  },
-  sizeChipTextActive: {
-    color: '#FFF',
-  },
-
-  // Color
-  colorRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.lg,
-  },
-  colorItem: {
-    alignItems: 'center',
-    width: 50,
-  },
-  colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  colorCircleWhite: {
-    borderWidth: 1,
-    borderColor: Colors.borderDark,
-  },
-  colorName: {
-    fontSize: 10,
-    color: Colors.text.tertiary,
-  },
-
   // Toggles
   toggleRow: {
     flexDirection: 'row',

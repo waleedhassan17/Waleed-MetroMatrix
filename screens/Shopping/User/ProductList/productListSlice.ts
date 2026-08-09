@@ -1,14 +1,22 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector, PayloadAction } from '@reduxjs/toolkit';
 import type { Product } from '../../../../types/shopping';
 import { fetchProductsApi, FetchProductsParams } from '../../../../networks/shopping/productApi';
 
 // ── Filter Types ────────────────────────────
 
+/**
+ * Every field here is actually enforced. `sizes` and `colors` used to live on
+ * this type and drive a whole section of the filter sheet, but GET /products
+ * takes no size/colour parameter (they are per-variant subdocuments), so
+ * nothing was ever sent and selecting them silently changed nothing.
+ *
+ * `onSale` is likewise not a server parameter, but unlike size/colour it is
+ * decidable from each product that comes back, so it is applied client-side
+ * in selectVisibleProducts.
+ */
 export interface ProductFilters {
   minPrice: number | null;
   maxPrice: number | null;
-  sizes: string[];
-  colors: string[];
   brandId: string | null;
   onSale: boolean;
   inStock: boolean;
@@ -37,11 +45,9 @@ export interface ProductListState {
   contextSearch: string | null;
 }
 
-const defaultFilters: ProductFilters = {
+export const defaultFilters: ProductFilters = {
   minPrice: null,
   maxPrice: null,
-  sizes: [],
-  colors: [],
   brandId: null,
   onSale: false,
   inStock: false,
@@ -214,12 +220,23 @@ export const selectActiveFilterCount = (state: { productList: ProductListState }
   let count = 0;
   if (f.minPrice !== null) count++;
   if (f.maxPrice !== null) count++;
-  if (f.sizes.length > 0) count++;
-  if (f.colors.length > 0) count++;
   if (f.brandId) count++;
   if (f.onSale) count++;
   if (f.inStock) count++;
   return count;
 };
+
+/**
+ * What the grid renders. "On Sale Only" has no server-side equivalent, so it
+ * is enforced here — a discount is fully determined by the product payload.
+ * Memoised so the filtered array keeps its identity between renders.
+ */
+export const selectVisibleProducts = createSelector(
+  [selectProducts, selectProductFilters],
+  (products, filters) =>
+    filters.onSale
+      ? products.filter((p) => p.salePrice != null && p.salePrice < p.basePrice)
+      : products
+);
 
 export default productListSlice.reducer;
