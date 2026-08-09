@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -271,10 +271,14 @@ const DoctorScheduleScreen: React.FC = () => {
   // in-flight layout event was lost, the frame never changed again, so the flag
   // stayed false forever and the header and ScrollView both sat at opacity 0.
   // That is why this tab rendered as a blank white screen.
-  useEffect(() => {
-    dispatch(fetchSchedule());
-    return () => { dispatch(resetDoctorSchedule()); };
-  }, [dispatch]);
+  // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
+  // so a mount-only fetch left every screen showing whatever was true when
+  // the app started — completing a consultation never reached the dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchSchedule());
+    }, [dispatch])
+  );
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
 

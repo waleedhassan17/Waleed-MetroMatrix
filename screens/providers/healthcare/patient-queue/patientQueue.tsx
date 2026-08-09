@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -345,16 +345,17 @@ const PatientQueueScreen: React.FC = () => {
   // The reveal fade is removed for the same reason as the schedule screen: it
   // waited on an onLayout flag that the loading-branch swap silently discarded,
   // so the body stayed at opacity 0 under the gradient header.
-  useEffect(() => {
-    dispatch(fetchQueue());
-    const interval = setInterval(() => {
+  // Focus-scoped so it stops polling on the other three tabs, and silent so a
+  // background refresh cannot swap the populated queue for a spinner every 30s.
+  useFocusEffect(
+    useCallback(() => {
       dispatch(fetchQueue());
-    }, 30000); // 30s auto-refresh polling
-    return () => {
-      clearInterval(interval);
-      dispatch(resetPatientQueue());
-    };
-  }, [dispatch]);
+      const interval = setInterval(() => {
+        dispatch(fetchQueue({ silent: true }));
+      }, 30000);
+      return () => clearInterval(interval);
+    }, [dispatch])
+  );
 
   // Tab indicator animation
   const tabIndex = FILTER_TABS.findIndex((t) => t.value === filterTab);

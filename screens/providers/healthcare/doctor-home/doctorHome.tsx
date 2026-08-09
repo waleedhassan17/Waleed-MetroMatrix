@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -116,9 +116,14 @@ const DoctorHomeScreen: React.FC = () => {
   // meant it never re-ran — so every doctor screen rendered permanently washed
   // out. Per-card entrance animations (StatCard etc.) own their own values
   // alongside the nodes they drive, so they are unaffected and still play.
-  useEffect(() => {
-    dispatch(fetchDashboardData());
-  }, [dispatch]);
+  // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
+  // so a mount-only fetch left every screen showing whatever was true when
+  // the app started — completing a consultation never reached the dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchDashboardData());
+    }, [dispatch])
+  );
 
   const handleRefresh = useCallback(() => {
     dispatch(refreshDashboard());
@@ -359,15 +364,27 @@ const DoctorHomeScreen: React.FC = () => {
             {[
               { icon: 'create-outline', label: 'Write Rx', color: THEME.accent, bg: THEME.accentLight, route: DoctorRouteNames.PrescriptionWriter },
               { icon: 'time-outline', label: 'Manage Slots', color: THEME.warning, bg: THEME.warningLight, route: DoctorRouteNames.ManageSlots },
-              { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorSchedule },
+              // Schedule / Earnings / Patients are TABS. Pushing the duplicate
+              // stack copies mounted a second component onto the same slice and
+              // wiped the tab's data via its unmount reset().
+              { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, tab: 'Schedule' },
               { icon: 'person-outline', label: 'Profile', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorProfile },
-              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: THEME.successLight, isMaterial: true, route: DoctorRouteNames.DoctorEarnings },
+              { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: THEME.successLight, isMaterial: true, tab: 'Earnings' },
               { icon: 'settings-outline', label: 'Settings', color: THEME.textLight, bg: THEME.borderLight, route: DoctorRouteNames.DoctorAvailability },
               { icon: 'people-outline', label: 'My Patients', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorPatients },
               { icon: 'star-outline', label: 'Reviews', color: '#F59E0B', bg: '#FEF3C7', route: DoctorRouteNames.DoctorMyReviews },
               { icon: 'notifications-outline', label: 'Notifications', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorNotifications },
-            ].map((action, i) => (
-              <TouchableOpacity key={i} style={styles.quickActionCard} activeOpacity={0.7} onPress={() => navigation.navigate(action.route)}>
+            ].map((action: any, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.quickActionCard}
+                activeOpacity={0.7}
+                onPress={() =>
+                  action.tab
+                    ? navigation.navigate(DoctorRouteNames.DoctorTabs, { screen: action.tab })
+                    : navigation.navigate(action.route)
+                }
+              >
                 <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
                   {action.isMaterial ? (
                     <MaterialCommunityIcons name={action.icon as any} size={22} color={action.color} />

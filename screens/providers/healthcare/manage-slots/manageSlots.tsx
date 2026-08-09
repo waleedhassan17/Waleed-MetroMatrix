@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -167,10 +167,14 @@ const ManageSlotsScreen: React.FC = () => {
 
   // The loading-gated reveal fade that wrapped this screen is removed — it
   // froze part-way when the loading branch unmounted it and never re-ran.
-  useEffect(() => {
-    dispatch(fetchSlots());
-    return () => { dispatch(resetManageSlots()); };
-  }, [dispatch]);
+  // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
+  // so a mount-only fetch left every screen showing whatever was true when
+  // the app started — completing a consultation never reached the dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchSlots());
+    }, [dispatch])
+  );
 
   useEffect(() => {
     const clinicChanged = prevClinic.current !== selectedClinic;

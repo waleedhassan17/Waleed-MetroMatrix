@@ -46,11 +46,13 @@ const initialState: PatientQueueState = {
 
 // ── Async Thunks ────────────────────────────
 
+/** `silent` suppresses the loading flag — used by the 30s background poll so
+ *  it cannot replace a populated queue with a full-screen spinner. */
 export const fetchQueue = createAsyncThunk<
   QueuePatient[],
-  void,
+  { silent?: boolean } | void,
   { rejectValue: string }
->('patientQueue/fetchQueue', async (_, { rejectWithValue }) => {
+>('patientQueue/fetchQueue', async (_arg, { rejectWithValue }) => {
   try {
     const res = await fetchPatientQueueApi();
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
@@ -132,8 +134,10 @@ const patientQueueSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // fetchQueue
-      .addCase(fetchQueue.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchQueue.pending, (state, action) => {
+        if (!(action.meta.arg as { silent?: boolean } | undefined)?.silent) {
+          state.loading = true;
+        }
         state.error = null;
       })
       .addCase(fetchQueue.fulfilled, (state, action) => {

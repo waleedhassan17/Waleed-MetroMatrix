@@ -8,12 +8,9 @@ import DoctorTabNavigator from '../screens/providers/healthcare/tabs/DoctorTabNa
 
 // Doctor/Provider-facing screens
 import DoctorDashboardScreen from '../screens/providers/healthcare/doctor-home/doctorHome';
-import DoctorScheduleScreen from '../screens/providers/healthcare/doctor-schedule/doctorSchedule';
-import DoctorAppointmentsScreen from '../screens/providers/healthcare/patient-queue/patientQueue';
 import ConsultationScreen from '../screens/providers/healthcare/medical-notes/medicalNotes';
 import PrescriptionWriterScreen from '../screens/providers/healthcare/prescription-writer/prescriptionWriter';
 import PatientHistoryScreen from '../screens/providers/healthcare/patient-history/patientHistory';
-import DoctorEarningsScreen from '../screens/providers/healthcare/doctor-earnings/doctorEarnings';
 import DoctorProfileScreen from '../screens/providers/healthcare/profile/doctorProfile';
 import DoctorSettingsScreen from '../screens/providers/healthcare/availability-settings/availabilitySettings';
 import DoctorVideoConsultationScreen from '../screens/providers/healthcare/video-consultation/DoctorVideoConsultationScreen';
@@ -47,14 +44,11 @@ const DoctorStack: React.FC = () => {
         name={DoctorRouteNames.DoctorDashboard}
         component={DoctorDashboardScreen}
       />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorSchedule}
-        component={DoctorScheduleScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorAppointments}
-        component={DoctorAppointmentsScreen}
-      />
+      {/* Schedule / Patient Queue / Earnings are TABS (DoctorTabNavigator).
+          They used to ALSO be registered here, and the dashboard's quick
+          actions pushed these copies — mounting a second component against the
+          same Redux slice, whose unmount reset() then wiped the tab's data.
+          Reach them via navigate(DoctorTabs, { screen: 'Schedule' }). */}
       <Stack.Screen
         name={DoctorRouteNames.ConsultationNotes}
         component={ConsultationScreen}
@@ -66,10 +60,6 @@ const DoctorStack: React.FC = () => {
       <Stack.Screen
         name={DoctorRouteNames.PatientHistory}
         component={PatientHistoryScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorEarnings}
-        component={DoctorEarningsScreen}
       />
       <Stack.Screen
         name={DoctorRouteNames.DoctorProfile}

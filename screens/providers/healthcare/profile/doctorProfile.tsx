@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -83,10 +83,12 @@ const DoctorProfileScreen: React.FC = () => {
 
   const hasAnimated = useRef(false);
 
-  useEffect(() => {
-    dispatch(fetchDoctorProfile());
-    return () => { dispatch(resetDoctorProfile()); };
-  }, [dispatch]);
+  // Refetch on focus so an edit made elsewhere in the stack is reflected here.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchDoctorProfile());
+    }, [dispatch])
+  );
 
   useEffect(() => {
     if (!loading && profile && !hasAnimated.current) {

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -121,9 +121,17 @@ const BarChart: React.FC<{ data: ChartDataPoint[]; currency: string }> = ({ data
 
 // ── Component ─────────────────────────────────
 
-const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
+const DoctorEarningsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
+
+  // This was declared as a prop, but React Navigation only ever supplies
+  // {navigation, route} — the navigator passes initialParams={{ isTab: true }}.
+  // So `isInTab` was permanently undefined and the Earnings TAB rendered a back
+  // arrow whose goBack() popped the entire doctor stack. Every other doctor
+  // screen reads it from route.params; match them.
+  const isInTab = route.params?.isTab === true;
 
   const {
     totalEarnings,
@@ -140,11 +148,15 @@ const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
 
   const heroScaleAnim = useRef(new Animated.Value(0.92)).current;
 
-  useEffect(() => {
-    dispatch(fetchEarnings());
-    dispatch(fetchTransactions());
-    return () => { dispatch(resetDoctorEarnings()); };
-  }, [dispatch]);
+  // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
+  // so a mount-only fetch left every screen showing whatever was true when
+  // the app started — completing a consultation never reached the dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchEarnings());
+      dispatch(fetchTransactions());
+    }, [dispatch])
+  );
 
   // Unconditional, and scoped to the hero only. The screen-level fade this
   // replaced was gated on `loading` and froze part-way when the loading branch

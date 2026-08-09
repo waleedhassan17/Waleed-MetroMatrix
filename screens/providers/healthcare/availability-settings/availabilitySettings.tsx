@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -450,10 +450,14 @@ const AvailabilitySettingsScreen: React.FC = () => {
   const sectionAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
 
-  useEffect(() => {
-    dispatch(fetchSettings());
-    return () => { dispatch(resetAvailabilitySettings()); };
-  }, [dispatch]);
+  // Refetch on focus, not just on mount. All four doctor tabs stay mounted,
+  // so a mount-only fetch left every screen showing whatever was true when
+  // the app started — completing a consultation never reached the dashboard.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchSettings());
+    }, [dispatch])
+  );
 
   // Unconditional and scoped to the section cards. The screen-level fade this
   // replaced was gated on `loading`, froze part-way when the loading branch
