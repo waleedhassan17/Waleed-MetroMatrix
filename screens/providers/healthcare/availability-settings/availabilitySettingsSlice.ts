@@ -44,25 +44,30 @@ export interface AvailabilitySettingsState {
   generateSuccess: string | null;
 }
 
-const mkDay = (day: Weekday, isWorking: boolean): DaySchedule => ({
-  day,
-  isWorking,
-  online: { enabled: isWorking, startTime: '09:00', endTime: '13:00' },
-  onsite: { enabled: isWorking, startTime: '14:00', endTime: '17:00' },
-});
-
-const defaultWeeklySchedule: DaySchedule[] = [
-  mkDay('Monday', true),
-  mkDay('Tuesday', true),
-  mkDay('Wednesday', true),
-  mkDay('Thursday', true),
-  mkDay('Friday', true),
-  mkDay('Saturday', true),
-  mkDay('Sunday', false),
+const WEEKDAYS: Weekday[] = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
 ];
 
+/**
+ * An all-OFF week, used only when the doctor explicitly asks to set one up.
+ *
+ * This used to be a Mon-Sat 09:00-13:00 + 14:00-17:00 working week, seeded
+ * into initialState AND used as the fetch fallback — so a doctor who had never
+ * configured availability was shown a full working week that did not exist on
+ * the server. Patients could not book those hours, and one Save would have
+ * written the fiction back.
+ */
+const blankDay = (day: Weekday): DaySchedule => ({
+  day,
+  isWorking: false,
+  online: { enabled: false, startTime: '09:00', endTime: '13:00' },
+  onsite: { enabled: false, startTime: '14:00', endTime: '17:00' },
+});
+
+const blankWeeklySchedule = (): DaySchedule[] => WEEKDAYS.map(blankDay);
+
 const initialState: AvailabilitySettingsState = {
-  weeklySchedule: defaultWeeklySchedule,
+  weeklySchedule: [],
   vacationDates: [],
   instantBooking: true,
   videoConsultation: true,
@@ -93,8 +98,11 @@ const normaliseDay = (raw: any, fallbackDay: Weekday): DaySchedule => {
       },
     };
   }
-  // Legacy {startTime,endTime} → treat as onsite hours.
-  const d = mkDay(day, raw?.isWorking ?? true);
+  // Legacy {startTime,endTime} → treat as onsite hours. Built from the blank
+  // day and then switched on, so nothing is invented when raw is empty.
+  const d = blankDay(day);
+  d.isWorking = raw?.isWorking ?? true;
+  d.onsite.enabled = d.isWorking;
   if (raw?.startTime) d.onsite.startTime = raw.startTime;
   if (raw?.endTime) d.onsite.endTime = raw.endTime;
   return d;
@@ -112,8 +120,8 @@ export const fetchSettings = createAsyncThunk<
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     const data: any = res.data || {};
     const schedule: DaySchedule[] = Array.isArray(data.weeklySchedule) && data.weeklySchedule.length
-      ? data.weeklySchedule.map((d: any, i: number) => normaliseDay(d, defaultWeeklySchedule[i % 7].day))
-      : defaultWeeklySchedule;
+      ? data.weeklySchedule.map((d: any, i: number) => normaliseDay(d, WEEKDAYS[i % 7]))
+      : [];
     return {
       weeklySchedule: schedule,
       vacationDates: data.vacationDates ?? [],
@@ -165,6 +173,13 @@ const availabilitySettingsSlice = createSlice({
   name: 'availabilitySettings',
   initialState,
   reducers: {
+    /** Explicit, user-initiated. Seeds an all-off week the doctor then edits. */
+    seedWeeklySchedule(state) {
+      if (state.weeklySchedule.length === 0) {
+        state.weeklySchedule = blankWeeklySchedule();
+        state.saveSuccess = false;
+      }
+    },
     toggleDayWorking(state, action: PayloadAction<{ day: Weekday }>) {
       const d = state.weeklySchedule.find((s) => s.day === action.payload.day);
       if (d) {
@@ -272,6 +287,7 @@ const availabilitySettingsSlice = createSlice({
 });
 
 export const {
+  seedWeeklySchedule,
   toggleDayWorking,
   toggleDayMode,
   updateDayMode,

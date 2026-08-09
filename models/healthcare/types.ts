@@ -259,15 +259,18 @@ export interface QueuePatient {
   queueId: string;
   patientId: string;
   patientName: string;
-  age: number;
-  gender: 'Male' | 'Female' | 'Other';
+  /** Undefined when the backend holds no demographic — the card omits the
+   *  line rather than printing "0y, Other". */
+  age?: number;
+  gender?: 'Male' | 'Female' | 'Other';
   appointmentId: string;
   type: 'in-clinic' | 'video';
   timeSlot: { start: string; end: string };
   symptoms: string;
   status: QueueStatus;
-  tokenNumber: number;
-  estimatedWaitMinutes: number;
+  /** 1-based position in today's list. NOT a clinic-issued token, and
+   *  deliberately not a wait estimate — the backend provides neither. */
+  position: number;
   checkedInAt?: string;
   startedAt?: string;
   completedAt?: string;

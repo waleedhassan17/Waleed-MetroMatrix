@@ -17,8 +17,7 @@ import type {
   FetchAppointmentsParams,
   UploadMedicalRecordRequest,
 } from '../../models/healthcare/appointmentModel';
-import { USE_HEALTHCARE_DUMMY_DATA, healthcareApiRequest } from './config';
-import { dummyAppointments, dummyTimeSlots, dummyMedicalRecords } from './dummyData';
+import { healthcareApiRequest } from './config';
 import {
   appointmentSerializer,
   timeSlotSerializer,
@@ -33,22 +32,6 @@ import {
 export async function fetchTimeSlotsApi(
   params: FetchTimeSlotsParams
 ): Promise<ApiResponse<TimeSlot[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    let filtered = dummyTimeSlots.filter(
-      (s) => s.doctorId === params.doctorId && s.date === params.date
-    );
-    if (params.clinicId) {
-      filtered = filtered.filter((s) => s.clinicId === params.clinicId);
-    }
-
-    return {
-      success: true,
-      data: filtered.map(timeSlotSerializer),
-      message: 'Time slots fetched successfully',
-    };
-  }
 
   const queryParams = new URLSearchParams({
     date: params.date,
@@ -76,34 +59,6 @@ export async function fetchTimeSlotsApi(
 export async function bookAppointmentApi(
   data: BookAppointmentRequest
 ): Promise<ApiResponse<Appointment>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const newAppointment: Appointment = {
-      appointmentId: `apt-${Date.now()}`,
-      patientId: 'patient-1',
-      doctorId: data.doctorId,
-      clinicId: data.clinicId,
-      type: data.type,
-      date: data.date,
-      timeSlot: data.timeSlot,
-      status: 'pending',
-      symptoms: data.symptoms,
-      payment: {
-        paymentId: `pay-${Date.now()}`,
-        amount: 0,
-        method: 'cash',
-        status: 'pending',
-      },
-      createdAt: new Date().toISOString(),
-    };
-
-    return {
-      success: true,
-      data: appointmentSerializer(newAppointment),
-      message: 'Appointment booked successfully',
-    };
-  }
 
   // Transform the app's booking request into the backend contract.
   const payload: any = {
@@ -139,35 +94,6 @@ export async function bookAppointmentApi(
 export async function fetchAppointmentsApi(
   params: FetchAppointmentsParams
 ): Promise<ApiResponse<{ appointments: Appointment[]; pagination: Pagination }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    let filtered = dummyAppointments.filter((a) => a.patientId === params.patientId);
-    if (params.status) {
-      filtered = filtered.filter((a) => a.status === params.status);
-    }
-
-    const page = params.page || 1;
-    const limit = params.limit || 10;
-    const start = (page - 1) * limit;
-    const paginated = filtered.slice(start, start + limit);
-
-    return {
-      success: true,
-      data: {
-        appointments: paginated.map(appointmentSerializer),
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(filtered.length / limit),
-          totalItems: filtered.length,
-          itemsPerPage: limit,
-          hasNext: start + limit < filtered.length,
-          hasPrevious: page > 1,
-        },
-      },
-      message: 'Appointments fetched successfully',
-    };
-  }
 
   // Backend infers the patient from the auth token; map status to its buckets.
   const statusMap: Record<string, string> = {
@@ -201,22 +127,6 @@ export async function fetchAppointmentsApi(
 export async function fetchAppointmentByIdApi(
   appointmentId: string
 ): Promise<ApiResponse<Appointment>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const appointment = dummyAppointments.find(
-      (a) => a.appointmentId === appointmentId
-    );
-    if (!appointment) {
-      return { success: false, data: null as any, message: 'Appointment not found' };
-    }
-
-    return {
-      success: true,
-      data: appointmentSerializer(appointment),
-      message: 'Appointment fetched successfully',
-    };
-  }
 
   const res = await healthcareApiRequest<Appointment>(
     `/appointments/${encodeURIComponent(appointmentId)}`
@@ -233,10 +143,6 @@ export async function cancelAppointmentApi(
   appointmentId: string,
   reason?: string
 ): Promise<ApiResponse<{ success: boolean }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return { success: true, data: { success: true }, message: 'Appointment cancelled' };
-  }
 
   return healthcareApiRequest(`/appointments/${encodeURIComponent(appointmentId)}/cancel`, {
     method: 'PATCH',
@@ -249,29 +155,6 @@ export async function cancelAppointmentApi(
 export async function rescheduleAppointmentApi(
   data: RescheduleAppointmentRequest
 ): Promise<ApiResponse<Appointment>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    const existing = dummyAppointments.find(
-      (a) => a.appointmentId === data.appointmentId
-    );
-    if (!existing) {
-      return { success: false, data: null as any, message: 'Appointment not found' };
-    }
-
-    const rescheduled: Appointment = {
-      ...existing,
-      date: data.date,
-      timeSlot: data.timeSlot,
-      status: 'pending',
-    };
-
-    return {
-      success: true,
-      data: appointmentSerializer(rescheduled),
-      message: 'Appointment rescheduled successfully',
-    };
-  }
 
   const res = await healthcareApiRequest<any>(
     `/appointments/${encodeURIComponent(data.appointmentId)}/reschedule`,
@@ -291,22 +174,6 @@ export async function rescheduleAppointmentApi(
 export async function fetchPrescriptionApi(
   prescriptionId: string
 ): Promise<ApiResponse<Prescription>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const appointment = dummyAppointments.find(
-      (a) => a.prescription?.prescriptionId === prescriptionId
-    );
-    if (!appointment?.prescription) {
-      return { success: false, data: null as any, message: 'Prescription not found' };
-    }
-
-    return {
-      success: true,
-      data: prescriptionSerializer(appointment.prescription),
-      message: 'Prescription fetched successfully',
-    };
-  }
 
   // Backend exposes the patient's prescriptions list; find the requested one.
   const res = await healthcareApiRequest<any>('/prescriptions/my');
@@ -328,17 +195,6 @@ export async function fetchPrescriptionApi(
 export async function fetchMedicalRecordsApi(
   patientId: string
 ): Promise<ApiResponse<MedicalRecord[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    const records = dummyMedicalRecords.filter((r) => r.patientId === patientId);
-
-    return {
-      success: true,
-      data: records.map(medicalRecordSerializer),
-      message: 'Medical records fetched successfully',
-    };
-  }
 
   // Backend infers the patient from the auth token.
   const res = await healthcareApiRequest<any>('/health-records');
@@ -354,26 +210,6 @@ export async function fetchMedicalRecordsApi(
 export async function uploadMedicalRecordApi(
   data: UploadMedicalRecordRequest
 ): Promise<ApiResponse<MedicalRecord>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    const newRecord: MedicalRecord = {
-      recordId: `rec-${Date.now()}`,
-      patientId: data.patientId,
-      type: data.type,
-      title: data.title,
-      description: data.description,
-      fileUrl: data.fileUrl,
-      uploadedAt: new Date().toISOString(),
-      linkedAppointmentId: data.linkedAppointmentId,
-    };
-
-    return {
-      success: true,
-      data: medicalRecordSerializer(newRecord),
-      message: 'Medical record uploaded successfully',
-    };
-  }
 
   return healthcareApiRequest<MedicalRecord>('/medical-records', {
     method: 'POST',
@@ -386,23 +222,6 @@ export async function uploadMedicalRecordApi(
 export async function startVideoCallApi(
   appointmentId: string
 ): Promise<ApiResponse<VideoCall>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const videoCall: VideoCall = {
-      callId: `call-${Date.now()}`,
-      appointmentId,
-      roomId: `room-${Date.now()}`,
-      status: 'connecting',
-      startedAt: new Date().toISOString(),
-    };
-
-    return {
-      success: true,
-      data: videoCallSerializer(videoCall),
-      message: 'Video call started',
-    };
-  }
 
   // H6 BUILD: join/create the call room. Backend returns provider 'jitsi'
   // with a roomUrl the screen renders in a WebView (TELEMEDICINE_DECISION.md).

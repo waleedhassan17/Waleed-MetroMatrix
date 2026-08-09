@@ -7,10 +7,11 @@ import API from '../network/network';
 const HEALTHCARE_PREFIX = '/v1/healthcare';
 const HEALTHCARE_ADMIN_PREFIX = '/v1/admin';
 
-// Offline demo fallback ONLY. When true, networks/healthcare/* return the
-// bundled fixtures from dummyData.ts instead of hitting the API.
-// Default is FALSE: the module runs against the real backend.
-export const USE_HEALTHCARE_DUMMY_DATA = false;
+// NOTE: the USE_HEALTHCARE_DUMMY_DATA flag and the bundled dummyData.ts
+// fixtures it gated were removed. The flag was already false, so all 43
+// branches were unreachable — they only shipped ~700 lines of duplicate
+// fixtures in the bundle and drifted from the real API shapes. The demo
+// dataset lives in the database now (backend scripts/seed-healthcare.js).
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

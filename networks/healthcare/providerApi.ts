@@ -7,27 +7,7 @@
 // A few provider screens (medical notes, transactions ledger, patient history,
 // coupons, payments) have no backend endpoint yet and degrade gracefully.
 
-import { healthcareApiRequest, USE_HEALTHCARE_DUMMY_DATA } from './config';
-import {
-  dummyDashboardData,
-  dummyEarningTransactions,
-  dummyEarningsChartData,
-  dummyEarningsBreakdown,
-  dummyEarningsTotals,
-  generateDummyScheduleAppointments,
-  generateDummyQueue,
-  dummyManageSlotsClinics,
-  generateDummySlots,
-  dummyWeeklySchedule,
-  dummyVacationDates,
-  dummyNotePatient,
-  dummyMedicalNotes,
-  dummyPrescriptionDetail,
-  dummyHealthRecords,
-  dummyPatientRecord,
-  dummyDoctorProfile,
-  dummyCoupons,
-} from './dummyData';
+import { healthcareApiRequest } from './config';
 import {
   dashboardDataSerializer,
   earningTransactionSerializer,
@@ -84,10 +64,6 @@ const genderLabel = (g?: string): 'Male' | 'Female' | 'Other' => {
 // ═══════════════════════════════════════════
 
 export async function fetchDoctorDashboardApi(): Promise<ApiResponse<DoctorDashboardData>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 600));
-    return { success: true, data: dashboardDataSerializer(dummyDashboardData), message: 'Dashboard loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/dashboard');
   if (res.success) {
     const d = res.data || {};
@@ -117,10 +93,6 @@ export async function fetchDoctorDashboardApi(): Promise<ApiResponse<DoctorDashb
 // ═══════════════════════════════════════════
 
 export async function fetchDoctorScheduleApi(): Promise<ApiResponse<Appointment[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: generateDummyScheduleAppointments().map(appointmentSerializer), message: 'Schedule loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/appointments?status=upcoming&limit=50');
   if (res.success) {
     const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
@@ -136,18 +108,6 @@ export async function fetchDoctorScheduleApi(): Promise<ApiResponse<Appointment[
 export async function fetchDoctorEarningsApi(
   period: PeriodFilter
 ): Promise<ApiResponse<{ total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[] }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return {
-      success: true,
-      data: {
-        total: dummyEarningsTotals[period],
-        chart: (dummyEarningsChartData[period] || []).map(chartDataPointSerializer),
-        breakdown: dummyEarningsBreakdown.map(consultationBreakdownSerializer),
-      },
-      message: 'Earnings loaded',
-    };
-  }
   const periodMap: Record<string, string> = { today: 'daily', thisWeek: 'weekly', thisMonth: 'monthly', custom: 'daily' };
   const res = await healthcareApiRequest<any>(
     `/doctors/me/earnings?period=${encodeURIComponent(periodMap[period] || 'daily')}`
@@ -183,10 +143,6 @@ export async function fetchDoctorEarningsApi(
 }
 
 export async function fetchDoctorTransactionsApi(): Promise<ApiResponse<EarningTransaction[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 400));
-    return { success: true, data: dummyEarningTransactions.map(earningTransactionSerializer), message: 'Transactions loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/transactions');
   if (res.success) {
     const list = res.data?.transactions || (Array.isArray(res.data) ? res.data : []);
@@ -200,10 +156,6 @@ export async function fetchDoctorTransactionsApi(): Promise<ApiResponse<EarningT
 // ═══════════════════════════════════════════
 
 export async function fetchPatientQueueApi(): Promise<ApiResponse<QueuePatient[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: generateDummyQueue().map(queuePatientSerializer), message: 'Queue loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/appointments?status=upcoming&limit=50');
   if (res.success) {
     const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
@@ -233,10 +185,6 @@ export async function updateQueuePatientApi(
   queueId: string,
   action: 'start' | 'complete' | 'skip' | 'call-next'
 ): Promise<ApiResponse<{ queueId: string }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 300));
-    return { success: true, data: { queueId }, message: `Patient ${action} successful` };
-  }
   // Map queue actions to appointment status transitions.
   const map: Record<string, { path: string; data?: any } | null> = {
     start: { path: `/doctors/me/appointments/${queueId}/confirm` },
@@ -260,11 +208,6 @@ export async function fetchManageSlotsApi(
   duration: number,
   maxPatients: number
 ): Promise<ApiResponse<{ slots: TimeSlot[]; clinics: Clinic[] }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    const slots = generateDummySlots(clinicId, date, duration, maxPatients).map(timeSlotSerializer);
-    return { success: true, data: { slots, clinics: dummyManageSlotsClinics }, message: 'Slots loaded' };
-  }
   const [slotsRes, clinicsRes] = await Promise.all([
     healthcareApiRequest<any>(`/slots/my-slots?date=${encodeURIComponent(date)}`),
     healthcareApiRequest<any>('/doctors/me/clinics'),
@@ -275,10 +218,6 @@ export async function fetchManageSlotsApi(
 }
 
 export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ success: boolean }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 800));
-    return { success: true, data: { success: true }, message: 'Slots saved' };
-  }
   // Module slot-create endpoint takes an explicit slots array.
   const payload = {
     slots: slots.map((s) => ({
@@ -301,19 +240,6 @@ export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ suc
 export async function fetchAvailabilitySettingsApi(): Promise<
   ApiResponse<{ weeklySchedule: DaySchedule[]; vacationDates: VacationDate[]; instantBooking: boolean; videoConsultation: boolean }>
 > {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return {
-      success: true,
-      data: {
-        weeklySchedule: dummyWeeklySchedule.map(dayScheduleSerializer),
-        vacationDates: dummyVacationDates.map(vacationDateSerializer),
-        instantBooking: true,
-        videoConsultation: true,
-      },
-      message: 'Settings loaded',
-    };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/availability');
   const av = res.success ? res.data || {} : {};
   // Backend absentDates → vacation entries (single-day each).
@@ -351,10 +277,6 @@ export async function saveAvailabilitySettingsApi(settings: {
   instantBooking: boolean;
   videoConsultation: boolean;
 }): Promise<ApiResponse<{ success: boolean }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 800));
-    return { success: true, data: { success: true }, message: 'Settings saved' };
-  }
   const weeklyAvailability = (settings.weeklySchedule || []).map((d: any) => ({
     day: d.day,
     isWorking: d.isWorking,
@@ -393,14 +315,6 @@ export async function generateSlotsApi(params: {
 export async function fetchPatientNotesApi(
   patientId: string
 ): Promise<ApiResponse<{ patient: NotePatient; notes: MedicalNote[] }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 600));
-    return {
-      success: true,
-      data: { patient: notePatientSerializer(dummyNotePatient), notes: dummyMedicalNotes.map(medicalNoteSerializer) },
-      message: 'Notes loaded',
-    };
-  }
   const res = await healthcareApiRequest<any>(`/doctors/me/patients/${encodeURIComponent(patientId)}/notes`);
   if (res.success) {
     return {
@@ -415,16 +329,6 @@ export async function fetchPatientNotesApi(
 }
 
 export async function saveNoteApi(note: MedicalNote & { patientId?: string }): Promise<ApiResponse<MedicalNote>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    const saved: MedicalNote = {
-      ...note,
-      noteId: note.noteId || `note-${Date.now()}`,
-      updatedAt: new Date().toISOString(),
-      createdAt: note.createdAt || new Date().toISOString(),
-    };
-    return { success: true, data: medicalNoteSerializer(saved), message: 'Note saved' };
-  }
   const body = {
     patientId: note.patientId,
     appointmentId: note.appointmentId,
@@ -443,9 +347,6 @@ export async function saveNoteApi(note: MedicalNote & { patientId?: string }): P
 }
 
 export async function deleteNoteApi(noteId: string): Promise<ApiResponse<{ noteId: string }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    return { success: true, data: { noteId }, message: 'Note deleted' };
-  }
   const res = await healthcareApiRequest<any>(`/doctors/me/notes/${encodeURIComponent(noteId)}`, { method: 'DELETE' });
   return { success: res.success, data: { noteId }, message: res.message };
 }
@@ -472,10 +373,6 @@ export async function savePrescriptionApi(prescription: {
   advice: string;
   followUpDate: string;
 }): Promise<ApiResponse<{ success: boolean }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 800));
-    return { success: true, data: { success: true }, message: 'Prescription saved' };
-  }
   const payload = {
     appointmentId: prescription.appointmentId,
     diagnosis: prescription.diagnosis,
@@ -495,10 +392,6 @@ export async function savePrescriptionApi(prescription: {
 export async function fetchPrescriptionDetailApi(
   prescriptionId: string
 ): Promise<ApiResponse<PrescriptionDetail>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: prescriptionDetailSerializer(dummyPrescriptionDetail), message: 'Prescription loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me/prescriptions?limit=200');
   if (res.success) {
     const list = res.data?.prescriptions || (Array.isArray(res.data) ? res.data : []);
@@ -539,10 +432,6 @@ export async function fetchPrescriptionDetailApi(
 export async function fetchHealthRecordsApi(
   patientId: string
 ): Promise<ApiResponse<MedicalRecord[]>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: dummyHealthRecords.map(medicalRecordSerializer), message: 'Records loaded' };
-  }
   // Health records are owned by the authenticated user (patient self-service).
   const res = await healthcareApiRequest<any>('/health-records');
   if (res.success) {
@@ -555,10 +444,6 @@ export async function fetchHealthRecordsApi(
 export async function deleteHealthRecordApi(
   recordId: string
 ): Promise<ApiResponse<{ recordId: string }>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 400));
-    return { success: true, data: { recordId }, message: 'Record deleted' };
-  }
   const res = await healthcareApiRequest<any>(`/health-records/${encodeURIComponent(recordId)}`, { method: 'DELETE' });
   return { success: res.success, data: { recordId }, message: res.message };
 }
@@ -570,10 +455,6 @@ export async function deleteHealthRecordApi(
 export async function fetchPatientHistoryApi(
   patientId: string
 ): Promise<ApiResponse<PatientRecord>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: patientRecordSerializer(dummyPatientRecord), message: 'Patient history loaded' };
-  }
   const res = await healthcareApiRequest<any>(`/doctors/me/patients/${encodeURIComponent(patientId)}/history`);
   if (res.success) {
     return { ...res, data: patientRecordSerializer(res.data) };
@@ -586,10 +467,6 @@ export async function fetchPatientHistoryApi(
 // ═══════════════════════════════════════════
 
 export async function fetchDoctorProviderProfileApi(): Promise<ApiResponse<DoctorProfileData>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 500));
-    return { success: true, data: doctorProfileDataSerializer(dummyDoctorProfile), message: 'Profile loaded' };
-  }
   const res = await healthcareApiRequest<any>('/doctors/me');
   if (res.success) {
     const doc = res.data?.doctor || res.data || {};
@@ -625,11 +502,6 @@ export async function fetchDoctorProviderProfileApi(): Promise<ApiResponse<Docto
 export async function updateDoctorProviderProfileApi(
   updates: Partial<DoctorProfileData>
 ): Promise<ApiResponse<DoctorProfileData>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 400));
-    const updated = { ...dummyDoctorProfile, ...updates };
-    return { success: true, data: doctorProfileDataSerializer(updated), message: 'Profile updated' };
-  }
   const payload: any = {};
   if (updates.bio !== undefined) payload.about = updates.bio;
   if (updates.consultationFee !== undefined) payload.consultationFee = updates.consultationFee;
@@ -649,12 +521,6 @@ export async function updateDoctorProviderProfileApi(
 // ═══════════════════════════════════════════
 
 export async function applyCouponApi(code: string): Promise<ApiResponse<Coupon>> {
-  if (USE_HEALTHCARE_DUMMY_DATA) {
-    await new Promise((r) => setTimeout(r, 600));
-    const normalizedCode = code.toUpperCase().trim();
-    const coupon = dummyCoupons[normalizedCode];
-    if (coupon) return { success: true, data: couponSerializer(coupon), message: coupon.message };
-  }
   return {
     success: false,
     data: { code: code.toUpperCase().trim(), discountPercent: 0, maxDiscount: 0, isValid: false, message: 'Coupons are not available' } as Coupon,

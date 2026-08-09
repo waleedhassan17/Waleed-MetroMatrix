@@ -135,7 +135,6 @@ const DoctorEarningsScreen: React.FC = () => {
 
   const {
     totalEarnings,
-    trendPercentage,
     periodFilter,
     transactions,
     chartData,
@@ -143,6 +142,7 @@ const DoctorEarningsScreen: React.FC = () => {
     currency,
     loading,
     transactionsLoading,
+    transactionsError,
     error,
   } = useAppSelector((state) => state.doctorEarnings);
 
@@ -325,10 +325,14 @@ const DoctorEarningsScreen: React.FC = () => {
           <Animated.View style={[styles.heroAmountBlock, { transform: [{ scale: heroScaleAnim }] }]}>
             <Text style={styles.heroAmountLabel}>{currentPeriodLabel} Earnings</Text>
             <Text style={styles.heroAmount}>{formatCurrency(totalEarnings, currency)}</Text>
-            <View style={[styles.heroTrendBadge, { backgroundColor: trendPercentage >= 0 ? 'rgba(255,255,255,0.18)' : 'rgba(239,68,68,0.2)' }]}>
-              <Ionicons name={trendPercentage >= 0 ? "trending-up" : "trending-down"} size={13} color="#FFFFFF" />
-              <Text style={styles.heroTrendText}>{trendPercentage >= 0 ? '+' : ''}{trendPercentage}% vs last period</Text>
-            </View>
+            {/* The "+12% vs last period" badge that sat here was fabricated:
+                the slice defaulted trendPercentage to 12 and GET
+                /doctors/me/earnings never returns the field, so every doctor
+                saw +12% forever — including at PKR 0. It cannot be derived
+                honestly from the chart either (the newest bucket is always
+                partial, so a record month would read as a decline for most of
+                it). Restore it when the API returns a previousTotal over an
+                equivalent complete window. */}
           </Animated.View>
 
           {/* Period filter */}
@@ -353,7 +357,13 @@ const DoctorEarningsScreen: React.FC = () => {
 
         {/* ── Withdraw CTA ── */}
         <View style={styles.withdrawSection}>
-          <TouchableOpacity style={styles.withdrawBtn} activeOpacity={0.85}>
+          {/* Had no onPress at all — a primary CTA that did nothing. Payouts
+              live on the wallet screen, which already has Stripe Connect. */}
+          <TouchableOpacity
+            style={styles.withdrawBtn}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('WalletScreen' as never)}
+          >
             <LinearGradient
               colors={THEME.gradient.primary}
               start={{ x: 0, y: 0 }}
@@ -436,6 +446,26 @@ const DoctorEarningsScreen: React.FC = () => {
             <View style={styles.txnLoadingWrap}>
               <ActivityIndicator size="small" color={THEME.primary} />
               <Text style={styles.txnLoadingText}>Loading transactions…</Text>
+            </View>
+          ) : transactionsError ? (
+            /* A failed request used to fall through to "No transactions yet",
+               stating as fact that the doctor had earned nothing. */
+            <View style={styles.emptyCard}>
+              <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.emptyIconWrap}>
+                <Ionicons name="cloud-offline-outline" size={30} color={THEME.error} />
+              </LinearGradient>
+              <Text style={styles.emptyTitle}>Couldn't load transactions</Text>
+              <Text style={styles.emptySubtitle}>{transactionsError}</Text>
+              <TouchableOpacity
+                style={styles.retryBtn}
+                onPress={() => dispatch(fetchTransactions())}
+                activeOpacity={0.85}
+              >
+                <LinearGradient colors={THEME.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.retryBtnGradient}>
+                  <Ionicons name="refresh" size={15} color="#FFFFFF" />
+                  <Text style={styles.retryBtnText}>Try Again</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.emptyCard}>

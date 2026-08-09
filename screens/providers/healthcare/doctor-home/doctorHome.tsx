@@ -223,15 +223,20 @@ const DoctorHomeScreen: React.FC = () => {
             </View>
             {/* Online Toggle & Hamburger Menu */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {/* This was a local useState toggle that flipped Available/Busy
+                  and persisted nothing — it looked like an availability control
+                  and was not one. The real control is the Availability screen,
+                  whose PATCH carries the full weekly schedule; sending
+                  isAvailable on its own from here risks the server replacing
+                  that schedule with nothing. So this now routes there instead
+                  of pretending to set state. */}
               <TouchableOpacity
-                style={[styles.onlineToggle, isOnline ? styles.onlineToggleActive : styles.onlineToggleInactive]}
-                onPress={() => setIsOnline(!isOnline)}
+                style={[styles.onlineToggle, styles.onlineToggleActive]}
+                onPress={() => navigation.navigate(DoctorRouteNames.DoctorAvailability)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.onlineDot, { backgroundColor: isOnline ? THEME.success : THEME.textMuted }]} />
-                <Text style={[styles.onlineText, { color: isOnline ? THEME.success : THEME.textMuted }]}>
-                  {isOnline ? 'Available' : 'Busy'}
-                </Text>
+                <Ionicons name="calendar-outline" size={13} color={THEME.success} />
+                <Text style={[styles.onlineText, { color: THEME.success }]}>Availability</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.headerIconBtn} 
@@ -528,7 +533,11 @@ const DoctorHomeScreen: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity activeOpacity={0.85}>
+            {/* Had no onPress — an inert primary CTA. */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate(DoctorRouteNames.DoctorTabs, { screen: 'Earnings' })}
+            >
               <LinearGradient
                 colors={THEME.gradient.primary}
                 start={{ x: 0, y: 0 }}

@@ -33,6 +33,7 @@ import {
   toggleInstantBooking,
   toggleVideoConsultation,
   clearSaveSuccess,
+  seedWeeklySchedule,
   resetAvailabilitySettings,
   copySchedule,
   Weekday,
@@ -711,6 +712,24 @@ const AvailabilitySettingsScreen: React.FC = () => {
               </View>
             </View>
 
+            {weeklySchedule.length === 0 ? (
+              /* No fabricated default week: an unconfigured doctor used to see
+                 a full Mon-Sat schedule that did not exist server-side. */
+              <View style={styles.emptyWeek}>
+                <Ionicons name="calendar-outline" size={30} color={THEME.textLight} />
+                <Text style={styles.emptyWeekTitle}>No weekly availability set</Text>
+                <Text style={styles.emptyWeekText}>
+                  Patients can't book you until you set the days and hours you work.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyWeekBtn}
+                  onPress={() => dispatch(seedWeeklySchedule())}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.emptyWeekBtnText}>Set up my week</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
             <View style={styles.scheduleGrid}>
               {weeklySchedule.map((schedule, index) => (
                 <DayScheduleRow
@@ -723,6 +742,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
                 />
               ))}
             </View>
+            )}
           </View>
         </Animated.View>
 
@@ -834,9 +854,11 @@ const AvailabilitySettingsScreen: React.FC = () => {
         </Animated.View>
 
         <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          style={[styles.saveButton, (saving || weeklySchedule.length === 0) && styles.saveButtonDisabled]}
           onPress={handleSave}
-          disabled={saving}
+          // Saving an empty schedule PATCHes weeklyAvailability: [] and wipes
+          // whatever the server holds.
+          disabled={saving || weeklySchedule.length === 0}
           activeOpacity={0.85}
         >
           {saving ? (
@@ -885,6 +907,14 @@ export default AvailabilitySettingsScreen;
 // ── Styles ─────────────────────────────────────
 
 const styles = StyleSheet.create({
+  emptyWeek: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
+  emptyWeekTitle: { fontSize: 15, fontWeight: '800', color: THEME.textDark, marginTop: 10 },
+  emptyWeekText: { fontSize: 13, color: THEME.textLight, textAlign: 'center', marginTop: 6, lineHeight: 19 },
+  emptyWeekBtn: {
+    marginTop: 16, paddingHorizontal: 22, paddingVertical: 11,
+    borderRadius: 22, backgroundColor: THEME.primary,
+  },
+  emptyWeekBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13.5 },
   container: {
     flex: 1,
     backgroundColor: '#F8FBFF',

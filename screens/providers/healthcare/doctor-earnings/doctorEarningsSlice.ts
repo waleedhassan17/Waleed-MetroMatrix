@@ -30,7 +30,6 @@ export interface ChartDataPoint {
 
 export interface DoctorEarningsState {
   totalEarnings: number;
-  trendPercentage: number;
   periodFilter: PeriodFilter;
   transactions: EarningTransaction[];
   chartData: ChartDataPoint[];
@@ -38,12 +37,12 @@ export interface DoctorEarningsState {
   currency: string;
   loading: boolean;
   transactionsLoading: boolean;
+  transactionsError: string | null;
   error: string | null;
 }
 
 const initialState: DoctorEarningsState = {
   totalEarnings: 0,
-  trendPercentage: 0,
   periodFilter: 'thisMonth',
   transactions: [],
   chartData: [],
@@ -51,6 +50,7 @@ const initialState: DoctorEarningsState = {
   currency: 'PKR',
   loading: false,
   transactionsLoading: false,
+  transactionsError: null,
   error: null,
 };
 
@@ -108,7 +108,6 @@ const doctorEarningsSlice = createSlice({
       .addCase(fetchEarnings.fulfilled, (state, action) => {
         state.loading = false;
         state.totalEarnings = action.payload.total;
-        state.trendPercentage = action.payload.trendPercentage ?? 12; // Dummy default
         state.chartData = action.payload.chart;
         state.breakdown = action.payload.breakdown;
       })
@@ -119,13 +118,17 @@ const doctorEarningsSlice = createSlice({
       // fetchTransactions
       .addCase(fetchTransactions.pending, (state) => {
         state.transactionsLoading = true;
+        state.transactionsError = null;
       })
       .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.transactionsLoading = false;
         state.transactions = action.payload;
       })
-      .addCase(fetchTransactions.rejected, (state) => {
+      .addCase(fetchTransactions.rejected, (state, action) => {
         state.transactionsLoading = false;
+        // Was swallowed entirely, so a network failure rendered the
+        // "No transactions yet" empty state — a fabricated fact.
+        state.transactionsError = (action.payload as string) ?? 'Could not load transactions';
       });
   },
 });

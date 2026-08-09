@@ -25,6 +25,7 @@ import {
   skipPatient,
   callNextPatient,
   resetPatientQueue,
+  clearQueueActionError,
   QueuePatient,
   QueueStatus,
 } from './patientQueueSlice';
@@ -102,7 +103,7 @@ const CurrentPatientCard: React.FC<{
             <Text style={styles.currentLiveText}>In Consultation</Text>
           </View>
           <View style={styles.currentTokenBadge}>
-            <Text style={styles.currentTokenText}>#{patient.tokenNumber}</Text>
+            <Text style={styles.currentTokenText}>{patient.position}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -131,7 +132,12 @@ const CurrentPatientCard: React.FC<{
         <View style={styles.currentInfo}>
           <Text style={styles.currentName}>{patient.patientName}</Text>
           <Text style={styles.currentMeta}>
-            {patient.age}y, {patient.gender}  ·  {formatTime12(patient.timeSlot.start)}
+            {/* Was always "0y, Other" — the backend rarely sends demographics. */}
+            {patient.age ? `${patient.age}y` : null}
+            {patient.age && patient.gender ? ', ' : null}
+            {patient.gender ?? null}
+            {patient.age || patient.gender ? '  ·  ' : null}
+            {formatTime12(patient.timeSlot.start)}
           </Text>
           {patient.symptoms ? (
             <Text style={styles.currentSymptoms} numberOfLines={2}>{patient.symptoms}</Text>
@@ -232,9 +238,9 @@ const PatientRow: React.FC<{
       onPress={onToggleExpand}
       activeOpacity={0.8}
     >
-      {/* Token badge */}
+      {/* Position in today's list — the backend issues no clinic token. */}
       <View style={[styles.tokenBadge, { backgroundColor: cfg.bg }]}>
-        <Text style={[styles.tokenNum, { color: cfg.color }]}>#{patient.tokenNumber}</Text>
+        <Text style={[styles.tokenNum, { color: cfg.color }]}>{patient.position}</Text>
       </View>
 
       <View style={styles.queueRowInfo}>
@@ -249,7 +255,13 @@ const PatientRow: React.FC<{
 
         {/* Meta chips */}
         <View style={styles.queueMetaRow}>
-          <Text style={styles.queueMeta}>{patient.age}y, {patient.gender}</Text>
+          {(patient.age || patient.gender) && (
+            <Text style={styles.queueMeta}>
+              {patient.age ? `${patient.age}y` : ''}
+              {patient.age && patient.gender ? ', ' : ''}
+              {patient.gender ?? ''}
+            </Text>
+          )}
           <View style={styles.metaSep} />
           <View style={[styles.typeMiniChip, { backgroundColor: isVideo ? '#EAF3FF' : THEME.primaryLight }]}>
             <Ionicons
@@ -264,14 +276,6 @@ const PatientRow: React.FC<{
           <View style={styles.metaSep} />
           <Text style={styles.queueMeta}>{formatTime12(patient.timeSlot.start)}</Text>
         </View>
-
-        {/* Wait time */}
-        {patient.status === 'waiting' && patient.estimatedWaitMinutes > 0 && (
-          <View style={styles.waitRow}>
-            <Ionicons name="hourglass-outline" size={11} color={THEME.warning} />
-            <Text style={styles.waitText}>~{patient.estimatedWaitMinutes} min wait</Text>
-          </View>
-        )}
 
         {/* Expanded content */}
         {isExpanded && (
@@ -345,6 +349,16 @@ const PatientQueueScreen: React.FC = () => {
   // The reveal fade is removed for the same reason as the schedule screen: it
   // waited on an onLayout flag that the loading-branch swap silently discarded,
   // so the body stayed at opacity 0 under the gradient header.
+  // A failed start/complete/skip used to do nothing at all — no state change,
+  // no message — so the doctor could not tell whether it had been recorded.
+  const actionError = useAppSelector((s) => s.patientQueue.actionError);
+  useEffect(() => {
+    if (!actionError) return;
+    Alert.alert('Could not update the queue', actionError, [
+      { text: 'OK', onPress: () => dispatch(clearQueueActionError()) },
+    ]);
+  }, [actionError, dispatch]);
+
   // Focus-scoped so it stops polling on the other three tabs, and silent so a
   // background refresh cannot swap the populated queue for a spinner every 30s.
   useFocusEffect(

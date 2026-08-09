@@ -15,15 +15,18 @@ export interface QueuePatient {
   queueId: string;
   patientId: string;
   patientName: string;
-  age: number;
-  gender: 'Male' | 'Female' | 'Other';
+  /** Undefined when the backend has no demographic on file — the card omits
+   *  the line rather than printing "0y, Other". */
+  age?: number;
+  gender?: 'Male' | 'Female' | 'Other';
   appointmentId: string;
   type: 'in-clinic' | 'video';
   timeSlot: { start: string; end: string };
   symptoms: string;
   status: QueueStatus;
-  tokenNumber: number;
-  estimatedWaitMinutes: number;
+  /** 1-based position in today's list. NOT a clinic-issued token number, and
+   *  deliberately not a wait estimate — the backend provides neither. */
+  position: number;
   checkedInAt?: string;
   startedAt?: string;
   completedAt?: string;
@@ -35,6 +38,8 @@ export interface PatientQueueState {
   currentPatient: string | null; // queueId of in-progress patient
   loading: boolean;
   error: string | null;
+  /** Failure of a queue ACTION (start/complete/skip/next), not of the fetch. */
+  actionError: string | null;
 }
 
 const initialState: PatientQueueState = {
@@ -42,6 +47,7 @@ const initialState: PatientQueueState = {
   currentPatient: null,
   loading: false,
   error: null,
+  actionError: null,
 };
 
 // ── Async Thunks ────────────────────────────
@@ -50,7 +56,7 @@ const initialState: PatientQueueState = {
  *  it cannot replace a populated queue with a full-screen spinner. */
 export const fetchQueue = createAsyncThunk<
   QueuePatient[],
-  { silent?: boolean } | void,
+  { silent?: boolean } | undefined,
   { rejectValue: string }
 >('patientQueue/fetchQueue', async (_arg, { rejectWithValue }) => {
   try {
@@ -130,6 +136,9 @@ const patientQueueSlice = createSlice({
     resetPatientQueue() {
       return initialState;
     },
+    clearQueueActionError(state) {
+      state.actionError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -148,7 +157,7 @@ const patientQueueSlice = createSlice({
       })
       .addCase(fetchQueue.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? 'Unknown error';
+        state.error = (action.payload as string) ?? 'Unknown error';
       })
       // startConsultation
       .addCase(startConsultation.fulfilled, (state, action) => {
@@ -156,7 +165,6 @@ const patientQueueSlice = createSlice({
         if (patient) {
           patient.status = 'in-progress';
           patient.startedAt = new Date().toISOString();
-          patient.estimatedWaitMinutes = 0;
           state.currentPatient = action.payload;
         }
       })
@@ -188,14 +196,27 @@ const patientQueueSlice = createSlice({
           if (patient) {
             patient.status = 'in-progress';
             patient.startedAt = new Date().toISOString();
-            patient.estimatedWaitMinutes = 0;
             state.currentPatient = action.payload;
           }
         }
-      });
+      })
+      // These four had NO rejected case: a failed "Mark Complete" changed
+      // nothing and reported nothing, so the doctor could not tell whether the
+      // consultation had been recorded. Surface it as actionError; the screen
+      // alerts on it and clears it.
+      .addMatcher(
+        (action): action is { type: string; payload?: string } =>
+          /^patientQueue\/(startConsultation|completeConsultation|skipPatient|callNextPatient)\/rejected$/.test(
+            action.type,
+          ),
+        (state, action) => {
+          state.actionError =
+            (action.payload as string) ?? 'Could not update the queue. Please try again.';
+        },
+      );
   },
 });
 
-export const { resetPatientQueue } = patientQueueSlice.actions;
+export const { resetPatientQueue, clearQueueActionError } = patientQueueSlice.actions;
 
 export default patientQueueSlice.reducer;

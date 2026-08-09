@@ -16,6 +16,7 @@ import DoctorDashboardScreen from '../doctor-home/doctorHome';
 import DoctorScheduleScreen from '../doctor-schedule/doctorSchedule';
 import PatientQueueScreen from '../patient-queue/patientQueue';
 import DoctorEarningsScreen from '../doctor-earnings/doctorEarnings';
+import { useAppSelector } from '../../../../hooks/useReduxHooks';
 
 // ── Blue Healthcare Palette ─────────────────
 const COLORS = {
@@ -48,7 +49,7 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
 };
 
 // ── Animated Tab Icon ───────────────────────
-const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName, focused }) => {
+const TabIcon: React.FC<{ routeName: string; focused: boolean; badgeCount?: number }> = ({ routeName, focused, badgeCount = 0 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const config = TAB_CONFIG[routeName];
 
@@ -77,9 +78,9 @@ const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName,
           <Ionicons name={config.icon} size={20} color={COLORS.textTertiary} />
         </View>
       )}
-      {routeName === 'Patients' && (
+      {badgeCount > 0 && (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>3</Text>
+          <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
         </View>
       )}
     </Animated.View>
@@ -89,6 +90,13 @@ const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName,
 // ── Custom Tab Bar ──────────────────────────
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
+
+  // Was a hardcoded literal 3, which contradicted the queue's own header
+  // ("0 waiting"). Derived from the same slice the queue counts from, so the
+  // two can never disagree. Subscribed once here rather than in every icon.
+  const waitingCount = useAppSelector(
+    (s) => s.patientQueue.queue.filter((p) => p.status === 'waiting').length,
+  );
 
   return (
     <View style={[styles.tabBarContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
@@ -118,7 +126,11 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
               accessibilityState={{ selected: isFocused }}
               accessibilityLabel={config.label}
             >
-              <TabIcon routeName={route.name} focused={isFocused} />
+              <TabIcon
+                routeName={route.name}
+                focused={isFocused}
+                badgeCount={route.name === 'Patients' ? waitingCount : 0}
+              />
               <Text
                 style={[
                   styles.tabLabel,
