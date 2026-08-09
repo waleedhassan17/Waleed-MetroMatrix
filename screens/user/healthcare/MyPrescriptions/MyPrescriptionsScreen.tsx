@@ -11,6 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { fetchMyPrescriptionsApi } from '../../../../networks/healthcare/appointmentApi';
@@ -29,6 +30,9 @@ const C = {
 
 const MyPrescriptionsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  // react-native's SafeAreaView is a plain View on Android, so the back button
+  // was drawing up against the status bar icons.
+  const insets = useSafeAreaInsets();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,11 +86,18 @@ const MyPrescriptionsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>My Prescriptions</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>My Prescriptions</Text>
+          {prescriptions.length > 0 && (
+            <Text style={styles.subtitle}>
+              {prescriptions.length} prescription{prescriptions.length === 1 ? '' : 's'}
+            </Text>
+          )}
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
@@ -94,24 +105,48 @@ const MyPrescriptionsScreen: React.FC = () => {
         data={prescriptions}
         keyExtractor={(item) => item.prescriptionId}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          // Centre the empty state in the space left over instead of pinning
+          // it 48pt from the top of a mostly blank screen.
+          prescriptions.length === 0 && styles.listEmpty,
+        ]}
         refreshing={loading}
         onRefresh={load}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator color={C.primary} style={{ marginTop: 48 }} />
+            <ActivityIndicator color={C.primary} />
           ) : error ? (
             <View style={styles.center}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                <Text style={styles.retryText}>Retry</Text>
+              <View style={[styles.emptyMedallion, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="cloud-offline-outline" size={34} color="#EF4444" />
+              </View>
+              <Text style={styles.emptyText}>Couldn't load prescriptions</Text>
+              <Text style={styles.emptySub}>{error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={load} activeOpacity={0.85}>
+                <Text style={styles.retryText}>Try Again</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.center}>
-              <Ionicons name="medkit-outline" size={44} color={C.textSec} />
+              <View style={styles.emptyMedallion}>
+                <Ionicons name="medkit-outline" size={34} color={C.primary} />
+              </View>
               <Text style={styles.emptyText}>No prescriptions yet</Text>
-              <Text style={styles.emptySub}>Prescriptions appear here after a completed consultation.</Text>
+              <Text style={styles.emptySub}>
+                Prescriptions appear here after a completed consultation.
+              </Text>
+              {/* A dead end otherwise: the only way to get a prescription is
+                  to see a doctor, so offer that rather than leaving the
+                  screen with nothing to do. */}
+              <TouchableOpacity
+                style={styles.retryBtn}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate(HealthcareRouteNames.DoctorList)}
+              >
+                <Ionicons name="search" size={16} color="#FFF" />
+                <Text style={styles.retryText}>Find a Doctor</Text>
+              </TouchableOpacity>
             </View>
           )
         }
@@ -122,22 +157,35 @@ const MyPrescriptionsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
-  title: { fontSize: 17, fontWeight: '700', color: C.text },
+  headerText: { flex: 1, alignItems: 'center' },
+  title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+  subtitle: { fontSize: 12, color: C.textSec, marginTop: 1 },
   list: { padding: 16, paddingBottom: 40 },
+  listEmpty: { flexGrow: 1, justifyContent: 'center' },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },
   cardIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
   cardBody: { flex: 1, marginHorizontal: 12 },
   diagnosis: { fontSize: 14, fontWeight: '700', color: C.text },
   meta: { fontSize: 12, color: C.textSec, marginTop: 2 },
   pdfBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  center: { alignItems: 'center', marginTop: 48, paddingHorizontal: 32 },
-  errorText: { color: C.textSec, textAlign: 'center', marginBottom: 12 },
-  retryBtn: { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  emptyText: { fontSize: 15, fontWeight: '700', color: C.text, marginTop: 10 },
-  emptySub: { fontSize: 13, color: C.textSec, textAlign: 'center', marginTop: 4 },
+  center: { alignItems: 'center', paddingHorizontal: 32 },
+  emptyMedallion: {
+    width: 84, height: 84, borderRadius: 42,
+    backgroundColor: C.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
+  },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.primary, borderRadius: 24,
+    paddingHorizontal: 26, paddingVertical: 13,
+    marginTop: 22,
+  },
+  retryText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  emptyText: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+  emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20 },
 });
 
 export default MyPrescriptionsScreen;

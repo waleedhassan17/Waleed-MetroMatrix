@@ -15,6 +15,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -47,9 +48,20 @@ import {
 } from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HEADER_MAX_HEIGHT = 280;
-const HEADER_MIN_HEIGHT = 100;
-const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+/**
+ * Height of the hero's contents below the top bar: avatar (96) + its 12pt
+ * gap, name, specialty, qualifications line and the rating row, plus the
+ * block's own 10/20 padding.
+ *
+ * This used to be folded into a flat HEADER_MAX_HEIGHT of 280, which was
+ * smaller than what the block actually renders — and because the header is
+ * `overflow: hidden`, the qualifications line was sliced in half and the
+ * rating row never appeared at all. Sizing from the content instead means the
+ * hero always fits whatever it is given.
+ */
+const HERO_CONTENT_HEIGHT = 234;
+/** Top bar: back / favourite / share row, below the status bar. */
+const TOP_BAR_HEIGHT = 56;
 
 // ── Theme Colors (Consistent) ───────────────
 
@@ -167,6 +179,15 @@ const DoctorDetailScreen: React.FC = () => {
   } = useAppSelector((s) => s.doctorDetail);
 
   const doctorId: string = route.params?.doctorId ?? '';
+
+  // The hero deliberately draws under the status bar, so the offset comes from
+  // the inset rather than the screen being wrapped in a SafeAreaView. The
+  // previous StatusBar.currentHeight fallback was Android-only — on a notched
+  // iPhone the top bar rendered 8pt from the top, behind the notch.
+  const insets = useSafeAreaInsets();
+  const HEADER_MAX_HEIGHT = insets.top + TOP_BAR_HEIGHT + HERO_CONTENT_HEIGHT;
+  const HEADER_MIN_HEIGHT = insets.top + TOP_BAR_HEIGHT;
+  const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
   // ── Animations ────────────────────────────
 
@@ -926,7 +947,7 @@ const DoctorDetailScreen: React.FC = () => {
   // ── Main Render ───────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1E6AE1" />
 
       {/* Animated Header */}
@@ -940,7 +961,7 @@ const DoctorDetailScreen: React.FC = () => {
         </LinearGradient>
 
         {/* Top Bar */}
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { marginTop: insets.top }]}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
@@ -992,17 +1013,22 @@ const DoctorDetailScreen: React.FC = () => {
           />
         }
       >
-        <View style={{ height: HEADER_MAX_HEIGHT - 40 }} />
+        {/* Must clear the hero exactly. This was HEADER_MAX_HEIGHT - 40, so
+            the stats card started 40pt *underneath* the absolutely-positioned
+            header and had its top row cut off. */}
+        <View style={{ height: HEADER_MAX_HEIGHT + 16 }} />
         {renderStatsRow()}
         {renderTabBar()}
         {renderActiveTab()}
-        <View style={{ height: 100 }} />
+        {/* Clears the floating footer, which now grows by the system inset. */}
+        <View style={{ height: 120 + Math.max(insets.bottom, 12) }} />
       </Animated.ScrollView>
 
       {/* Floating Book Button */}
       <Animated.View
         style={[
           styles.floatingFooter,
+          { paddingBottom: Math.max(insets.bottom, 12) + 8 },
           { transform: [{ scale: fabScale }] },
         ]}
       >
@@ -1030,7 +1056,7 @@ const DoctorDetailScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -1055,8 +1081,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + 8 : 8,
-    height: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + 56 : 56,
+    // Height and top offset are applied inline from the safe-area inset.
+    height: TOP_BAR_HEIGHT,
   },
   backButton: {
     width: 40,
@@ -1849,7 +1875,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    // paddingBottom is applied inline from the safe-area inset: the screen was
+    // wrapped in react-native's SafeAreaView, which is a plain View on
+    // Android, so "Book Appointment" sat under the system nav buttons.
   },
   footerContent: {
     flexDirection: 'row',

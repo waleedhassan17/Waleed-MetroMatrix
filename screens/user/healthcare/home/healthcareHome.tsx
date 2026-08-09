@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   TouchableOpacity,
   TextInput,
@@ -550,9 +551,18 @@ const HealthcareHomeScreen: React.FC = () => {
 
         {/* ── Quick Actions ──────────────────── */}
         <View style={styles.quickActionsContainer}>
-          <View style={styles.quickActionsGrid}>
+          {/* Five cards were laid out as a flex:1 row, so each one sized to
+              whatever space was left — the labels are different lengths, so
+              the cards came out different widths and the last one ran off the
+              screen with no way to reach it. Fixed-width cards in a horizontal
+              scroller keep them identical and all reachable. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickActionsGrid}
+          >
             {QUICK_ACTIONS.map((action, index) => renderQuickAction(action, index))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* ── Trust Stats Bar ──────────────────── */}
@@ -956,15 +966,19 @@ const styles = StyleSheet.create({
 
   // Quick Actions
   quickActionsContainer: {
-    paddingHorizontal: 20,
+    // No horizontal padding here: the scroller runs edge to edge and insets
+    // its own content, so cards slide fully off-screen rather than clipping
+    // against a padded parent.
     marginBottom: 28,
   },
   quickActionsGrid: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
   },
   quickActionCard: {
-    flex: 1,
+    // Fixed rather than flex:1 — identical cards regardless of label length.
+    width: 104,
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     paddingVertical: 18,

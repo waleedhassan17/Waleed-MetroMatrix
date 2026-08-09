@@ -86,7 +86,14 @@
         }
       ],
       "@react-native-firebase/app",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MetroMatrix uses your photos so you can attach health records and prescriptions.",
+          "cameraPermission": "MetroMatrix uses your camera so you can photograph health records and prescriptions."
+        }
+      ]
     ],
     "extra": {
       "eas": {

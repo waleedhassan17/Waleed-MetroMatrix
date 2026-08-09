@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,9 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
@@ -99,27 +102,74 @@ const UploadRecordScreen: React.FC = () => {
 
   // ── Handlers ──────────────────────────────
 
-  const handlePickFiles = useCallback(() => {
-    const mockFile: PickedFile = {
-      id: `file-${Date.now()}`,
-      uri: 'file://mock-document.pdf',
-      name: `Document_${files.length + 1}.pdf`,
-      type: 'pdf',
-      size: 245000,
-    };
-    dispatch(addFiles([mockFile]));
+  // Both pickers used to fabricate a PickedFile pointing at a URI that never
+  // existed ('file://mock-document.pdf'), so the buttons appeared to work but
+  // nothing was ever attached and the upload had nothing real to send.
+
+  const handlePickFiles = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'application/msword',
+               'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      dispatch(addFiles(result.assets.map((asset, i) => ({
+        id: `file-${Date.now()}-${i}`,
+        uri: asset.uri,
+        name: asset.name ?? `Document_${files.length + i + 1}.pdf`,
+        type: 'pdf' as const,
+        size: asset.size ?? 0,
+      }))));
+    } catch {
+      Alert.alert('Could not open files', 'Please try again.');
+    }
   }, [dispatch, files.length]);
 
-  const handlePickImage = useCallback(() => {
-    const mockImage: PickedFile = {
+  const addImageAsset = useCallback((asset: ImagePicker.ImagePickerAsset) => {
+    dispatch(addFiles([{
       id: `img-${Date.now()}`,
-      uri: 'file://mock-image.jpg',
-      name: `Photo_${files.length + 1}.jpg`,
-      type: 'image',
-      size: 1200000,
-    };
-    dispatch(addFiles([mockImage]));
+      uri: asset.uri,
+      name: asset.fileName ?? `Photo_${files.length + 1}.jpg`,
+      type: 'image' as const,
+      size: asset.fileSize ?? 0,
+    }]));
   }, [dispatch, files.length]);
+
+  const takePhoto = useCallback(async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Camera access needed', 'Enable camera access in Settings to photograph a record.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled && result.assets?.[0]) addImageAsset(result.assets[0]);
+  }, [addImageAsset]);
+
+  const pickFromGallery = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Photo access needed', 'Enable photo access in Settings to attach a record.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) addImageAsset(result.assets[0]);
+  }, [addImageAsset]);
+
+  // The tile is labelled "Camera / Gallery" but went straight to one source —
+  // ask which, since a record is as often already in the camera roll.
+  const handlePickImage = useCallback(() => {
+    Alert.alert('Add Photo', 'Where should we get the photo from?', [
+      { text: 'Take Photo', onPress: takePhoto },
+      { text: 'Choose from Gallery', onPress: pickFromGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [takePhoto, pickFromGallery]);
 
   const handleRemoveFile = useCallback(
     (fileId: string, fileName: string) => {
@@ -146,13 +196,31 @@ const UploadRecordScreen: React.FC = () => {
     }
   }, [dispatch, navigation]);
 
+  // Typing "YYYY-MM-DD" by hand let through anything that looked vaguely like
+  // a date (and only stripped non-digits), so pick from a calendar instead.
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const parsedDate = useMemo(() => {
+    const d = new Date(date);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
+  }, [date]);
+
   const handleDateChange = useCallback(
-    (text: string) => {
-      const cleaned = text.replace(/[^0-9-]/g, '');
-      dispatch(setDate(cleaned));
+    (event: DateTimePickerEvent, selected?: Date) => {
+      // Android's dialog is modal and dismisses itself; iOS keeps the spinner
+      // inline until it is closed explicitly.
+      setShowDatePicker(Platform.OS === 'ios');
+      if (event.type === 'dismissed' || !selected) return;
+      dispatch(setDate(selected.toISOString().split('T')[0]));
     },
     [dispatch],
   );
+
+  const displayDate = useMemo(() => {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return 'Select a date';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }, [date]);
 
   const activeTypeConfig = TYPE_COLORS[recordType];
   const canUpload = !uploading && !!title.trim() && files.length > 0;
@@ -268,21 +336,29 @@ const UploadRecordScreen: React.FC = () => {
 
             {/* Date */}
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Date</Text>
-            <View style={styles.inputWrapper}>
+            <TouchableOpacity
+              style={styles.inputWrapper}
+              onPress={() => setShowDatePicker(true)}
+              disabled={uploading}
+              activeOpacity={0.7}
+            >
               <View style={styles.inputIcon}>
                 <Ionicons name="calendar-outline" size={16} color={THEME.primary} />
               </View>
-              <TextInput
-                style={styles.textInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#CBD5E1"
-                value={date}
-                onChangeText={handleDateChange}
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-                editable={!uploading}
+              <Text style={[styles.textInput, styles.dateValue]}>{displayDate}</Text>
+              <Ionicons name="chevron-down" size={16} color="#94A3B8" />
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={parsedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                // A record documents something that already happened.
+                maximumDate={new Date()}
+                onChange={handleDateChange}
               />
-            </View>
+            )}
           </View>
         </Animated.View>
 
@@ -650,6 +726,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#0F172A',
     paddingVertical: 13,
+  },
+  dateValue: {
+    paddingVertical: 14,
   },
 
   // File pickers
