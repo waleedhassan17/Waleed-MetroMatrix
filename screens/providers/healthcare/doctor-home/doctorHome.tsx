@@ -32,6 +32,7 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight |
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+import { formatMoney } from '../../../../constants/Currency';
 
 // ── Helpers ───────────────────────────────────
 
@@ -43,8 +44,10 @@ const formatTime = (time: string) => {
   return `${h12}:${m} ${suffix}`;
 };
 
+// Was a local `${currency} ${amount.toLocaleString()}`, which disagreed with
+// the wallet card's ₨3,500.00 on this very screen. One formatter now.
 const formatCurrency = (amount: number, currency: string) =>
-  `${currency} ${amount.toLocaleString()}`;
+  formatMoney(amount, { code: currency });
 
 const getGreeting = () => {
   const hour = new Date().getHours();

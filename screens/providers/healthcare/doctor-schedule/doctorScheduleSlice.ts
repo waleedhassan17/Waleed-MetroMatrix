@@ -30,9 +30,19 @@ export const fetchSchedule = createAsyncThunk<
   Appointment[],
   string | undefined,
   { state: { doctorSchedule: DoctorScheduleState }; rejectValue: string }
->('doctorSchedule/fetchSchedule', async (_, { rejectWithValue }) => {
+>('doctorSchedule/fetchSchedule', async (arg, { getState, rejectWithValue }) => {
   try {
-    const res = await fetchDoctorScheduleApi();
+    // The arg was declared then discarded (`async (_, ...)`), so the date
+    // picker only ever filtered client-side over an upcoming-only list.
+    const anchor = arg ?? getState().doctorSchedule.selectedDate;
+    const d = new Date(`${anchor}T12:00:00Z`);
+    const start = new Date(d);
+    start.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+    const iso = (x: Date) => x.toISOString().split('T')[0];
+
+    const res = await fetchDoctorScheduleApi({ from: iso(start), to: iso(end) });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     return res.data;
   } catch {

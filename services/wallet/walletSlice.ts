@@ -33,6 +33,7 @@ import type {
   PayoutRequest,
   PayoutResponse,
 } from "../../models/wallet";
+import { APP_CURRENCY, normaliseCurrency } from '../../constants/Currency';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -104,7 +105,7 @@ const initialConnect: ConnectState = {
 
 const initialState: WalletState = {
   balance: 0,
-  currency: 'PKR',
+  currency: APP_CURRENCY,
   transactions: [],
   pagination: { page: 1, limit: 20, total: 0, pages: 0 },
 
@@ -159,7 +160,10 @@ export const walletSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.loading = false;
           state.balance = action.payload.wallet.balance;
-          state.currency = action.payload.wallet.currency;
+          // Normalised at ingest — the only place a foreign currency can
+          // enter the store. Legacy wallets created as 'usd' otherwise made
+          // the doctor dashboard show "$0.00 USD" beside PKR earnings.
+          state.currency = normaliseCurrency(action.payload.wallet.currency);
           state.transactions = action.payload.transactions;
           if (action.payload.pagination) {
             state.pagination = action.payload.pagination;
@@ -208,7 +212,7 @@ export const walletSlice = createAppSlice({
           // Same wallet, freshest read — keep the balance in sync too.
           if (action.payload.wallet) {
             state.balance = action.payload.wallet.balance;
-            state.currency = action.payload.wallet.currency;
+            state.currency = normaliseCurrency(action.payload.wallet.currency);
           }
         },
         rejected: (state, action) => {
@@ -267,7 +271,7 @@ export const walletSlice = createAppSlice({
           // Backend returns updated sender wallet - sync balance
           if (action.payload.senderWallet) {
             state.balance = action.payload.senderWallet.balance;
-            state.currency = action.payload.senderWallet.currency;
+            state.currency = normaliseCurrency(action.payload.senderWallet.currency);
           }
           state.error = null;
         },
@@ -356,7 +360,7 @@ export const walletSlice = createAppSlice({
           state.lastPayout = action.payload;
           if (action.payload.wallet) {
             state.balance = action.payload.wallet.balance;
-            state.currency = action.payload.wallet.currency;
+            state.currency = normaliseCurrency(action.payload.wallet.currency);
           }
         },
         rejected: (state, action) => {

@@ -15,17 +15,11 @@ import {
 } from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 import { Eye, EyeOff, ArrowUpRight } from 'lucide-react-native';
+import { currencySymbol } from '../../constants/Currency';
 
 interface MiniWalletCardProps {
   onPress?: () => void;
 }
-
-const getCurrencySymbol = (code: string): string => {
-  const map: Record<string, string> = {
-    usd: '$', eur: '€', gbp: '£', pkr: '₨', inr: '₹', aed: 'د.إ', sar: '﷼',
-  };
-  return map[(code || '').toLowerCase()] || code.toUpperCase();
-};
 
 const splitMoney = (amount: number) => {
   const fixed = Math.abs(amount).toFixed(2);
@@ -78,7 +72,7 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
 
   const handleToggleBalance = () => setShowBalance((v) => !v);
 
-  const symbol = getCurrencySymbol(currency);
+  const symbol = currencySymbol(currency);
   const parts = splitMoney(balance);
 
   return (

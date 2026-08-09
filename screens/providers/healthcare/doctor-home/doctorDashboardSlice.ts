@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { Appointment } from '../../../../models/healthcare/types';
 import { fetchDoctorDashboardApi } from '../../../../networks/healthcare/providerApi';
+import { APP_CURRENCY } from '../../../../constants/Currency';
 
 // ── Types ───────────────────────────────────
 
@@ -31,7 +32,7 @@ const initialState: DoctorDashboardState = {
   doctorName: '',
   todayStats: { totalAppointments: 0, patientsSeen: 0, pending: 0, cancelled: 0 },
   upcomingAppointments: [],
-  earnings: { today: 0, thisWeek: 0, thisMonth: 0, currency: 'PKR' },
+  earnings: { today: 0, thisWeek: 0, thisMonth: 0, currency: APP_CURRENCY },
   loading: false,
   error: null,
 };

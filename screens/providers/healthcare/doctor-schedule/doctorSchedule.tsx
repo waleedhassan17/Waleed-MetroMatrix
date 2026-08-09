@@ -276,8 +276,8 @@ const DoctorScheduleScreen: React.FC = () => {
   // the app started — completing a consultation never reached the dashboard.
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchSchedule());
-    }, [dispatch])
+      dispatch(fetchSchedule(selectedDate));
+    }, [dispatch, selectedDate])
   );
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);

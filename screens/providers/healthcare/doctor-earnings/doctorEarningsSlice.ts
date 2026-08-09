@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { fetchDoctorEarningsApi, fetchDoctorTransactionsApi } from '../../../../networks/healthcare/providerApi';
+import { APP_CURRENCY } from '../../../../constants/Currency';
 
 // ── Types ───────────────────────────────────
 
@@ -47,7 +48,7 @@ const initialState: DoctorEarningsState = {
   transactions: [],
   chartData: [],
   breakdown: [],
-  currency: 'PKR',
+  currency: APP_CURRENCY,
   loading: false,
   transactionsLoading: false,
   transactionsError: null,

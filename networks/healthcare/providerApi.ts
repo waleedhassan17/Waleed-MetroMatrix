@@ -8,6 +8,7 @@
 // coupons, payments) have no backend endpoint yet and degrade gracefully.
 
 import { healthcareApiRequest } from './config';
+import { APP_CURRENCY } from '../../constants/Currency';
 import {
   dashboardDataSerializer,
   earningTransactionSerializer,
@@ -80,7 +81,7 @@ export async function fetchDoctorDashboardApi(): Promise<ApiResponse<DoctorDashb
         today: d.today?.earnings || 0,
         thisWeek: d.thisWeek?.earnings || 0,
         thisMonth: d.thisMonth?.earnings || 0,
-        currency: 'PKR',
+        currency: APP_CURRENCY,
       },
     };
     return { ...res, data: dashboardDataSerializer(transformed) };
@@ -92,8 +93,19 @@ export async function fetchDoctorDashboardApi(): Promise<ApiResponse<DoctorDashb
 //  DOCTOR SCHEDULE
 // ═══════════════════════════════════════════
 
-export async function fetchDoctorScheduleApi(): Promise<ApiResponse<Appointment[]>> {
-  const res = await healthcareApiRequest<any>('/doctors/me/appointments?status=upcoming&limit=50');
+export async function fetchDoctorScheduleApi(
+  params: { from?: string; to?: string; limit?: number } = {}
+): Promise<ApiResponse<Appointment[]>> {
+  // Was hardcoded to `status=upcoming&limit=50`, so past days could never
+  // return anything and appointment #51 was unreachable. The backend accepts
+  // an inclusive from/to range, so ask for exactly the week being displayed.
+  const qs = new URLSearchParams();
+  if (params.from) qs.set('from', params.from);
+  if (params.to) qs.set('to', params.to);
+  if (!params.from && !params.to) qs.set('status', 'upcoming');
+  qs.set('limit', String(params.limit ?? 200));
+
+  const res = await healthcareApiRequest<any>(`/doctors/me/appointments?${qs.toString()}`);
   if (res.success) {
     const list = res.data?.appointments || (Array.isArray(res.data) ? res.data : []);
     return { ...res, data: list.map(appointmentSerializer) };
@@ -486,7 +498,7 @@ export async function fetchDoctorProviderProfileApi(): Promise<ApiResponse<Docto
       clinicAddress: clinic.address || '',
       consultationFee: doc.consultationFee || 0,
       videoConsultationFee: doc.videoConsultationFee || 0,
-      currency: 'PKR',
+      currency: APP_CURRENCY,
       languages: doc.languages || [],
       rating: doc.rating || 0,
       totalReviews: doc.totalReviews || 0,

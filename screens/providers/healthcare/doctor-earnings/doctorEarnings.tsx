@@ -35,6 +35,7 @@ const CHART_HEIGHT = 160;
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+import { formatMoney } from '../../../../constants/Currency';
 
 // ── Period options ─────────────────────────────
 
@@ -47,8 +48,10 @@ const PERIOD_OPTIONS: { label: string; value: PeriodFilter; short: string }[] = 
 
 // ── Helpers ───────────────────────────────────
 
+// Was a local `${currency} ${amount.toLocaleString()}`, which disagreed with
+// the wallet card's ₨3,500.00 on this very screen. One formatter now.
 const formatCurrency = (amount: number, currency: string) =>
-  `${currency} ${amount.toLocaleString()}`;
+  formatMoney(amount, { code: currency });
 
 const formatDate = (iso: string) => {
   const d = new Date(iso);
