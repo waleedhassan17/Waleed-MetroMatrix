@@ -138,11 +138,7 @@ const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
     error,
   } = useAppSelector((state) => state.doctorEarnings);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const heroScaleAnim = useRef(new Animated.Value(0.92)).current;
-
-  const hasAnimated = useRef(false);
 
   useEffect(() => {
     dispatch(fetchEarnings());
@@ -150,21 +146,17 @@ const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
     return () => { dispatch(resetDoctorEarnings()); };
   }, [dispatch]);
 
+  // Unconditional, and scoped to the hero only. The screen-level fade this
+  // replaced was gated on `loading` and froze part-way when the loading branch
+  // unmounted it, leaving the whole screen washed out permanently.
   useEffect(() => {
-    // Reveal once the earnings load settles. Don't gate on transactionsLoading —
-    // if that request hangs/fails the content would stay invisible (blank screen).
-    if (!loading && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      heroScaleAnim.setValue(0.92);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-        Animated.spring(heroScaleAnim, { toValue: 1, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading]);
+    Animated.spring(heroScaleAnim, {
+      toValue: 1,
+      tension: 80,
+      friction: 9,
+      useNativeDriver: true,
+    }).start();
+  }, [heroScaleAnim]);
 
   const handlePeriodChange = useCallback(
     (period: PeriodFilter) => {
@@ -287,7 +279,7 @@ const DoctorEarningsScreen: React.FC<{ isInTab?: boolean }> = ({ isInTab }) => {
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

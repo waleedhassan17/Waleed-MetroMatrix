@@ -446,36 +446,27 @@ const AvailabilitySettingsScreen: React.FC = () => {
   } | null>(null);
   const [vacationModalVisible, setVacationModalVisible] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
   const sectionAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
-  const hasAnimated = useRef(false);
 
   useEffect(() => {
     dispatch(fetchSettings());
     return () => { dispatch(resetAvailabilitySettings()); };
   }, [dispatch]);
 
+  // Unconditional and scoped to the section cards. The screen-level fade this
+  // replaced was gated on `loading`, froze part-way when the loading branch
+  // unmounted it, and never re-ran — leaving the screen washed out. A section
+  // stagger can at worst leave a card at 90% scale; it cannot hide the screen.
   useEffect(() => {
-    if (!loading && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      sectionAnims.forEach(a => a.setValue(0));
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-        Animated.stagger(
-          90,
-          sectionAnims.map((a) =>
-            Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
-          )
-        ),
-      ]).start();
-    }
-  }, [loading]);
+    Animated.stagger(
+      90,
+      sectionAnims.map((a) =>
+        Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
+      )
+    ).start();
+  }, [sectionAnims]);
 
   // Success banner animation
   useEffect(() => {
@@ -573,7 +564,11 @@ const AvailabilitySettingsScreen: React.FC = () => {
 
   // ── Loading ───────────────────────────────────
 
-  if (loading) {
+  // A full-screen loader or error page is only legitimate when there is
+  // nothing to show. Gating on bare `loading`/`error` meant every refetch
+  // blanked a populated screen — and on the queue, one failed 30s poll
+  // replaced a working list with an error page.
+  if (loading && weeklySchedule.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -598,7 +593,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
 
   // ── Error ─────────────────────────────────────
 
-  if (error) {
+  if (error && weeklySchedule.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -658,7 +653,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

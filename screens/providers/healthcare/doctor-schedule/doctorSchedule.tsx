@@ -264,27 +264,17 @@ const DoctorScheduleScreen: React.FC = () => {
     (state) => state.doctorSchedule,
   );
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const headerSlide = useRef(new Animated.Value(-10)).current;
-  const hasAnimated = useRef(false);
-  const [isLayoutReady, setIsLayoutReady] = useState(false);
-
+  // The reveal fade that used to gate this whole screen is gone. It waited on
+  // an `isLayoutReady` flag set by onLayout on the *content* branch's root —
+  // but the loading branch renders the same element type at the same position,
+  // so React reused the host view and simply dropped the onLayout prop. The
+  // in-flight layout event was lost, the frame never changed again, so the flag
+  // stayed false forever and the header and ScrollView both sat at opacity 0.
+  // That is why this tab rendered as a blank white screen.
   useEffect(() => {
     dispatch(fetchSchedule());
     return () => { dispatch(resetDoctorSchedule()); };
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!loading && isLayoutReady && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      headerSlide.setValue(-10);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(headerSlide, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading, isLayoutReady]);
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
 
@@ -335,7 +325,11 @@ const DoctorScheduleScreen: React.FC = () => {
 
   // ── Loading ───────────────────────────────────
 
-  if (loading) {
+  // A full-screen loader or error page is only legitimate when there is
+  // nothing to show. Gating on bare `loading`/`error` meant every refetch
+  // blanked a populated screen — and on the queue, one failed 30s poll
+  // replaced a working list with an error page.
+  if (loading && appointments.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -359,7 +353,7 @@ const DoctorScheduleScreen: React.FC = () => {
 
   // ── Error ─────────────────────────────────────
 
-  if (error) {
+  if (error && appointments.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -391,11 +385,11 @@ const DoctorScheduleScreen: React.FC = () => {
   // ── Render ────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} onLayout={() => setIsLayoutReady(true)}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       {/* ── Gradient Header ── */}
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: headerSlide }] }}>
+      <View>
         <LinearGradient
           colors={THEME.gradient.primary}
           start={{ x: 0, y: 0 }}
@@ -461,11 +455,11 @@ const DoctorScheduleScreen: React.FC = () => {
             onSelectDate={handleDateSelect}
           />
         </LinearGradient>
-      </Animated.View>
+      </View>
 
       {/* ── Content ── */}
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

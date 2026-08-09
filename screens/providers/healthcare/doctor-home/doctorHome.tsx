@@ -106,29 +106,19 @@ const DoctorHomeScreen: React.FC = () => {
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const hasAnimated = useRef(false);
 
+  // The screen-level reveal fade that used to live here is gone. It could not
+  // work: the slice starts at loading:false, so it fired on the first render,
+  // then `pending` flipped loading to true one frame later and the guard below
+  // unmounted the ScrollView mid-fade. RN's AnimatedValue.__detach() writes the
+  // partial value back and stops the animation, and the `hasAnimated` latch
+  // meant it never re-ran — so every doctor screen rendered permanently washed
+  // out. Per-card entrance animations (StatCard etc.) own their own values
+  // alongside the nodes they drive, so they are unaffected and still play.
   useEffect(() => {
     dispatch(fetchDashboardData());
   }, [dispatch]);
-
-  useEffect(() => {
-    // Reveal content once the initial load settles. Must NOT depend on a data
-    // field (e.g. doctorName) — if that field is empty the content would stay
-    // at opacity 0 and the whole screen renders blank.
-    if (!loading && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading]);
 
   const handleRefresh = useCallback(() => {
     dispatch(refreshDashboard());
@@ -197,7 +187,7 @@ const DoctorHomeScreen: React.FC = () => {
       />
 
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(

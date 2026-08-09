@@ -340,34 +340,21 @@ const PatientQueueScreen: React.FC = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
-  const hasAnimated = useRef(false);
-  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
+  // The reveal fade is removed for the same reason as the schedule screen: it
+  // waited on an onLayout flag that the loading-branch swap silently discarded,
+  // so the body stayed at opacity 0 under the gradient header.
   useEffect(() => {
     dispatch(fetchQueue());
     const interval = setInterval(() => {
       dispatch(fetchQueue());
     }, 30000); // 30s auto-refresh polling
-    return () => { 
+    return () => {
       clearInterval(interval);
-      dispatch(resetPatientQueue()); 
+      dispatch(resetPatientQueue());
     };
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!loading && isLayoutReady && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading, isLayoutReady]);
 
   // Tab indicator animation
   const tabIndex = FILTER_TABS.findIndex((t) => t.value === filterTab);
@@ -435,7 +422,11 @@ const PatientQueueScreen: React.FC = () => {
 
   // ── Loading ───────────────────────────────────
 
-  if (loading) {
+  // A full-screen loader or error page is only legitimate when there is
+  // nothing to show. Gating on bare `loading`/`error` meant every refetch
+  // blanked a populated screen — and on the queue, one failed 30s poll
+  // replaced a working list with an error page.
+  if (loading && queue.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -457,7 +448,7 @@ const PatientQueueScreen: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && queue.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -489,7 +480,7 @@ const PatientQueueScreen: React.FC = () => {
   // ── Render ────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container} onLayout={() => setIsLayoutReady(true)}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
 
       {/* ── Gradient Header ── */}
@@ -515,7 +506,7 @@ const PatientQueueScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

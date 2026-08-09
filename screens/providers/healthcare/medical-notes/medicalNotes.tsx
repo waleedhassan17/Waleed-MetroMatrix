@@ -169,32 +169,19 @@ const MedicalNotesScreen: React.FC = () => {
   const [tagInput, setTagInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
-  const listFadeAnim = useRef(new Animated.Value(0)).current;
-  const listSlideAnim = useRef(new Animated.Value(16)).current;
   const editorFadeAnim = useRef(new Animated.Value(0)).current;
   const editorSlideAnim = useRef(new Animated.Value(20)).current;
   const recordingPulse = useRef(new Animated.Value(1)).current;
 
-  const hasAnimated = useRef(false);
-
+  // The list reveal fade is removed: gated on `loading`, it froze part-way when
+  // the loading branch unmounted it and the `hasAnimated` latch stopped it
+  // re-running, leaving the notes list invisible.
   useEffect(() => {
     if (routePatientId) {
       dispatch(fetchPatientNotes(routePatientId));
     }
     return () => { dispatch(clearNotes()); };
   }, [dispatch, routePatientId]);
-
-  useEffect(() => {
-    if (!loading && !hasAnimated.current) {
-      hasAnimated.current = true;
-      listFadeAnim.setValue(0);
-      listSlideAnim.setValue(16);
-      Animated.parallel([
-        Animated.timing(listFadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(listSlideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading]);
 
   // Editor enter animation
   useEffect(() => {
@@ -319,7 +306,11 @@ const MedicalNotesScreen: React.FC = () => {
 
   // ── Loading ───────────────────────────────────
 
-  if (loading) {
+  // A full-screen loader or error page is only legitimate when there is
+  // nothing to show. Gating on bare `loading`/`error` meant every refetch
+  // blanked a populated screen — and on the queue, one failed 30s poll
+  // replaced a working list with an error page.
+  if (loading && notes.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBarPlaceholder />
@@ -588,7 +579,7 @@ const MedicalNotesScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={[styles.flex, { opacity: listFadeAnim, transform: [{ translateY: listSlideAnim }] }]}
+        style={styles.flex}
         contentContainerStyle={styles.listScrollContent}
         showsVerticalScrollIndicator={false}
       >

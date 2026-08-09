@@ -160,31 +160,17 @@ const ManageSlotsScreen: React.FC = () => {
     saveSuccess,
   } = useAppSelector((state) => state.manageSlots);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
   const prevDuration = useRef(slotDuration);
   const prevClinic = useRef(selectedClinic);
   const prevDate = useRef(selectedDate);
 
-  const hasAnimated = useRef(false);
-
+  // The loading-gated reveal fade that wrapped this screen is removed — it
+  // froze part-way when the loading branch unmounted it and never re-ran.
   useEffect(() => {
     dispatch(fetchSlots());
     return () => { dispatch(resetManageSlots()); };
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!loading && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [loading]);
 
   useEffect(() => {
     const clinicChanged = prevClinic.current !== selectedClinic;
@@ -246,7 +232,11 @@ const ManageSlotsScreen: React.FC = () => {
 
   // ── Loading ───────────────────────────────────
 
-  if (loading) {
+  // A full-screen loader or error page is only legitimate when there is
+  // nothing to show. Gating on bare `loading`/`error` meant every refetch
+  // blanked a populated screen — and on the queue, one failed 30s poll
+  // replaced a working list with an error page.
+  if (loading && slots.length === 0 && clinics.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -267,7 +257,7 @@ const ManageSlotsScreen: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && slots.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
@@ -321,7 +311,7 @@ const ManageSlotsScreen: React.FC = () => {
       </LinearGradient>
 
       <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
