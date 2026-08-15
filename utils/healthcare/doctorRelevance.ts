@@ -13,6 +13,27 @@ function normalize(value?: string | null): string {
   return (value || '').toLowerCase().replace(/^dr\.?\s+/, '').trim();
 }
 
+/** "dr" / "dr." on its own — a title with nothing after it. */
+const TITLE_ONLY = /^dr\.?$/;
+/** A leading "dr " / "dr. " followed by an actual term. */
+const TITLE_PREFIX = /^dr\.?\s+/;
+
+/**
+ * True when the query is nothing but the title every doctor carries.
+ *
+ * Every stored name begins with "Dr.", so typing "dr" means "show me doctors",
+ * not "find a doctor whose name contains dr". Name matching deliberately
+ * strips the title, which left this query matching nothing at all.
+ */
+export function isTitleOnlyQuery(rawQuery: string): boolean {
+  return TITLE_ONLY.test((rawQuery || '').trim().toLowerCase());
+}
+
+/** Drops a leading title so "dr nadia" behaves exactly like "nadia". */
+function stripQueryTitle(query: string): string {
+  return query.replace(TITLE_PREFIX, '').trim();
+}
+
 /**
  * Relevance score for one doctor against a query; 0 means "no match".
  *
@@ -26,7 +47,16 @@ function normalize(value?: string | null): string {
  * doctor whose bio happens to contain the word.
  */
 export function scoreDoctorForQuery(doctor: Doctor, rawQuery: string): number {
-  const query = normalize(rawQuery);
+  const raw = (rawQuery || '').trim().toLowerCase();
+  if (!raw) return 0;
+
+  // "dr" matches every doctor — rank them by rating rather than dropping them.
+  if (isTitleOnlyQuery(raw)) {
+    return 10 + Math.min(doctor.rating || 0, 5) * 2;
+  }
+
+  // "dr nadia" is the same search as "nadia".
+  const query = stripQueryTitle(raw);
   if (!query) return 0;
 
   const name = normalize(doctor.name);

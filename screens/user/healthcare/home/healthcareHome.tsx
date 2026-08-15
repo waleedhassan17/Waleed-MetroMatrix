@@ -31,13 +31,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SPECIALTY_CARD_WIDTH = 88;
 const DOCTOR_CARD_HEIGHT = 140;
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-};
-
 // ── Theme Colors ────────────────────────────
 
 const THEME = {
@@ -252,6 +245,16 @@ const HealthcareHomeScreen: React.FC = () => {
   });
 
   // ── Handlers ────────────────────────────────
+
+  // This screen is the healthcare module's landing page, reached by pushing the
+  // healthcare stack from the main app. `goBack` bubbles past the tab navigator
+  // and pops the whole stack, returning the user where they came from. Hidden
+  // when there is nothing to go back to, so it never becomes a dead control.
+  const canGoBack = navigation.canGoBack();
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+  };
 
   const handleSearch = () => {
     const query = searchText.trim();
@@ -498,8 +501,19 @@ const HealthcareHomeScreen: React.FC = () => {
             style={styles.headerGradient}
           >
             <View style={styles.headerContent}>
+              {canGoBack && (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={styles.headerBackButton}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
               <View style={styles.headerTextGroup}>
-                <Text style={styles.greeting}>{getGreeting()} 👋</Text>
                 <Text style={styles.headerTitle}>Find Your Doctor</Text>
                 <Text style={styles.headerSubtitle}>Book appointments with top specialists</Text>
               </View>
@@ -523,7 +537,7 @@ const HealthcareHomeScreen: React.FC = () => {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search doctors, specialties, symptoms..."
+              placeholder="Search doctors..."
               placeholderTextColor={Colors.text.tertiary}
               value={searchText}
               onChangeText={setSearchText}
@@ -885,16 +899,20 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   headerContent: {
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   headerTextGroup: {
     flex: 1,
   },
-  greeting: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 6,
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 28,

@@ -2,7 +2,10 @@ import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@r
 import type { Doctor } from '../../../../models/healthcare/types';
 import type { Pagination } from '../../../../models/serviceProviders/common';
 import { fetchDoctorsApi, searchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
-import { rankDoctorsByQuery } from '../../../../utils/healthcare/doctorRelevance';
+import {
+  rankDoctorsByQuery,
+  isTitleOnlyQuery,
+} from '../../../../utils/healthcare/doctorRelevance';
 import type { RootState } from '../../../../store/store';
 
 // ── Filter / Sort Types ─────────────────────
@@ -170,7 +173,10 @@ export const fetchDoctors = createAsyncThunk<
 >('doctorList/fetchDoctors', async (_, { getState, rejectWithValue }) => {
   try {
     const state = getState().doctorList;
-    const query = state.searchQuery.trim();
+    const rawQuery = state.searchQuery.trim();
+    // "dr" is a request for every doctor, not a name fragment. Sending it to
+    // the search endpoint returns nothing, so fall through to the plain list.
+    const query = isTitleOnlyQuery(rawQuery) ? '' : rawQuery;
 
     // A query goes to the dedicated search endpoint, which matches across the
     // whole doctor set rather than just the current page of `/doctors`.
@@ -204,8 +210,10 @@ export const fetchDoctors = createAsyncThunk<
     if (state.filters.city) {
       params.city = state.filters.city;
     }
-    if (state.searchQuery) {
-      params.search = state.searchQuery;
+    // Deliberately `query`, not `state.searchQuery` — a title-only query was
+    // normalised away above and must not be forwarded as a name filter.
+    if (query) {
+      params.search = query;
     }
     if (state.filters.availability !== 'any') {
       params.availableOnly = true;
@@ -259,7 +267,8 @@ export const loadMore = createAsyncThunk<
     if (state.filters.city) {
       params.city = state.filters.city;
     }
-    if (state.searchQuery) {
+    // Same title-only rule as fetchDoctors, so paging keeps returning results.
+    if (state.searchQuery && !isTitleOnlyQuery(state.searchQuery)) {
       params.search = state.searchQuery;
     }
     if (state.filters.availability !== 'any') {

@@ -2,7 +2,10 @@ import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@r
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Doctor } from '../../../../models/healthcare/types';
 import { fetchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
-import { rankDoctorsByQuery } from '../../../../utils/healthcare/doctorRelevance';
+import {
+  rankDoctorsByQuery,
+  isTitleOnlyQuery,
+} from '../../../../utils/healthcare/doctorRelevance';
 import type { RootState } from '../../../../store/store';
 
 // ── Constants ───────────────────────────────
@@ -75,10 +78,13 @@ export const searchDoctors = createAsyncThunk<
   try {
     const { filters } = getState().doctorSearch;
 
-    const params: Record<string, any> = {
-      search: query.trim(),
-      limit: 20,
-    };
+    const params: Record<string, any> = { limit: 20 };
+
+    // "dr" is the title on every stored name, so it means "list doctors".
+    // Forwarding it as a name filter returns nothing.
+    if (!isTitleOnlyQuery(query)) {
+      params.search = query.trim();
+    }
 
     // Apply filters
     if (filters.specialtyId) params.specialtyId = filters.specialtyId;
