@@ -23,7 +23,7 @@ export interface ConfirmationDetails {
   clinicAddress: string | null;
   fee: number;
   paymentMethod: string;
-  paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentStatus: 'unpaid' | 'paid' | 'refunded';
 }
 
 export interface ReminderSettings {
@@ -450,8 +450,8 @@ export const selectConfirmationDetails = (
     clinicName: clinic?.name || null,
     clinicAddress: clinic ? `${clinic.address}, ${clinic.city}` : null,
     fee: appointment.payment?.amount || 0,
-    paymentMethod: appointment.payment?.method || 'cash',
-    paymentStatus: appointment.payment?.status || 'pending',
+    paymentMethod: appointment.payment?.method || 'wallet',
+    paymentStatus: appointment.payment?.status || 'unpaid',
   };
 };
 

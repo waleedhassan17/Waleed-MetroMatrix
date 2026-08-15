@@ -13,6 +13,9 @@ import {
   Dimensions,
   TextInput,
   RefreshControl,
+  Share,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -41,6 +44,11 @@ import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
+import {
+  invoiceNumberFor,
+  downloadInvoicePdf,
+} from '../../../../utils/healthcare/invoice';
+import { getAccessToken } from '../../../../utils/storage_utils/storageUtils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -204,6 +212,7 @@ const AppointmentDetailScreen: React.FC = () => {
   const dispatch = useAppDispatch();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
   const appointment = useAppSelector(selectAppointment);
   const canCancel = useAppSelector(selectCanCancel);
@@ -258,6 +267,25 @@ const AppointmentDetailScreen: React.FC = () => {
 
   // Handlers
   const handleBack = () => navigation.goBack();
+
+  // The invoice always stays retrievable from the appointment itself, which is
+  // what makes it part of the patient's own records rather than a one-off
+  // shown on the confirmation screen.
+  const handleDownloadInvoice = async () => {
+    if (!appointment) return;
+    setDownloadingInvoice(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Please sign in again to download your invoice.');
+      const uri = await downloadInvoicePdf(appointment.appointmentId, token);
+      const number = invoiceNumberFor(appointment.appointmentId);
+      await Share.share({ url: uri, title: `${number}.pdf`, message: `MetroMatrix invoice ${number}` });
+    } catch (e: any) {
+      Alert.alert('Download failed', e?.message || 'The invoice could not be downloaded.');
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
 
   const handleRefresh = async () => {
     if (!appointmentId) return;
@@ -562,7 +590,7 @@ const AppointmentDetailScreen: React.FC = () => {
                   styles.paymentStatusBadge,
                   {
                     backgroundColor:
-                      appointment.payment.status === 'completed'
+                      appointment.payment.status === 'paid'
                         ? '#DCFCE7'
                         : '#FEF3C7',
                   },
@@ -573,7 +601,7 @@ const AppointmentDetailScreen: React.FC = () => {
                     styles.paymentStatusText,
                     {
                       color:
-                        appointment.payment.status === 'completed'
+                        appointment.payment.status === 'paid'
                           ? THEME.success
                           : THEME.warning,
                     },
@@ -585,7 +613,7 @@ const AppointmentDetailScreen: React.FC = () => {
             </View>
           </View>
 
-          {appointment.payment.status !== 'completed' &&
+          {appointment.payment.status !== 'paid' &&
             appointment.status !== 'cancelled' &&
             appointment.status !== 'completed' && (
               <TouchableOpacity
@@ -600,6 +628,24 @@ const AppointmentDetailScreen: React.FC = () => {
                 <Text style={styles.payNowText}>Pay Consultation Fee</Text>
               </TouchableOpacity>
             )}
+
+          {appointment.payment.status === 'paid' && (
+            <TouchableOpacity
+              style={styles.invoiceBtn}
+              onPress={handleDownloadInvoice}
+              disabled={downloadingInvoice}
+              activeOpacity={0.85}
+            >
+              {downloadingInvoice ? (
+                <ActivityIndicator size="small" color={THEME.primary} />
+              ) : (
+                <>
+                  <Ionicons name="download-outline" size={16} color={THEME.primary} />
+                  <Text style={styles.invoiceBtnText}>Download Invoice</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Video Call Button */}
@@ -1079,6 +1125,24 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#F1F5F9',
     marginVertical: 14,
+  },
+
+  invoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: THEME.primary,
+    backgroundColor: '#EAF3FF',
+  },
+  invoiceBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.primary,
   },
 
   // Payment Status

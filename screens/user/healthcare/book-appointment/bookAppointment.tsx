@@ -35,6 +35,7 @@ import { getDoctorName, getDoctorSpecialty, formatFee } from '../../../../utils/
 import { fetchDoctorDetail } from '../doctor-detail/doctorDetailSlice';
 import { setConsultationType } from '../slot-selection/slotSelectionSlice';
 import { clearSelectedClinic as clearClinicSelection } from '../clinic-selection/clinicSelectionSlice';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -112,6 +113,7 @@ const STEPS = [
 
 const BookAppointmentScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const bottomBarPadding = useBottomBarPadding();
   const route = useRoute<BookAppointmentRoute>();
   const dispatch = useAppDispatch();
   const { doctorId } = route.params;
@@ -683,7 +685,7 @@ const BookAppointmentScreen: React.FC = () => {
 
       {/* Footer */}
       {currentStep > 0 && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: bottomBarPadding }]}>
           <View style={styles.footerContent}>
             {currentStep === 2 && (
               <View style={styles.footerFeeInfo}>

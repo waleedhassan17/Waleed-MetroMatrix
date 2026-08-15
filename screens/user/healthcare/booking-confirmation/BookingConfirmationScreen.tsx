@@ -31,7 +31,7 @@ import {
   selectFeeBreakdown,
 } from './bookingConfirmationSlice';
 import type { PatientDetails } from './bookingConfirmationSlice';
-import { selectBalance } from '../../../../services/wallet';
+import { selectBalance, fetchWallet } from '../../../../services/wallet';
 import type { HealthcareStackParamList, PaymentRecord, Doctor } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
@@ -43,6 +43,7 @@ import {
 } from '../../../../utils/healthcare/doctorDisplay';
 import { Typography } from '../../../../constants/Fonts';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -99,37 +100,11 @@ const formatDate = (dateStr: string): string => {
  */
 const COUPONS_ENABLED = false;
 
-// ── Payment Methods ─────────────────────────
-
-const PAYMENT_METHODS: {
-  key: PaymentRecord['method'];
-  label: string;
-  description: string;
-  icon: string;
-  iconBg: string;
-  iconColor: string;
-}[] = [
-  // Only these two exist on the backend (Appointment.payment.method enum is
-  // ['wallet', 'cash_at_clinic', null]). Card, Online Banking and Insurance
-  // were selectable but could never be stored, so they are gone — this matches
-  // the shopping module's Cash + Wallet checkout.
-  {
-    key: 'cash_at_clinic',
-    label: 'Cash',
-    description: 'Pay at the clinic',
-    icon: 'cash-outline',
-    iconBg: '#DCFCE7',
-    iconColor: THEME.success,
-  },
-  {
-    key: 'wallet',
-    label: 'MetroMatrix Wallet',
-    description: 'Pay now from your balance',
-    icon: 'wallet-outline',
-    iconBg: '#EAF3FF',
-    iconColor: THEME.primary,
-  },
-];
+// ── Payment ─────────────────────────────────
+// Wallet only. The backend enum is ['wallet','cash_at_clinic',null]; card,
+// online banking and insurance were selectable but could never be persisted.
+// Consultations are paid online from the MetroMatrix wallet, matching the
+// shopping checkout, so the balance is debited the moment the booking lands.
 
 // ── Skeleton Component ──────────────────────
 
@@ -195,6 +170,7 @@ const SectionHeader: React.FC<{
 
 const BookingConfirmationScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const bottomBarPadding = useBottomBarPadding();
   const navigation = useNavigation<Nav>();
   const route = useRoute<BookingConfirmationRoute>();
   const { doctorId } = route.params;
@@ -260,6 +236,9 @@ const BookingConfirmationScreen: React.FC = () => {
   // this effect needs none of them as dependencies.
   useEffect(() => {
     dispatch(prepareBooking(doctorId));
+    // The balance decides whether this booking can be paid at all, so read it
+    // fresh rather than trusting whatever another screen last cached.
+    dispatch(fetchWallet());
   }, [dispatch, doctorId]);
 
   // Lifetime cleanup, deliberately in its own effect. `clearBooking()` resets
@@ -274,6 +253,12 @@ const BookingConfirmationScreen: React.FC = () => {
   useEffect(() => {
     if (bookingStatus !== 'confirmed' || !confirmedAppointmentId) return;
 
+    // The wallet is debited server-side by POST /appointments/:id/pay, but
+    // nothing would re-read the balance — the wallet card and header chip
+    // would keep showing the pre-payment figure. Same refresh the shopping
+    // checkout does after a wallet order.
+    dispatch(fetchWallet());
+
     // Hand off to the success screen with the real ids rather than announcing
     // the booking in a system dialog. That screen already exists and is far
     // better at this — it just never received an appointment before, so it
@@ -282,7 +267,7 @@ const BookingConfirmationScreen: React.FC = () => {
       appointmentId: confirmedAppointmentId,
       confirmationCode: confirmedCode ?? undefined,
     });
-  }, [bookingStatus, confirmedAppointmentId, confirmedCode, navigation]);
+  }, [bookingStatus, confirmedAppointmentId, confirmedCode, navigation, dispatch]);
 
   // Handlers
   const walletShort = walletBalance < feeBreakdown.total;
@@ -691,75 +676,79 @@ const BookingConfirmationScreen: React.FC = () => {
             <View style={styles.section}>
               <SectionHeader
                 icon="wallet-outline"
-                title="Payment Method"
+                title="Payment"
                 iconBg="#DCFCE7"
                 iconColor={THEME.success}
               />
 
-              <View style={styles.paymentGrid}>
-                {PAYMENT_METHODS.map((pm) => {
-                  const isActive = paymentMethod === pm.key;
-                  const isWallet = pm.key === 'wallet';
-                  const disabled = isWallet && walletShort;
-                  return (
-                    <TouchableOpacity
-                      key={pm.key}
+              <View
+                style={[
+                  styles.walletCard,
+                  walletShort && styles.walletCardShort,
+                ]}
+              >
+                <View style={styles.walletCardTop}>
+                  <View style={styles.walletBrandIcon}>
+                    <Ionicons name="wallet" size={22} color="#FFFFFF" />
+                  </View>
+
+                  <View style={styles.walletCardInfo}>
+                    <Text style={styles.walletCardTitle}>MetroMatrix Wallet</Text>
+                    <Text style={styles.walletCardSubtitle}>
+                      Paid online when you confirm
+                    </Text>
+                  </View>
+
+                  <View style={styles.walletSelectedPill}>
+                    <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+                  </View>
+                </View>
+
+                <View style={styles.walletDivider} />
+
+                <View style={styles.walletBalanceRow}>
+                  <View>
+                    <Text style={styles.walletBalanceLabel}>Available balance</Text>
+                    <Text
                       style={[
-                        styles.paymentCard,
-                        isActive && styles.paymentCardActive,
-                        disabled && styles.paymentCardDisabled,
+                        styles.walletBalanceValue,
+                        walletShort && styles.walletBalanceValueShort,
                       ]}
-                      onPress={() => dispatch(setPaymentMethod(pm.key))}
-                      activeOpacity={0.7}
-                      disabled={disabled}
                     >
-                      <View
-                        style={[
-                          styles.paymentIconBg,
-                          { backgroundColor: pm.iconBg },
-                          isActive && styles.paymentIconBgActive,
-                        ]}
-                      >
-                        <Ionicons
-                          name={pm.icon as any}
-                          size={20}
-                          color={isActive ? '#FFFFFF' : pm.iconColor}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.paymentLabel,
-                          isActive && styles.paymentLabelActive,
-                        ]}
-                      >
-                        {pm.label}
-                      </Text>
-                      <Text style={styles.paymentDescription}>
-                        {isWallet
-                          ? `Balance: ${formatFee(walletBalance) ?? 'PKR 0'}`
-                          : pm.description}
-                      </Text>
-                      {isActive && !disabled && (
-                        <View style={styles.paymentCheck}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={20}
-                            color={THEME.primary}
-                          />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+                      {formatFee(walletBalance) ?? 'PKR 0'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.walletAfterBox}>
+                    <Text style={styles.walletAfterLabel}>
+                      {walletShort ? 'Short by' : 'Balance after'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.walletAfterValue,
+                        walletShort && styles.walletBalanceValueShort,
+                      ]}
+                    >
+                      {formatFee(
+                        walletShort
+                          ? feeBreakdown.total - walletBalance
+                          : walletBalance - feeBreakdown.total
+                      ) ?? 'PKR 0'}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               {walletShort && (
                 <View style={styles.walletShortRow}>
-                  <Ionicons name="information-circle" size={15} color={THEME.warning} />
+                  <Ionicons name="alert-circle" size={16} color={THEME.warning} />
                   <Text style={styles.walletShortText}>
-                    Wallet balance is below the total. Top up, or pay cash at the clinic.
+                    Not enough balance to pay for this appointment.
                   </Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('WalletScreen' as never)}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('WalletScreen' as never)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
                     <Text style={styles.walletTopUpLink}>Top up</Text>
                   </TouchableOpacity>
                 </View>
@@ -907,6 +896,7 @@ const BookingConfirmationScreen: React.FC = () => {
       <Animated.View
         style={[
           styles.bottomBar,
+          { paddingBottom: bottomBarPadding },
           { transform: [{ translateY: bottomBarAnim }] },
         ]}
       >
@@ -926,10 +916,11 @@ const BookingConfirmationScreen: React.FC = () => {
           <TouchableOpacity
             style={[
               styles.confirmButton,
-              bookingStatus === 'confirming' && styles.confirmButtonDisabled,
+              (bookingStatus === 'confirming' || walletShort) &&
+                styles.confirmButtonDisabled,
             ]}
             onPress={handleConfirm}
-            disabled={bookingStatus === 'confirming'}
+            disabled={bookingStatus === 'confirming' || walletShort}
             activeOpacity={0.9}
           >
             <LinearGradient
@@ -1029,9 +1020,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Wallet / booking error ──
-  paymentCardDisabled: {
-    opacity: 0.5,
-  },
   walletShortRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1322,53 +1310,92 @@ const styles = StyleSheet.create({
   },
 
   // Payment Grid
-  paymentGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  paymentCard: {
-    width: (SCREEN_WIDTH - 86) / 2,
+  // ── Wallet payment card ──
+  walletCard: {
     backgroundColor: '#F8FBFF',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    position: 'relative',
-  },
-  paymentCardActive: {
-    backgroundColor: THEME.primaryLight,
     borderColor: THEME.primary,
+    padding: 16,
   },
-  paymentIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  walletCardShort: {
+    borderColor: '#FCD34D',
+    backgroundColor: '#FFFBEB',
+  },
+  walletCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  walletBrandIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: THEME.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  paymentIconBgActive: {
-    backgroundColor: THEME.primary,
+  walletCardInfo: {
+    flex: 1,
   },
-  paymentLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  walletCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text.primary,
-    marginBottom: 2,
   },
-  paymentLabelActive: {
-    color: THEME.primaryDark,
-  },
-  paymentDescription: {
-    fontSize: 11,
+  walletCardSubtitle: {
+    fontSize: 12,
     fontWeight: '500',
     color: Colors.text.tertiary,
+    marginTop: 2,
   },
-  paymentCheck: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
+  walletSelectedPill: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: THEME.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  walletDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 14,
+  },
+  walletBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  walletBalanceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  walletBalanceValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text.primary,
+    marginTop: 3,
+  },
+  walletBalanceValueShort: {
+    color: '#B45309',
+  },
+  walletAfterBox: {
+    alignItems: 'flex-end',
+  },
+  walletAfterLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text.tertiary,
+  },
+  walletAfterValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text.secondary,
+    marginTop: 3,
   },
 
   // Coupon

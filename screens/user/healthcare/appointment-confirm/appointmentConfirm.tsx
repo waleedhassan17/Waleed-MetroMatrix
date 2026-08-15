@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Platform,
   Dimensions,
   Share,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -35,6 +37,14 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { Typography } from '../../../../constants/Fonts';
 import type { HealthcareStackParamList } from '../../../../models/healthcare/types';
 import type { RouteProp } from '@react-navigation/native';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
+import {
+  invoiceNumberFor,
+  paymentMethodLabel as formatPaymentMethod,
+  downloadInvoicePdf,
+} from '../../../../utils/healthcare/invoice';
+import { getAccessToken } from '../../../../utils/storage_utils/storageUtils';
+import { formatFee } from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -84,6 +94,8 @@ const CONFETTI_COLORS = [
 
 const AppointmentConfirmScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const bottomBarPadding = useBottomBarPadding();
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const route = useRoute<ConfirmRoute>();
   const dispatch = useAppDispatch();
 
@@ -248,6 +260,36 @@ const AppointmentConfirmScreen: React.FC = () => {
   const consultationType = booking.appointmentType === 'video' 
     ? 'Video Consultation' 
     : 'In-Clinic Visit';
+
+  // ── Invoice ───────────────────────────────
+  const invoiceAppointmentId =
+    confirmationDetails?.appointmentId ?? route.params?.appointmentId ?? '';
+  const invoiceNumber = invoiceNumberFor(invoiceAppointmentId);
+  const invoiceAmount = formatFee(confirmationDetails?.fee) ?? 'PKR 0';
+  const paymentMethodLabel = formatPaymentMethod(confirmationDetails?.paymentMethod);
+  const isPaid = confirmationDetails?.paymentStatus === 'paid';
+
+  const handleDownloadInvoice = useCallback(async () => {
+    if (!invoiceAppointmentId) return;
+    setDownloadingInvoice(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Please sign in again to download your invoice.');
+      const uri = await downloadInvoicePdf(invoiceAppointmentId, token);
+      await Share.share({
+        url: uri,
+        title: `${invoiceNumber}.pdf`,
+        message: `MetroMatrix invoice ${invoiceNumber}`,
+      });
+    } catch (e: any) {
+      Alert.alert(
+        'Download failed',
+        e?.message || 'The invoice could not be downloaded. Please try again.'
+      );
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  }, [invoiceAppointmentId, invoiceNumber]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -425,6 +467,97 @@ const AppointmentConfirmScreen: React.FC = () => {
           </View>
         </Animated.View>
 
+        {/* Invoice */}
+        <Animated.View
+          style={[
+            styles.invoiceCard,
+            {
+              opacity: cardAnimations[1],
+              transform: [
+                {
+                  translateY: cardAnimations[1].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.invoiceHead}>
+            <View>
+              <Text style={styles.invoiceTitle}>Invoice</Text>
+              <Text style={styles.invoiceNumber}>{invoiceNumber}</Text>
+            </View>
+            <View
+              style={[
+                styles.invoiceStatusPill,
+                isPaid ? styles.invoiceStatusPaid : styles.invoiceStatusDue,
+              ]}
+            >
+              <Ionicons
+                name={isPaid ? 'checkmark-circle' : 'time-outline'}
+                size={13}
+                color={isPaid ? THEME.success : THEME.warning}
+              />
+              <Text
+                style={[
+                  styles.invoiceStatusText,
+                  { color: isPaid ? THEME.success : THEME.warning },
+                ]}
+              >
+                {isPaid ? 'PAID' : 'UNPAID'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.invoiceDivider} />
+
+          <View style={styles.invoiceLine}>
+            <Text style={styles.invoiceLineLabel} numberOfLines={2}>
+              {confirmationDetails?.type === 'video'
+                ? 'Video consultation'
+                : 'In-clinic consultation'}
+              {confirmationDetails?.doctorName
+                ? ` — ${confirmationDetails.doctorName}`
+                : ''}
+            </Text>
+            <Text style={styles.invoiceLineValue}>{invoiceAmount}</Text>
+          </View>
+
+          <View style={styles.invoiceLine}>
+            <Text style={styles.invoiceLineLabel}>Payment method</Text>
+            <Text style={styles.invoiceLineValue}>{paymentMethodLabel}</Text>
+          </View>
+
+          <View style={styles.invoiceDivider} />
+
+          <View style={styles.invoiceTotalRow}>
+            <Text style={styles.invoiceTotalLabel}>Total paid</Text>
+            <Text style={styles.invoiceTotalValue}>{invoiceAmount}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.invoiceDownloadBtn}
+            onPress={handleDownloadInvoice}
+            disabled={downloadingInvoice}
+            activeOpacity={0.85}
+          >
+            {downloadingInvoice ? (
+              <ActivityIndicator size="small" color={THEME.primary} />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={17} color={THEME.primary} />
+                <Text style={styles.invoiceDownloadText}>Download PDF</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.invoiceFootnote}>
+            Always available from this appointment in My Appointments.
+          </Text>
+        </Animated.View>
+
         {/* Quick Actions */}
         <Animated.View
           style={[
@@ -542,7 +675,7 @@ const AppointmentConfirmScreen: React.FC = () => {
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: bottomBarPadding }]}>
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={handleViewAppointments}
@@ -579,6 +712,111 @@ const AppointmentConfirmScreen: React.FC = () => {
 // ── Styles ──────────────────────────────────
 
 const styles = StyleSheet.create({
+  // ── Invoice ──
+  invoiceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  invoiceHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  invoiceTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.text.primary,
+  },
+  invoiceNumber: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.tertiary,
+    marginTop: 3,
+    letterSpacing: 0.4,
+  },
+  invoiceStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  invoiceStatusPaid: { backgroundColor: '#DCFCE7' },
+  invoiceStatusDue: { backgroundColor: '#FEF3C7' },
+  invoiceStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  invoiceDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 14,
+  },
+  invoiceLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 10,
+  },
+  invoiceLineLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.text.secondary,
+  },
+  invoiceLineValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  invoiceTotalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  invoiceTotalLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  invoiceTotalValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: THEME.primary,
+  },
+  invoiceDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: THEME.primary,
+    backgroundColor: '#EAF3FF',
+  },
+  invoiceDownloadText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.primary,
+  },
+  invoiceFootnote: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#F8FBFF',

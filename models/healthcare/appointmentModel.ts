@@ -11,7 +11,7 @@ export const PaymentRecordSchema = z.object({
   amount: z.number(),
   // Mirrors the backend enum on Appointment.payment.method.
   method: z.enum(['wallet', 'cash_at_clinic']),
-  status: z.enum(['pending', 'completed', 'refunded', 'failed']),
+  status: z.enum(['unpaid', 'paid', 'refunded']),
   transactionId: z.string().optional(),
   paidAt: z.string().optional(),
 });

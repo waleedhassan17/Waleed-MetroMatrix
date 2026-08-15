@@ -195,7 +195,8 @@ export interface PaymentRecord {
    * never persistable — the API has no such values.
    */
   method: 'wallet' | 'cash_at_clinic';
-  status: 'pending' | 'completed' | 'refunded' | 'failed';
+  /** Backend enum: ['unpaid', 'paid', 'refunded']. */
+  status: 'unpaid' | 'paid' | 'refunded';
   transactionId?: string;
   paidAt?: string;
 }

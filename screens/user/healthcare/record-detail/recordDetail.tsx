@@ -34,6 +34,7 @@ import {
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors } from '../../../../constants/Colors';
 import type { HealthcareStackParamList } from '../../../../models/healthcare/types';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 
 type RecordDetailRoute = RouteProp<HealthcareStackParamList, 'RecordDetail'>;
 
@@ -87,6 +88,7 @@ const DetailRow: React.FC<{ label: string; value: string }> = ({
 
 const RecordDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const bottomBarPadding = useBottomBarPadding();
   const route = useRoute<RecordDetailRoute>();
   const dispatch = useAppDispatch();
 
@@ -394,7 +396,7 @@ const RecordDetailScreen: React.FC = () => {
       </Animated.View>
 
       {/* ── Bottom actions ── */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: bottomBarPadding }]}>
         <TouchableOpacity
           style={styles.deleteBtn}
           onPress={handleDelete}

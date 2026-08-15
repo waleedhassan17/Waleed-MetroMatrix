@@ -113,7 +113,9 @@ const initialState: BookingConfirmationState = {
   dataError: null,
   dataErrorKind: null,
   patientDetails: initialPatientDetails,
-  paymentMethod: 'cash_at_clinic',
+  // Consultations are paid online from the wallet; this is the only method the
+  // confirmation screen offers.
+  paymentMethod: 'wallet',
   paymentPending: false,
   coupon: initialCoupon,
   loading: false,

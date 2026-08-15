@@ -30,6 +30,7 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { TimeSlot, HealthcareStackParamList } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 
 // ── Theme ─────────────────────────────────────
 
@@ -92,6 +93,7 @@ const formatTime12 = (time24: string): string => {
 
 const SlotSelectionScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const bottomBarPadding = useBottomBarPadding();
   const navigation = useNavigation<Nav>();
   const route = useRoute<SlotSelectionRoute>();
   const { doctorId } = route.params;
@@ -474,7 +476,7 @@ const SlotSelectionScreen: React.FC = () => {
 
       {/* ── Bottom Bar ── */}
       {selectedSlot ? (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: bottomBarPadding }]}>
           <View style={styles.selectedInfo}>
             <Text style={styles.selectedLabel}>Selected Slot</Text>
             <Text style={styles.selectedValue}>
