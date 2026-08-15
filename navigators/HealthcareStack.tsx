@@ -24,6 +24,7 @@ import RescheduleAppointmentScreen from '../screens/user/healthcare/RescheduleAp
 import VideoCallScreen from '../screens/user/healthcare/VideoCall/VideoCallScreen';
 import PrescriptionViewScreen from '../screens/user/healthcare/prescription-view/prescriptionView';
 import HealthRecordsScreen from '../screens/user/healthcare/health-records/healthRecords';
+import RecordDetailScreen from '../screens/user/healthcare/record-detail/recordDetail';
 import UploadRecordScreen from '../screens/user/healthcare/upload-record/uploadRecord';
 import VideoWaitingRoomScreen from '../screens/user/healthcare/VideoWaitingRoom/VideoWaitingRoomScreen';
 import EmergencyScreen from '../screens/user/healthcare/emergency/EmergencyScreen';
@@ -133,6 +134,10 @@ const HealthcareStack: React.FC = () => {
       <Stack.Screen
         name={HealthcareRouteNames.HealthRecords}
         component={HealthRecordsScreen}
+      />
+      <Stack.Screen
+        name={HealthcareRouteNames.RecordDetail}
+        component={RecordDetailScreen}
       />
       <Stack.Screen
         name={HealthcareRouteNames.UploadRecord}

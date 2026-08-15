@@ -6,7 +6,11 @@ import type {
   PaymentRecord,
 } from '../../../../models/healthcare/types';
 import { applyCouponApi } from '../../../../networks/healthcare/providerApi';
-import { bookAppointmentApi } from '../../../../networks/healthcare/appointmentApi';
+import {
+  bookAppointmentApi,
+  payAppointmentApi,
+} from '../../../../networks/healthcare/appointmentApi';
+import { fetchDoctorByIdApi } from '../../../../networks/healthcare/doctorApi';
 import type { RootState } from '../../../../store/store';
 import { getDoctorDisplayName, getDoctorSpecialty } from '../../../../utils/healthcare/doctorDisplay';
 
@@ -47,10 +51,29 @@ export interface FeeBreakdown {
 
 export type BookingStatus = 'idle' | 'confirming' | 'confirmed' | 'failed';
 
+/**
+ * Why the booking summary could not be assembled. Each maps to a different
+ * recovery action, so the screen can offer something better than "try again".
+ */
+export type BookingPrepErrorKind = 'slot' | 'clinic' | 'doctor' | 'fee';
+
+export interface BookingPrepError {
+  kind: BookingPrepErrorKind;
+  message: string;
+}
+
+/** Hydration state for `bookingData`, kept separate from submission state. */
+export type BookingDataStatus = 'idle' | 'preparing' | 'ready' | 'error';
+
 export interface BookingConfirmationState {
   bookingData: BookingSummary | null;
+  /** Hydration of `bookingData` — drives skeleton vs error vs content. */
+  dataStatus: BookingDataStatus;
+  dataError: string | null;
+  dataErrorKind: BookingPrepErrorKind | null;
   patientDetails: PatientDetails;
   paymentMethod: PaymentRecord['method'];
+  paymentPending: boolean;
   coupon: CouponInfo;
   loading: boolean;
   couponLoading: boolean;
@@ -86,8 +109,12 @@ const initialCoupon: CouponInfo = {
 
 const initialState: BookingConfirmationState = {
   bookingData: null,
+  dataStatus: 'idle',
+  dataError: null,
+  dataErrorKind: null,
   patientDetails: initialPatientDetails,
-  paymentMethod: 'cash',
+  paymentMethod: 'cash_at_clinic',
+  paymentPending: false,
   coupon: initialCoupon,
   loading: false,
   couponLoading: false,
@@ -102,6 +129,9 @@ const initialState: BookingConfirmationState = {
 };
 
 // ── Helpers ─────────────────────────────────
+
+/** Doctor-detail cache window, matching `selectNeedsRefresh` in that slice. */
+const FIVE_MINUTES = 5 * 60 * 1000;
 
 const calculateFeeBreakdown = (
   fee: number,
@@ -127,6 +157,102 @@ const calculateFeeBreakdown = (
 };
 
 // ── Async Thunks ────────────────────────────
+
+/**
+ * Assembles the booking summary for `doctorId`.
+ *
+ * This used to be a `useEffect` in the screen that bailed out with a bare
+ * `return` when the doctor or slot was missing. A bare `return` produces no
+ * state transition, so the screen sat on its skeleton forever with no error
+ * and no retry. Every failure is now a typed rejection the UI must handle.
+ *
+ * The doctor is read from the doctor-detail slice only when it is genuinely
+ * this doctor and still fresh; otherwise it is fetched here, so the chain no
+ * longer depends on which screen the user happened to arrive from.
+ */
+export const prepareBooking = createAsyncThunk<
+  { summary: BookingSummary; symptoms?: string },
+  string, // doctorId
+  { state: RootState; rejectValue: BookingPrepError }
+>(
+  'bookingConfirmation/prepareBooking',
+  async (doctorId, { getState, rejectWithValue }) => {
+    const state = getState();
+    const { slotSelection, clinicSelection, doctorDetail, healthcareBooking } = state;
+
+    const slot = slotSelection.selectedSlot;
+    if (!slot) {
+      return rejectWithValue({
+        kind: 'slot',
+        message: 'Your time slot selection was lost. Please pick a slot again.',
+      });
+    }
+
+    const consultationType = slotSelection.consultationType;
+
+    const clinic =
+      consultationType === 'in-clinic' ? clinicSelection.selectedClinic : null;
+    if (consultationType === 'in-clinic' && !clinic) {
+      return rejectWithValue({
+        kind: 'clinic',
+        message: 'No clinic was selected for this visit. Please choose a clinic.',
+      });
+    }
+
+    // Reuse the cached doctor only when it is this doctor and recently loaded.
+    const cached = doctorDetail?.doctor;
+    const cacheUsable =
+      !!cached &&
+      cached.doctorId === doctorId &&
+      !!doctorDetail?.lastUpdated &&
+      Date.now() - doctorDetail.lastUpdated <= FIVE_MINUTES;
+
+    let doctor = cacheUsable ? cached! : null;
+
+    if (!doctor) {
+      try {
+        const res = await fetchDoctorByIdApi(doctorId);
+        if (!res.success || !res.data) {
+          return rejectWithValue({
+            kind: 'doctor',
+            message: res.message || "We couldn't load this doctor's details.",
+          });
+        }
+        doctor = res.data;
+      } catch (error: any) {
+        return rejectWithValue({
+          kind: 'doctor',
+          message: error?.message?.includes('Network')
+            ? 'No internet connection. Please check your network.'
+            : "We couldn't load this doctor's details.",
+        });
+      }
+    }
+
+    const fee =
+      consultationType === 'video'
+        ? doctor.videoConsultationFee
+        : doctor.consultationFee;
+
+    // Mirrors `formatFee`'s rule that 0 is not a real fee — booking at a price
+    // we cannot state is worse than refusing to proceed.
+    if (!fee || fee <= 0) {
+      return rejectWithValue({
+        kind: 'fee',
+        message:
+          consultationType === 'video'
+            ? 'This doctor has not set a video consultation fee.'
+            : 'This doctor has not set a consultation fee.',
+      });
+    }
+
+    return {
+      summary: { doctor, slot, clinic, consultationType, fee },
+      // Carried over so the doctor actually receives what the patient typed.
+      symptoms: healthcareBooking?.symptoms,
+    };
+  }
+);
 
 export const applyCoupon = createAsyncThunk<
   CouponInfo,
@@ -179,6 +305,8 @@ export const applyCoupon = createAsyncThunk<
 interface ConfirmBookingPayload {
   appointmentId: string;
   confirmationCode: string;
+  /** Booking succeeded but the follow-up payment call did not. */
+  paymentFailed: boolean;
 }
 
 export const confirmBooking = createAsyncThunk<
@@ -216,35 +344,71 @@ export const confirmBooking = createAsyncThunk<
         }
       }
 
+      // The backend books against a concrete slot (`slotId` is required and
+      // must be a Mongo id). Sending date + timeSlot instead is what produced
+      // "Validation failed: slotId is required".
+      const slotId = bookingData.slot.slotId;
+      if (!slotId) {
+        return rejectWithValue(
+          'This time slot is no longer valid. Please select another time.'
+        );
+      }
+
+      // `patientInfo.name` and `patientInfo.phone` are required for BOTH
+      // "Myself" and "Someone else". This used to be sent as `undefined`
+      // whenever the patient booked for themselves.
+      const account = getState().signIn?.user;
+      const patientInfo =
+        patientDetails.bookingFor === 'other'
+          ? {
+              name: patientDetails.name.trim(),
+              phone: patientDetails.phone.trim(),
+              relation: patientDetails.relation || 'other',
+            }
+          : {
+              name: (account?.fullName || '').trim(),
+              phone: (account?.phoneNumber || '').trim(),
+              relation: 'self',
+            };
+
+      if (!patientInfo.name || !patientInfo.phone) {
+        return rejectWithValue(
+          patientDetails.bookingFor === 'self'
+            ? 'Your profile is missing a name or phone number. Please complete your profile, or book for someone else.'
+            : 'Patient name and phone number are required.'
+        );
+      }
+
       const res = await bookAppointmentApi({
+        slotId,
         doctorId: bookingData.doctor.doctorId,
         clinicId: bookingData.clinic?.clinicId,
         type: bookingData.consultationType,
-        date: bookingData.slot.date,
-        timeSlot: {
-          start: bookingData.slot.startTime,
-          end: bookingData.slot.endTime,
-        },
-        patientDetails:
-          patientDetails.bookingFor === 'other'
-            ? {
-                name: patientDetails.name,
-                phone: patientDetails.phone,
-                relation: patientDetails.relation,
-              }
-            : undefined,
-        paymentMethod,
+        patientDetails: patientInfo,
         couponCode: coupon.applied ? coupon.code : undefined,
         symptoms: patientDetails.notes,
-      });
+      } as any);
 
       if (!res.success) {
         return rejectWithValue(res.message ?? 'Booking failed');
       }
 
+      const appointmentId = res.data.appointmentId;
+
+      // Payment is a separate call on the backend. A payment failure must not
+      // discard a successfully booked appointment — report it and move on.
+      let paymentFailed = false;
+      try {
+        const payRes = await payAppointmentApi(appointmentId, paymentMethod);
+        paymentFailed = !payRes.success;
+      } catch {
+        paymentFailed = true;
+      }
+
       return {
-        appointmentId: res.data.appointmentId,
+        appointmentId,
         confirmationCode: res.data.confirmationCode || `HC${Date.now()}`,
+        paymentFailed,
       };
     } catch (error: any) {
       if (error.message?.includes('Network')) {
@@ -308,6 +472,32 @@ const bookingConfirmationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // prepareBooking — hydration of `bookingData`
+      .addCase(prepareBooking.pending, (state) => {
+        state.dataStatus = 'preparing';
+        state.dataError = null;
+        state.dataErrorKind = null;
+      })
+      .addCase(prepareBooking.fulfilled, (state, action) => {
+        state.dataStatus = 'ready';
+        state.bookingData = action.payload.summary;
+        state.dataError = null;
+        state.dataErrorKind = null;
+        state.lastUpdated = Date.now();
+        // Carry the symptoms the patient typed at step 2 into the field the
+        // booking request actually sends.
+        if (!state.patientDetails.notes && action.payload.symptoms) {
+          state.patientDetails.notes = action.payload.symptoms;
+        }
+      })
+      .addCase(prepareBooking.rejected, (state, action) => {
+        state.dataStatus = 'error';
+        state.bookingData = null;
+        state.dataError =
+          action.payload?.message ?? 'We could not prepare your booking.';
+        state.dataErrorKind = action.payload?.kind ?? 'doctor';
+      })
+
       // applyCoupon
       .addCase(applyCoupon.pending, (state) => {
         state.couponLoading = true;
@@ -337,6 +527,7 @@ const bookingConfirmationSlice = createSlice({
         // Kept so the success screen can show the real code instead of its
         // HC-XXXXXX placeholder.
         state.confirmedCode = action.payload.confirmationCode;
+        state.paymentPending = action.payload.paymentFailed;
       })
       .addCase(confirmBooking.rejected, (state, action) => {
         state.bookingStatus = 'failed';

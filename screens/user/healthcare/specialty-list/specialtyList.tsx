@@ -93,6 +93,66 @@ const SkeletonCard: React.FC<{ anim: Animated.Value }> = ({ anim }) => {
 
 // ── Component ─────────────────────────────────
 
+// ── Specialty Card ──────────────────────────
+// Must be a real component, not a bare render function. It was previously
+// inlined as FlatList's `renderItem`, where React invokes it as a plain
+// function — so its useRef/useEffect threw "Invalid hook call" and crashed the
+// screen as soon as the list rendered a row.
+
+const SpecialtyCard: React.FC<{
+  item: Specialty;
+  index: number;
+  onPress: (specialty: Specialty) => void;
+}> = ({ item, index, onPress }) => {
+  const config = getSpecialtyConfig(item.icon, index);
+  const delay = (index % 9) * 50;
+
+  const itemAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(itemAnim, {
+      toValue: 1,
+      tension: 100,
+      friction: 8,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: itemAnim,
+        transform: [
+          { scale: itemAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
+        ],
+      }}
+    >
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => onPress(item)}
+        activeOpacity={0.75}
+      >
+        <LinearGradient
+          colors={config.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardIconContainer}
+        >
+          <MaterialCommunityIcons name={config.icon as any} size={26} color="#FFFFFF" />
+        </LinearGradient>
+
+        <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
+
+        <View style={[styles.cardCountBadge, { backgroundColor: config.bg }]}>
+          <Text style={[styles.cardCountText, { color: config.gradient[0] }]}>
+            {item.doctorCount} docs
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const SpecialtyListScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -138,53 +198,9 @@ const SpecialtyListScreen: React.FC = () => {
 
   // ── Specialty Card ───────────────────────────
 
-  const renderSpecialtyCard = ({ item, index }: { item: Specialty; index: number }) => {
-    const config = getSpecialtyConfig(item.icon, index);
-    const delay = (index % 9) * 50;
-
-    const itemAnim = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-      Animated.spring(itemAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        delay,
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
-    return (
-      <Animated.View
-        style={{
-          opacity: itemAnim,
-          transform: [{ scale: itemAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }],
-        }}
-      >
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => handleSpecialtyPress(item)}
-          activeOpacity={0.75}
-        >
-          <LinearGradient
-            colors={config.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.cardIconContainer}
-          >
-            <MaterialCommunityIcons name={config.icon as any} size={26} color="#FFFFFF" />
-          </LinearGradient>
-
-          <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
-
-          <View style={[styles.cardCountBadge, { backgroundColor: config.bg }]}>
-            <Text style={[styles.cardCountText, { color: config.gradient[0] }]}>
-              {item.doctorCount} docs
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
+  const renderSpecialtyCard = ({ item, index }: { item: Specialty; index: number }) => (
+    <SpecialtyCard item={item} index={index} onPress={handleSpecialtyPress} />
+  );
 
   // ── Empty ────────────────────────────────────
 

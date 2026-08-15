@@ -14,6 +14,7 @@ import {
   Dimensions,
   Animated,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -219,6 +220,9 @@ const DoctorListScreen: React.FC = () => {
     const specialtyId = route.params?.specialtyId ?? '';
     const specialtyName = route.params?.specialtyName ?? '';
     dispatch(setSelectedSpecialty({ id: specialtyId || null, name: specialtyName }));
+    // Entering with a query (e.g. from the home search bar) must seed the
+    // search state, otherwise the screen shows the label but searches nothing.
+    dispatch(setSearchQuery(route.params?.searchQuery ?? ''));
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -233,7 +237,12 @@ const DoctorListScreen: React.FC = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [route.params?.specialtyId, route.params?.specialtyName, dispatch]);
+  }, [
+    route.params?.specialtyId,
+    route.params?.specialtyName,
+    route.params?.searchQuery,
+    dispatch,
+  ]);
 
   useEffect(() => {
     dispatch(fetchDoctors());
@@ -260,8 +269,18 @@ const DoctorListScreen: React.FC = () => {
   const handleBack = () => navigation.goBack();
 
   const handleSearchSubmit = () => {
+    Keyboard.dismiss();
     dispatch(fetchDoctors());
   };
+
+  // ── Header text ───────────────────────────
+  // The title used to be locked to `selectedSpecialtyName`, so searching again
+  // from this screen left the previous term stranded in the header.
+  const trimmedQuery = searchQuery.trim();
+  const headerTitle = trimmedQuery || selectedSpecialtyName || 'Find Doctors';
+  const headerSubtitle = trimmedQuery
+    ? `${doctors.length} ${doctors.length === 1 ? 'result' : 'results'} for "${trimmedQuery}"`
+    : `${pagination.totalItems} doctors available`;
 
   // ── Filter Modal Handlers ─────────────────
 
@@ -412,10 +431,10 @@ const DoctorListScreen: React.FC = () => {
             </TouchableOpacity>
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle} numberOfLines={1}>
-                {selectedSpecialtyName || 'Find Doctors'}
+                {headerTitle}
               </Text>
               <Text style={styles.headerCount}>
-                {pagination.totalItems} doctors available
+                {headerSubtitle}
               </Text>
             </View>
             <View style={{ width: 42 }} />
@@ -438,7 +457,7 @@ const DoctorListScreen: React.FC = () => {
                 styles.searchInput,
                 searchFocused && styles.searchInputFocused,
               ]}
-              placeholder="Search doctors by name..."
+              placeholder="Search by name, specialty or condition..."
               placeholderTextColor={
                 searchFocused ? Colors.text.tertiary : 'rgba(255,255,255,0.5)'
               }

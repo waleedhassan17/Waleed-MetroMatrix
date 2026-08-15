@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import type { Doctor } from '../../../../models/healthcare/types';
 import type { Pagination } from '../../../../models/serviceProviders/common';
-import { fetchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import { fetchDoctorsApi, searchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import { rankDoctorsByQuery } from '../../../../utils/healthcare/doctorRelevance';
 import type { RootState } from '../../../../store/store';
 
 // ── Filter / Sort Types ─────────────────────
@@ -169,6 +170,28 @@ export const fetchDoctors = createAsyncThunk<
 >('doctorList/fetchDoctors', async (_, { getState, rejectWithValue }) => {
   try {
     const state = getState().doctorList;
+    const query = state.searchQuery.trim();
+
+    // A query goes to the dedicated search endpoint, which matches across the
+    // whole doctor set rather than just the current page of `/doctors`.
+    if (query) {
+      const res = await searchDoctorsApi(query);
+      if (res.success) {
+        const doctors = res.data || [];
+        return {
+          doctors,
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: doctors.length,
+            itemsPerPage: doctors.length,
+            hasNext: false,
+            hasPrevious: false,
+          },
+        };
+      }
+      return rejectWithValue(res.message || 'Failed to search doctors');
+    }
 
     const params: Record<string, any> = {
       page: 1,
@@ -368,8 +391,18 @@ export const selectFilteredDoctors = createSelector(
   (state: { doctorList: DoctorListState }) => state.doctorList.doctors,
   (state: { doctorList: DoctorListState }) => state.doctorList.filters,
   (state: { doctorList: DoctorListState }) => state.doctorList.sortBy,
-  (doctors, filters, sortBy) => {
+  (state: { doctorList: DoctorListState }) => state.doctorList.searchQuery,
+  (doctors, filters, sortBy, searchQuery) => {
     const filtered = filterDoctorsClientSide(doctors, filters);
+
+    // With an active query, rank by relevance first so the closest name match
+    // leads. An explicit sort (rating, fee, …) still wins when the user picks
+    // one — but it now sorts the *matching* doctors only.
+    if (searchQuery.trim()) {
+      const ranked = rankDoctorsByQuery(filtered, searchQuery);
+      return sortBy === 'relevance' ? ranked : sortDoctors(ranked, sortBy);
+    }
+
     return sortBy !== 'relevance' ? sortDoctors(filtered, sortBy) : filtered;
   }
 );

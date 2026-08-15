@@ -19,6 +19,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
+  fetchAppointmentDetail,
+  refreshAppointmentDetail,
   toggleCancelModal,
   cancelAppointment,
   setSelectedCancelReason,
@@ -32,6 +34,7 @@ import {
   selectAppointmentTimeline,
   CANCELLATION_REASONS,
 } from './appointmentDetailSlice';
+import { setAppointment as setRescheduleAppointment } from '../RescheduleAppointment/rescheduleAppointmentSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -224,6 +227,14 @@ const AppointmentDetailScreen: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  const appointmentId: string = route.params?.appointmentId ?? '';
+
+  // The route param was read nowhere and this thunk was dispatched nowhere in
+  // the repo, so every appointment opened on the "Not Found" empty state.
+  useEffect(() => {
+    if (appointmentId) dispatch(fetchAppointmentDetail(appointmentId));
+  }, [dispatch, appointmentId]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -249,9 +260,13 @@ const AppointmentDetailScreen: React.FC = () => {
   const handleBack = () => navigation.goBack();
 
   const handleRefresh = async () => {
+    if (!appointmentId) return;
     setRefreshing(true);
-    // Dispatch refresh action
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      await dispatch(refreshAppointmentDetail(appointmentId));
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleJoinCall = () => {
@@ -271,9 +286,12 @@ const AppointmentDetailScreen: React.FC = () => {
 
   const handleReschedule = () => {
     if (!appointment) return;
-    navigation.navigate(HealthcareRouteNames.BookAppointment, {
-      doctorId: appointment.doctorId,
-      clinicId: appointment.clinicId,
+    // This used to send the user to BookAppointment, which starts a brand-new
+    // booking — the purpose-built Reschedule screen was unreachable. Seed it
+    // with the appointment it is meant to move.
+    dispatch(setRescheduleAppointment(appointment));
+    navigation.navigate(HealthcareRouteNames.RescheduleAppointment, {
+      appointmentId: appointment.appointmentId,
     });
   };
 

@@ -9,7 +9,8 @@ import { z } from 'zod';
 export const PaymentRecordSchema = z.object({
   paymentId: z.string(),
   amount: z.number(),
-  method: z.enum(['cash', 'card', 'online', 'insurance']),
+  // Mirrors the backend enum on Appointment.payment.method.
+  method: z.enum(['wallet', 'cash_at_clinic']),
   status: z.enum(['pending', 'completed', 'refunded', 'failed']),
   transactionId: z.string().optional(),
   paidAt: z.string().optional(),

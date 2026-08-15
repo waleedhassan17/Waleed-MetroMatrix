@@ -30,6 +30,8 @@ import {
   RECORD_CATEGORIES,
   RecordCategory,
 } from './healthRecordsSlice';
+import { getRecordConfig } from '../../../../utils/healthcare/recordDisplay';
+import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { MedicalRecord } from '../../../../models/healthcare/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -96,22 +98,6 @@ const CATEGORY_CONFIG: Record<string, {
     bgColor: '#F3F4F6',
   },
 };
-
-const RECORD_TYPE_CONFIG: Record<string, {
-  icon: string;
-  color: string;
-  label: string;
-}> = {
-  prescription: { icon: 'prescription', color: '#2A7FFF', label: 'Prescription' },
-  report: { icon: 'flask-outline', color: '#10B981', label: 'Lab Report' },
-  imaging: { icon: 'image-filter-center-focus', color: '#5A9FFF', label: 'Imaging' },
-  discharge: { icon: 'clipboard-check-outline', color: '#F59E0B', label: 'Discharge' },
-  vaccination: { icon: 'needle', color: '#2A7FFF', label: 'Vaccination' },
-  other: { icon: 'folder-open-outline', color: '#6B7280', label: 'Other' },
-};
-
-const getRecordConfig = (type: string) =>
-  RECORD_TYPE_CONFIG[type] ?? RECORD_TYPE_CONFIG.other;
 
 const getCategoryConfig = (category: string) =>
   CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.All;
@@ -427,11 +413,11 @@ const HealthRecordsScreen: React.FC = () => {
             activeOpacity={0.8}
             onPress={() => {
               if (record.type === 'prescription') {
-                navigation.navigate('PrescriptionView', {
+                navigation.navigate(HealthcareRouteNames.PrescriptionView, {
                   prescriptionId: record.recordId,
                 });
               } else {
-                navigation.navigate('RecordDetail', {
+                navigation.navigate(HealthcareRouteNames.RecordDetail, {
                   recordId: record.recordId,
                 });
               }
@@ -559,7 +545,7 @@ const HealthRecordsScreen: React.FC = () => {
         {!searchText && (
           <TouchableOpacity
             style={styles.emptyButton}
-            onPress={() => navigation.navigate('UploadRecord')}
+            onPress={() => navigation.navigate(HealthcareRouteNames.UploadRecord)}
           >
             <LinearGradient
               colors={THEME.gradient.primary as any}
@@ -610,7 +596,7 @@ const HealthRecordsScreen: React.FC = () => {
                 style={styles.uploadOption}
                 onPress={() => {
                   setShowUploadModal(false);
-                  navigation.navigate('UploadRecord', { source: option.label.toLowerCase() });
+                  navigation.navigate(HealthcareRouteNames.UploadRecord, { source: option.label.toLowerCase() } as any);
                 }}
               >
                 <View

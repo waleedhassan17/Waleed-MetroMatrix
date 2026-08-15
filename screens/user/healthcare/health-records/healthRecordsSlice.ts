@@ -5,6 +5,7 @@ import {
   deleteHealthRecordApi,
 } from '../../../../networks/healthcare/providerApi';
 import { uploadMedicalRecordApi } from '../../../../networks/healthcare/appointmentApi';
+import type { RootState } from '../../../../store/store';
 
 // ── Category Type ───────────────────────────
 
@@ -101,11 +102,13 @@ const mapTypeToCategory = (type: string): RecordCategory => {
 export const fetchRecords = createAsyncThunk<
   MedicalRecord[],
   void,
-  { rejectValue: string }
->('healthRecords/fetchRecords', async (_, { rejectWithValue }) => {
+  { state: RootState; rejectValue: string }
+>('healthRecords/fetchRecords', async (_, { getState, rejectWithValue }) => {
   try {
-    // In real app, get patientId from auth state
-    const patientId = 'pat-001';
+    // Was hardcoded to the 'pat-001' fixture, so every signed-in user saw the
+    // same records. The endpoint itself is scoped to the authenticated user;
+    // the id is passed only for call-site clarity.
+    const patientId = getState().signIn?.user?.id ?? '';
     const res = await fetchHealthRecordsApi(patientId);
 
     if (!res.success) {

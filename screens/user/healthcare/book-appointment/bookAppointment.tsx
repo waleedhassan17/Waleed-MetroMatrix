@@ -31,7 +31,10 @@ import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Co
 import { Typography } from '../../../../constants/Fonts';
 import type { HealthcareStackParamList, Doctor, Clinic } from '../../../../models/healthcare/types';
 import type { RouteProp } from '@react-navigation/native';
-import { getDoctorName, getDoctorSpecialty } from '../../../../utils/healthcare/doctorDisplay';
+import { getDoctorName, getDoctorSpecialty, formatFee } from '../../../../utils/healthcare/doctorDisplay';
+import { fetchDoctorDetail } from '../doctor-detail/doctorDetailSlice';
+import { setConsultationType } from '../slot-selection/slotSelectionSlice';
+import { clearSelectedClinic as clearClinicSelection } from '../clinic-selection/clinicSelectionSlice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -83,13 +86,18 @@ const CONSULTATION_TYPES = [
 
 // ── Quick Symptom Tags ──────────────────────
 
+// Every name below is a real MaterialCommunityIcons glyph and depicts the
+// symptom itself. `thermometer-outline`, `body-outline` and `medical` were not
+// MCI glyphs at all (the last two are Ionicons names), so the font fell back to
+// its "?" placeholder; `medical-bag` and `battery-low` existed but said nothing
+// about coughing or tiredness.
 const QUICK_SYMPTOMS = [
-  { label: 'Fever', icon: 'thermometer-outline' },
-  { label: 'Headache', icon: 'head-outline' },
-  { label: 'Cough', icon: 'medical-bag' },
-  { label: 'Body Pain', icon: 'body-outline' },
-  { label: 'Fatigue', icon: 'battery-low' },
-  { label: 'Nausea', icon: 'medical' },
+  { label: 'Fever', icon: 'thermometer' },
+  { label: 'Headache', icon: 'head-flash-outline' },
+  { label: 'Cough', icon: 'lungs' },
+  { label: 'Body Pain', icon: 'account-injury-outline' },
+  { label: 'Fatigue', icon: 'sleep' },
+  { label: 'Nausea', icon: 'emoticon-sick-outline' },
 ];
 
 // ── Step Config ─────────────────────────────
@@ -115,6 +123,22 @@ const BookAppointmentScreen: React.FC = () => {
   const doctor = useAppSelector((state) =>
     state.doctorDetail?.doctor as Doctor | null
   );
+  const doctorLoading = useAppSelector(
+    (state) => state.doctorDetail?.loading ?? false
+  );
+  const doctorError = useAppSelector(
+    (state) => state.doctorDetail?.error ?? null
+  );
+
+  // Booking can be entered straight from a "Book" button in the doctor list,
+  // which never passes through the doctor-detail screen. Without this fetch the
+  // slice is empty and the screen renders "Dr. Doctor" with no fee.
+  useEffect(() => {
+    if (!doctorId) return;
+    if (doctor?.doctorId !== doctorId) {
+      dispatch(fetchDoctorDetail(doctorId));
+    }
+  }, [dispatch, doctorId, doctor?.doctorId]);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [symptomsText, setSymptomsText] = useState(symptoms);
@@ -186,10 +210,19 @@ const BookAppointmentScreen: React.FC = () => {
   const handleConfirm = useCallback(() => {
     dispatch(setSymptoms(symptomsText));
     dispatch(setNotes(notesText));
-    
+
+    // The chosen type has to reach the slot-selection slice: it is not just a
+    // fee switch, it also filters which slots are fetched. Without this it
+    // stayed at its 'in-clinic' default, so picking Video showed in-clinic
+    // slots and booked an in-clinic appointment at the in-clinic price.
+    dispatch(setConsultationType(appointmentType));
+
     if (appointmentType === 'in-clinic') {
       navigation.navigate(HealthcareRouteNames.ClinicSelection, { doctorId });
     } else {
+      // A clinic left over from an earlier in-clinic attempt must not ride
+      // along into a video booking.
+      dispatch(clearClinicSelection());
       navigation.navigate(HealthcareRouteNames.SlotSelection, { doctorId });
     }
   }, [navigation, symptomsText, notesText, appointmentType, doctorId, dispatch]);
@@ -209,10 +242,25 @@ const BookAppointmentScreen: React.FC = () => {
     }
   }, [symptomsText]);
 
-  const doctorName = getDoctorName(doctor);
+  // `getDoctorName` falls back to the literal "Doctor", which read as
+  // "Dr. Doctor" on screen. Only use it once a real record is loaded.
+  const hasDoctor = doctor?.doctorId === doctorId;
+  const doctorName = hasDoctor ? getDoctorName(doctor) : '';
+  const doctorLabel = doctorName ? `Dr. ${doctorName}` : 'your doctor';
+
+  // Only offer Video when this doctor actually has a video fee — otherwise the
+  // patient could book a video consult priced at PKR 0.
+  const availableTypes = CONSULTATION_TYPES.filter(
+    (t) => t.key !== 'video' || !hasDoctor || (doctor?.videoConsultationFee ?? 0) > 0
+  );
+
   const consultationFee = appointmentType === 'video'
     ? doctor?.videoConsultationFee
     : doctor?.consultationFee;
+  // Real rate, thousands-separated, from the doctor's own record — never a
+  // placeholder dash once the profile has loaded.
+  const feeLabel =
+    formatFee(consultationFee) ?? (doctorLoading ? 'Loading…' : 'On request');
 
   // ── Step Indicator ────────────────────────
 
@@ -286,10 +334,20 @@ const BookAppointmentScreen: React.FC = () => {
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Choose Consultation Type</Text>
       <Text style={styles.stepSubtitle}>
-        How would you like to consult with Dr. {doctorName}?
+        How would you like to consult with {doctorLabel}?
       </Text>
 
-      {CONSULTATION_TYPES.map((type) => {
+      {doctorError && !hasDoctor && (
+        <View style={styles.loadErrorRow}>
+          <Ionicons name="alert-circle" size={16} color={THEME.error} />
+          <Text style={styles.loadErrorText}>{doctorError}</Text>
+          <TouchableOpacity onPress={() => dispatch(fetchDoctorDetail(doctorId))}>
+            <Text style={styles.loadErrorRetry}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {availableTypes.map((type) => {
         const isSelected = appointmentType === type.key;
         return (
           <TouchableOpacity
@@ -364,7 +422,7 @@ const BookAppointmentScreen: React.FC = () => {
           <View style={styles.feeInfoContent}>
             <Text style={styles.feeInfoLabel}>Consultation Fee</Text>
             <Text style={styles.feeInfoAmount}>
-              PKR {consultationFee || '—'}
+              {feeLabel}
             </Text>
           </View>
           <View style={styles.feeTypeBadge}>
@@ -383,7 +441,7 @@ const BookAppointmentScreen: React.FC = () => {
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Patient Details</Text>
       <Text style={styles.stepSubtitle}>
-        Help Dr. {doctorName} prepare for your consultation
+        Help {doctorLabel} prepare for your consultation
       </Text>
 
       {/* Symptoms Input */}
@@ -491,7 +549,7 @@ const BookAppointmentScreen: React.FC = () => {
           </View>
           <View style={styles.reviewDoctorInfo}>
             <View style={styles.reviewDoctorNameRow}>
-              <Text style={styles.reviewDoctorName}>Dr. {doctorName}</Text>
+              <Text style={styles.reviewDoctorName}>{doctorLabel}</Text>
               {doctor?.isVerified && (
                 <Ionicons name="checkmark-circle" size={16} color={THEME.primary} />
               )}
@@ -555,7 +613,7 @@ const BookAppointmentScreen: React.FC = () => {
           <View style={styles.reviewRowContent}>
             <Text style={styles.reviewRowLabel}>Consultation Fee</Text>
             <Text style={[styles.reviewRowValue, { color: THEME.primary, fontWeight: '700' }]}>
-              PKR {consultationFee || '—'}
+              {feeLabel}
             </Text>
           </View>
         </View>
@@ -630,13 +688,20 @@ const BookAppointmentScreen: React.FC = () => {
             {currentStep === 2 && (
               <View style={styles.footerFeeInfo}>
                 <Text style={styles.footerFeeLabel}>Total Fee</Text>
-                <Text style={styles.footerFeeAmount}>PKR {consultationFee || '—'}</Text>
+                <Text style={styles.footerFeeAmount}>{feeLabel}</Text>
               </View>
             )}
             
             <TouchableOpacity
-              style={[styles.continueButton, currentStep === 2 && { flex: 1 }]}
+              style={[
+                styles.continueButton,
+                currentStep === 2 && { flex: 1 },
+                !hasDoctor && { opacity: 0.5 },
+              ]}
               onPress={currentStep === 2 ? handleConfirm : handleContinue}
+              // Proceeding without a loaded doctor produces a booking with no
+              // real fee, and dead-ends two screens later.
+              disabled={!hasDoctor}
               activeOpacity={0.9}
             >
               <LinearGradient
@@ -1210,6 +1275,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.primary,
     marginTop: 2,
+  },
+  loadErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+  },
+  loadErrorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#991B1B',
+    lineHeight: 16,
+  },
+  loadErrorRetry: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.primary,
   },
   continueButton: {
     flex: 1,

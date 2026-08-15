@@ -15,7 +15,8 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAppSelector } from '../../../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { logout } from '../../../user-authentication/signin-screen/signinSlice';
 
 // ── Theme ───────────────────────────────────
 const THEME = {
@@ -37,7 +38,7 @@ const THEME = {
 const QUICK_ACTIONS = [
   { id: 'appointments', label: 'My Appointments', icon: 'calendar-outline', color: THEME.primary, bg: THEME.primaryLight, route: 'MyAppointments' },
   { id: 'records', label: 'Health Records', icon: 'document-text-outline', color: '#10B981', bg: '#ECFDF5', route: 'HealthRecords' },
-  { id: 'prescriptions', label: 'Prescriptions', icon: 'medkit-outline', color: '#7C3AED', bg: '#F5F3FF', route: 'HealthRecords' },
+  { id: 'prescriptions', label: 'Prescriptions', icon: 'medkit-outline', color: '#7C3AED', bg: '#F5F3FF', route: 'MyPrescriptions' },
 ];
 
 const SETTINGS_SECTIONS = [
@@ -69,6 +70,7 @@ const SETTINGS_SECTIONS = [
 // ── Main Screen ─────────────────────────────
 const HealthcareProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.signIn.user);
 
   // Real identity from auth; medical details default to "not set" rather than
@@ -106,7 +108,15 @@ const HealthcareProfileScreen: React.FC = () => {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => navigation.navigate('RoleSelection'),
+          onPress: () => {
+            // Navigating away left the session intact — going back or
+            // re-entering restored the logged-in user.
+            dispatch(logout());
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'RoleSelection' as never }],
+            });
+          },
         },
       ]
     );

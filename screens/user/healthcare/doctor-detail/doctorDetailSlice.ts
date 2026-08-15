@@ -180,9 +180,19 @@ const doctorDetailSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Doctor detail
-      .addCase(fetchDoctorDetail.pending, (state) => {
+      .addCase(fetchDoctorDetail.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        // Drop a record for a DIFFERENT doctor while the new one loads.
+        // Without this the previous doctor's fee, clinics and rating keep
+        // rendering during the fetch, and `doctor.doctorId !== doctorId`
+        // stops being a reliable "not loaded yet" signal for other screens.
+        if (state.doctor && state.doctor.doctorId !== action.meta.arg) {
+          state.doctor = null;
+          state.clinics = [];
+          state.reviews = [];
+          state.lastUpdated = null;
+        }
       })
       .addCase(fetchDoctorDetail.fulfilled, (state, action) => {
         state.loading = false;

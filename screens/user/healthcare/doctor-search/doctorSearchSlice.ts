@@ -1,7 +1,8 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Doctor } from '../../../../models/healthcare/types';
 import { fetchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import { rankDoctorsByQuery } from '../../../../utils/healthcare/doctorRelevance';
 import type { RootState } from '../../../../store/store';
 
 // ── Constants ───────────────────────────────
@@ -244,8 +245,15 @@ export const {
 
 // ── Selectors ───────────────────────────────
 
-export const selectSearchResults = (state: RootState) =>
-  state.doctorSearch.results;
+/**
+ * Results ordered most-relevant first. The API returns them in its own order,
+ * which put unrelated doctors above an exact name match.
+ */
+export const selectSearchResults = createSelector(
+  (state: RootState) => state.doctorSearch.results,
+  (state: RootState) => state.doctorSearch.searchQuery,
+  (results, searchQuery) => rankDoctorsByQuery(results, searchQuery)
+);
 
 export const selectRecentSearches = (state: RootState) =>
   state.doctorSearch.recentSearches;

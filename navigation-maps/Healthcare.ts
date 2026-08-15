@@ -23,6 +23,7 @@ export const HealthcareRouteNames = {
   VideoWaitingRoom: 'VideoWaitingRoom',
   PrescriptionView: 'PrescriptionView',
   HealthRecords: 'HealthRecords',
+  RecordDetail: 'RecordDetail',
   UploadRecord: 'UploadRecord',
   Emergency: 'Emergency',
   HealthcareNotifications: 'HealthcareNotifications',

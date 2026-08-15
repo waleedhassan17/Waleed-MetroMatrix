@@ -189,7 +189,12 @@ export interface VideoCall {
 export interface PaymentRecord {
   paymentId: string;
   amount: number;
-  method: 'cash' | 'card' | 'online' | 'insurance';
+  /**
+   * Mirrors the backend enum on `Appointment.payment.method`
+   * (`['wallet', 'cash_at_clinic', null]`). Card / online / insurance were
+   * never persistable — the API has no such values.
+   */
+  method: 'wallet' | 'cash_at_clinic';
   status: 'pending' | 'completed' | 'refunded' | 'failed';
   transactionId?: string;
   paidAt?: string;
@@ -432,7 +437,7 @@ export type HealthcareStackParamList = {
   HealthcareHome: undefined;
   SpecialtyList: undefined;
   DoctorSearch: undefined;
-  DoctorList: { specialtyId: string; specialtyName?: string };
+  DoctorList: { specialtyId: string; specialtyName?: string; searchQuery?: string };
   DoctorDetail: { doctorId: string };
   DoctorReviews: { doctorId: string; doctorName?: string };
   ClinicSelection: { doctorId: string; clinicId?: string };
@@ -448,6 +453,7 @@ export type HealthcareStackParamList = {
   VideoCall: { appointmentId: string; roomId: string };
   PrescriptionView: { prescriptionId: string };
   HealthRecords: undefined;
+  RecordDetail: { recordId: string };
   UploadRecord: { appointmentId?: string };
   Emergency: undefined;
   HealthcareNotifications: undefined;

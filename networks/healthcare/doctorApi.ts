@@ -42,6 +42,10 @@ export async function fetchDoctorsApi(
   const queryParams = new URLSearchParams();
   if (params.specialtyId) queryParams.set('specialtyId', params.specialtyId);
   if (params.city) queryParams.set('city', params.city);
+  // `search` is part of FetchDoctorsParams and is populated by the doctor-list
+  // slice, but used to be dropped here — every query produced an identical
+  // request, so typing a name never changed the results.
+  if (params.search) queryParams.set('search', params.search);
   if (params.page) queryParams.set('page', String(params.page));
   if (params.limit) queryParams.set('limit', String(params.limit));
   if (params.sort) queryParams.set('sortBy', sortMap[params.sort] || params.sort);

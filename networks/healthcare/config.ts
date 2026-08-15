@@ -75,10 +75,26 @@ async function request<T>(
     };
   } catch (error: any) {
     const body = error?.response?.data;
+    const base =
+      body?.error || body?.message || error?.message || 'Network error occurred';
+
+    // express-validator replies as
+    //   { error: 'Validation failed', details: [{ field, message }, ...] }
+    // Keeping only `error` reduced every 400 to a useless "Validation failed",
+    // so surface the field-level messages the backend actually sent.
+    const details = Array.isArray(body?.details) ? body.details : [];
+    const fieldMessages = Array.from(
+      new Set(
+        details
+          .map((d: any) => (typeof d === 'string' ? d : d?.message))
+          .filter((m: any): m is string => typeof m === 'string' && m.length > 0)
+      )
+    );
+
     return {
       success: false,
       data: null as any,
-      message: body?.error || body?.message || error?.message || 'Network error occurred',
+      message: fieldMessages.length ? fieldMessages.join('. ') : base,
     };
   }
 }

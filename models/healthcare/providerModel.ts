@@ -36,7 +36,7 @@ export const EarningTransactionSchema = z.object({
   appointmentId: z.string(),
   type: z.enum(['in-clinic', 'video']),
   amount: z.number(),
-  method: z.enum(['cash', 'card', 'online', 'insurance']),
+  method: z.enum(['wallet', 'cash_at_clinic']),
   status: z.enum(['completed', 'pending', 'refunded']),
   date: z.string(),
 });

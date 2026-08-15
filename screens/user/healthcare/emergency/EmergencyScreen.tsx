@@ -30,14 +30,16 @@ const THEME = {
 
 // ── Emergency Contacts ──────────────────────
 const EMERGENCY_CONTACTS = [
+  // "Ambulance" and "Rescue 1122" were two separate cards dialling the same
+  // 1122 number. Rescue 1122 *is* the ambulance service, so they are one entry.
   {
-    id: 'ambulance',
-    name: 'Ambulance',
+    id: 'rescue1122',
+    name: 'Rescue 1122',
     number: '1122',
     icon: 'ambulance' as const,
     color: '#EF4444',
     bg: '#FEF2F2',
-    description: 'Emergency medical services',
+    description: 'Ambulance, fire & rescue',
   },
   {
     id: 'edhi',
@@ -76,13 +78,13 @@ const EMERGENCY_CONTACTS = [
     description: 'Fire & rescue services',
   },
   {
-    id: 'rescue',
-    name: 'Rescue 1122',
-    number: '1122',
-    icon: 'helicopter' as const,
+    id: 'motorway',
+    name: 'Motorway Police',
+    number: '130',
+    icon: 'highway' as const,
     color: '#10B981',
     bg: '#ECFDF5',
-    description: 'Punjab emergency service',
+    description: 'Highway & motorway help',
   },
 ];
 

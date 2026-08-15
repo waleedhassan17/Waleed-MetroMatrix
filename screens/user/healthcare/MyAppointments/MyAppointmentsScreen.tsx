@@ -281,7 +281,7 @@ const MyAppointmentsScreen: React.FC = () => {
         {isUpcoming && (
           <TouchableOpacity
             style={styles.emptyActionBtn}
-            onPress={() => navigation.navigate('FindDoctor')}
+            onPress={() => navigation.navigate(HealthcareRouteNames.DoctorSearch)}
             activeOpacity={0.85}
           >
             <LinearGradient

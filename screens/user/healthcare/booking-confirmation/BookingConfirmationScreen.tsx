@@ -20,16 +20,18 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
-  setBookingData,
   setPatientDetails,
   setPaymentMethod,
   applyCoupon,
   removeCoupon,
   confirmBooking,
   clearBooking,
+  prepareBooking,
+  resetBookingStatus,
   selectFeeBreakdown,
 } from './bookingConfirmationSlice';
-import type { BookingSummary, PatientDetails } from './bookingConfirmationSlice';
+import type { PatientDetails } from './bookingConfirmationSlice';
+import { selectBalance } from '../../../../services/wallet';
 import type { HealthcareStackParamList, PaymentRecord, Doctor } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
@@ -37,6 +39,7 @@ import {
   getDoctorName,
   getDoctorSpecialty,
   getRating,
+  formatFee,
 } from '../../../../utils/healthcare/doctorDisplay';
 import { Typography } from '../../../../constants/Fonts';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
@@ -88,6 +91,14 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
+/**
+ * The coupon endpoint (`applyCouponApi`) is a stub that always fails, and the
+ * backend's coupon routes are not mounted. Showing a promo field that can only
+ * ever say "Coupons are not available" is worse than not showing one. Flip this
+ * to `true` once `couponRoutes` are live.
+ */
+const COUPONS_ENABLED = false;
+
 // ── Payment Methods ─────────────────────────
 
 const PAYMENT_METHODS: {
@@ -98,8 +109,12 @@ const PAYMENT_METHODS: {
   iconBg: string;
   iconColor: string;
 }[] = [
+  // Only these two exist on the backend (Appointment.payment.method enum is
+  // ['wallet', 'cash_at_clinic', null]). Card, Online Banking and Insurance
+  // were selectable but could never be stored, so they are gone — this matches
+  // the shopping module's Cash + Wallet checkout.
   {
-    key: 'cash',
+    key: 'cash_at_clinic',
     label: 'Cash',
     description: 'Pay at the clinic',
     icon: 'cash-outline',
@@ -107,28 +122,12 @@ const PAYMENT_METHODS: {
     iconColor: THEME.success,
   },
   {
-    key: 'card',
-    label: 'Credit/Debit Card',
-    description: 'Visa, Mastercard, etc.',
-    icon: 'card-outline',
+    key: 'wallet',
+    label: 'MetroMatrix Wallet',
+    description: 'Pay now from your balance',
+    icon: 'wallet-outline',
     iconBg: '#EAF3FF',
     iconColor: THEME.primary,
-  },
-  {
-    key: 'online',
-    label: 'Online Banking',
-    description: 'Bank transfer',
-    icon: 'globe-outline',
-    iconBg: '#EAF3FF',
-    iconColor: THEME.accent,
-  },
-  {
-    key: 'insurance',
-    label: 'Insurance',
-    description: 'Use your health insurance',
-    icon: 'shield-checkmark-outline',
-    iconBg: '#FEF3C7',
-    iconColor: THEME.warning,
   },
 ];
 
@@ -234,55 +233,42 @@ const BookingConfirmationScreen: React.FC = () => {
   const detailDoctor = useAppSelector((s) => s.doctorDetail?.doctor as Doctor | null);
   const {
     bookingData,
+    dataStatus,
+    dataError,
+    dataErrorKind,
     patientDetails,
     paymentMethod,
     coupon,
     loading,
+    couponLoading,
     bookingStatus,
     confirmedAppointmentId,
     confirmedCode,
     error,
+    couponError,
   } = useAppSelector((s) => s.bookingConfirmation);
+
+  const walletBalance = useAppSelector(selectBalance) as number;
   
   const feeBreakdown = useAppSelector(selectFeeBreakdown);
 
   const [couponInput, setCouponInput] = useState('');
   const [couponFocused, setCouponFocused] = useState(false);
 
-  // Build booking summary from previous screens. The real doctor is the one
-  // already loaded into the doctor-detail slice during the booking flow.
+  // Hydration. `prepareBooking` reads the slot/clinic/doctor from the store at
+  // dispatch time and rejects with a typed reason when anything is missing, so
+  // this effect needs none of them as dependencies.
   useEffect(() => {
-    const doctor =
-      detailDoctor && detailDoctor.doctorId === doctorId ? detailDoctor : null;
-    if (!doctor || !slotSelection.selectedSlot) return;
+    dispatch(prepareBooking(doctorId));
+  }, [dispatch, doctorId]);
 
-    const consultationType = slotSelection.consultationType;
-    const fee =
-      consultationType === 'video'
-        ? doctor.videoConsultationFee
-        : doctor.consultationFee;
-
-    const summary: BookingSummary = {
-      doctor,
-      slot: slotSelection.selectedSlot,
-      clinic:
-        consultationType === 'in-clinic' ? clinicSelection.selectedClinic : null,
-      consultationType,
-      fee,
-    };
-    dispatch(setBookingData(summary));
-
-    return () => {
-      dispatch(clearBooking());
-    };
-  }, [
-    dispatch,
-    doctorId,
-    detailDoctor,
-    slotSelection.selectedSlot,
-    slotSelection.consultationType,
-    clinicSelection.selectedClinic,
-  ]);
+  // Lifetime cleanup, deliberately in its own effect. `clearBooking()` resets
+  // the WHOLE slice; when it lived on the data effect above, any change to the
+  // doctor object identity wiped the user's patient details and payment
+  // choice mid-form.
+  useEffect(() => () => {
+    dispatch(clearBooking());
+  }, [dispatch]);
 
   // Navigate on confirmed
   useEffect(() => {
@@ -299,6 +285,9 @@ const BookingConfirmationScreen: React.FC = () => {
   }, [bookingStatus, confirmedAppointmentId, confirmedCode, navigation]);
 
   // Handlers
+  const walletShort = walletBalance < feeBreakdown.total;
+
+  // Retained for the COUPONS_ENABLED path.
   const handleApplyCoupon = useCallback(() => {
     if (!couponInput.trim()) return;
     dispatch(applyCoupon(couponInput.trim()));
@@ -311,6 +300,10 @@ const BookingConfirmationScreen: React.FC = () => {
 
   const handleConfirm = useCallback(() => {
     if (!bookingData) return;
+
+    // A previous attempt failed — clear that state so the user sees fresh
+    // feedback rather than the stale error while this one is in flight.
+    if (bookingStatus === 'failed') dispatch(resetBookingStatus());
 
     if (patientDetails.bookingFor === 'other') {
       if (!patientDetails.name.trim() || !patientDetails.phone.trim()) {
@@ -326,13 +319,89 @@ const BookingConfirmationScreen: React.FC = () => {
 
     Alert.alert(
       'Confirm Booking',
-      `Book appointment with Dr. ${doctorName} for PKR ${feeBreakdown.total}?`,
+      `Book appointment with Dr. ${doctorName} for ${formatFee(feeBreakdown.total) ?? 'PKR 0'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Confirm', onPress: () => dispatch(confirmBooking()) },
       ]
     );
-  }, [dispatch, bookingData, patientDetails, feeBreakdown.total]);
+  }, [dispatch, bookingData, patientDetails, feeBreakdown.total, bookingStatus]);
+
+  // ── Error State ─────────────────────────────
+  // Anything that is not a successful hydration lands here rather than falling
+  // through to the skeleton, which is what used to hang forever.
+  const hydrationFailed = dataStatus === 'error' || (dataStatus === 'ready' && !bookingData);
+
+  if (hydrationFailed) {
+    const canRetry = dataErrorKind === 'doctor';
+    const goesBack = dataErrorKind === 'slot' || dataErrorKind === 'clinic';
+    const primaryLabel = canRetry
+      ? 'Try Again'
+      : dataErrorKind === 'slot'
+      ? 'Choose a Time Slot'
+      : dataErrorKind === 'clinic'
+      ? 'Choose a Clinic'
+      : 'Go Back';
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#1E6AE1" />
+        <LinearGradient
+          colors={THEME.gradient.header as any}
+          style={styles.loadingHeader}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </LinearGradient>
+
+        <View style={styles.prepErrorContainer}>
+          <View style={styles.prepErrorIconWrap}>
+            <Ionicons name="alert-circle-outline" size={44} color={THEME.error} />
+          </View>
+          <Text style={styles.prepErrorTitle}>We couldn't prepare your booking</Text>
+          <Text style={styles.prepErrorMessage}>
+            {dataError ?? 'Something went wrong. Please try again.'}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.prepErrorPrimary}
+            activeOpacity={0.85}
+            onPress={() => {
+              if (canRetry) dispatch(prepareBooking(doctorId));
+              else navigation.goBack();
+            }}
+          >
+            <LinearGradient
+              colors={THEME.gradient.primary as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.prepErrorPrimaryGradient}
+            >
+              <Ionicons
+                name={canRetry ? 'refresh' : goesBack ? 'arrow-back' : 'close'}
+                size={16}
+                color="#FFFFFF"
+              />
+              <Text style={styles.prepErrorPrimaryText}>{primaryLabel}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {canRetry && (
+            <TouchableOpacity
+              style={styles.prepErrorSecondary}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.prepErrorSecondaryText}>Go Back</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ── Loading State ───────────────────────────
 
@@ -630,15 +699,19 @@ const BookingConfirmationScreen: React.FC = () => {
               <View style={styles.paymentGrid}>
                 {PAYMENT_METHODS.map((pm) => {
                   const isActive = paymentMethod === pm.key;
+                  const isWallet = pm.key === 'wallet';
+                  const disabled = isWallet && walletShort;
                   return (
                     <TouchableOpacity
                       key={pm.key}
                       style={[
                         styles.paymentCard,
                         isActive && styles.paymentCardActive,
+                        disabled && styles.paymentCardDisabled,
                       ]}
                       onPress={() => dispatch(setPaymentMethod(pm.key))}
                       activeOpacity={0.7}
+                      disabled={disabled}
                     >
                       <View
                         style={[
@@ -662,9 +735,11 @@ const BookingConfirmationScreen: React.FC = () => {
                         {pm.label}
                       </Text>
                       <Text style={styles.paymentDescription}>
-                        {pm.description}
+                        {isWallet
+                          ? `Balance: ${formatFee(walletBalance) ?? 'PKR 0'}`
+                          : pm.description}
                       </Text>
-                      {isActive && (
+                      {isActive && !disabled && (
                         <View style={styles.paymentCheck}>
                           <Ionicons
                             name="checkmark-circle"
@@ -677,9 +752,22 @@ const BookingConfirmationScreen: React.FC = () => {
                   );
                 })}
               </View>
+
+              {walletShort && (
+                <View style={styles.walletShortRow}>
+                  <Ionicons name="information-circle" size={15} color={THEME.warning} />
+                  <Text style={styles.walletShortText}>
+                    Wallet balance is below the total. Top up, or pay cash at the clinic.
+                  </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('WalletScreen' as never)}>
+                    <Text style={styles.walletTopUpLink}>Top up</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {/* ── Coupon Section ─────────────────── */}
+            {COUPONS_ENABLED && (
             <View style={styles.section}>
               <SectionHeader
                 icon="pricetag-outline"
@@ -740,10 +828,10 @@ const BookingConfirmationScreen: React.FC = () => {
                       !couponInput.trim() && styles.couponApplyBtnDisabled,
                     ]}
                     onPress={handleApplyCoupon}
-                    disabled={!couponInput.trim() || loading}
+                    disabled={!couponInput.trim() || couponLoading}
                     activeOpacity={0.7}
                   >
-                    {loading ? (
+                    {couponLoading ? (
                       <View style={styles.couponLoading}>
                         <View style={styles.loadingDot} />
                       </View>
@@ -754,13 +842,14 @@ const BookingConfirmationScreen: React.FC = () => {
                 </View>
               )}
 
-              {error && !coupon.applied && (
+              {couponError && (
                 <View style={styles.couponErrorContainer}>
                   <Ionicons name="alert-circle" size={14} color={THEME.error} />
-                  <Text style={styles.couponError}>{error}</Text>
+                  <Text style={styles.couponError}>{couponError}</Text>
                 </View>
               )}
             </View>
+            )}
 
             {/* ── Fee Breakdown ──────────────────── */}
             <View style={styles.section}>
@@ -775,7 +864,7 @@ const BookingConfirmationScreen: React.FC = () => {
                 <View style={styles.feeRow}>
                   <Text style={styles.feeLabel}>Consultation Fee</Text>
                   <Text style={styles.feeValue}>
-                    PKR {feeBreakdown.subtotal}
+                    {formatFee(feeBreakdown.subtotal) ?? 'PKR 0'}
                   </Text>
                 </View>
 
@@ -792,7 +881,7 @@ const BookingConfirmationScreen: React.FC = () => {
                       </Text>
                     </View>
                     <Text style={styles.feeDiscountValue}>
-                      - PKR {feeBreakdown.discount}
+                      - {formatFee(feeBreakdown.discount) ?? 'PKR 0'}
                     </Text>
                   </View>
                 )}
@@ -802,7 +891,7 @@ const BookingConfirmationScreen: React.FC = () => {
                 <View style={styles.feeRow}>
                   <Text style={styles.feeTotalLabel}>Total Amount</Text>
                   <Text style={styles.feeTotalValue}>
-                    PKR {feeBreakdown.total}
+                    {formatFee(feeBreakdown.total) ?? 'PKR 0'}
                   </Text>
                 </View>
               </View>
@@ -821,10 +910,17 @@ const BookingConfirmationScreen: React.FC = () => {
           { transform: [{ translateY: bottomBarAnim }] },
         ]}
       >
+        {!!error && (
+          <View style={styles.bookingErrorBanner}>
+            <Ionicons name="alert-circle" size={16} color={THEME.error} />
+            <Text style={styles.bookingErrorText}>{error}</Text>
+          </View>
+        )}
+
         <View style={styles.bottomContent}>
           <View style={styles.bottomLeft}>
             <Text style={styles.bottomLabel}>Total Payable</Text>
-            <Text style={styles.bottomAmount}>PKR {feeBreakdown.total}</Text>
+            <Text style={styles.bottomAmount}>{formatFee(feeBreakdown.total) ?? 'PKR 0'}</Text>
           </View>
 
           <TouchableOpacity
@@ -850,11 +946,13 @@ const BookingConfirmationScreen: React.FC = () => {
               ) : (
                 <>
                   <Ionicons
-                    name="checkmark-circle"
+                    name={bookingStatus === 'failed' ? 'refresh' : 'checkmark-circle'}
                     size={20}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+                  <Text style={styles.confirmButtonText}>
+                    {bookingStatus === 'failed' ? 'Try Again' : 'Confirm Booking'}
+                  </Text>
                 </>
               )}
             </LinearGradient>
@@ -870,6 +968,111 @@ export default BookingConfirmationScreen;
 // ── Styles ──────────────────────────────────
 
 const styles = StyleSheet.create({
+  // ── Hydration error state ──
+  prepErrorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  prepErrorIconWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  prepErrorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  prepErrorMessage: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 28,
+  },
+  prepErrorPrimary: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    minWidth: 200,
+  },
+  prepErrorPrimaryGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  prepErrorPrimaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  prepErrorSecondary: {
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  prepErrorSecondaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+
+  // ── Wallet / booking error ──
+  paymentCardDisabled: {
+    opacity: 0.5,
+  },
+  walletShortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+  },
+  walletShortText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#92400E',
+    lineHeight: 16,
+  },
+  walletTopUpLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.primary,
+  },
+  bookingErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+  },
+  bookingErrorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#991B1B',
+    lineHeight: 16,
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#F8FBFF',

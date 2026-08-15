@@ -86,7 +86,7 @@ export function paymentRecordSerializer(data: any): PaymentRecord {
   return {
     paymentId: data?.paymentId || '',
     amount: data?.amount || 0,
-    method: data?.method || 'cash',
+    method: data?.method || 'cash_at_clinic',
     status: data?.status || 'pending',
     transactionId: data?.transactionId,
     paidAt: data?.paidAt,
@@ -181,7 +181,7 @@ export function appointmentSerializer(data: any): Appointment {
     notes: data?.notes || data?.cancellationReason,
     prescription: data?.prescription ? prescriptionSerializer(data.prescription) : undefined,
     payment: paymentRecordSerializer(
-      data?.payment || { amount, method: 'cash', status: 'pending' }
+      data?.payment || { amount, method: 'cash_at_clinic', status: 'pending' }
     ),
     confirmationCode: data?.confirmationCode,
     confirmedAt: data?.confirmedAt,

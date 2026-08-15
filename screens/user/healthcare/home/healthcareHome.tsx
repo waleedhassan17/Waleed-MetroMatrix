@@ -254,12 +254,17 @@ const HealthcareHomeScreen: React.FC = () => {
   // ── Handlers ────────────────────────────────
 
   const handleSearch = () => {
-    if (searchText.trim()) {
-      navigation.navigate(HealthcareRouteNames.DoctorList, {
-        specialtyId: '',
-        specialtyName: searchText.trim(),
-      });
-    }
+    const query = searchText.trim();
+    if (!query) return;
+    // The typed text is a search query, not a specialty label. Passing it as
+    // `specialtyName` only relabelled the header while the list stayed
+    // unfiltered — the query has to reach the list's search state to do
+    // anything.
+    navigation.navigate(HealthcareRouteNames.DoctorList, {
+      specialtyId: '',
+      specialtyName: '',
+      searchQuery: query,
+    });
   };
 
   const handleSpecialtyPress = (specialty: Specialty) => {
