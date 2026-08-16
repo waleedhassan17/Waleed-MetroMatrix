@@ -31,7 +31,7 @@ import {
 import { fetchHomeData, selectFeaturedBrands, selectFeaturedProducts, selectBanners, selectShoppingHome } from '../ShoppingHome/shoppingHomeSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import type { Product } from '../../../../types/shopping';
-import { ShoppingHeader } from '../../../../components/shopping/ShoppingHeader';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 const ShopColors = {
   primary: '#E67E22',

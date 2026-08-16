@@ -28,7 +28,7 @@ import {
   selectShoppingHomeLoading,
   selectShoppingHome,
 } from './shoppingHomeSlice';
-import { ShoppingHeader } from '../../../../components/shopping/ShoppingHeader';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
