@@ -13,7 +13,6 @@ import {
   RefreshControl,
   TextInput,
   Dimensions,
-  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -201,11 +200,9 @@ const HealthRecordsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const fabAnim = useRef(new Animated.Value(0)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const { selectedCategory, loading, error } = useAppSelector((state) => state.healthRecords);
@@ -236,13 +233,6 @@ const HealthRecordsScreen: React.FC = () => {
         toValue: 0,
         tension: 80,
         friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.spring(fabAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        delay: 300,
         useNativeDriver: true,
       }),
     ]).start();
@@ -562,56 +552,6 @@ const HealthRecordsScreen: React.FC = () => {
     );
   };
 
-  // ── Render: Upload Options Modal ──────────
-
-  const renderUploadModal = () => (
-    <Modal
-      visible={showUploadModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowUploadModal(false)}
-    >
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowUploadModal(false)}
-      >
-        <Animated.View style={styles.uploadOptionsContainer}>
-          <View style={styles.uploadOptionsHeader}>
-            <Text style={styles.uploadOptionsTitle}>Upload Record</Text>
-            <TouchableOpacity onPress={() => setShowUploadModal(false)}>
-              <Ionicons name="close" size={24} color={Colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.uploadOptionsGrid}>
-            {[
-              { icon: 'camera', label: 'Camera', color: '#2A7FFF' },
-              { icon: 'image', label: 'Gallery', color: '#10B981' },
-              { icon: 'document', label: 'Document', color: '#5A9FFF' },
-              { icon: 'cloud-upload', label: 'Cloud', color: '#F59E0B' },
-            ].map((option) => (
-              <TouchableOpacity
-                key={option.label}
-                style={styles.uploadOption}
-                onPress={() => {
-                  setShowUploadModal(false);
-                  navigation.navigate(HealthcareRouteNames.UploadRecord, { source: option.label.toLowerCase() } as any);
-                }}
-              >
-                <View
-                  style={[styles.uploadOptionIcon, { backgroundColor: option.color + '15' }]}
-                >
-                  <Ionicons name={option.icon as any} size={24} color={option.color} />
-                </View>
-                <Text style={styles.uploadOptionLabel}>{option.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
-    </Modal>
-  );
 
   // Header animation
   const headerHeight = scrollY.interpolate({
@@ -774,40 +714,6 @@ const HealthRecordsScreen: React.FC = () => {
         )}
       </Animated.View>
 
-      {/* FAB – Upload New Record */}
-      <Animated.View
-        style={[
-          styles.fabContainer,
-          {
-            transform: [
-              {
-                scale: fabAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.9}
-          onPress={() => setShowUploadModal(true)}
-        >
-          <LinearGradient
-            colors={THEME.gradient.primary as any}
-            style={styles.fabGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="add" size={28} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Upload Options Modal */}
-      {renderUploadModal()}
     </SafeAreaView>
   );
 };
@@ -1235,79 +1141,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // FAB
-  fabContainer: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-  },
-  fab: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: THEME.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Upload Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  uploadOptionsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  uploadOptionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  uploadOptionsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  uploadOptionsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  uploadOption: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  uploadOptionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  uploadOptionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
 });
 
 export default HealthRecordsScreen;
