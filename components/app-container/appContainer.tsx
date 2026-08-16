@@ -31,9 +31,29 @@ import {
   retrieveData,
 } from "../../utils/storage_utils/storageUtils";
 
+import { navigationRef } from "../../navigation-maps/navigationRef";
+import { IncomingCallProvider } from "../call/IncomingCallProvider";
+import {
+  configureNotificationHandler,
+  registerForPushNotifications,
+} from "../../services/push/pushNotifications";
+import { useNotificationRouting } from "../../services/push/useNotificationRouting";
+
+// Configure once at module load, before any notification can arrive.
+configureNotificationHandler();
+
 // Define colors
 const Black = "#000000";
 const White = "#FFFFFF";
+
+/**
+ * Lives INSIDE IncomingCallProvider so it can surface a call from a
+ * notification tap. Renders nothing.
+ */
+const NotificationRouter: React.FC = () => {
+  useNotificationRouting();
+  return null;
+};
 
 /**
  * Main App Container Component
@@ -102,23 +122,16 @@ export const AppContainer: React.FC = () => {
     return () => unsubscribe();
   }, [dispatch]);
 
-  // Handle FCM token for push notifications
+  // Register for push once a session exists. The token goes to the REALTIME
+  // service (which sends the notifications), not the main API.
+  //
+  // This replaces a placeholder that read `const fcmToken = ""` and therefore
+  // never registered anything — which is why incoming calls could not wake the
+  // app. Requires an EAS build; it no-ops in Expo Go and on simulators.
   useEffect(() => {
-    const persistDeviceToken = async () => {
-      const fcmToken = ""; // TODO: Get this from your push notification service
-      
-      if (fcmToken && (currentUser || currentProvider)) {
-        dispatch(
-          persistFcmTokenAction({
-            fcmToken,
-            deviceType: Platform.OS,
-          })
-        );
-      }
-    };
-
-    persistDeviceToken();
-  }, [currentUser, currentProvider, dispatch]);
+    if (!currentUser && !currentProvider) return;
+    registerForPushNotifications();
+  }, [currentUser, currentProvider]);
 
   // Show loading screen while app is initializing
   if (!isAppReady || status === 'loading') {
@@ -242,8 +255,14 @@ export const AppContainer: React.FC = () => {
     <GestureHandlerRootView style={styles.gestureStyle}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <NavigationContainer linking={linking}>
-          <BaseNavigator initialRouteName={initialRoute} />
+        <NavigationContainer ref={navigationRef} linking={linking}>
+          {/* Wraps the navigator so an incoming ring can surface over ANY
+              screen — the server targets a per-user room, so a call arrives
+              regardless of where the callee happens to be. */}
+          <IncomingCallProvider>
+            <NotificationRouter />
+            <BaseNavigator initialRouteName={initialRoute} />
+          </IncomingCallProvider>
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>

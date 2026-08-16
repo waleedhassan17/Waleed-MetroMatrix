@@ -1,313 +1,107 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+// ============================================================================
+// Customer-side chat with a home-service provider.
+//
+// The room is the BOOKING, so a real conversation requires a bookingId — that
+// is what the realtime service authorizes both parties against.
+//
+// What changed: this screen used to run a scripted fake conversation whenever
+// no bookingId was passed — two hardcoded "provider" messages on mount and a
+// canned reply 2 seconds after every send ("Thank you for your message. I'll be
+// there as soon as possible!"). Four of its five entry points passed no
+// bookingId, so most users only ever saw the fake. Faking a reply from a real
+// business is worse than saying chat isn't open yet, so the pre-booking case
+// now states that plainly.
+// ============================================================================
+
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
   SafeAreaView,
-  Platform,
-  TextInput,
+  StatusBar,
   Image,
-  KeyboardAvoidingView,
-  Alert,
-  FlatList,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useBookingSocket } from '../../../../hooks/useBookingSocket';
-import { fetchChatData } from '../../../../networks/serviceProviders/chatNetwork';
+import { Ionicons } from '@expo/vector-icons';
+import ChatThread from '../../../../components/chat/ChatThread';
+import { ChatParticipant } from '../../../../models/serviceProviders';
 
-const { width, height } = Dimensions.get('window');
-const isAndroid = Platform.OS === 'android';
-
-// Service type configurations
-const SERVICE_CONFIG: Record<string, { 
-  title: string; 
-  gradient: string[];
-  lightGradient: string[];
-  accentColor: string;
-}> = {
-  electricians: {
-    title: 'Electrician',
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-  },
-  plumbers: {
-    title: 'Plumber',
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-  },
-  'ac-repairers': {
-    title: 'AC Repairer',
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-  },
-};
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'provider';
-  timestamp: Date;
-  status?: 'sent' | 'delivered' | 'read';
+interface ProviderInfo {
+  id?: string;
+  name?: string;
+  image?: string;
+  profileImage?: string;
+  phoneNumber?: string;
 }
 
-interface Provider {
-  id: string;
-  name: string;
-  specialty: string;
-  rating: number;
-  reviews: number;
-  image: string;
-  distance: string;
-}
-
-type ProviderChatScreenRouteParams = {
-  provider?: Provider;
-  serviceType?: 'electricians' | 'plumbers' | 'ac-repairers';
+type Params = {
+  bookingId?: string;
+  provider?: ProviderInfo;
+  serviceType?: string;
   jobDescription?: string;
   location?: string;
-  // HS7: when navigating from an active booking, chat is REAL — socket +
-  // REST history — instead of the scripted pre-booking conversation.
-  bookingId?: string;
 };
 
-export default function ProviderChatScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: ProviderChatScreenRouteParams }, 'params'>>();
+const ACCENT = '#2563EB';
+const ACCENT_SOFT = '#DBEAFE';
 
-  const {
-    provider,
-    serviceType = 'ac-repairers',
-    jobDescription = '',
-    location = '',
-    bookingId,
-  } = route.params || {};
-  
-  const serviceConfig = SERVICE_CONFIG[serviceType] || SERVICE_CONFIG['ac-repairers'];
+export default function ProvidersChatScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
+  const { bookingId, provider } = route.params || ({} as Params);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: `Hello! I saw your request for ${serviceConfig.title.toLowerCase()} services. I'm available and ready to help.`,
-      sender: 'provider',
-      timestamp: new Date(Date.now() - 60000),
-      status: 'read',
+  const [counterpart, setCounterpart] = useState<ChatParticipant | null>(null);
+
+  const handleParticipants = useCallback((them: ChatParticipant) => {
+    setCounterpart(them);
+  }, []);
+
+  const handleCall = useCallback(
+    (them: ChatParticipant | null) => {
+      const target = them || counterpart;
+      navigation.navigate('CallScreen', {
+        bookingId,
+        provider,
+        counterpartName: target?.name || provider?.name,
+        counterpartPhone: target?.phoneNumber,
+      });
     },
-    {
-      id: '2',
-      text: `Your job: "${jobDescription}"\n\nI can reach your location at ${location} within 30 minutes. Would you like to confirm the booking?`,
-      sender: 'provider',
-      timestamp: new Date(Date.now() - 30000),
-      status: 'read',
-    },
-  ]);
-  const [inputText, setInputText] = useState('');
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+    [navigation, bookingId, provider, counterpart]
+  );
 
-  const scrollViewRef = useRef<ScrollView>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const confirmModalAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 12,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  useEffect(() => {
-    Animated.spring(confirmModalAnim, {
-      toValue: showConfirmModal ? 1 : 0,
-      tension: 65,
-      friction: 11,
-      useNativeDriver: true,
-    }).start();
-  }, [showConfirmModal]);
-
-  const handleBackPress = useCallback(() => {
-    if (isConfirmed) {
-      navigation.goBack();
-    } else {
-      Alert.alert(
-        'Leave Chat',
-        'Are you sure you want to leave? Your conversation will be saved.',
-        [
-          { text: 'Stay', style: 'cancel' },
-          { text: 'Leave', onPress: () => navigation.goBack() },
-        ]
-      );
-    }
-  }, [navigation, isConfirmed]);
-
-  // HS7: live layer for real bookings. Messages arriving over the socket are
-  // merged into the local list; sends go socket-first with REST fallback.
-  const {
-    messages: liveMessages,
-    seedMessages,
-    sendMessage: sendLiveMessage,
-    typing: providerTyping,
-  } = useBookingSocket(bookingId);
-
-  useEffect(() => {
-    if (!bookingId) return;
-    // Real conversation: replace the scripted intro with server history.
-    setMessages([]);
-    fetchChatData(bookingId).then((res) => {
-      if (res.success && res.data) seedMessages(res.data.messages);
-    });
-  }, [bookingId, seedMessages]);
-
-  useEffect(() => {
-    if (!bookingId || liveMessages.length === 0) return;
-    setMessages(
-      liveMessages.map((m) => ({
-        id: m.id,
-        text: m.text,
-        sender: m.sender,
-        timestamp: new Date(m.timestamp),
-        status: m.status,
-      }))
-    );
-  }, [bookingId, liveMessages]);
-
-  const handleSendMessage = useCallback(() => {
-    if (!inputText.trim()) return;
-    const text = inputText.trim();
-    setInputText('');
-
-    if (bookingId) {
-      // Optimistic append; the authoritative copy comes back via the socket
-      // (or the REST response) and replaces it through liveMessages.
-      const optimistic: Message = {
-        id: `local-${Date.now()}`,
-        text,
-        sender: 'user',
-        timestamp: new Date(),
-        status: 'sent',
-      };
-      setMessages(prev => [...prev, optimistic]);
-      sendLiveMessage(text);
-      return;
-    }
-
-    // Pre-booking demo conversation (no booking yet)
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      sender: 'user',
-      timestamp: new Date(),
-      status: 'sent',
-    };
-    setMessages(prev => [...prev, newMessage]);
-    setTimeout(() => {
-      const response: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Thank you for your message. I'll be there as soon as possible!",
-        sender: 'provider',
-        timestamp: new Date(),
-        status: 'delivered',
-      };
-      setMessages(prev => [...prev, response]);
-    }, 2000);
-  }, [inputText, bookingId, sendLiveMessage]);
-
-  const handleCall = useCallback(() => {
-    Alert.alert(
-      'Call Provider',
-      `Do you want to call ${provider?.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', onPress: () => console.log('Calling...') },
-      ]
-    );
-  }, [provider]);
-
-  const handleConfirmRequest = useCallback(() => {
-    setShowConfirmModal(true);
-  }, []);
-
-  const handleFinalConfirm = useCallback(() => {
-    setIsConfirmed(true);
-    setShowConfirmModal(false);
-
-    const confirmMessage: Message = {
-      id: Date.now().toString(),
-      text: '✅ Booking Confirmed! The provider is on their way.',
-      sender: 'provider',
-      timestamp: new Date(),
-      status: 'delivered',
-    };
-    setMessages(prev => [...prev, confirmMessage]);
-  }, []);
-
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isUser = item.sender === 'user';
-    return (
-      <Animated.View
-        style={[
-          styles.messageContainer,
-          isUser ? styles.userMessageContainer : styles.providerMessageContainer,
-        ]}
-      >
-        {!isUser && (
-          <Image source={{ uri: provider?.image }} style={styles.messageAvatar} />
-        )}
-        <View
-          style={[
-            styles.messageBubble,
-            isUser 
-              ? [styles.userBubble, { backgroundColor: serviceConfig.accentColor }]
-              : styles.providerBubble,
-          ]}
-        >
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-            {item.text}
-          </Text>
-          <View style={styles.messageFooter}>
-            <Text style={[styles.messageTime, isUser && styles.userMessageTime]}>
-              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            {isUser && item.status && (
-              <Ionicons
-                name={item.status === 'read' ? 'checkmark-done' : 'checkmark'}
-                size={14}
-                color="rgba(255,255,255,0.7)"
-                style={styles.statusIcon}
-              />
-            )}
-          </View>
-        </View>
-      </Animated.View>
-    );
-  };
-
-  if (!provider) {
+  // Pre-booking: there is no room to join, so be honest about it.
+  if (!bookingId) {
+    const avatarUri = provider?.image || provider?.profileImage;
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Provider information not found</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={[styles.errorLink, { color: serviceConfig.accentColor }]}>Go Back</Text>
+        <StatusBar barStyle="light-content" backgroundColor={ACCENT} />
+        <View style={[styles.header, { backgroundColor: ACCENT }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {provider?.name || 'Provider'}
+          </Text>
+          <View style={styles.headerBtn} />
+        </View>
+
+        <View style={styles.center}>
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Ionicons name="person" size={38} color="#9CA3AF" />
+            </View>
+          )}
+          <Text style={styles.title}>Chat opens with your booking</Text>
+          <Text style={styles.body}>
+            Once you book {provider?.name || 'this provider'}, you can message and
+            call them directly here about the job.
+          </Text>
+          <TouchableOpacity style={styles.btn} onPress={() => navigation.goBack()}>
+            <Text style={styles.btnText}>Back to provider</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -315,698 +109,40 @@ export default function ProviderChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
-        translucent={!isAndroid}
-      />
-
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          { opacity: fadeAnim },
-        ]}
-      >
-        <LinearGradient
-          colors={['#FFFFFF', '#FAFAFA']}
-          style={styles.headerGradient}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackPress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chevron-back" size={22} color="#1E293B" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.providerHeaderInfo} activeOpacity={0.8}>
-              <View style={styles.providerAvatarContainer}>
-                <Image source={{ uri: provider.image }} style={styles.headerAvatar} />
-                <View style={styles.onlineBadge} />
-              </View>
-              <View style={styles.providerHeaderText}>
-                <Text style={styles.providerHeaderName}>{provider.name}</Text>
-                <View style={styles.providerHeaderMeta}>
-                  <Text style={styles.providerHeaderSpecialty}>{provider.specialty}</Text>
-                  <View style={styles.headerRating}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.headerRatingText}>{provider.rating}</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={handleCall}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#ECFDF5', '#D1FAE5']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="call" size={18} color="#10B981" />
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#F1F5F9', '#E2E8F0']}
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons name="ellipsis-vertical" size={18} color="#64748B" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
-      </Animated.View>
-
-      {/* Booking Status Banner */}
-      {isConfirmed && (
-        <LinearGradient
-          colors={['#ECFDF5', '#D1FAE5']}
-          style={styles.statusBanner}
-        >
-          <View style={styles.statusBannerIcon}>
-            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          </View>
-          <View style={styles.statusBannerText}>
-            <Text style={styles.statusBannerTitle}>Booking Confirmed!</Text>
-            <Text style={styles.statusBannerSubtitle}>Provider is on their way</Text>
-          </View>
-        </LinearGradient>
-      )}
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        {/* Messages */}
-        <FlatList
-          ref={scrollViewRef as any}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesContainer}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-        />
-
-        {/* Confirm Request Banner */}
-        {!isConfirmed && (
-          <Animated.View
-            style={[
-              styles.confirmBanner,
-              { opacity: fadeAnim },
-            ]}
-          >
-            <LinearGradient
-              colors={serviceConfig.lightGradient as [string, string]}
-              style={styles.confirmBannerGradient}
-            >
-              <View style={styles.confirmBannerContent}>
-                <View style={[styles.confirmIcon, { backgroundColor: `${serviceConfig.accentColor}20` }]}>
-                  <Ionicons name="checkmark-circle-outline" size={24} color={serviceConfig.accentColor} />
-                </View>
-                <View style={styles.confirmTextContainer}>
-                  <Text style={styles.confirmTitle}>Ready to book?</Text>
-                  <Text style={styles.confirmSubtitle}>Confirm your request with {provider.name}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={handleConfirmRequest}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={serviceConfig.gradient as [string, string]}
-                  style={styles.confirmButtonGradient}
-                >
-                  <Text style={styles.confirmButtonText}>Confirm</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </Animated.View>
-        )}
-
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={24} color="#64748B" />
-            </TouchableOpacity>
-
-            <TextInput
-              style={styles.textInput}
-              placeholder="Type a message..."
-              placeholderTextColor="#94A3B8"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                inputText.trim() && { backgroundColor: serviceConfig.accentColor },
-              ]}
-              onPress={handleSendMessage}
-              activeOpacity={0.8}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons
-                name="send"
-                size={18}
-                color={inputText.trim() ? '#FFFFFF' : '#94A3B8'}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            {
-              opacity: confirmModalAnim,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setShowConfirmModal(false)}
-          />
-          <Animated.View
-            style={[
-              styles.confirmModal,
-              {
-                transform: [{
-                  translateY: confirmModalAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  }),
-                }],
-              },
-            ]}
-          >
-            <View style={styles.modalHandle} />
-            
-            <View style={styles.modalHeader}>
-              <LinearGradient
-                colors={serviceConfig.gradient as [string, string]}
-                style={styles.modalIconBg}
-              >
-                <Ionicons name="checkmark-done" size={32} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.modalTitle}>Confirm Booking</Text>
-              <Text style={styles.modalSubtitle}>
-                You're about to book {provider.name} for your service request
-              </Text>
-            </View>
-
-            <View style={styles.modalDetails}>
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="person-outline" size={18} color="#64748B" />
-                </View>
-                <View>
-                  <Text style={styles.modalDetailLabel}>Provider</Text>
-                  <Text style={styles.modalDetailValue}>{provider.name}</Text>
-                </View>
-              </View>
-
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="location-outline" size={18} color="#64748B" />
-                </View>
-                <View style={styles.modalDetailTextContainer}>
-                  <Text style={styles.modalDetailLabel}>Location</Text>
-                  <Text style={styles.modalDetailValue} numberOfLines={2}>{location}</Text>
-                </View>
-              </View>
-
-              <View style={styles.modalDetailRow}>
-                <View style={styles.modalDetailIcon}>
-                  <Ionicons name="document-text-outline" size={18} color="#64748B" />
-                </View>
-                <View style={styles.modalDetailTextContainer}>
-                  <Text style={styles.modalDetailLabel}>Job Description</Text>
-                  <Text style={styles.modalDetailValue} numberOfLines={2}>{jobDescription}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowConfirmModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleFinalConfirm}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={serviceConfig.gradient as [string, string]}
-                  style={styles.modalConfirmGradient}
-                >
-                  <Text style={styles.modalConfirmText}>Confirm Booking</Text>
-                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </Animated.View>
-      )}
-    </SafeAreaView>
+    <ChatThread
+      roomId={bookingId}
+      roomType="homeservice"
+      accent={ACCENT}
+      accentSoft={ACCENT_SOFT}
+      fallbackTitle={provider?.name || 'Provider'}
+      onParticipantsLoaded={handleParticipants}
+      onCall={handleCall}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#64748B',
-    marginBottom: 12,
-  },
-  errorLink: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 12,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  providerHeaderInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerAvatarContainer: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  headerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-  },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  providerHeaderText: {
-    flex: 1,
-  },
-  providerHeaderName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  providerHeaderMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
-  },
-  providerHeaderSpecialty: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  headerRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  headerRatingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerActionButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionButtonGradient: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+  headerBtn: { padding: 6, width: 36 },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 20 },
+  avatarFallback: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 19, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  body: { fontSize: 15, color: '#6B7280', lineHeight: 22, textAlign: 'center', marginTop: 10 },
+  btn: {
+    marginTop: 26,
+    backgroundColor: ACCENT,
+    paddingHorizontal: 28,
     paddingVertical: 12,
-    gap: 12,
-  },
-  statusBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBannerText: {
-    flex: 1,
-  },
-  statusBannerTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  statusBannerSubtitle: {
-    fontSize: 12,
-    color: '#047857',
-    marginTop: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  messagesContainer: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-end',
-  },
-  userMessageContainer: {
-    justifyContent: 'flex-end',
-  },
-  providerMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-  },
-  userBubble: {
-    borderBottomRightRadius: 4,
-  },
-  providerBubble: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  messageText: {
-    fontSize: 15,
-    color: '#1E293B',
-    lineHeight: 21,
-  },
-  userMessageText: {
-    color: '#FFFFFF',
-  },
-  messageFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 4,
-    gap: 4,
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  userMessageTime: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  statusIcon: {
-    marginLeft: 2,
-  },
-  confirmBanner: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  confirmBannerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  confirmBannerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  confirmIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmTextContainer: {
-    flex: 1,
-  },
-  confirmTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  confirmSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  confirmButton: {
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  confirmButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  inputContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: '#F8FAFC',
     borderRadius: 24,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    gap: 4,
   },
-  attachButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1E293B',
-    maxHeight: 100,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  confirmModal: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  modalDetails: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    gap: 16,
-  },
-  modalDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  modalDetailIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalDetailTextContainer: {
-    flex: 1,
-  },
-  modalDetailLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginBottom: 2,
-  },
-  modalDetailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E293B',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  modalConfirmButton: {
-    flex: 2,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  modalConfirmGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

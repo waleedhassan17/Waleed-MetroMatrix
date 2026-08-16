@@ -265,9 +265,13 @@ const PatientHistoryScreen: React.FC = () => {
             <Text style={styles.headerTitle}>Patient History</Text>
             <Text style={styles.headerSubtitle}>{patient.visits.length} visit{patient.visits.length !== 1 ? 's' : ''} recorded</Text>
           </View>
-          <TouchableOpacity style={styles.callBtn}>
-            <Ionicons name="call-outline" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* A call button sat here with no onPress at all. Calling is scoped
+              to an APPOINTMENT — that is the room the realtime service
+              authorizes against — and this screen only has a patientId, so
+              there is no conversation to open from here. Doctors reach the
+              patient from the queue or the appointment, both of which do have
+              one. Kept as a spacer so the header stays centred. */}
+          <View style={styles.callBtn} />
         </View>
       </LinearGradient>
 

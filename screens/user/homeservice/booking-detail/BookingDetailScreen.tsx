@@ -202,6 +202,25 @@ export default function BookingDetailScreen() {
                 }
               />
             )}
+            {/* Voice call the provider. Same gate as Chat: only once the
+                booking is live, since that is the room the realtime service
+                authorizes both parties against. The provider's number is
+                resolved by the call screen from the chat endpoint. */}
+            {status && !['PENDING', 'REJECTED', 'CANCELLED'].includes(status) && (
+              <ActionBtn
+                icon="call"
+                label="Call"
+                color="#10B981"
+                onPress={() =>
+                  navigation.navigate('CallScreen', {
+                    bookingId,
+                    provider: data.provider,
+                    counterpartName: data.provider?.name,
+                    counterpartPhone: data.provider?.phoneNumber,
+                  })
+                }
+              />
+            )}
             {status === 'COMPLETED' && !paid && (
               <ActionBtn
                 icon="wallet"

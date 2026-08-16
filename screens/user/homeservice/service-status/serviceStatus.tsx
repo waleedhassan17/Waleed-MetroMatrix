@@ -172,16 +172,25 @@ export default function ServiceStatusScreen() {
   }, [navigation, category, bookingId]);
 
   const handleContactProvider = useCallback(() => {
+    if (!bookingId) return;
     Alert.alert(
       'Contact Provider',
       'Choose how you want to contact the provider',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', onPress: () => console.log('Call provider') },
-        { text: 'Message', onPress: () => console.log('Message provider') },
+        {
+          text: 'Call',
+          // @ts-ignore — root-stack routes, not in this screen's local param list
+          onPress: () => navigation.navigate('CallScreen', { bookingId }),
+        },
+        {
+          text: 'Message',
+          // @ts-ignore
+          onPress: () => navigation.navigate('ProviderChatScreen', { bookingId }),
+        },
       ]
     );
-  }, []);
+  }, [navigation, bookingId]);
 
   // Run entrance animations
   const runEntranceAnimations = useCallback(() => {

@@ -65,6 +65,12 @@ import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payme
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
 import ProviderJobChatScreen from "../screens/providers/homeservice/provider-chat/providerChat";
 import ProviderCallScreenHS from "../screens/providers/homeservice/call-screen/providerCallScreen";
+// Healthcare chat + voice call. These live in the ROOT stack (not the nested
+// Healthcare/Doctor stacks) because both the patient and the doctor navigate to
+// them, and a push-notification tap must be able to reach them from anywhere.
+import HealthcareConsultChatScreen from "../screens/user/healthcare/ConsultChat/ConsultChatScreen";
+import DoctorConsultChatScreen from "../screens/providers/healthcare/consult-chat/DoctorConsultChatScreen";
+import HealthcareConsultCallScreen from "../screens/user/healthcare/ConsultCall/ConsultCallScreen";
 import ProviderAvailabilityScreen from "../screens/providers/homeservice/availability/availabilityScreen";
 
 // Shopping Module
@@ -176,6 +182,11 @@ export const BaseRouteNames = {
   // HS7: provider side of the two-party features + availability settings
   ProviderJobChat: "ProviderJobChat",
   ProviderCallScreen: "ProviderCallScreen",
+
+  // Healthcare consultation chat + voice call (room = the appointment)
+  HealthcareConsultChat: "HealthcareConsultChat",
+  DoctorConsultChat: "DoctorConsultChat",
+  HealthcareConsultCall: "HealthcareConsultCall",
   ProviderAvailability: "ProviderAvailability",
 
   // HS8: remaining customer + admin Home Services screens
@@ -250,8 +261,11 @@ export type RootStackParamList = {
   ReviewRating: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; serviceData?: any };
   QuickSearchScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
   SearchingProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
-  ProviderChatScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
-  CallScreen: { provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  // bookingId is what makes chat/calling real — it identifies the room the
+  // realtime service authorizes against. Without one there is no conversation
+  // to join, only a pre-booking browse.
+  ProviderChatScreen: { bookingId?: string; provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
+  CallScreen: { bookingId?: string; provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; counterpartName?: string; counterpartPhone?: string };
   UserWalletScreen: undefined;
   TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
@@ -289,7 +303,17 @@ export type RootStackParamList = {
   PaymentRequest: undefined;
   JobCompletion: undefined;
   ProviderJobChat: { bookingId: string; customerName?: string };
-  ProviderCallScreen: { bookingId: string; customerName?: string; customerPhone?: string };
+  ProviderCallScreen: { bookingId: string; customerName?: string; customerPhone?: string; customerImage?: string };
+
+  // Healthcare: the room id is the APPOINTMENT id (roomType 'healthcare').
+  HealthcareConsultChat: { appointmentId: string; doctorName?: string };
+  DoctorConsultChat: { appointmentId: string; patientName?: string };
+  HealthcareConsultCall: {
+    appointmentId: string;
+    counterpartName?: string;
+    counterpartPhone?: string;
+    counterpartImage?: string;
+  };
   ProviderAvailability: undefined;
 
   // HS8
@@ -735,6 +759,32 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ProviderCallScreenHS,
     title: BaseRouteNames.ProviderCallScreen,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_bottom',
+    }
+  },
+  // Healthcare consultation chat + voice call. Root-stack so both the patient
+  // and the doctor can reach them, including from a notification tap.
+  {
+    component: HealthcareConsultChatScreen,
+    title: BaseRouteNames.HealthcareConsultChat,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: DoctorConsultChatScreen,
+    title: BaseRouteNames.DoctorConsultChat,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: HealthcareConsultCallScreen,
+    title: BaseRouteNames.HealthcareConsultCall,
     options: {
       headerShown: false,
       animation: 'slide_from_bottom',

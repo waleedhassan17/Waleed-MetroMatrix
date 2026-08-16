@@ -9,11 +9,17 @@ import {
 import { Audience, tokenForRequest } from "./tokenSelection";
 
 // API Configuration
-// PRODUCTION (Vercel) — the one backend host for the whole app (see vercel.md).
-// Every network call must go through this constant. The app previously had
-// modules pinned to retired Heroku dynos (profile-photo upload among them),
-// which simply failed against a dead host.
-export const API_URL = "https://metro-matrix-backend.vercel.app/api";
+// PRODUCTION (Vercel) — auth, users, providers, doctors, bookings,
+// appointments, shopping, wallet, Stripe.
+//
+// Chat and calling are NOT served from here. Vercel is serverless and cannot
+// hold a WebSocket open, so those live on the realtime service (Heroku),
+// addressed via REALTIME_BASE_URL in config/env.ts.
+//
+// The literal is kept as a fallback so a build with no env configured behaves
+// exactly as it did before.
+export const API_URL =
+  process.env.EXPO_PUBLIC_API_URL || "https://metro-matrix-backend.vercel.app/api";
 // Local testing (web): "http://localhost:5000/api"
 // LAN IP (for Expo Go on a physical device): "http://192.168.100.71:5000/api"
 
@@ -205,6 +211,20 @@ const performTokenRefresh = async (): Promise<string | null> => {
 
     await saveAuthTokens(newAccessToken, newRefreshToken);
     console.log('🔄 Session refreshed successfully');
+
+    // The realtime socket only reads its token at handshake time, so rotating
+    // the stored token here leaves the live socket authenticated with the OLD
+    // one until the server expires it. Re-handshake now, or chat and incoming
+    // calls silently stop working while REST calls carry on fine.
+    // Imported lazily: socketClient pulls in config/env, and a top-level import
+    // would create a cycle back through this module.
+    try {
+      const { refreshSocketAuth } = require('../../services/socket/socketClient');
+      refreshSocketAuth(newAccessToken);
+    } catch {
+      /* socket layer not loaded on this screen — nothing to refresh */
+    }
+
     return newAccessToken;
   } catch (refreshError: any) {
     console.warn('⚠️ Token refresh failed:', refreshError?.response?.status || refreshError?.message);

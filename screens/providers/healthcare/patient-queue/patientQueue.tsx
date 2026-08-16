@@ -181,6 +181,35 @@ const CurrentPatientCard: React.FC<{
             <Text style={[styles.actionBtnText, { color: '#10B981' }]}>Join Call</Text>
           </TouchableOpacity>
         )}
+        {/* Message / voice-call the patient through the realtime service. The
+            room is the appointment, so these work for in-clinic visits too,
+            not only video consults. */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() =>
+            navigation.navigate('DoctorConsultChat', {
+              appointmentId: patient.appointmentId,
+              patientName: patient.patientName,
+            })
+          }
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={17} color="#0EA5E9" />
+          <Text style={[styles.actionBtnText, { color: '#0EA5E9' }]}>Message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() =>
+            navigation.navigate('HealthcareConsultCall', {
+              appointmentId: patient.appointmentId,
+              counterpartName: patient.patientName,
+            })
+          }
+          activeOpacity={0.8}
+        >
+          <Ionicons name="call-outline" size={17} color="#2563EB" />
+          <Text style={[styles.actionBtnText, { color: '#2563EB' }]}>Call</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.currentActions}>

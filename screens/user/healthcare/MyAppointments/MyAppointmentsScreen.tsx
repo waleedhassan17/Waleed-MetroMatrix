@@ -111,7 +111,24 @@ const MyAppointmentsScreen: React.FC = () => {
 
   const handleCancel = (id: string) => {};
   const handleReschedule = (id: string) => {};
-  const handleJoinCall = (a: Appointment) => {};
+
+  // Was `(a: Appointment) => {}` — an empty function, so the "Join Call" button
+  // on every appointment card did nothing at all.
+  const handleJoinCall = (a: Appointment) => {
+    if (!a?.appointmentId) return;
+    if (a.type === 'video') {
+      navigation.navigate(HealthcareRouteNames.VideoCall, {
+        appointmentId: a.appointmentId,
+        roomId: a.appointmentId,
+      });
+      return;
+    }
+    // In-clinic appointments have no video room; offer the voice call instead.
+    navigation.navigate('HealthcareConsultCall', {
+      appointmentId: a.appointmentId,
+      counterpartName: (a as any).doctorName,
+    });
+  };
 
   // ── Status Badge ──────────────────────────
 

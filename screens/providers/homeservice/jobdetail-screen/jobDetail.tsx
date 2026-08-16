@@ -26,6 +26,13 @@ const { width } = Dimensions.get('window');
 type RootStackParamList = {
   JobDetail: { job: JobData };
   NavigationMap: undefined;
+  ProviderJobChat: { bookingId: string; customerName?: string };
+  ProviderCallScreen: {
+    bookingId: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerImage?: string;
+  };
 };
 
 type JobDetailScreenRouteProp = RouteProp<RootStackParamList, 'JobDetail'>;
@@ -69,16 +76,31 @@ const JobDetailScreen: React.FC = () => {
     navigation.navigate('NavigationMap');
   };
 
+  // The chat/call room IS the booking. `bookingId` is set when the job came
+  // from a real booking; `id` is the fallback for locally-shaped job objects.
+  const roomId = currentJob?.bookingId || currentJob?.id;
+
   const handleCallCustomer = () => {
-    if (currentJob.customerPhone && currentJob.customerPhone !== 'N/A') {
-      Linking.openURL(`tel:${currentJob.customerPhone}`);
-    }
+    if (!roomId) return;
+    // Routed through the realtime service rather than dialling straight out, so
+    // the customer's app knows a call is incoming, the attempt is logged, and
+    // the busy signal applies. The native dialer still places the actual call.
+    navigation.navigate('ProviderCallScreen', {
+      bookingId: roomId,
+      customerName: currentJob.customerName,
+      customerPhone: currentJob.customerPhone,
+      customerImage: currentJob.customerImage,
+    });
   };
 
   const handleMessageCustomer = () => {
-    if (currentJob.customerPhone && currentJob.customerPhone !== 'N/A') {
-      Linking.openURL(`sms:${currentJob.customerPhone}`);
-    }
+    if (!roomId) return;
+    // In-app chat instead of handing off to SMS — the conversation stays
+    // attached to the booking and both sides can see it.
+    navigation.navigate('ProviderJobChat', {
+      bookingId: roomId,
+      customerName: currentJob.customerName,
+    });
   };
 
   const openInMaps = () => {

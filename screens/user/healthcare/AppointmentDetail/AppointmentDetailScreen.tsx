@@ -305,6 +305,28 @@ const AppointmentDetailScreen: React.FC = () => {
     });
   };
 
+  // Chat and voice call go through the realtime service, with the APPOINTMENT
+  // as the room. These sit ALONGSIDE the Jitsi video consult above: video is
+  // the scheduled telemedicine session, voice is a quick "can you talk now"
+  // over the phone line.
+  const handleChatDoctor = () => {
+    if (!appointment) return;
+    navigation.navigate('HealthcareConsultChat', {
+      appointmentId: appointment.appointmentId,
+      doctorName: (appointment as any).doctorName,
+    });
+  };
+
+  const handleVoiceCallDoctor = () => {
+    if (!appointment) return;
+    // The doctor's phone number comes from the chat endpoint, which the call
+    // screen resolves itself — nothing sensitive is threaded through navigation.
+    navigation.navigate('HealthcareConsultCall', {
+      appointmentId: appointment.appointmentId,
+      counterpartName: (appointment as any).doctorName,
+    });
+  };
+
   const handleViewPrescription = () => {
     if (!prescription) return;
     navigation.navigate(HealthcareRouteNames.PrescriptionView, {
@@ -668,6 +690,31 @@ const AppointmentDetailScreen: React.FC = () => {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+        )}
+
+        {/* Message / voice-call the doctor. Available for BOTH in-clinic and
+            video appointments, and unlike the video room these are not gated on
+            a 15-minute window — a patient may need to reach their doctor about
+            an upcoming or just-finished visit. */}
+        {appointment.status !== 'cancelled' && (
+          <View style={styles.contactRow}>
+            <TouchableOpacity
+              style={styles.contactBtn}
+              onPress={handleChatDoctor}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="chat-outline" size={20} color={THEME.primary} />
+              <Text style={styles.contactBtnText}>Message</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactBtn}
+              onPress={handleVoiceCallDoctor}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="phone-outline" size={20} color={THEME.primary} />
+              <Text style={styles.contactBtnText}>Call</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Prescription Button */}
@@ -1171,6 +1218,28 @@ const styles = StyleSheet.create({
   },
   actionButtonDisabled: {
     opacity: 0.6,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  contactBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#EAF3FF',
+    borderWidth: 1,
+    borderColor: '#C7DEFF',
+  },
+  contactBtnText: {
+    color: '#2A7FFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   payNowBtn: {
     flexDirection: 'row',

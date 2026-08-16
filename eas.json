@@ -6,6 +6,12 @@
     "appVersionSource": "remote"
   },
   "build": {
+    // THE APP TARGETS TWO BACKENDS — both must be set on every profile:
+    //   EXPO_PUBLIC_API_URL      Vercel  — auth, bookings, appointments, Stripe
+    //   EXPO_PUBLIC_REALTIME_URL Heroku  — chat + call (persistent WebSocket)
+    // Both have code-level fallbacks (config/env.ts), so a build without them
+    // still runs; setting them here keeps builds explicit about their targets.
+
     // Use for local dev with hot reload / Expo dev menu against a
     // dev-client build: `eas build -p android --profile development`.
     // Requires running `npx expo start --dev-client` alongside it.
@@ -15,6 +21,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://metro-matrix-backend.vercel.app/api",
+        "EXPO_PUBLIC_REALTIME_URL": "https://metromatrix-realtime-1d7dadda1082.herokuapp.com"
       }
     },
 
@@ -27,7 +37,11 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://metro-matrix-backend.vercel.app/api",
+        "EXPO_PUBLIC_REALTIME_URL": "https://metromatrix-realtime-1d7dadda1082.herokuapp.com"
+      }
     },
 
     // Store-release config (produces an .aab, NOT sideloadable). Not used
@@ -35,7 +49,11 @@
     // "production" profile exists.
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://metro-matrix-backend.vercel.app/api",
+        "EXPO_PUBLIC_REALTIME_URL": "https://metromatrix-realtime-1d7dadda1082.herokuapp.com"
+      }
     }
   },
   "submit": {
