@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,56 @@ import { RootState } from '../../../../../store/store';
 const { width } = Dimensions.get('window');
 
 
+// Fallback artwork palette. `/user/home` does not always return a usable
+// `image`, and a bare <Image> with an empty/broken uri renders as a grey block.
+const FALLBACK_GRADIENTS: [string, string][] = [
+  ['#059669', '#047857'],
+  ['#3B82F6', '#1D4ED8'],
+  ['#8B5CF6', '#6D28D9'],
+  ['#F59E0B', '#B45309'],
+  ['#EC4899', '#BE185D'],
+];
+
+const Shimmer: React.FC<{ style?: any; radius?: number }> = ({ style, radius = 0 }) => {
+  const pulse = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.9, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.35, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{ backgroundColor: '#E5E7EB', borderRadius: radius }, style, { opacity: pulse }]}
+    />
+  );
+};
+
+// Mirrors the real card's dimensions so nothing jumps when data lands.
+const ServiceCardSkeleton: React.FC = () => (
+  <View style={styles.serviceCardContainer}>
+    <View style={styles.serviceCard}>
+      <Shimmer style={styles.imageContainer} />
+      <View style={styles.cardContent}>
+        <View style={styles.contentRow}>
+          <View style={styles.skeletonLines}>
+            <Shimmer style={styles.skeletonLineWide} radius={4} />
+            <Shimmer style={styles.skeletonLineNarrow} radius={4} />
+          </View>
+          <Shimmer style={styles.arrowHint} radius={13} />
+        </View>
+      </View>
+    </View>
+  </View>
+);
+
 // Service Card Component — clean clickable card
 interface ServiceCardProps {
   service: {
@@ -59,6 +109,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(20)).current;
 
+  const [imageState, setImageState] = useState<'loading' | 'loaded' | 'failed'>(
+    service.image ? 'loading' : 'failed'
+  );
+  const fallbackGradient = FALLBACK_GRADIENTS[index % FALLBACK_GRADIENTS.length];
+  // `service.icon` holds an icon *name* ('flash', 'water'), not a glyph, so the
+  // category initial is the only thing safe to paint here.
+  const fallbackGlyph = (service.name || '?').trim().charAt(0).toUpperCase();
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(opacityAnim, {
@@ -75,6 +133,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       }),
     ]).start();
   }, []);
+
+  // A refresh can hand us a different (or newly working) url — retry it rather
+  // than leaving the card stuck on the fallback from a previous failure.
+  useEffect(() => {
+    setImageState(service.image ? 'loading' : 'failed');
+  }, [service.image]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -113,11 +177,29 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       >
         {/* Image Section */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: service.image }}
-            style={styles.serviceImage}
-            resizeMode="cover"
-          />
+          {imageState !== 'failed' && (
+            <Image
+              source={{ uri: service.image }}
+              style={styles.serviceImage}
+              resizeMode="cover"
+              onLoad={() => setImageState('loaded')}
+              onError={() => setImageState('failed')}
+            />
+          )}
+
+          {/* Branded stand-in whenever the remote artwork is missing or broken */}
+          {imageState === 'failed' && (
+            <LinearGradient
+              colors={fallbackGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.fallbackArt}
+            >
+              <Text style={styles.fallbackGlyph}>{fallbackGlyph}</Text>
+            </LinearGradient>
+          )}
+
+          {imageState === 'loading' && <Shimmer style={styles.imageOverlay} />}
 
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.5)']}
@@ -165,6 +247,10 @@ export default function HomeScreen() {
 
   const categories = useSelector((state: RootState) => state.home.categories) as ServiceCategory[];
   const isRefreshing = useSelector((state: RootState) => state.home.isRefreshing) as boolean;
+  // Both of these were already in the slice but the screen never read them, so
+  // a slow or failed /user/home just looked like an empty screen forever.
+  const isLoading = useSelector((state: RootState) => state.home.isLoading) as boolean;
+  const error = useSelector((state: RootState) => state.home.error) as string | null;
 
   const headerAnim = useRef(new Animated.Value(0)).current;
 
@@ -193,6 +279,10 @@ export default function HomeScreen() {
   }, [dispatch]);
 
   const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
+
+  // Keep showing cached cards during a pull-to-refresh instead of collapsing.
+  const showSkeletons = isLoading && categories.length === 0;
+  const showError = !!error && categories.length === 0;
 
   return (
     <View style={styles.container}>
@@ -257,19 +347,48 @@ export default function HomeScreen() {
               <View style={styles.sectionAccent} />
               <Text style={styles.sectionTitle}>All Services</Text>
             </View>
-            <Text style={styles.sectionSubtitle}>{categories.length} available</Text>
+            <Text style={styles.sectionSubtitle}>
+              {showSkeletons ? 'Loading…' : `${categories.length} available`}
+            </Text>
           </View>
 
-          <View style={styles.servicesGrid}>
-            {categories.map((service, index) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                onPress={() => handleCardPress(service.id)}
-                index={index}
-              />
-            ))}
-          </View>
+          {showSkeletons ? (
+            <View style={styles.servicesGrid}>
+              {[0, 1, 2].map((i) => (
+                <ServiceCardSkeleton key={i} />
+              ))}
+            </View>
+          ) : showError ? (
+            <View style={styles.stateBox}>
+              <Text style={styles.stateTitle}>Couldn't load services</Text>
+              <Text style={styles.stateText}>{error}</Text>
+              <TouchableOpacity
+                style={styles.stateBtn}
+                activeOpacity={0.85}
+                onPress={() => dispatch(fetchHomeData() as any)}
+              >
+                <Text style={styles.stateBtnText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : categories.length === 0 ? (
+            <View style={styles.stateBox}>
+              <Text style={styles.stateTitle}>No services available</Text>
+              <Text style={styles.stateText}>
+                Nothing is listed in your area yet. Pull down to refresh.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.servicesGrid}>
+              {categories.map((service, index) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onPress={() => handleCardPress(service.id)}
+                  index={index}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Bottom Spacing */}
@@ -399,6 +518,67 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  fallbackArt: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fallbackGlyph: {
+    fontSize: 46,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.9)',
+  },
+
+  // Skeleton
+  skeletonLines: {
+    flex: 1,
+    gap: 8,
+    marginRight: 12,
+  },
+  skeletonLineWide: {
+    height: 10,
+    width: '85%',
+  },
+  skeletonLineNarrow: {
+    height: 10,
+    width: '55%',
+  },
+
+  // Empty / error states
+  stateBox: {
+    marginHorizontal: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  stateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 6,
+  },
+  stateText: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  stateBtn: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+  },
+  stateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
   // Badge — Top Left (white pill)
