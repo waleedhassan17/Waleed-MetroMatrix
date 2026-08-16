@@ -15,9 +15,11 @@ import type {
   RescheduleAppointmentRequest,
   FetchTimeSlotsParams,
   FetchAppointmentsParams,
-  UploadMedicalRecordRequest,
 } from '../../models/healthcare/appointmentModel';
+import { Platform } from 'react-native';
 import { healthcareApiRequest } from './config';
+import { API_URL } from '../network/network';
+import { retrieveData, KeyForStorage } from '../../utils/storage_utils/storageUtils';
 import {
   appointmentSerializer,
   timeSlotSerializer,
@@ -207,14 +209,124 @@ export async function fetchMedicalRecordsApi(
 
 // ── Upload Medical Record ───────────────────
 
-export async function uploadMedicalRecordApi(
-  data: UploadMedicalRecordRequest
-): Promise<ApiResponse<MedicalRecord>> {
+/**
+ * Backend contract — src/modules/healthcare/{routes,controllers,middleware}:
+ *
+ *   POST /api/v1/healthcare/health-records   (requireUser)
+ *   multipart/form-data
+ *     title    required, non-empty
+ *     category required, one of HEALTH_RECORD_CATEGORIES
+ *     date     optional, parsed with `new Date(date)`
+ *     notes    optional
+ *     files    1..5 files, JPEG/PNG/PDF, <= 10MB each (multer field name)
+ *
+ * The controller derives userId from the token and persists a HealthRecord
+ * document with the Cloudinary URLs multer produced.
+ */
+export const HEALTH_RECORD_CATEGORIES = [
+  'prescriptions',
+  'lab_reports',
+  'imaging',
+  'vaccination',
+] as const;
 
-  return healthcareApiRequest<MedicalRecord>('/medical-records', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export type HealthRecordCategory = (typeof HEALTH_RECORD_CATEGORIES)[number];
+
+export const HEALTH_RECORD_MAX_FILES = 5;
+export const HEALTH_RECORD_MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const HEALTH_RECORD_ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'application/pdf',
+] as const;
+
+export interface HealthRecordFileInput {
+  uri: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+}
+
+export interface UploadHealthRecordRequest {
+  title: string;
+  category: HealthRecordCategory;
+  date?: string;
+  notes?: string;
+  files: HealthRecordFileInput[];
+}
+
+const fail = (message: string): ApiResponse<MedicalRecord> => ({
+  success: false,
+  data: null as any,
+  message,
+});
+
+export async function uploadMedicalRecordApi(
+  input: UploadHealthRecordRequest
+): Promise<ApiResponse<MedicalRecord>> {
+  // Validate locally so the user gets a precise message instead of a 400 that
+  // has already burned an upload of several megabytes.
+  if (!input.title?.trim()) return fail('Please enter a title.');
+  if (!HEALTH_RECORD_CATEGORIES.includes(input.category)) {
+    return fail('Please choose a record type.');
+  }
+  if (!input.files?.length) return fail('Please add at least one file.');
+  if (input.files.length > HEALTH_RECORD_MAX_FILES) {
+    return fail(`You can attach at most ${HEALTH_RECORD_MAX_FILES} files to a record.`);
+  }
+
+  for (const file of input.files) {
+    if (!HEALTH_RECORD_ALLOWED_MIME.includes(file.mimeType as any)) {
+      return fail(`"${file.name}" is not supported. Only JPG, PNG and PDF files can be uploaded.`);
+    }
+    if (file.size && file.size > HEALTH_RECORD_MAX_FILE_BYTES) {
+      return fail(`"${file.name}" is larger than 10MB.`);
+    }
+  }
+
+  try {
+    const token = await retrieveData(KeyForStorage.accessToken);
+    if (!token) return fail('Your session expired. Please sign in again.');
+
+    const form = new FormData();
+    form.append('title', input.title.trim());
+    form.append('category', input.category);
+    if (input.date) form.append('date', input.date);
+    form.append('notes', input.notes ?? '');
+
+    input.files.forEach((file) => {
+      form.append('files', {
+        // iOS rejects the file:// prefix here; Android requires it.
+        uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
+        name: file.name,
+        type: file.mimeType,
+      } as any);
+    });
+
+    // Raw fetch, not the axios instance, so React Native sets the multipart
+    // boundary itself — same approach as uploadProfilePhoto.
+    const response = await fetch(`${API_URL}/v1/healthcare/health-records`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+
+    const body = await response.json().catch(() => ({} as any));
+
+    if (!response.ok || body?.success === false) {
+      return fail(
+        body?.error || body?.message || `Upload failed (${response.status}).`
+      );
+    }
+
+    return {
+      success: true,
+      data: medicalRecordSerializer(body?.data ?? body),
+      message: body?.message || 'Health record uploaded',
+    };
+  } catch (error: any) {
+    return fail(error?.message || 'Upload failed. Please check your connection and try again.');
+  }
 }
 
 // ── Start Video Call ────────────────────────

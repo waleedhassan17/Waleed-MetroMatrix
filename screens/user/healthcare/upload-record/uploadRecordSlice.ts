@@ -1,5 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { uploadMedicalRecordApi } from '../../../../networks/healthcare/appointmentApi';
+import {
+  uploadMedicalRecordApi,
+  type HealthRecordCategory,
+  type HealthRecordFileInput,
+} from '../../../../networks/healthcare/appointmentApi';
 
 // ── Types ───────────────────────────────────
 
@@ -20,6 +24,30 @@ export interface PickedFile {
   type: 'image' | 'pdf';
   size: number;
 }
+
+/**
+ * UI record types → the backend's HealthRecord.category enum
+ * ('prescriptions' | 'lab_reports' | 'imaging' | 'vaccination').
+ * The UI's "Vaccination" option carries the legacy value 'discharge', and
+ * "Other" has no backend equivalent, so both are mapped explicitly here
+ * rather than being sent through as-is and rejected with a 400.
+ */
+const CATEGORY_BY_RECORD_TYPE: Record<UploadRecordType, HealthRecordCategory> = {
+  prescription: 'prescriptions',
+  report: 'lab_reports',
+  imaging: 'imaging',
+  discharge: 'vaccination',
+  other: 'lab_reports',
+};
+
+/** multer accepts JPEG, PNG and PDF only — anything else is rejected server-side. */
+const mimeTypeFor = (file: PickedFile): string => {
+  if (file.type === 'pdf') return 'application/pdf';
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'pdf') return 'application/pdf';
+  return 'image/jpeg';
+};
 
 export interface UploadRecordState {
   files: PickedFile[];
@@ -56,12 +84,22 @@ export const uploadRecord = createAsyncThunk<
 
     dispatch(updateProgress(30));
 
+    // Every attached file is sent — the endpoint takes up to 5. Previously only
+    // files[0] was sent, and it was sent as a local file:// string the server
+    // could never read.
+    const payloadFiles: HealthRecordFileInput[] = files.map((file) => ({
+      uri: file.uri,
+      name: file.name,
+      mimeType: mimeTypeFor(file),
+      size: file.size,
+    }));
+
     const res = await uploadMedicalRecordApi({
-      patientId: 'patient-1',
-      type: recordType === 'other' ? 'report' : recordType as 'report' | 'prescription' | 'discharge' | 'imaging',
-      title,
-      description: `Uploaded on ${date}`,
-      fileUrl: files[0]?.uri ?? '',
+      title: title.trim(),
+      category: CATEGORY_BY_RECORD_TYPE[recordType],
+      date,
+      notes: '',
+      files: payloadFiles,
     });
 
     dispatch(updateProgress(100));

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
@@ -221,8 +221,6 @@ const HealthRecordsScreen: React.FC = () => {
   }, [filteredRecords, searchText]);
 
   useEffect(() => {
-    dispatch(fetchRecords());
-
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -237,6 +235,15 @@ const HealthRecordsScreen: React.FC = () => {
       }),
     ]).start();
   }, [dispatch]);
+
+  // This screen stays mounted while UploadRecord sits on top of it, so the
+  // mount-only fetch above never re-ran and a freshly saved record only showed
+  // up after a manual pull-to-refresh. Refetch whenever the screen regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchRecords());
+    }, [dispatch])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
