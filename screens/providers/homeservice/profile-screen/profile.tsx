@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   User,
   ChevronRight,
@@ -41,6 +41,15 @@ import {
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../store/store';
+import {
+  fetchProfile,
+  updateAvailability,
+  toggleNotifications,
+  toggleDarkMode,
+  toggleLanguage,
+} from './profileSlice';
+import { selectBalance, selectCurrency, fetchWallet } from '../../../../services/wallet';
+import { currencySymbol } from '../../../../constants/Currency';
 
 const { width } = Dimensions.get('window');
 
@@ -83,27 +92,33 @@ const theme = {
   },
 };
 
+const getInitials = (name?: string) => {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  const initials = parts.map((p) => p[0]?.toUpperCase() ?? '').join('');
+  return initials || 'P';
+};
+
 export default function ProviderProfileScreen() {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
-  const [isAvailable, setIsAvailable] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isUrdu, setIsUrdu] = useState(false);
+  // NOTE: this slice declares `name: 'providerProfile'` but store.ts mounts it
+  // at `profile`, so the slice's generated selectors would read an undefined
+  // branch of the tree. Read the mounted path directly instead.
+  const {
+    provider,
+    isAvailable,
+    notificationsEnabled,
+    isDarkMode,
+    isUrdu,
+    loading,
+    error,
+  } = useAppSelector((state: RootState) => state.profile);
 
-  // Mock provider data - matches reference design
-  const provider = {
-    name: 'Muhammad Ali',
-    email: 'muhammad.ali@email.com',
-    category: 'Premium Member',
-    memberSince: 'Jan 2024',
-    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-    bookings: 12,
-    reviews: 8,
-    points: 240,
-    isVerified: true,
-  };
+  const walletBalance = useAppSelector(selectBalance) as number;
+  const walletCurrency = useAppSelector(selectCurrency) as string;
+
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -124,24 +139,42 @@ export default function ProviderProfileScreen() {
     ]).start();
   }, []);
 
-  // Stats data - matching reference design exactly
+  useEffect(() => {
+    dispatch(fetchWallet());
+  }, [dispatch]);
+
+  // Covers the initial mount as well as every return to the tab, so edits made
+  // elsewhere show up here without firing a duplicate request on first render.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchProfile());
+    }, [dispatch])
+  );
+
+  const memberSince = useMemo(() => {
+    if (!provider.joinedDate) return null;
+    const parsed = new Date(provider.joinedDate);
+    if (Number.isNaN(parsed.getTime())) return provider.joinedDate;
+    return parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }, [provider.joinedDate]);
+
   const stats = [
     {
-      value: provider.bookings.toString(),
-      label: 'Bookings',
+      value: String(provider.jobsDone ?? 0),
+      label: 'Jobs Done',
       icon: Calendar,
       bgColor: '#EDE9FE',
       iconColor: '#8B5CF6',
     },
     {
-      value: provider.reviews.toString(),
+      value: String(provider.reviews ?? 0),
       label: 'Reviews',
       icon: Star,
       bgColor: '#FEF3C7',
       iconColor: '#F59E0B',
     },
     {
-      value: provider.points.toString(),
+      value: String(provider.points ?? 0),
       label: 'Points',
       icon: Gift,
       bgColor: '#D1FAE5',
@@ -166,7 +199,6 @@ export default function ProviderProfileScreen() {
       icon: CreditCard,
       color: '#059669',
       bgColor: '#D1FAE5',
-      badge: '3',
     },
     {
       id: 'addresses',
@@ -240,10 +272,17 @@ export default function ProviderProfileScreen() {
             ]}
           >
             <View style={styles.avatarWrapper}>
-              <Image
-                source={{ uri: provider.profileImage }}
-                style={styles.avatar}
-              />
+              {provider.profileImage && !avatarFailed ? (
+                <Image
+                  source={{ uri: provider.profileImage }}
+                  style={styles.avatar}
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarInitials}>{getInitials(provider.name)}</Text>
+                </View>
+              )}
               {/* Verification Badge - Top Right */}
               {provider.isVerified && (
                 <View style={styles.verifiedBadge}>
@@ -264,19 +303,47 @@ export default function ProviderProfileScreen() {
               { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
             ]}
           >
-            <Text style={styles.profileName}>{provider.name}</Text>
-            <Text style={styles.profileEmail}>{provider.email}</Text>
+            <Text style={styles.profileName}>
+              {provider.name || (loading ? 'Loading…' : 'Your profile')}
+            </Text>
+            {!!provider.email && (
+              <Text style={styles.profileEmail}>{provider.email}</Text>
+            )}
+            {provider.rating > 0 && (
+              <View style={styles.ratingRow}>
+                <Star size={13} color="#FFD700" fill="#FFD700" />
+                <Text style={styles.ratingValue}>{provider.rating.toFixed(1)}</Text>
+              </View>
+            )}
 
-            {/* Member Badge */}
-            <View style={styles.memberBadge}>
-              <Award size={14} color="#FFD700" />
-              <Text style={styles.memberBadgeText}>
-                {provider.category}
-              </Text>
-              <Text style={styles.memberSince}>Since {provider.memberSince}</Text>
-            </View>
+            {/* Member Badge — only shown once we actually know something */}
+            {(!!provider.membershipLevel || !!provider.category || !!memberSince) && (
+              <View style={styles.memberBadge}>
+                <Award size={14} color="#FFD700" />
+                {!!(provider.membershipLevel || provider.category) && (
+                  <Text style={styles.memberBadgeText}>
+                    {provider.membershipLevel || provider.category}
+                  </Text>
+                )}
+                {!!memberSince && (
+                  <Text style={styles.memberSince}>Since {memberSince}</Text>
+                )}
+              </View>
+            )}
           </Animated.View>
         </LinearGradient>
+
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText} numberOfLines={3}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => dispatch(fetchProfile())}
+            >
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Stats Cards Row - Matching Reference */}
         <View style={styles.statsContainer}>
@@ -323,7 +390,10 @@ export default function ProviderProfileScreen() {
               </View>
               <View style={styles.walletInfo}>
                 <Text style={styles.walletLabel}>Wallet Balance</Text>
-                <Text style={styles.walletBalance}>Rs 28,750</Text>
+                <Text style={styles.walletBalance}>
+                  {currencySymbol(walletCurrency)}{' '}
+                  {Number(walletBalance || 0).toLocaleString()}
+                </Text>
               </View>
             </View>
             <View style={styles.walletAction}>
@@ -353,11 +423,6 @@ export default function ProviderProfileScreen() {
                   <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                 </View>
                 <View style={styles.menuRight}>
-                  {item.badge && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{item.badge}</Text>
-                    </View>
-                  )}
                   <ChevronRight size={18} color={theme.colors.text.tertiary} />
                 </View>
               </TouchableOpacity>
@@ -380,7 +445,9 @@ export default function ProviderProfileScreen() {
               </View>
               <Switch
                 value={isAvailable}
-                onValueChange={setIsAvailable}
+                onValueChange={(next) => {
+                  dispatch(updateAvailability({ isOnline: next }));
+                }}
                 trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
                 thumbColor={isAvailable ? theme.colors.primary : '#F3F4F6'}
                 ios_backgroundColor="#E5E7EB"
@@ -398,7 +465,9 @@ export default function ProviderProfileScreen() {
               </View>
               <Switch
                 value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                onValueChange={() => {
+                  dispatch(toggleNotifications());
+                }}
                 trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
                 thumbColor={notificationsEnabled ? theme.colors.primary : '#F3F4F6'}
                 ios_backgroundColor="#E5E7EB"
@@ -416,7 +485,9 @@ export default function ProviderProfileScreen() {
               </View>
               <Switch
                 value={isDarkMode}
-                onValueChange={setIsDarkMode}
+                onValueChange={() => {
+                  dispatch(toggleDarkMode());
+                }}
                 trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
                 thumbColor={isDarkMode ? theme.colors.primary : '#F3F4F6'}
                 ios_backgroundColor="#E5E7EB"
@@ -436,7 +507,9 @@ export default function ProviderProfileScreen() {
                 <Text style={[styles.langText, !isUrdu && styles.langTextActive]}>EN</Text>
                 <Switch
                   value={isUrdu}
-                  onValueChange={setIsUrdu}
+                  onValueChange={() => {
+                    dispatch(toggleLanguage());
+                  }}
                   trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
                   thumbColor={isUrdu ? theme.colors.primary : '#F3F4F6'}
                   ios_backgroundColor="#E5E7EB"
@@ -528,6 +601,55 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 4,
     borderColor: theme.colors.surface,
+  },
+  avatarFallback: {
+    backgroundColor: theme.colors.primaryDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: theme.colors.text.inverse,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  ratingValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text.inverse,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginHorizontal: theme.spacing.xl,
+    marginTop: theme.spacing.lg,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.md,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#B91C1C',
+  },
+  retryBtn: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.error,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text.inverse,
   },
   verifiedBadge: {
     position: 'absolute',
