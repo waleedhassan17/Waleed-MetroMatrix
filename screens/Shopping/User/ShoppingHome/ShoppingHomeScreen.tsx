@@ -121,6 +121,35 @@ const ShoppingHomeScreen: React.FC = () => {
     navigation.navigate(ShoppingRouteNames.BrandStore, { brandId });
   };
 
+  /**
+   * Banners carry only a brandId, and the seeded fixtures carry a placeholder
+   * one (`brand_outfitters_001`) that is not a Mongo id — sending it to
+   * `/brands/:brandId` produced a CastError surfaced as "Invalid brand ID" on a
+   * full-screen error. Resolve against the brands actually loaded, and refuse
+   * to navigate on anything that cannot be a real id.
+   */
+  const openBannerBrand = useCallback(
+    (brandId?: string) => {
+      if (!brandId) return;
+
+      const match = featuredBrands.find((b) => b.brandId === brandId);
+      if (match) {
+        navigateToBrandStore(match.brandId);
+        return;
+      }
+
+      if (/^[a-f\d]{24}$/i.test(brandId)) {
+        navigateToBrandStore(brandId);
+        return;
+      }
+
+      // Unresolvable placeholder — send the shopper somewhere useful instead of
+      // into an error screen.
+      navigation.navigate(ShoppingRouteNames.BrandList);
+    },
+    [featuredBrands, navigation]
+  );
+
   const navigateToProductDetail = (productId: string, brandId: string) => {
     navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId });
   };
@@ -153,9 +182,7 @@ const ShoppingHomeScreen: React.FC = () => {
     <TouchableOpacity
       style={[styles.bannerCard, { width: BANNER_WIDTH }]}
       activeOpacity={0.9}
-      onPress={() => {
-        if (item.brandId) navigateToBrandStore(item.brandId);
-      }}
+      onPress={() => openBannerBrand(item.brandId)}
     >
       <Image source={{ uri: item.image }} style={styles.bannerImage} />
       <View style={styles.bannerOverlay}>

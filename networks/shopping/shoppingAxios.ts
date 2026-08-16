@@ -60,6 +60,21 @@ ShoppingAxiosInstance.interceptors.response.use(
   }
 );
 
+/**
+ * Same message as `extractShoppingError`, but preserves the backend's error
+ * `code` (e.g. 'NO_BRAND' from requireBrandOwner). The string-only helper threw
+ * that away, so callers had to sniff message text to react to it.
+ */
+export const toShoppingError = (
+  e: any,
+  fallback: string
+): Error & { code?: string } => {
+  const err = new Error(extractShoppingError(e, fallback)) as Error & { code?: string };
+  const code = e?.response?.data?.code;
+  if (typeof code === 'string') err.code = code;
+  return err;
+};
+
 // Error extraction helper — use for every shopping error path
 export const extractShoppingError = (e: any, fallback: string): string => {
   // Transport failures have no response body, so the old code fell through to

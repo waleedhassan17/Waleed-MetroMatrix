@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,11 @@ import { CheckCircle2, Circle, ChevronLeft, MapPin, Plus, Pencil, Trash2, ArrowR
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
+import {
+  validateAddressForm,
+  hasAddressInput,
+  type AddressFormErrors,
+} from '../../../../models/shopping/addressModel';
 import {
   addNewAddress,
   deleteAddress,
@@ -38,6 +43,9 @@ const CheckoutAddressScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
+  const [fieldErrors, setFieldErrors] = useState<AddressFormErrors>({});
+  const [saving, setSaving] = useState(false);
+
   const savedAddresses = useAppSelector(selectCheckoutAddresses);
   const selectedAddress = useAppSelector(selectSelectedCheckoutAddress);
   const form = useAppSelector(selectCheckoutAddressForm);
@@ -51,19 +59,34 @@ const CheckoutAddressScreen: React.FC = () => {
   const handleFieldChange = useCallback(
     (field: keyof CheckoutAddressForm, value: string | boolean) => {
       dispatch(updateNewAddressFormField({ field, value }));
+      setFieldErrors((prev) => {
+        if (!prev[field as keyof AddressFormErrors]) return prev;
+        const next = { ...prev };
+        delete next[field as keyof AddressFormErrors];
+        return next;
+      });
     },
     [dispatch]
   );
 
   const handleSaveAddress = useCallback(async () => {
-    if (!form.name || !form.phone || !form.address || !form.city || !form.area) {
-      Alert.alert('Missing information', 'Please fill in the required address fields.');
-      return;
-    }
+    // The old check used bare truthiness (so a single space passed) and
+    // required `area`, which the backend does not. `validateAddressForm`
+    // trims and enforces exactly what the server enforces.
+    const { valid, errors } = validateAddressForm(form);
+    setFieldErrors(errors);
+    if (!valid) return;
 
-    const result = await dispatch(addNewAddress(form));
-    if (!addNewAddress.fulfilled.match(result)) {
-      Alert.alert('Could not save address', (result.payload as string) || 'Please try again.');
+    setSaving(true);
+    try {
+      const result = await dispatch(addNewAddress(form));
+      if (!addNewAddress.fulfilled.match(result)) {
+        Alert.alert('Could not save address', (result.payload as string) || 'Please try again.');
+      } else {
+        setFieldErrors({});
+      }
+    } finally {
+      setSaving(false);
     }
   }, [dispatch, form]);
 
@@ -85,9 +108,28 @@ const CheckoutAddressScreen: React.FC = () => {
   );
 
   const handleContinue = useCallback(() => {
-    if (!selectedAddress) return;
+    // Continue is gated on the SAVED address, not the form — which is why a
+    // completely blank form still advanced whenever an old address happened to
+    // be auto-selected on mount. Typed-but-unsaved input now blocks instead of
+    // being silently discarded.
+    if (hasAddressInput(form)) {
+      Alert.alert(
+        'Unsaved address',
+        'You have started a new address but not saved it. Save it, or clear the fields to continue with your selected address.'
+      );
+      return;
+    }
+
+    if (!selectedAddress) {
+      Alert.alert(
+        'No address selected',
+        'Add a delivery address before continuing.'
+      );
+      return;
+    }
+
     navigation.navigate(ShoppingRouteNames.CheckoutDelivery, { addressId: selectedAddress.id });
-  }, [navigation, selectedAddress]);
+  }, [navigation, selectedAddress, form]);
 
   return (
     <View style={styles.container}>
@@ -179,24 +221,30 @@ const CheckoutAddressScreen: React.FC = () => {
 
           <View style={styles.formGrid}>
             {[
-              { field: 'name', placeholder: 'Name' },
-              { field: 'phone', placeholder: 'Phone' },
-              { field: 'address', placeholder: 'Address' },
-              { field: 'city', placeholder: 'City' },
+              { field: 'name', placeholder: 'Name', required: true },
+              { field: 'phone', placeholder: 'Phone', required: true },
+              { field: 'address', placeholder: 'Address', required: true },
+              { field: 'city', placeholder: 'City', required: true },
               { field: 'area', placeholder: 'Area' },
               { field: 'state', placeholder: 'State/Province' },
               { field: 'postalCode', placeholder: 'Postal Code' },
               { field: 'landmark', placeholder: 'Landmark' },
-            ].map((item) => (
-              <TextInput
-                key={item.field}
-                style={styles.input}
-                placeholder={item.placeholder}
-                placeholderTextColor={Colors.text.tertiary}
-                value={(form[item.field as keyof CheckoutAddressForm] as string) || ''}
-                onChangeText={(value) => handleFieldChange(item.field as keyof CheckoutAddressForm, value)}
-              />
-            ))}
+            ].map((item) => {
+              const fieldError = fieldErrors[item.field as keyof AddressFormErrors];
+              return (
+                <View key={item.field} style={styles.fieldWrap}>
+                  <TextInput
+                    style={[styles.input, !!fieldError && styles.inputError]}
+                    placeholder={item.required ? `${item.placeholder} *` : item.placeholder}
+                    placeholderTextColor={Colors.text.tertiary}
+                    keyboardType={item.field === 'phone' ? 'phone-pad' : 'default'}
+                    value={(form[item.field as keyof CheckoutAddressForm] as string) || ''}
+                    onChangeText={(value) => handleFieldChange(item.field as keyof CheckoutAddressForm, value)}
+                  />
+                  {!!fieldError && <Text style={styles.fieldErrorText}>{fieldError}</Text>}
+                </View>
+              );
+            })}
           </View>
 
           <View style={styles.toggleRow}>
@@ -212,8 +260,14 @@ const CheckoutAddressScreen: React.FC = () => {
             />
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveAddress}>
-            <Text style={styles.saveBtnText}>Save Address</Text>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={handleSaveAddress}
+            disabled={saving}
+          >
+            <Text style={styles.saveBtnText}>
+              {saving ? 'Saving...' : 'Save Address'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -234,6 +288,23 @@ const CheckoutAddressScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  fieldWrap: {
+    width: '100%',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+  },
+  fieldErrorText: {
+    marginTop: 6,
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#EF4444',
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+
   container: { flex: 1, backgroundColor: Colors.surface },
   header: {
     flexDirection: 'row',

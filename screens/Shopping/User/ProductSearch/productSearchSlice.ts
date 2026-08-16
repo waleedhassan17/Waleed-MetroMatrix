@@ -12,10 +12,10 @@ import { fetchBrandCategoriesApi } from '../../../../networks/shopping/brandApi'
  * Watches / Headphones / Perfume, none of which exist in the collection, so
  * every one of those chips returned "No results found".
  */
-const POPULAR_SEARCHES = [
-  'T-Shirts', 'Jeans', 'Hoodies', 'Dresses',
-  'Shirts', 'Jackets', 'Sneakers', 'Backpacks',
-];
+const POPULAR_SEARCHES = ['Shirts', 'Jeans', 'Trousers', 'T-Shirts'];
+
+/** How many popular-search chips to show. */
+const POPULAR_SEARCH_LIMIT = 4;
 
 /**
  * Flattens the 2-level category tree to the leaf names shoppers search by.
@@ -146,7 +146,9 @@ export const fetchPopularSearches = createAsyncThunk(
     try {
       const res = await fetchBrandCategoriesApi(brandId);
       const names = res.success ? flattenCategoryNames(res.data) : [];
-      return names.length > 0 ? names.slice(0, 8) : POPULAR_SEARCHES;
+      // Capped low on purpose: the catalogue is small, so a long chip list
+      // mostly offers searches that return nothing.
+      return names.length > 0 ? names.slice(0, POPULAR_SEARCH_LIMIT) : POPULAR_SEARCHES;
     } catch {
       return POPULAR_SEARCHES;
     }
@@ -206,6 +208,11 @@ const productSearchSlice = createSlice({
       .addCase(searchProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
+        // Flip out of the pre-search view immediately. It used to be set only
+        // in `fulfilled`, so the whole in-flight window still rendered the chip
+        // list with no spinner — the first tap looked like it did nothing,
+        // which is what prompted the second tap.
+        state.hasSearched = true;
       })
       .addCase(searchProducts.fulfilled, (state, action) => {
         const { results, page, totalPages, query } = action.payload;

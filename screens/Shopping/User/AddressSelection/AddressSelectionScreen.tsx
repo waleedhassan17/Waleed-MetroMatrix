@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, MapPin, Plus, Star, Trash2 } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { validateAddressForm } from '../../../../models/shopping/addressModel';
 import {
   addNewAddress,
   deleteAddress,
@@ -58,8 +59,14 @@ const AddressSelectionScreen: React.FC = () => {
   }, [dispatch]);
 
   const handleAdd = async () => {
-    if (!form.name || !form.phone || !form.address || !form.city) {
-      Alert.alert('Missing details', 'Name, phone, address and city are required.');
+    // Shares the checkout form's rules: trims, and validates the phone —
+    // bare truthiness let a single space through and stored it.
+    const { valid, errors } = validateAddressForm(form);
+    if (!valid) {
+      Alert.alert(
+        'Missing details',
+        Object.values(errors).join('\n') || 'Please complete the required fields.'
+      );
       return;
     }
     const result = await dispatch(addNewAddress(form));

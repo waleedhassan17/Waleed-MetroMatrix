@@ -8,7 +8,7 @@ import type {
   PaginatedResponse,
   SingleResponse,
 } from "../../types/shopping";
-import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
+import ShoppingAxiosInstance, { extractShoppingError, toShoppingError } from "./shoppingAxios";
 import { USE_SHOPPING_DUMMY_DATA } from "../../config/env";
 import {
   OUTFITTERS_PRODUCTS,
@@ -122,7 +122,7 @@ export const createProductApi = async (
     const res = await ShoppingAxiosInstance.post("/vendor/products", payload);
     return res.data;
   } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to create product"));
+    throw toShoppingError(e, "Failed to create product");
   }
 };
 
@@ -136,7 +136,7 @@ export const updateProductApi = async (
     const res = await ShoppingAxiosInstance.patch(`/vendor/products/${productId}`, payload);
     return res.data;
   } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to update product"));
+    throw toShoppingError(e, "Failed to update product");
   }
 };
 

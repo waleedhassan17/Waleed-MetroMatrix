@@ -25,6 +25,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { ErrorState, LoadingState } from '../../../../components/Shopping/ScreenState';
+import { swatchColor } from '../../../../constants/ProductColors';
 import {
   fetchCart,
   removeItem,
@@ -181,7 +182,7 @@ const CartScreen: React.FC = () => {
                       {item.size && <View style={styles.metaBadge}><Text style={styles.metaBadgeText}>Size: {item.size}</Text></View>}
                       {item.color && (
                         <View style={styles.metaBadge}>
-                          <View style={[styles.colorDot, { backgroundColor: item.colorCode || '#888' }]} />
+                          <View style={[styles.colorDot, { backgroundColor: swatchColor(item.color, item.colorCode) }]} />
                           <Text style={styles.metaBadgeText}>{item.color}</Text>
                         </View>
                       )}

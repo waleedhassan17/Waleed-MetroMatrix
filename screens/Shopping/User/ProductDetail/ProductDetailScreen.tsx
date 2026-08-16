@@ -47,6 +47,7 @@ import {
 } from './productDetailSlice';
 import { selectIsInWishlist } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand } from '../BrandList/brandListSlice';
+import { swatchColor } from '../../../../constants/ProductColors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -55,21 +56,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // and bottom off every shot — models lost their heads and feet, and on a
 // full-length garment you could not see the item you were buying.
 const IMAGE_HEIGHT = Math.round(SCREEN_WIDTH * (4 / 3));
-
-// Swatch colour when the variant carries a name but no colorCode — otherwise
-// every such colour rendered as the same grey, so "Color: Blue" showed a grey
-// dot. Keys are lowercased colour names.
-const COLOR_FALLBACKS: Record<string, string> = {
-  black: '#000000', white: '#FFFFFF', grey: '#95A5A6', gray: '#95A5A6',
-  charcoal: '#36454F', navy: '#1B2838', blue: '#3498DB', teal: '#008080',
-  red: '#E74C3C', maroon: '#800000', pink: '#E91E63', purple: '#8B5CF6',
-  lavender: '#B57EDC', green: '#27AE60', olive: '#708238', yellow: '#F1C40F',
-  mustard: '#D4A017', orange: '#E67E22', brown: '#8B5E3C', beige: '#E8DCC4',
-  cream: '#FFFDD0', khaki: '#C3B091', beigeMelange: '#D8CFC0',
-};
-
-const swatchColor = (name: string, code?: string): string =>
-  code || COLOR_FALLBACKS[name.trim().toLowerCase()] || '#B0B4BA';
 
 const ShopColors = {
   primary: '#E67E22',

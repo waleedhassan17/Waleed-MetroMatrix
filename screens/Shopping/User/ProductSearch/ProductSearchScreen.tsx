@@ -232,6 +232,11 @@ const ProductSearchScreen: React.FC = () => {
           renderItem={null}
           keyExtractor={() => ''}
           showsVerticalScrollIndicator={false}
+          // The screen auto-focuses the input, so the keyboard is always up
+          // here. Without this, RN's default ("never") spends the first tap
+          // dismissing the keyboard and never delivers it to the chip — which
+          // is why every popular/recent/suggestion tap needed doing twice.
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.preSearchContent}
           ListHeaderComponent={
             <>
