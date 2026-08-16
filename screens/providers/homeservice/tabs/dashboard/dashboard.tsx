@@ -12,6 +12,7 @@ import {
   Dimensions,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,6 +42,13 @@ import {
   acceptJob,
   rejectJob,
   setActiveTab,
+} from './dashboardSlice';
+import type {
+  DashboardProfile,
+  DashboardStats,
+  DashboardInsight,
+  DashboardJobLocal,
+  RecentActivity,
 } from './dashboardSlice';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
@@ -93,6 +101,372 @@ const theme = {
   },
 };
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
+const getInitials = (name?: string) => {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  const initials = parts.map((p) => p[0]?.toUpperCase() ?? '').join('');
+  return initials || 'P';
+};
+
+// ---------------------------------------------------------------------------
+// Sections live at module scope on purpose. When they were declared inside
+// Dashboard, every render produced new component identities, so React
+// unmounted and remounted each subtree. Combined with the native-driver fade
+// below that left them stuck at opacity 0 — the "blank screen under the wallet
+// card" bug. Keep these out here.
+// ---------------------------------------------------------------------------
+
+const Header: React.FC<{ profile: DashboardProfile; insetTop: number }> = ({
+  profile,
+  insetTop,
+}) => {
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = !!profile.avatar && !avatarFailed;
+
+  return (
+    <View style={[styles.header, { paddingTop: Math.max(insetTop, theme.spacing.lg) }]}>
+      <View style={styles.headerLeft}>
+        <TouchableOpacity style={styles.avatarContainer}>
+          {showAvatar ? (
+            <Image
+              source={{ uri: profile.avatar as string }}
+              style={styles.avatar}
+              onError={() => setAvatarFailed(true)}
+            />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
+            </View>
+          )}
+          {profile.isOnline && <View style={styles.onlineDot} />}
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.userName} numberOfLines={1}>{profile.name || 'Provider'}</Text>
+          <View style={styles.badgeRow}>
+            {profile.rating > 0 && (
+              <View style={styles.ratingBadge}>
+                <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                <Text style={styles.ratingText}>{profile.rating.toFixed(1)}</Text>
+              </View>
+            )}
+            {profile.isPro && (
+              <View style={styles.proBadge}>
+                <Text style={styles.proText}>PRO</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+      <TouchableOpacity style={styles.notificationBtn}>
+        <Text style={styles.bellIcon}>🔔</Text>
+        {(profile.unreadNotifications ?? 0) > 0 && (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>
+              {(profile.unreadNotifications ?? 0) > 9 ? '9+' : profile.unreadNotifications}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const StatsCard: React.FC<{ stats: DashboardStats }> = ({ stats }) => (
+  <View style={styles.statsCard}>
+    <LinearGradient
+      colors={[theme.colors.primary, theme.colors.primaryDark]}
+      style={styles.statsGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <View style={styles.statIcon}>
+            <Briefcase size={20} color={theme.colors.text.inverse} />
+          </View>
+          <Text style={styles.statValue}>{stats.todayJobs}</Text>
+          <Text style={styles.statLabel}>Today's Jobs</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <View style={styles.statIcon}>
+            <Calendar size={20} color={theme.colors.text.inverse} />
+          </View>
+          <Text style={styles.statValue}>{stats.weekJobs}</Text>
+          <Text style={styles.statLabel}>This Week</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <View style={styles.statIcon}>
+            <CheckCircle2 size={20} color={theme.colors.text.inverse} />
+          </View>
+          <Text style={styles.statValue}>{stats.completionRate}%</Text>
+          <Text style={styles.statLabel}>Complete Rate</Text>
+        </View>
+      </View>
+    </LinearGradient>
+  </View>
+);
+
+const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insights }) => {
+  if (!insights.length) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Performance</Text>
+        <TouchableOpacity>
+          <Text style={styles.seeAll}>View All</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.insightScroll}
+      >
+        {insights.map((insight) => {
+          // The API does not always send colours; falling back keeps
+          // `color + '20'` from producing the invalid colour "undefined20".
+          const accent = insight.color || theme.colors.primary;
+          return (
+            <View
+              key={insight.id}
+              style={[
+                styles.insightCard,
+                { backgroundColor: insight.bgColor || theme.colors.surface },
+              ]}
+            >
+              <View style={styles.insightHeader}>
+                <View style={[styles.insightIcon, { backgroundColor: accent + '20' }]}>
+                  <TrendingUp size={18} color={accent} />
+                </View>
+                <View style={[styles.trendBadge, { backgroundColor: theme.colors.surface }]}>
+                  <TrendingUp
+                    size={12}
+                    color={insight.trend === 'down' ? theme.colors.error : theme.colors.success}
+                  />
+                </View>
+              </View>
+              <Text style={styles.insightValue}>{insight.value}</Text>
+              <Text style={styles.insightTitle}>{insight.title}</Text>
+              {!!insight.subtitle && (
+                <Text style={styles.insightSubtitle}>{insight.subtitle}</Text>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
+
+interface JobsSectionProps {
+  jobs: { today: DashboardJobLocal[]; available: DashboardJobLocal[] };
+  activeTab: 'today' | 'available';
+  onSelectTab: (tab: 'today' | 'available') => void;
+  onAccept: (jobId: string) => void;
+  onReject: (jobId: string) => void;
+  onNavigateToJob: (job: DashboardJobLocal) => void;
+}
+
+const JobsSection: React.FC<JobsSectionProps> = ({
+  jobs,
+  activeTab,
+  onSelectTab,
+  onAccept,
+  onReject,
+  onNavigateToJob,
+}) => {
+  const currentJobs = activeTab === 'today' ? jobs.today : jobs.available;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Jobs</Text>
+      </View>
+
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'today' && styles.tabActive]}
+          onPress={() => onSelectTab('today')}
+        >
+          <Text style={[styles.tabText, activeTab === 'today' && styles.tabTextActive]}>
+            Today
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'available' && styles.tabActive]}
+          onPress={() => onSelectTab('available')}
+        >
+          <Text style={[styles.tabText, activeTab === 'available' && styles.tabTextActive]}>
+            Available ({jobs.available.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {currentJobs.length > 0 ? (
+        currentJobs.map((job) => (
+          <View key={job.id} style={styles.jobCard}>
+            <View
+              style={[
+                styles.jobStatusLine,
+                {
+                  backgroundColor:
+                    activeTab === 'today' ? theme.colors.primary : theme.colors.info,
+                },
+              ]}
+            />
+            <View style={styles.jobContent}>
+              <View style={styles.jobHeader}>
+                <View style={styles.jobHeaderText}>
+                  <Text style={styles.jobService}>{job.title}</Text>
+                  <Text style={styles.jobCustomer}>{job.customer}</Text>
+                </View>
+                {activeTab === 'available' && !!job.category && (
+                  <View style={styles.distanceBadge}>
+                    <MapPin size={12} color={theme.colors.primary} />
+                    <Text style={styles.distanceText}>{job.category}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.jobDetails}>
+                <View style={styles.jobDetailRow}>
+                  <Clock size={14} color={theme.colors.text.tertiary} />
+                  <Text style={styles.jobDetailText}>{job.time || 'Time to be confirmed'}</Text>
+                </View>
+                <View style={styles.jobDetailRow}>
+                  <MapPin size={14} color={theme.colors.text.tertiary} />
+                  <Text style={styles.jobDetailText} numberOfLines={1}>
+                    {(job.location || 'Location unavailable').split(',')[0]}
+                  </Text>
+                </View>
+                <View style={styles.jobDetailRow}>
+                  <Phone size={14} color={theme.colors.text.tertiary} />
+                  <Text style={styles.jobDetailText}>{job.phone || 'N/A'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.jobActions}>
+                {activeTab === 'today' ? (
+                  <>
+                    <TouchableOpacity style={styles.secondaryBtn}>
+                      <MessageSquare size={16} color={theme.colors.primary} />
+                      <Text style={styles.secondaryBtnText}>Message</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.primaryBtn}
+                      onPress={() => onNavigateToJob(job)}
+                    >
+                      <MapPin size={16} color={theme.colors.text.inverse} />
+                      <Text style={styles.primaryBtnText}>Navigate</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.declineBtn}
+                      onPress={() => onReject(job.id)}
+                    >
+                      <Text style={styles.declineBtnText}>Decline</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.acceptBtn}
+                      onPress={() => onAccept(job.id)}
+                    >
+                      <Text style={styles.acceptBtnText}>Accept</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+        ))
+      ) : (
+        <View style={styles.emptyJobs}>
+          <Briefcase size={40} color={theme.colors.text.tertiary} />
+          <Text style={styles.emptyTitle}>No {activeTab} jobs</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'today'
+              ? 'Your schedule is clear for today'
+              : 'Check back later for new opportunities'}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({
+  recentActivity,
+}) => {
+  if (!recentActivity.length) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <TouchableOpacity>
+          <Text style={styles.seeAll}>See All</Text>
+        </TouchableOpacity>
+      </View>
+
+      {recentActivity.map((activity) => {
+        // `mapDashboardData` only carries id/type/message/time across, so
+        // title/description/colour/status are frequently undefined here.
+        const accent = activity.color || theme.colors.primary;
+        const title = activity.title || activity.message || 'Activity';
+        const description = activity.title ? activity.description || activity.message : activity.description;
+
+        return (
+          <View key={activity.id} style={styles.activityItem}>
+            <View style={[styles.activityIcon, { backgroundColor: accent + '15' }]}>
+              <CheckCircle2 size={20} color={accent} />
+            </View>
+            <View style={styles.activityContent}>
+              <Text style={styles.activityTitle}>{title}</Text>
+              {!!description && <Text style={styles.activityDesc}>{description}</Text>}
+              {!!activity.time && <Text style={styles.activityTime}>{activity.time}</Text>}
+            </View>
+            {!!activity.status && (
+              <View
+                style={[
+                  styles.activityStatus,
+                  {
+                    backgroundColor:
+                      activity.status === 'Completed' ? theme.colors.primaryLight : '#EFF6FF',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.activityStatusText,
+                    {
+                      color:
+                        activity.status === 'Completed'
+                          ? theme.colors.primary
+                          : theme.colors.info,
+                    },
+                  ]}
+                >
+                  {activity.status}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 export default function Dashboard() {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NavigationProp>();
@@ -105,6 +479,7 @@ export default function Dashboard() {
     recentActivity,
     activeTab,
     loading,
+    error,
   } = useAppSelector((state: RootState) => state.dashboard);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -151,6 +526,7 @@ export default function Dashboard() {
 
   const handleNavigateToJob = useCallback((job: any) => {
     // Transform dashboard job to JobData format
+    const location = job.location || '';
     const jobData: JobData = {
       id: job.id,
       serviceType: job.title,
@@ -158,8 +534,8 @@ export default function Dashboard() {
       customerName: job.customer,
       customerPhone: job.phone || 'N/A',
       customerImage: job.customerAvatar,
-      address: job.location,
-      city: job.location.split(',').pop()?.trim() || '',
+      address: location,
+      city: location.split(',').pop()?.trim() || '',
       date: job.date,
       time: job.time,
       estimatedPrice: job.price,
@@ -173,320 +549,18 @@ export default function Dashboard() {
     navigation.navigate('JobDetail', { job: jobData });
   }, [dispatch, navigation]);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  };
-
-  // Header Component
-  const Header = () => (
-    <View style={[styles.header, { paddingTop: Math.max(insets.top, theme.spacing.lg) }]}>
-      <View style={styles.headerLeft}>
-        <TouchableOpacity style={styles.avatarContainer}>
-          <Image 
-            source={{ uri: profile.avatar || 'https://ui-avatars.com/api/?name=User&background=059669&color=fff' }} 
-            style={styles.avatar} 
-            defaultSource={{ uri: 'https://ui-avatars.com/api/?name=User&background=059669&color=fff' }}
-          />
-          {profile.isOnline && <View style={styles.onlineDot} />}
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.userName} numberOfLines={1}>{profile.name || 'Provider'}</Text>
-          <View style={styles.badgeRow}>
-            <View style={styles.ratingBadge}>
-              <Star size={12} color="#F59E0B" fill="#F59E0B" />
-              <Text style={styles.ratingText}>{profile.rating?.toFixed(1) || '4.8'}</Text>
-            </View>
-            {profile.isPro && (
-              <View style={styles.proBadge}>
-                <Text style={styles.proText}>PRO</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-      <TouchableOpacity style={styles.notificationBtn}>
-        <Text style={styles.bellIcon}>🔔</Text>
-        {(profile.unreadNotifications ?? 0) > 0 && (
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationBadgeText}>
-              {(profile.unreadNotifications ?? 0) > 9 ? '9+' : profile.unreadNotifications}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
+  const handleSelectTab = useCallback(
+    (tab: 'today' | 'available') => dispatch(setActiveTab(tab)),
+    [dispatch]
   );
 
-  // Stats Card Component
-  const StatsCard = () => (
-    <Animated.View style={[styles.statsCard, { opacity: fadeAnim }]}>
-      <LinearGradient
-        colors={[theme.colors.primary, theme.colors.primaryDark]}
-        style={styles.statsGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Briefcase size={20} color={theme.colors.text.inverse} />
-            </View>
-            <Text style={styles.statValue}>{stats.todayJobs}</Text>
-            <Text style={styles.statLabel}>Today's Jobs</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Calendar size={20} color={theme.colors.text.inverse} />
-            </View>
-            <Text style={styles.statValue}>{stats.weekJobs}</Text>
-            <Text style={styles.statLabel}>This Week</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <CheckCircle2 size={20} color={theme.colors.text.inverse} />
-            </View>
-            <Text style={styles.statValue}>{stats.completionRate}%</Text>
-            <Text style={styles.statLabel}>Complete Rate</Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  // Performance Cards
-  const PerformanceSection = () => (
-    <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Performance</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAll}>View All</Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.insightScroll}
-      >
-        {insights.map((insight, index) => (
-          <View
-            key={insight.id}
-            style={[styles.insightCard, { backgroundColor: insight.bgColor }]}
-          >
-            <View style={styles.insightHeader}>
-              <View style={[styles.insightIcon, { backgroundColor: insight.color + '20' }]}>
-                <TrendingUp size={18} color={insight.color} />
-              </View>
-              <View style={[styles.trendBadge, { backgroundColor: theme.colors.surface }]}>
-                <TrendingUp
-                  size={12}
-                  color={insight.trend === 'up' ? theme.colors.success : theme.colors.error}
-                />
-              </View>
-            </View>
-            <Text style={styles.insightValue}>{insight.value}</Text>
-            <Text style={styles.insightTitle}>{insight.title}</Text>
-            <Text style={styles.insightSubtitle}>{insight.subtitle}</Text>
-          </View>
-        ))}
-      </ScrollView>
-    </Animated.View>
-  );
-
-  // Jobs Section
-  const JobsSection = () => {
-    const currentJobs = activeTab === 'today' ? jobs.today : jobs.available;
-
-    return (
-      <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Jobs</Text>
-        </View>
-
-        {/* Tab Selector */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'today' && styles.tabActive]}
-            onPress={() => dispatch(setActiveTab('today'))}
-          >
-            <Text style={[styles.tabText, activeTab === 'today' && styles.tabTextActive]}>
-              Today
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'available' && styles.tabActive]}
-            onPress={() => dispatch(setActiveTab('available'))}
-          >
-            <Text style={[styles.tabText, activeTab === 'available' && styles.tabTextActive]}>
-              Available ({jobs.available.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Jobs List */}
-        {currentJobs.length > 0 ? (
-          currentJobs.map((job) => (
-            <View key={job.id} style={styles.jobCard}>
-              {/* Status Line */}
-              <View
-                style={[
-                  styles.jobStatusLine,
-                  {
-                    backgroundColor:
-                      activeTab === 'today' ? theme.colors.primary : theme.colors.info,
-                  },
-                ]}
-              />
-              <View style={styles.jobContent}>
-                <View style={styles.jobHeader}>
-                  <View>
-                    <Text style={styles.jobService}>{job.title}</Text>
-                    <Text style={styles.jobCustomer}>{job.customer}</Text>
-                  </View>
-                  {activeTab === 'available' && (
-                    <View style={styles.distanceBadge}>
-                      <MapPin size={12} color={theme.colors.primary} />
-                      <Text style={styles.distanceText}>{job.category}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.jobDetails}>
-                  <View style={styles.jobDetailRow}>
-                    <Clock size={14} color={theme.colors.text.tertiary} />
-                    <Text style={styles.jobDetailText}>{job.time}</Text>
-                  </View>
-                  <View style={styles.jobDetailRow}>
-                    <MapPin size={14} color={theme.colors.text.tertiary} />
-                    <Text style={styles.jobDetailText} numberOfLines={1}>
-                      {job.location.split(',')[0]}
-                    </Text>
-                  </View>
-                  <View style={styles.jobDetailRow}>
-                    <Phone size={14} color={theme.colors.text.tertiary} />
-                    <Text style={styles.jobDetailText}>{job.phone || 'N/A'}</Text>
-                  </View>
-                </View>
-
-                {/* Actions */}
-                <View style={styles.jobActions}>
-                  {activeTab === 'today' ? (
-                    <>
-                      <TouchableOpacity style={styles.secondaryBtn}>
-                        <MessageSquare size={16} color={theme.colors.primary} />
-                        <Text style={styles.secondaryBtnText}>Message</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.primaryBtn}
-                        onPress={() => handleNavigateToJob(job)}
-                      >
-                        <MapPin size={16} color={theme.colors.text.inverse} />
-                        <Text style={styles.primaryBtnText}>Navigate</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <>
-                      <TouchableOpacity
-                        style={styles.declineBtn}
-                        onPress={() => handleRejectJob(job.id)}
-                      >
-                        <Text style={styles.declineBtnText}>Decline</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.acceptBtn}
-                        onPress={() => handleAcceptJob(job.id)}
-                      >
-                        <Text style={styles.acceptBtnText}>Accept</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
-              </View>
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyJobs}>
-            <Briefcase size={40} color={theme.colors.text.tertiary} />
-            <Text style={styles.emptyTitle}>No {activeTab} jobs</Text>
-            <Text style={styles.emptyText}>
-              {activeTab === 'today'
-                ? 'Your schedule is clear for today'
-                : 'Check back later for new opportunities'}
-            </Text>
-          </View>
-        )}
-      </Animated.View>
-    );
-  };
-
-  // Recent Activity Section
-  const ActivitySection = () => (
-    <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAll}>See All</Text>
-        </TouchableOpacity>
-      </View>
-
-      {recentActivity.map((activity) => (
-        <View key={activity.id} style={styles.activityItem}>
-          <View style={[styles.activityIcon, { backgroundColor: activity.color + '15' }]}>
-            <CheckCircle2 size={20} color={activity.color} />
-          </View>
-          <View style={styles.activityContent}>
-            <Text style={styles.activityTitle}>{activity.title}</Text>
-            <Text style={styles.activityDesc}>{activity.description}</Text>
-            <Text style={styles.activityTime}>{activity.time}</Text>
-          </View>
-          <View
-            style={[
-              styles.activityStatus,
-              {
-                backgroundColor:
-                  activity.status === 'Completed'
-                    ? theme.colors.primaryLight
-                    : '#EFF6FF',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.activityStatusText,
-                {
-                  color:
-                    activity.status === 'Completed'
-                      ? theme.colors.primary
-                      : theme.colors.info,
-                },
-              ]}
-            >
-              {activity.status}
-            </Text>
-          </View>
-        </View>
-      ))}
-    </Animated.View>
-  );
+  const showInitialLoader = loading && !profile.name;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} translucent={false} />
 
-      <Header />
+      <Header profile={profile} insetTop={insets.top} />
 
       <ScrollView
         style={styles.scrollView}
@@ -506,10 +580,46 @@ export default function Dashboard() {
             other provider's balance. */}
         <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
-        <StatsCard />
-        <PerformanceSection />
-        <JobsSection />
-        <ActivitySection />
+        {/* A single fade wrapper for the whole feed. Each section used to own
+            its own `opacity: fadeAnim` binding; because the sections remounted
+            on every data change they latched at opacity 0 and never appeared. */}
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        >
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText} numberOfLines={3}>{error}</Text>
+              <TouchableOpacity
+                style={styles.retryBtn}
+                onPress={() => dispatch(fetchDashboardData())}
+              >
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showInitialLoader ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Loading your dashboard…</Text>
+            </View>
+          ) : (
+            <>
+              <StatsCard stats={stats} />
+              <PerformanceSection insights={insights} />
+              <JobsSection
+                jobs={jobs}
+                activeTab={activeTab}
+                onSelectTab={handleSelectTab}
+                onAccept={handleAcceptJob}
+                onReject={handleRejectJob}
+                onNavigateToJob={handleNavigateToJob}
+              />
+              <ActivitySection recentActivity={recentActivity} />
+            </>
+          )}
+        </Animated.View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
@@ -989,5 +1099,57 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100,
+  },
+  avatarFallback: {
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text.inverse,
+  },
+  jobHeaderText: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.md,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#B91C1C',
+  },
+  retryBtn: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.error,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text.inverse,
+  },
+  loadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+    gap: theme.spacing.md,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
   },
 });
