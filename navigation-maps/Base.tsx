@@ -47,8 +47,14 @@ import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
 import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
 import QuickSearchScreen from "../screens/user/homeservice/quick-search/QuickSearchScreen";
 import SearchProvidersScreen from "../screens/user/homeservice/search-providers/searchProviders";
-import ProviderChatScreen from "../screens/user/homeservice/providers-chat/providersChatScreen";
-import CallScreen from "../screens/user/homeservice/call-screen/callScreen";
+// Chat and calling are ONE centralized feature (like the wallet): a single
+// Chat screen and a single Call screen serve home services and healthcare,
+// customer side and provider side. Every legacy route name below is registered
+// against these two components; screens/shared/communication/roomParams.ts
+// normalizes the differing param names those call sites pass.
+import type { RoomParams } from "../screens/shared/communication/roomParams";
+import ChatScreen from "../screens/shared/communication/ChatScreen";
+import CallScreen from "../screens/shared/communication/CallScreen";
 
 // Centralized User Screens
 import UserProfileScreen from "../screens/user/shared/profile/UserProfileScreen";
@@ -63,14 +69,9 @@ import JobInProgressScreen from "../screens/providers/homeservice/job-InProgress
 import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-screen/awaitingScreen";
 import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
-import ProviderJobChatScreen from "../screens/providers/homeservice/provider-chat/providerChat";
-import ProviderCallScreenHS from "../screens/providers/homeservice/call-screen/providerCallScreen";
 // Healthcare chat + voice call. These live in the ROOT stack (not the nested
 // Healthcare/Doctor stacks) because both the patient and the doctor navigate to
 // them, and a push-notification tap must be able to reach them from anywhere.
-import HealthcareConsultChatScreen from "../screens/user/healthcare/ConsultChat/ConsultChatScreen";
-import DoctorConsultChatScreen from "../screens/providers/healthcare/consult-chat/DoctorConsultChatScreen";
-import HealthcareConsultCallScreen from "../screens/user/healthcare/ConsultCall/ConsultCallScreen";
 import ProviderAvailabilityScreen from "../screens/providers/homeservice/availability/availabilityScreen";
 
 // Shopping Module
@@ -153,6 +154,9 @@ export const BaseRouteNames = {
   ReviewRatingScreen: "ReviewRating",
   QuickSearchScreen: "QuickSearchScreen",
   SearchingProvidersScreen: "SearchingProvidersScreen",
+  // Centralized chat + call. Every alias below renders the SAME two screens.
+  Chat: "Chat",
+  Call: "Call",
   ProviderChatScreen: "ProviderChatScreen",
   CallScreen: "CallScreen",
   UserProfileScreen: "UserProfileScreen",
@@ -264,8 +268,13 @@ export type RootStackParamList = {
   // bookingId is what makes chat/calling real — it identifies the room the
   // realtime service authorizes against. Without one there is no conversation
   // to join, only a pre-booking browse.
-  ProviderChatScreen: { bookingId?: string; provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
-  CallScreen: { bookingId?: string; provider?: any; serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; counterpartName?: string; counterpartPhone?: string };
+  // Centralized chat/call params. `roomId` is canonical; bookingId /
+  // appointmentId are accepted aliases so existing call sites keep working.
+  // See screens/shared/communication/roomParams.ts.
+  Chat: RoomParams;
+  Call: RoomParams;
+  ProviderChatScreen: RoomParams;
+  CallScreen: RoomParams;
   UserWalletScreen: undefined;
   TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
@@ -302,12 +311,12 @@ export type RootStackParamList = {
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;
-  ProviderJobChat: { bookingId: string; customerName?: string };
-  ProviderCallScreen: { bookingId: string; customerName?: string; customerPhone?: string; customerImage?: string };
+  ProviderJobChat: RoomParams;
+  ProviderCallScreen: RoomParams;
 
   // Healthcare: the room id is the APPOINTMENT id (roomType 'healthcare').
-  HealthcareConsultChat: { appointmentId: string; doctorName?: string };
-  DoctorConsultChat: { appointmentId: string; patientName?: string };
+  HealthcareConsultChat: RoomParams;
+  DoctorConsultChat: RoomParams;
   HealthcareConsultCall: {
     appointmentId: string;
     counterpartName?: string;
@@ -633,8 +642,27 @@ export const BaseRoutes: IRoute[] = [
       animation: 'slide_from_right',
     }
   },
+  // Canonical names for the centralized feature. New call sites should use
+  // these two; the vertical-specific names below are kept so the existing
+  // fifteen-odd navigate() calls keep working while they migrate.
   {
-    component: ProviderChatScreen,
+    component: ChatScreen,
+    title: BaseRouteNames.Chat,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: CallScreen,
+    title: BaseRouteNames.Call,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_bottom',
+    }
+  },
+  {
+    component: ChatScreen,
     title: BaseRouteNames.ProviderChatScreen,
     options: {
       headerShown: false,
@@ -749,7 +777,7 @@ export const BaseRoutes: IRoute[] = [
   },
   // HS7: provider chat / call / availability
   {
-    component: ProviderJobChatScreen,
+    component: ChatScreen,
     title: BaseRouteNames.ProviderJobChat,
     options: {
       headerShown: false,
@@ -757,7 +785,7 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: ProviderCallScreenHS,
+    component: CallScreen,
     title: BaseRouteNames.ProviderCallScreen,
     options: {
       headerShown: false,
@@ -767,7 +795,7 @@ export const BaseRoutes: IRoute[] = [
   // Healthcare consultation chat + voice call. Root-stack so both the patient
   // and the doctor can reach them, including from a notification tap.
   {
-    component: HealthcareConsultChatScreen,
+    component: ChatScreen,
     title: BaseRouteNames.HealthcareConsultChat,
     options: {
       headerShown: false,
@@ -775,7 +803,7 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: DoctorConsultChatScreen,
+    component: ChatScreen,
     title: BaseRouteNames.DoctorConsultChat,
     options: {
       headerShown: false,
@@ -783,7 +811,7 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: HealthcareConsultCallScreen,
+    component: CallScreen,
     title: BaseRouteNames.HealthcareConsultCall,
     options: {
       headerShown: false,

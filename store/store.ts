@@ -45,7 +45,6 @@ import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSl
 import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
 import quickSearchReducer from "../screens/user/homeservice/quick-search/quicksearchSlice";
 import searchProvidersReducer from "../screens/user/homeservice/search-providers/searchProvidersSlice";
-import providerChatReducer from "../screens/user/homeservice/providers-chat/providersChatSlice";
 
 // Provider HomeService slices
 import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
@@ -195,7 +194,6 @@ const rootReducer = combineReducers({
   reviewRating: reviewRatingReducer,
   quickSearchForm: quickSearchReducer,
   searchingProviders: searchProvidersReducer,
-  providerChat: providerChatReducer,
   dashboard: providerDashboardReducer,
   jobs: providerJobsReducer,
   earnings: providerEarningsReducer,

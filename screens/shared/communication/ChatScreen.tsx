@@ -1,0 +1,173 @@
+// ============================================================================
+// THE chat screen. One implementation for every vertical and both roles.
+//
+// Replaces four wrappers that differed only in accent colour and param name:
+//   user/homeservice/providers-chat      (customer <-> home-service provider)
+//   providers/homeservice/provider-chat  (provider <-> customer)
+//   user/healthcare/ConsultChat          (patient  <-> doctor)
+//   providers/healthcare/consult-chat    (doctor   <-> patient)
+//
+// All the real work already lived in components/chat/ChatThread; these screens
+// only resolved a room and forwarded to it.
+//
+// Pre-booking entry points (provider profile, provider list, provider search)
+// navigate here with a `provider` and no room. Rather than dead-ending on a
+// placeholder, this screen resolves the customer's booking with that provider
+// — see utils/homeservice/resolveProviderRoom.
+// ============================================================================
+
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import ChatThread from '../../../components/chat/ChatThread';
+import { ChatParticipant } from '../../../models/serviceProviders';
+import { resolveProviderBookingId } from '../../../utils/homeservice/resolveProviderRoom';
+import { normalizeRoomParams, type RoomParams } from './roomParams';
+
+export default function ChatScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
+  const room = normalizeRoomParams(route.params);
+
+  const [counterpart, setCounterpart] = useState<ChatParticipant | null>(null);
+  // null = still resolving, '' = resolved to nothing.
+  const [resolvedId, setResolvedId] = useState<string | null>(room.roomId || null);
+  const [resolving, setResolving] = useState(!room.roomId);
+
+  useEffect(() => {
+    if (room.roomId) return;
+    let alive = true;
+    (async () => {
+      const id = await resolveProviderBookingId(room.providerId);
+      if (!alive) return;
+      setResolvedId(id || '');
+      setResolving(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [room.roomId, room.providerId]);
+
+  const handleParticipants = useCallback((them: ChatParticipant) => {
+    setCounterpart(them);
+  }, []);
+
+  const handleCall = useCallback(
+    (them: ChatParticipant | null) => {
+      const target = them || counterpart;
+      navigation.navigate('Call', {
+        roomId: resolvedId || undefined,
+        roomType: room.roomType,
+        counterpartName: target?.name || room.name,
+        counterpartPhone: target?.phoneNumber || room.phone,
+        counterpartImage: target?.image || room.image,
+        accent: room.accent,
+      });
+    },
+    [navigation, resolvedId, room, counterpart]
+  );
+
+  if (resolving) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={room.accent} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={room.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Genuinely no room with this person: say so, and offer the action that fixes it.
+  if (!resolvedId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={room.accent} />
+        <View style={[styles.header, { backgroundColor: room.accent }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {room.name || 'Chat'}
+          </Text>
+          <View style={styles.headerBtn} />
+        </View>
+
+        <View style={styles.center}>
+          {room.image ? (
+            <Image source={{ uri: room.image }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Ionicons name="person" size={38} color="#9CA3AF" />
+            </View>
+          )}
+          <Text style={styles.title}>Chat opens with your booking</Text>
+          <Text style={styles.body}>
+            Once you book {room.name || 'this provider'}, you can message and call
+            them directly here about the job.
+          </Text>
+          {room.providerId ? (
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: room.accent }]}
+              onPress={() =>
+                navigation.navigate('BookingScreen', {
+                  providerId: room.providerId,
+                  category: room.serviceType,
+                })
+              }
+            >
+              <Text style={styles.btnText}>Book {room.name || 'this provider'}</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.linkText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <ChatThread
+      roomId={resolvedId}
+      roomType={room.roomType}
+      accent={room.accent}
+      accentSoft={room.accentSoft}
+      fallbackTitle={room.name || 'Chat'}
+      onParticipantsLoaded={handleParticipants}
+      onCall={handleCall}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  headerBtn: { padding: 6, width: 36 },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 20 },
+  avatarFallback: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 19, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  body: { fontSize: 15, color: '#6B7280', lineHeight: 22, textAlign: 'center', marginTop: 10 },
+  btn: { marginTop: 26, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 24 },
+  btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  linkBtn: { marginTop: 14, padding: 8 },
+  linkText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+});
