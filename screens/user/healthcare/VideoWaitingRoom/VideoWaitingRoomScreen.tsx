@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import {
   joinWaitingRoom,
   setDevicePermissions,
@@ -154,6 +155,33 @@ const VideoWaitingRoomScreen: React.FC = () => {
       return () => clearTimeout(t);
     }
   }, [waitingStatus, appointment, navigation, route.params?.roomId]);
+
+  // The doctor starting the call now pushes `video_call_started` into the
+  // appointment room, so the patient is taken through immediately instead of
+  // sitting here until they happen to retry. The backend publishes this from
+  // videoCallController's join handler.
+  const { videoCall, roomStatus } = useRoomSocket(
+    route.params?.appointmentId || undefined,
+    'healthcare'
+  );
+
+  useEffect(() => {
+    if (videoCall?.phase !== 'started') return;
+    navigation.replace(HealthcareRouteNames.VideoCall, {
+      appointmentId: route.params?.appointmentId ?? '',
+      roomId: videoCall.roomUrl || route.params?.roomId || '',
+    });
+  }, [videoCall, navigation, route.params?.appointmentId, route.params?.roomId]);
+
+  // Don't leave the patient waiting on a consultation the doctor cancelled.
+  useEffect(() => {
+    if (!roomStatus || roomStatus.status !== 'cancelled') return;
+    Alert.alert(
+      'Appointment cancelled',
+      'This consultation was cancelled. You have not been charged for a call that did not happen.',
+      [{ text: 'OK', onPress: () => navigation.goBack() }]
+    );
+  }, [roomStatus, navigation]);
 
   // ── Handlers ──────────────────────────────
 

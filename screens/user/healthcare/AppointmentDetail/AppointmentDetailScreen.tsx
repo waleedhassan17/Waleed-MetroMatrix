@@ -21,6 +21,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import {
   fetchAppointmentDetail,
   refreshAppointmentDetail,
@@ -243,6 +244,23 @@ const AppointmentDetailScreen: React.FC = () => {
   useEffect(() => {
     if (appointmentId) dispatch(fetchAppointmentDetail(appointmentId));
   }, [dispatch, appointmentId]);
+
+  // Live room events. The appointment IS the room, so the patient and the
+  // doctor both receive these over the connection they already use for chat.
+  // Before this, a doctor confirming or cancelling, or a payment landing,
+  // changed nothing on screen until the patient reopened it.
+  const { roomStatus, payment: livePayment, videoCall } = useRoomSocket(
+    appointmentId || undefined,
+    'healthcare'
+  );
+
+  useEffect(() => {
+    if (!appointmentId) return;
+    if (!roomStatus && !livePayment && !videoCall) return;
+    // Refetch instead of patching: status, payment and the call all change
+    // different parts of this payload.
+    dispatch(fetchAppointmentDetail(appointmentId));
+  }, [roomStatus, livePayment, videoCall, appointmentId, dispatch]);
 
   useEffect(() => {
     Animated.parallel([

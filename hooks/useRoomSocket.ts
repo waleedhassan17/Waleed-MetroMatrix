@@ -32,6 +32,37 @@ export interface ProviderLocationUpdate {
   timestamp: string;
 }
 
+/**
+ * Server-originated room events. These are published by the MAIN backend
+ * through the realtime service's internal bridge — it holds no socket of its
+ * own — so both verticals arrive over this one connection.
+ */
+export interface RoomStatusUpdate {
+  /** HSBooking status (EN_ROUTE, ARRIVED, …) or Appointment status (confirmed, cancelled, …). */
+  status: string;
+  roomId: string;
+  changedAt?: string;
+  /** Healthcare reschedules reuse the status event. */
+  rescheduled?: boolean;
+  reason?: string;
+}
+
+export interface RoomPaymentUpdate {
+  roomId: string;
+  /** 'requested' (home services) or paid | refunded (healthcare). */
+  status: string;
+  amount?: number;
+  refundAmount?: number;
+}
+
+export interface RoomVideoCallUpdate {
+  roomId: string;
+  phase: 'started' | 'ended';
+  callId?: string;
+  roomUrl?: string;
+  duration?: number;
+}
+
 let clientMsgCounter = 0;
 const nextClientMsgId = () =>
   `${Date.now().toString(36)}-${(clientMsgCounter++).toString(36)}-${Math.random()
@@ -42,6 +73,9 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [providerLocation, setProviderLocation] = useState<ProviderLocationUpdate | null>(null);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [roomStatus, setRoomStatus] = useState<RoomStatusUpdate | null>(null);
+  const [payment, setPayment] = useState<RoomPaymentUpdate | null>(null);
+  const [videoCall, setVideoCall] = useState<RoomVideoCallUpdate | null>(null);
   const [typing, setTyping] = useState(false);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
@@ -71,8 +105,57 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       const onLocation = (loc: ProviderLocationUpdate) => {
         if (mounted && loc.bookingId === roomId) setProviderLocation(loc);
       };
-      const onStatus = (p: { bookingId: string; status: string }) => {
-        if (mounted && p.bookingId === roomId) setBookingStatus(p.status);
+      // Home services. `bookingStatus` is kept as a bare string because
+      // liveTracking already consumes it that way.
+      const onStatus = (p: { bookingId?: string; roomId?: string; status: string; changedAt?: string }) => {
+        if (!mounted || (p.roomId || p.bookingId) !== roomId) return;
+        setBookingStatus(p.status);
+        setRoomStatus({ status: p.status, roomId, changedAt: p.changedAt });
+      };
+
+      // Healthcare. The room is the appointment, so both the patient and the
+      // doctor receive this over the room they already joined for chat.
+      const onAppointmentStatus = (p: {
+        appointmentId?: string;
+        roomId?: string;
+        status: string;
+        changedAt?: string;
+        rescheduled?: boolean;
+        reason?: string;
+      }) => {
+        if (!mounted || (p.roomId || p.appointmentId) !== roomId) return;
+        setRoomStatus({
+          status: p.status,
+          roomId,
+          changedAt: p.changedAt,
+          rescheduled: p.rescheduled,
+          reason: p.reason,
+        });
+      };
+
+      const onPaymentRequested = (p: { roomId?: string; bookingId?: string; amount?: number }) => {
+        if (!mounted || (p.roomId || p.bookingId) !== roomId) return;
+        setPayment({ roomId, status: 'requested', amount: p.amount });
+      };
+
+      const onPaymentStatus = (p: {
+        roomId?: string;
+        appointmentId?: string;
+        status: string;
+        refundAmount?: number;
+      }) => {
+        if (!mounted || (p.roomId || p.appointmentId) !== roomId) return;
+        setPayment({ roomId, status: p.status, refundAmount: p.refundAmount });
+      };
+
+      const onVideoStarted = (p: { roomId?: string; callId?: string; roomUrl?: string }) => {
+        if (!mounted || (p.roomId && p.roomId !== roomId)) return;
+        setVideoCall({ roomId, phase: 'started', callId: p.callId, roomUrl: p.roomUrl });
+      };
+
+      const onVideoEnded = (p: { roomId?: string; callId?: string; duration?: number }) => {
+        if (!mounted || (p.roomId && p.roomId !== roomId)) return;
+        setVideoCall({ roomId, phase: 'ended', callId: p.callId, duration: p.duration });
       };
       const onTyping = (p: { bookingId?: string; roomId?: string; isTyping: boolean }) => {
         if (!mounted) return;
@@ -89,6 +172,11 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       s.on('new_message', onMessage);
       s.on('provider_location_update', onLocation);
       s.on('booking_status_changed', onStatus);
+      s.on('appointment_status_changed', onAppointmentStatus);
+      s.on('payment_requested', onPaymentRequested);
+      s.on('payment_status_changed', onPaymentStatus);
+      s.on('video_call_started', onVideoStarted);
+      s.on('video_call_ended', onVideoEnded);
       s.on('typing', onTyping);
       s.on('messages_read', onRead);
 
@@ -103,6 +191,11 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         s.off('new_message', onMessage);
         s.off('provider_location_update', onLocation);
         s.off('booking_status_changed', onStatus);
+        s.off('appointment_status_changed', onAppointmentStatus);
+        s.off('payment_requested', onPaymentRequested);
+        s.off('payment_status_changed', onPaymentStatus);
+        s.off('video_call_started', onVideoStarted);
+        s.off('video_call_ended', onVideoEnded);
         s.off('typing', onTyping);
         s.off('messages_read', onRead);
       };
@@ -179,7 +272,12 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
     emitTyping,
     markRead,
     providerLocation,
+    /** Home services only, bare string — kept for liveTracking. */
     bookingStatus,
+    /** Either vertical: booking OR appointment status, with context. */
+    roomStatus,
+    payment,
+    videoCall,
     typing,
     connected,
   };

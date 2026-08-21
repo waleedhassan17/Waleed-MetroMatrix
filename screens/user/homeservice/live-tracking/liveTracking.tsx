@@ -36,7 +36,7 @@ import {
   Coordinates,
 } from './liveTrackingSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
-import { useBookingSocket } from '../../../../hooks/useBookingSocket';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
@@ -104,7 +104,7 @@ export default function LiveTrackingScreen() {
   // position flows through the existing Redux state so the map animates
   // between updates instead of snapping.
   const { providerLocation: liveLocation, bookingStatus: liveStatus } =
-    useBookingSocket(bookingId);
+    useRoomSocket(bookingId, 'homeservice');
   useEffect(() => {
     if (liveLocation) {
       dispatch(

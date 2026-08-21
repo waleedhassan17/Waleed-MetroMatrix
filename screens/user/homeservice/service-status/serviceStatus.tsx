@@ -31,6 +31,7 @@ import {
   selectServiceProgress,
 } from './serviceSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 
 const { width } = Dimensions.get('window');
 
@@ -72,6 +73,13 @@ export default function ServiceStatusScreen() {
   const dispatch = useDispatch<AppDispatch>();
 
   const { bookingId, category = 'ac-repairers' } = route.params || {};
+
+  // Live room events. This screen previously only refetched on focus, so a
+  // customer watching it saw nothing when the provider advanced the job or
+  // requested payment — they had to leave and come back. The realtime service
+  // now pushes both; refetch when either lands so the whole payload (provider,
+  // pricing, timeline) stays consistent rather than patching one field.
+  const { roomStatus, payment: livePayment } = useRoomSocket(bookingId, 'homeservice');
 
   // Redux state
   const provider = useSelector((state: RootState) => state.serviceStatus?.provider);
@@ -273,6 +281,23 @@ export default function ServiceStatusScreen() {
       };
     }, [bookingId, category, dispatch, fadeAnim, slideAnim, scaleAnim, loadingFadeAnim, paymentSlideAnim])
   );
+
+  // A pushed status or payment event means the server-side truth moved on.
+  // Refetch rather than patching local state so provider, pricing and timeline
+  // stay consistent with each other.
+  useEffect(() => {
+    if (!bookingId) return;
+    if (!roomStatus && !livePayment) return;
+    const validCategory = ['electricians', 'plumbers', 'ac-repairers'].includes(category)
+      ? category
+      : 'ac-repairers';
+    dispatch(
+      fetchServiceStatus({
+        bookingId,
+        category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
+      })
+    );
+  }, [roomStatus, livePayment, bookingId, category, dispatch]);
 
   // Run animations when data is loaded
   useEffect(() => {
