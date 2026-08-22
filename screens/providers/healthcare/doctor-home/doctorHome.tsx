@@ -24,7 +24,6 @@ import type { DoctorDashboardState } from './doctorDashboardSlice';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
 import type { Appointment } from '../../../../models/healthcare/types';
-import SlideOutSidebar from '../../../../components/SlideOutSidebar/SlideOutSidebar';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -103,7 +102,6 @@ const StatCard: React.FC<{
 const DoctorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
@@ -187,12 +185,6 @@ const DoctorHomeScreen: React.FC = () => {
         <Text style={styles.floatingHeaderTitle}>Dashboard</Text>
       </Animated.View>
 
-      {/* Sidebar Component */}
-      <SlideOutSidebar
-        isVisible={sidebarVisible}
-        onClose={() => setSidebarVisible(false)}
-      />
-
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
@@ -223,31 +215,26 @@ const DoctorHomeScreen: React.FC = () => {
               <Text style={styles.greetingText}>{getGreeting()} 👋</Text>
               <Text style={styles.doctorNameText} numberOfLines={1}>{doctorName}</Text>
             </View>
-            {/* Online Toggle & Hamburger Menu */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              {/* This was a local useState toggle that flipped Available/Busy
-                  and persisted nothing — it looked like an availability control
-                  and was not one. The real control is the Availability screen,
-                  whose PATCH carries the full weekly schedule; sending
-                  isAvailable on its own from here risks the server replacing
-                  that schedule with nothing. So this now routes there instead
-                  of pretending to set state. */}
-              <TouchableOpacity
-                style={[styles.onlineToggle, styles.onlineToggleActive]}
-                onPress={() => navigation.navigate(DoctorRouteNames.DoctorAvailability)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calendar-outline" size={13} color={THEME.success} />
-                <Text style={[styles.onlineText, { color: THEME.success }]}>Availability</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.headerIconBtn} 
-                onPress={() => setSidebarVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="menu" size={24} color={THEME.primary} />
-              </TouchableOpacity>
-            </View>
+            {/*
+              Two controls used to sit here; both are gone.
+
+              THE MENU opened SlideOutSidebar, which is a customer component
+              through and through. It fetches the profile via fetchUserProfile
+              (GET /user/profile, guarded userOnly), so a doctor's token is
+              refused and the panel headers as "Guest User" with zeroed stats;
+              every one of its items navigates to UserProfileScreen, the
+              CUSTOMER profile; and it embeds the customer MiniWalletCard.
+              Nothing in it addresses a doctor, which is why tapping it appeared
+              to do nothing useful. A doctor already reaches Profile,
+              Notifications and Availability from the quick actions below, so
+              the drawer is removed rather than rebuilt for a second audience.
+
+              THE "AVAILABILITY" PILL was a green, rounded status-style chip
+              that was actually a link. It read as a state ("you are available")
+              while behaving as navigation, and it pointed at the same screen as
+              the quick action below — which was itself mislabelled "Settings".
+              One correctly-labelled entry point replaces both.
+            */}
           </View>
 
           {/* Stats Cards Row */}
@@ -377,7 +364,11 @@ const DoctorHomeScreen: React.FC = () => {
               { icon: 'calendar', label: 'Schedule', color: THEME.primary, bg: THEME.primaryLight, tab: 'Schedule' },
               { icon: 'person-outline', label: 'Profile', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorProfile },
               { icon: 'cash-multiple', label: 'Earnings', color: THEME.success, bg: THEME.successLight, isMaterial: true, tab: 'Earnings' },
-              { icon: 'settings-outline', label: 'Settings', color: THEME.textLight, bg: THEME.borderLight, route: DoctorRouteNames.DoctorAvailability },
+              // Labelled "Settings" with a gear while routing to the
+              // Availability screen — there is no doctor settings screen for it
+              // to have meant. Now says what it opens, and is the single entry
+              // point since the header pill that duplicated it is gone.
+              { icon: 'calendar-clock', label: 'Availability', color: THEME.success, bg: THEME.successLight, isMaterial: true, route: DoctorRouteNames.DoctorAvailability },
               { icon: 'people-outline', label: 'My Patients', color: THEME.primary, bg: THEME.primaryLight, route: DoctorRouteNames.DoctorPatients },
               { icon: 'star-outline', label: 'Reviews', color: '#F59E0B', bg: '#FEF3C7', route: DoctorRouteNames.DoctorMyReviews },
               { icon: 'notifications-outline', label: 'Notifications', color: '#8B5CF6', bg: '#EDE9FE', route: DoctorRouteNames.DoctorNotifications },
@@ -702,15 +693,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  headerIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: THEME.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
   notifDot: {
     position: 'absolute',
     top: 10,
@@ -721,31 +703,10 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.error,
     zIndex: 1,
   },
-  onlineToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  onlineToggleActive: {
-    backgroundColor: THEME.successLight,
-    borderColor: '#A7F3D0',
-  },
-  onlineToggleInactive: {
-    backgroundColor: THEME.borderLight,
-    borderColor: THEME.border,
-  },
   onlineDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  onlineText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
 
   // Stats Row
