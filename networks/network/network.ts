@@ -248,14 +248,33 @@ MainAxiosInstance.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.error('❌ API Response error:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url,
-      method: error.config?.method,
-    });
+    // A 401 on an authenticated request is usually just an expired access
+    // token, and the block below refreshes and replays it — the call then
+    // succeeds. Logging it as an error up here, before that recovery has even
+    // been attempted, put a red "API Response error" in front of QA for
+    // requests that worked: adding a clinic reported a failure and added the
+    // clinic anyway. Report the attempt quietly; only a failure that survives
+    // recovery is an error, and the branches below say so.
+    const willAttemptRecovery =
+      error.response?.status === 401 &&
+      (error.config as any)?.__sentAuth &&
+      !(error.config as any)?.__retriedAfterRefresh &&
+      !error.config?.url?.includes('auth/refresh');
+
+    const report = willAttemptRecovery ? console.log : console.error;
+    report(
+      willAttemptRecovery
+        ? 'ℹ️ 401 — refreshing token and retrying:'
+        : '❌ API Response error:',
+      {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+      }
+    );
 
     if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
       console.error("Network is down or unreachable");
