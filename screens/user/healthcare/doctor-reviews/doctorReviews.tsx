@@ -660,9 +660,17 @@ const DoctorReviewsScreen: React.FC = () => {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/*
+            The share button that sat here had no onPress and no share
+            implementation behind it — the same dead-affordance pattern as the
+            Health Records ⋮ menu and the userHome "Explore" chip. Removed for
+            consistency rather than left looking tappable.
+
+            Spacer keeps its 40px footprint so the centre block stays centred.
+            If sharing a doctor's reviews is wanted, it needs a real target
+            (a deep link into DoctorDetail) and should come back deliberately.
+          */}
+          <View style={styles.headerSpacer} />
         </View>
       </LinearGradient>
 
@@ -757,13 +765,10 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
-  headerAction: {
+  // Balances the back button so the title block stays optically centred.
+  headerSpacer: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 
   // Content
