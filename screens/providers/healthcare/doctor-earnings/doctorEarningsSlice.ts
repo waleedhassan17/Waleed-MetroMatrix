@@ -32,6 +32,8 @@ export interface ChartDataPoint {
 export interface DoctorEarningsState {
   totalEarnings: number;
   periodFilter: PeriodFilter;
+  /** Set only while periodFilter === 'custom'. */
+  customRange: { startDate: string; endDate: string } | undefined;
   transactions: EarningTransaction[];
   chartData: ChartDataPoint[];
   breakdown: ConsultationBreakdown[];
@@ -45,6 +47,7 @@ export interface DoctorEarningsState {
 const initialState: DoctorEarningsState = {
   totalEarnings: 0,
   periodFilter: 'thisMonth',
+  customRange: undefined,
   transactions: [],
   chartData: [],
   breakdown: [],
@@ -63,8 +66,12 @@ export const fetchEarnings = createAsyncThunk<
   { state: { doctorEarnings: DoctorEarningsState }; rejectValue: string }
 >('doctorEarnings/fetchEarnings', async (period, { getState, rejectWithValue }) => {
   try {
-    const filter = period ?? getState().doctorEarnings.periodFilter;
-    const res = await fetchDoctorEarningsApi(filter);
+    const state = getState().doctorEarnings;
+    const filter = period ?? state.periodFilter;
+    // Only a custom filter carries a range; the named periods are derived
+    // server-side and must not be narrowed by a stale one.
+    const range = filter === 'custom' ? state.customRange : undefined;
+    const res = await fetchDoctorEarningsApi(filter, range);
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     return res.data;
   } catch {
@@ -92,8 +99,15 @@ const doctorEarningsSlice = createSlice({
   name: 'doctorEarnings',
   initialState,
   reducers: {
+    setCustomRange(state, action: PayloadAction<{ startDate: string; endDate: string }>) {
+      state.customRange = action.payload;
+      state.periodFilter = 'custom';
+    },
     setPeriodFilter(state, action: PayloadAction<PeriodFilter>) {
       state.periodFilter = action.payload;
+      // Leaving Custom drops its range so a named period is never narrowed by
+      // a range the user can no longer see.
+      if (action.payload !== 'custom') state.customRange = undefined;
     },
     resetDoctorEarnings() {
       return initialState;
@@ -134,6 +148,7 @@ const doctorEarningsSlice = createSlice({
   },
 });
 
-export const { setPeriodFilter, resetDoctorEarnings } = doctorEarningsSlice.actions;
+export const { setPeriodFilter, setCustomRange, resetDoctorEarnings } =
+  doctorEarningsSlice.actions;
 
 export default doctorEarningsSlice.reducer;

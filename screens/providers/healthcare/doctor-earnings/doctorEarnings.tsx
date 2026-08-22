@@ -1,4 +1,11 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+  toLocalISODate,
+  todayLocalISODate,
+  fromLocalISODate,
+  addLocalDays,
+} from '../../../../utils/date/localDate';
 import {
   View,
   Text,
@@ -23,6 +30,7 @@ import {
   fetchEarnings,
   fetchTransactions,
   setPeriodFilter,
+  setCustomRange,
   PeriodFilter,
   EarningTransaction,
   ChartDataPoint,
@@ -138,6 +146,7 @@ const DoctorEarningsScreen: React.FC = () => {
   const {
     totalEarnings,
     periodFilter,
+    customRange,
     transactions,
     chartData,
     breakdown,
@@ -172,15 +181,59 @@ const DoctorEarningsScreen: React.FC = () => {
     }).start();
   }, [heroScaleAnim]);
 
+  // "Custom" used to be a label with nothing behind it: the API mapped it to
+  // 'daily' and sent no range, so it showed Today's figures under a different
+  // heading. It now asks for the range it claims to offer.
+  const [picking, setPicking] = useState<null | 'start' | 'end'>(null);
+  const [draftStart, setDraftStart] = useState<string>(() => addLocalDays(todayLocalISODate(), -30));
+
   const handlePeriodChange = useCallback(
     (period: PeriodFilter) => {
+      if (period === 'custom') {
+        setDraftStart(customRange?.startDate ?? addLocalDays(todayLocalISODate(), -30));
+        setPicking('start');
+        return;
+      }
       dispatch(setPeriodFilter(period));
       dispatch(fetchEarnings(period));
     },
-    [dispatch],
+    [dispatch, customRange],
   );
 
-  const currentPeriodLabel = PERIOD_OPTIONS.find((p) => p.value === periodFilter)?.label ?? 'This Month';
+  const handlePickedDate = useCallback(
+    (event: { type: string }, picked?: Date) => {
+      // Android fires onChange on dismiss too; only a real pick should advance.
+      if (event.type !== 'set' || !picked) {
+        setPicking(null);
+        return;
+      }
+      if (picking === 'start') {
+        setDraftStart(toLocalISODate(picked));
+        setPicking('end');       // straight on to the end of the range
+        return;
+      }
+      const endDate = toLocalISODate(picked);
+      // Tolerate a backwards selection rather than returning nothing.
+      const range =
+        endDate < draftStart
+          ? { startDate: endDate, endDate: draftStart }
+          : { startDate: draftStart, endDate };
+      setPicking(null);
+      dispatch(setCustomRange(range));
+      dispatch(fetchEarnings('custom'));
+    },
+    [picking, draftStart, dispatch],
+  );
+
+  // Name the range once one is chosen, so the hero says what it is showing
+  // instead of the bare word "Custom".
+  const shortDate = (iso: string) =>
+    fromLocalISODate(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+  const currentPeriodLabel =
+    periodFilter === 'custom' && customRange
+      ? `${shortDate(customRange.startDate)} – ${shortDate(customRange.endDate)}`
+      : PERIOD_OPTIONS.find((p) => p.value === periodFilter)?.label ?? 'This Month';
 
   // ── Loading ───────────────────────────────────
 
@@ -486,6 +539,16 @@ const DoctorEarningsScreen: React.FC = () => {
 
         <View style={{ height: 60 }} />
       </Animated.ScrollView>
+
+      {picking && (
+        <DateTimePicker
+          value={fromLocalISODate(picking === 'start' ? draftStart : (customRange?.endDate ?? todayLocalISODate()))}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={handlePickedDate}
+        />
+      )}
     </SafeAreaView>
   );
 };
