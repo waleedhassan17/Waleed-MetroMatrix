@@ -8,6 +8,7 @@
 // coupons, payments) have no backend endpoint yet and degrade gracefully.
 
 import { healthcareApiRequest } from './config';
+import { toLocalISODate, todayLocalISODate } from '../../utils/date/localDate';
 import { APP_CURRENCY } from '../../constants/Currency';
 import {
   dashboardDataSerializer,
@@ -119,12 +120,19 @@ export async function fetchDoctorScheduleApi(
 // ═══════════════════════════════════════════
 
 export async function fetchDoctorEarningsApi(
-  period: PeriodFilter
+  period: PeriodFilter,
+  range?: { startDate?: string; endDate?: string }
 ): Promise<ApiResponse<{ total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[] }>> {
   const periodMap: Record<string, string> = { today: 'daily', thisWeek: 'weekly', thisMonth: 'monthly', custom: 'daily' };
-  const res = await healthcareApiRequest<any>(
-    `/doctors/me/earnings?period=${encodeURIComponent(periodMap[period] || 'daily')}`
-  );
+
+  // The endpoint has always accepted startDate/endDate (healthcareDoctorController
+  // getMyEarnings) and this only ever sent `period`, so "Custom" mapped to
+  // 'daily' and returned the same figures as Today under a different label.
+  const qs = new URLSearchParams({ period: periodMap[period] || 'daily' });
+  if (range?.startDate) qs.set('startDate', range.startDate);
+  if (range?.endDate) qs.set('endDate', range.endDate);
+
+  const res = await healthcareApiRequest<any>(`/doctors/me/earnings?${qs.toString()}`);
   if (res.success) {
     const rows: any[] = res.data?.breakdown || [];
     const total = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
@@ -175,7 +183,7 @@ export async function fetchPatientQueueApi(): Promise<ApiResponse<QueuePatient[]
   // could only ever read 0. A from/to range returns every status for the day,
   // which is what a queue actually needs. It also drops next week's
   // appointments, which the old query happily listed under "Today's Queue".
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalISODate();
   const res = await healthcareApiRequest<any>(
     `/doctors/me/appointments?from=${today}&to=${today}&limit=100`,
   );
@@ -347,7 +355,7 @@ export async function fetchAvailabilitySettingsApi(): Promise<
   const av = res.success ? res.data || {} : {};
   // Backend absentDates → vacation entries (single-day each).
   const vacationDates = (av.absentDates || []).map((d: any, i: number) => {
-    const day = new Date(d).toISOString().split('T')[0];
+    const day = toLocalISODate(new Date(d));
     return { id: `abs-${i}`, startDate: day, endDate: day, reason: 'Absent' };
   });
   return {
@@ -369,7 +377,7 @@ function expandDateRange(start: string, end: string): string[] {
   const s = new Date(start);
   const e = new Date(end);
   for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-    out.push(new Date(d).toISOString().split('T')[0]);
+    out.push(toLocalISODate(new Date(d)));
   }
   return out;
 }
