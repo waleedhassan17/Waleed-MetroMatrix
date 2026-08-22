@@ -24,7 +24,6 @@ import {
   fetchPatientNotes,
   saveNote,
   deleteNote,
-  attachFile,
   setCurrentNote,
   updateCurrentNoteContent,
   updateCurrentNoteTitle,
@@ -34,7 +33,6 @@ import {
   createNewNote,
   clearNotes,
   MedicalNote,
-  NoteAttachment,
 } from './medicalNotesSlice';
 
 // ── Theme ─────────────────────────────────────
@@ -167,11 +165,9 @@ const MedicalNotesScreen: React.FC = () => {
   );
 
   const [tagInput, setTagInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
 
   const editorFadeAnim = useRef(new Animated.Value(0)).current;
   const editorSlideAnim = useRef(new Animated.Value(20)).current;
-  const recordingPulse = useRef(new Animated.Value(1)).current;
 
   // The list reveal fade is removed: gated on `loading`, it froze part-way when
   // the loading branch unmounted it and the `hasAnimated` latch stopped it
@@ -196,18 +192,6 @@ const MedicalNotesScreen: React.FC = () => {
   }, [!!currentNote]);
 
   // Recording pulse
-  useEffect(() => {
-    if (isRecording) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(recordingPulse, { toValue: 1.25, duration: 500, useNativeDriver: true }),
-          Animated.timing(recordingPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    }
-  }, [isRecording]);
 
   // ── Handlers ────────────────────────────────
 
@@ -248,40 +232,8 @@ const MedicalNotesScreen: React.FC = () => {
     }
   }, [tagInput, dispatch]);
 
-  const handleAttachFile = useCallback(() => {
-    const dummy: NoteAttachment = {
-      id: `att-${Date.now()}`,
-      name: `Document_${Date.now()}.pdf`,
-      type: 'file',
-      uri: '',
-      size: 156000,
-    };
-    if (currentNote) dispatch(attachFile({ noteId: currentNote.noteId, attachment: dummy }));
-  }, [currentNote, dispatch]);
 
-  const handleAttachImage = useCallback(() => {
-    const dummy: NoteAttachment = {
-      id: `att-${Date.now()}`,
-      name: `Photo_${Date.now()}.jpg`,
-      type: 'image',
-      uri: '',
-      size: 480000,
-    };
-    if (currentNote) dispatch(attachFile({ noteId: currentNote.noteId, attachment: dummy }));
-  }, [currentNote, dispatch]);
 
-  const handleVoiceToText = useCallback(() => {
-    setIsRecording((prev) => !prev);
-    if (isRecording && currentNote) {
-      dispatch(
-        updateCurrentNoteContent(
-          currentNote.content +
-            (currentNote.content ? '\n\n' : '') +
-            'Patient reports feeling better overall. Headaches reduced in frequency. Blood pressure readings at home averaging 128/82.',
-        ),
-      );
-    }
-  }, [isRecording, currentNote, dispatch]);
 
   const handleCloseEditor = useCallback(() => {
     if (currentNote && (currentNote.title.trim() || currentNote.content.trim())) {
@@ -387,55 +339,48 @@ const MedicalNotesScreen: React.FC = () => {
               onChangeText={(t) => dispatch(updateCurrentNoteTitle(t))}
             />
 
-            {/* ── Editor Toolbar ── */}
+            {/*
+              ── Editor Toolbar ──
+              This held six controls; five of them did not do what they showed,
+              and three were writing invented content into a patient's medical
+              record. Removed rather than left in place:
+
+                · mic — did NOT transcribe anything. Tapping it twice appended a
+                  hardcoded paragraph including fabricated vitals ("Blood
+                  pressure readings at home averaging 128/82") to the note. A
+                  control that inserts invented clinical observations into a
+                  medical record is a patient-safety problem, not a rough edge.
+                  Real dictation needs a speech-to-text service and must not
+                  ship as a canned paragraph in the meantime.
+
+                · image / attach — attached a fabricated attachment
+                  ("Photo_1724…​.jpg", uri: '') without opening any picker, and
+                  saveNoteApi persists `attachments`, so those fictions were
+                  written to the server as real records pointing at nothing.
+                  Wiring the real pickers alone would not fix it: the notes
+                  route has no upload middleware, so the file bytes have
+                  nowhere to go and the stored uri would be an unreadable local
+                  path. Bringing these back needs multer + Cloudinary on
+                  POST /doctors/me/notes, mirroring healthRecordUpload.js.
+
+                · text / list — no onPress at all, and this is a plain-text
+                  field with no formatting to apply.
+
+              Convert-to-prescription is kept: it is the one control here that
+              did what it claimed.
+            */}
             <View style={styles.toolbarCard}>
               <View style={styles.toolbarRow}>
-                <TouchableOpacity style={styles.toolbarBtn}>
-                  <Ionicons name="text" size={17} color="#64748B" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.toolbarBtn}>
-                  <Ionicons name="list" size={17} color="#64748B" />
-                </TouchableOpacity>
-
-                {/* Mic button */}
                 <TouchableOpacity
-                  style={[styles.toolbarBtn, isRecording && styles.toolbarBtnRecording]}
-                  onPress={handleVoiceToText}
+                  style={styles.toolbarBtn}
+                  onPress={handleConvertToPrescription}
+                  accessibilityRole="button"
+                  accessibilityLabel="Convert these notes into a prescription"
                 >
-                  <Animated.View style={isRecording ? { transform: [{ scale: recordingPulse }] } : undefined}>
-                    <Ionicons
-                      name={isRecording ? 'mic' : 'mic-outline'}
-                      size={17}
-                      color={isRecording ? '#FFFFFF' : '#64748B'}
-                    />
-                  </Animated.View>
-                </TouchableOpacity>
-
-                <View style={styles.toolbarDivider} />
-
-                <TouchableOpacity style={styles.toolbarBtn} onPress={handleAttachImage}>
-                  <Ionicons name="image-outline" size={17} color="#64748B" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.toolbarBtn} onPress={handleAttachFile}>
-                  <Ionicons name="attach" size={17} color="#64748B" />
-                </TouchableOpacity>
-
-                <View style={styles.toolbarDivider} />
-
-                <TouchableOpacity style={styles.toolbarBtn} onPress={handleConvertToPrescription}>
                   <MaterialCommunityIcons name="prescription" size={17} color={THEME.primary} />
                 </TouchableOpacity>
+                <Text style={styles.toolbarHint}>Convert to prescription</Text>
               </View>
-
-              {/* Recording banner */}
-              {isRecording && (
-                <View style={styles.recordingBanner}>
-                  <Animated.View
-                    style={[styles.recordingDot, { transform: [{ scale: recordingPulse }] }]}
-                  />
-                  <Text style={styles.recordingText}>Recording… Tap mic to stop & transcribe</Text>
-                </View>
-              )}
             </View>
 
             {/* Note text area */}
@@ -1106,35 +1051,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolbarBtnRecording: {
-    backgroundColor: THEME.error,
+  toolbarHint: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: THEME.primary,
+    marginLeft: 4,
   },
   toolbarDivider: {
     width: 1,
     height: 22,
     backgroundColor: '#E2E8F0',
     marginHorizontal: 4,
-  },
-  recordingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#FECACA',
-  },
-  recordingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: THEME.error,
-  },
-  recordingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: THEME.error,
   },
 
   // Note textarea
