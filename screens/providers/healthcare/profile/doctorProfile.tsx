@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,10 @@ import { Typography } from '../../../../constants/Fonts';
 import {
   fetchDoctorProfile,
   toggleAvailability,
+  updateDoctorProfile,
 } from './doctorProfileSlice';
+import EditDoctorProfileModal from './EditDoctorProfileModal';
+import type { DoctorProfileData } from '../../../../models/healthcare/types';
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
@@ -74,7 +77,21 @@ const DoctorProfileScreen: React.FC = () => {
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
   const isInTab = route.params?.isTab === true;
-  const { profile, loading, error } = useAppSelector((state) => state.doctorProfile);
+  const { profile, loading, saving, error } = useAppSelector((state) => state.doctorProfile);
+
+  // The pencil below had no onPress at all; the thunk and API it needed were
+  // already written and simply unreachable.
+  const [editing, setEditing] = useState(false);
+
+  const handleSaveProfile = useCallback(
+    async (updates: Partial<DoctorProfileData>) => {
+      const result = await dispatch(updateDoctorProfile(updates));
+      // Close only on success, so a failed save keeps the user's input and the
+      // error visible instead of silently discarding both.
+      if (updateDoctorProfile.fulfilled.match(result)) setEditing(false);
+    },
+    [dispatch]
+  );
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -181,7 +198,13 @@ const DoctorProfileScreen: React.FC = () => {
               <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
             </TouchableOpacity>)}
             <Text style={styles.headerTitle}>My Profile</Text>
-            <TouchableOpacity style={styles.headerBtn} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              activeOpacity={0.8}
+              onPress={() => setEditing(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+            >
               <MaterialCommunityIcons name="pencil-outline" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -376,6 +399,19 @@ const DoctorProfileScreen: React.FC = () => {
 
         <View style={{ height: 40 }} />
       </Animated.ScrollView>
+
+      {/* Rendered only with a loaded profile so the form always has values to
+          seed from — this branch is below the loading/error guards above. */}
+      {profile && (
+        <EditDoctorProfileModal
+          visible={editing}
+          profile={profile}
+          saving={saving}
+          error={error}
+          onClose={() => setEditing(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
     </SafeAreaView>
   );
 };
