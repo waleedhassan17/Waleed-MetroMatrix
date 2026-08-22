@@ -1,3 +1,4 @@
+import { toLocalISODate } from '../../../../utils/date/localDate';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
@@ -624,7 +625,7 @@ const PrescriptionWriterScreen: React.FC = () => {
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(false);
                   if (selectedDate) {
-                    dispatch(setFollowUpDate(selectedDate.toISOString().split('T')[0]));
+                    dispatch(setFollowUpDate(toLocalISODate(selectedDate)));
                   }
                 }}
               />

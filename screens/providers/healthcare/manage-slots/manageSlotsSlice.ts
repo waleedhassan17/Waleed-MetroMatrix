@@ -1,3 +1,4 @@
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { TimeSlot, Clinic } from '../../../../models/healthcare/types';
 import {
@@ -28,7 +29,7 @@ export interface ManageSlotsState {
   clinicError: string | null;
 }
 
-const todayISO = new Date().toISOString().split('T')[0];
+const todayISO = todayLocalISODate();
 
 const initialState: ManageSlotsState = {
   slots: [],

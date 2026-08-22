@@ -1,3 +1,4 @@
+import { toLocalISODate, todayLocalISODate } from '../../../../utils/date/localDate';
 import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
@@ -125,7 +126,7 @@ const getWeekDates = (centerDate: string): string[] => {
   return Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek);
     day.setDate(startOfWeek.getDate() + i);
-    return day.toISOString().split('T')[0];
+    return toLocalISODate(day);
   });
 };
 
@@ -266,7 +267,7 @@ const ManageSlotsScreen: React.FC = () => {
   }, [saveSuccess, dispatch]);
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayLocalISODate();
 
   const handleClinicSelect = useCallback(
     (id: string | null) => dispatch(setSelectedClinic(id as any)),
@@ -316,14 +317,14 @@ const ManageSlotsScreen: React.FC = () => {
   const handleNextWeek = useCallback(() => {
     const nextDate = new Date(selectedDate + 'T00:00:00');
     nextDate.setDate(nextDate.getDate() + 7);
-    dispatch(setSelectedDate(nextDate.toISOString().split('T')[0]));
+    dispatch(setSelectedDate(toLocalISODate(nextDate)));
   }, [selectedDate, dispatch]);
 
   const handlePrevWeek = useCallback(() => {
     const prevDate = new Date(selectedDate + 'T00:00:00');
     prevDate.setDate(prevDate.getDate() - 7);
-    if (prevDate.toISOString().split('T')[0] >= todayStr) {
-      dispatch(setSelectedDate(prevDate.toISOString().split('T')[0]));
+    if (toLocalISODate(prevDate) >= todayStr) {
+      dispatch(setSelectedDate(toLocalISODate(prevDate)));
     }
   }, [selectedDate, todayStr, dispatch]);
 

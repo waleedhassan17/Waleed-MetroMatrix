@@ -1,3 +1,4 @@
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { fetchPatientNotesApi, saveNoteApi, deleteNoteApi, attachFileApi } from '../../../../networks/healthcare/providerApi';
 
@@ -152,7 +153,7 @@ const medicalNotesSlice = createSlice({
       state.currentNote = {
         noteId: '',
         appointmentId: '',
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocalISODate(),
         title: '',
         content: '',
         attachments: [],

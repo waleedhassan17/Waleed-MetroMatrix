@@ -1,3 +1,4 @@
+import { toLocalISODate, todayLocalISODate } from '../../../../utils/date/localDate';
 import React, {useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
@@ -48,16 +49,16 @@ const getWeekDates = (centerDate: string): string[] => {
   return Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek);
     day.setUTCDate(startOfWeek.getUTCDate() + i);
-    return day.toISOString().split('T')[0];
+    return toLocalISODate(day);
   });
 };
 
 const formatDateHeader = (dateStr: string): string => {
   const d = new Date(dateStr + 'T12:00:00Z');
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayLocalISODate();
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tomorrowStr = toLocalISODate(tomorrow);
   if (dateStr === todayStr) return 'Today';
   if (dateStr === tomorrowStr) return 'Tomorrow';
   return `${DAY_NAMES[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}`;
@@ -87,7 +88,7 @@ const WeekCalendarStrip: React.FC<{
   appointmentsByDate: Record<string, Appointment[]>;
   onSelectDate: (date: string) => void;
 }> = ({ weekDates, selectedDate, appointmentsByDate, onSelectDate }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayLocalISODate();
 
   return (
     <View style={styles.calendarStrip}>
@@ -279,7 +280,7 @@ const DoctorScheduleScreen: React.FC = () => {
   const weekAnchor = useMemo(() => {
     const d = new Date(`${selectedDate}T12:00:00Z`);
     d.setUTCDate(d.getUTCDate() - d.getUTCDay());
-    return d.toISOString().split('T')[0];
+    return toLocalISODate(d);
   }, [selectedDate]);
 
   useFocusEffect(
@@ -289,7 +290,7 @@ const DoctorScheduleScreen: React.FC = () => {
   );
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
-  const isPastDate = selectedDate < new Date().toISOString().split('T')[0];
+  const isPastDate = selectedDate < todayLocalISODate();
 
   const appointmentsByDate = useMemo(() => {
     const map: Record<string, Appointment[]> = {};
@@ -315,7 +316,7 @@ const DoctorScheduleScreen: React.FC = () => {
     (direction: -1 | 1) => {
       const d = new Date(selectedDate + 'T12:00:00Z');
       d.setUTCDate(d.getUTCDate() + direction * 7);
-      dispatch(setSelectedDate(d.toISOString().split('T')[0]));
+      dispatch(setSelectedDate(toLocalISODate(d)));
     },
     [dispatch, selectedDate],
   );
@@ -421,7 +422,7 @@ const DoctorScheduleScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => dispatch(setSelectedDate(new Date().toISOString().split('T')[0]))}
+              onPress={() => dispatch(setSelectedDate(todayLocalISODate()))}
               activeOpacity={0.8}
             >
               <Ionicons name="today-outline" size={20} color="#FFFFFF" />

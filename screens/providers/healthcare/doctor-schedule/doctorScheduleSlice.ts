@@ -1,3 +1,4 @@
+import { toLocalISODate, todayLocalISODate } from '../../../../utils/date/localDate';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Appointment } from '../../../../models/healthcare/types';
 import { fetchDoctorScheduleApi } from '../../../../networks/healthcare/providerApi';
@@ -14,7 +15,7 @@ export interface DoctorScheduleState {
   error: string | null;
 }
 
-const todayISO = new Date().toISOString().split('T')[0];
+const todayISO = todayLocalISODate();
 
 const initialState: DoctorScheduleState = {
   selectedDate: todayISO,
@@ -40,7 +41,7 @@ export const fetchSchedule = createAsyncThunk<
     start.setUTCDate(d.getUTCDate() - d.getUTCDay());
     const end = new Date(start);
     end.setUTCDate(start.getUTCDate() + 6);
-    const iso = (x: Date) => x.toISOString().split('T')[0];
+    const iso = (x: Date) => toLocalISODate(x);
 
     const res = await fetchDoctorScheduleApi({ from: iso(start), to: iso(end) });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');

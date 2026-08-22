@@ -1,3 +1,4 @@
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
@@ -335,7 +336,7 @@ const AddVacationModal: React.FC<{
   onAdd: (v: { startDate: string; endDate: string; reason: string }) => void;
   onClose: () => void;
 }> = ({ visible, onAdd, onClose }) => {
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = todayLocalISODate();
   const [startDate, setStartDate] = useState(todayISO);
   const [endDate, setEndDate] = useState(todayISO);
   const [reason, setReason] = useState('');
