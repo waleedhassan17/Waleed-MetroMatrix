@@ -596,9 +596,19 @@ const HealthRecordsScreen: React.FC = () => {
                 <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
               </TouchableOpacity>)}
               <Text style={styles.headerTitle}>Health Records</Text>
-              <TouchableOpacity style={styles.headerAction}>
-                <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+              {/*
+                The overflow (⋮) button that sat here had no onPress and no menu
+                behind it — it was an affordance for actions that do not exist
+                on this screen. Removed rather than wired up: filtering is
+                already handled by the category chips below and upload by the
+                primary button, so a menu would have nothing to hold.
+
+                This spacer keeps its 40px footprint. headerTop is
+                space-between with three children, so the title is centred by
+                having equal-width siblings; deleting the button outright would
+                push the title to the right edge.
+              */}
+              <View style={styles.headerSpacer} />
             </View>
 
             {/* Search Bar */}
@@ -766,13 +776,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.3,
   },
-  headerAction: {
+  // Balances the leading icon so the title stays optically centred.
+  headerSpacer: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 
   // Search
