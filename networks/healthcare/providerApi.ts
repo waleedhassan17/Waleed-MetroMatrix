@@ -464,40 +464,82 @@ export async function savePrescriptionApi(prescription: {
 //  PRESCRIPTION VIEW (enriched)
 // ═══════════════════════════════════════════
 
+/**
+ * Fetch ONE prescription.
+ *
+ * This used to GET /doctors/me/prescriptions?limit=200 and scan the result for
+ * a matching id. That route is DOCTOR-ONLY, and the screen calling this is the
+ * PATIENT's prescription view — so every patient opening a prescription got
+ * 403 "This route is for providers only". It also pulled up to 200 records to
+ * render one, and reported "not found" for anything past the 200th.
+ *
+ * Two paths are tried, in order:
+ *
+ *  1. GET /prescriptions/:id — added alongside this change. Authorizes the
+ *     patient it belongs to AND the doctor who wrote it, so one call serves
+ *     both sides, and fetches exactly one record.
+ *  2. GET /prescriptions/my — the long-standing patient route, scanned by id.
+ *
+ * The fallback is not defensive padding. Route (1) is new, so it 404s on the
+ * currently deployed backend, and this app ships as an APK with no OTA channel
+ * — a build already in QA's hands cannot be updated in lockstep with a backend
+ * deploy, so it has to work on both sides of one. Delete (2) once (1) is live.
+ *
+ * The route that was wrong here, GET /doctors/me/prescriptions, is real and
+ * correct — for a doctor. It lives in src/routes/healthcareDoctorRoutes.js
+ * behind `protect, providerOnly`, which is what produced the exact
+ * "This route is for providers only" message. It was simply the wrong side of
+ * the app; nothing about it needs changing.
+ */
 export async function fetchPrescriptionDetailApi(
   prescriptionId: string
 ): Promise<ApiResponse<PrescriptionDetail>> {
-  const res = await healthcareApiRequest<any>('/doctors/me/prescriptions?limit=200');
-  if (res.success) {
-    const list = res.data?.prescriptions || (Array.isArray(res.data) ? res.data : []);
-    const p = list.find((x: any) => (x.id || x._id || x.prescriptionId) === prescriptionId);
-    if (!p) return { success: false, data: null as any, message: 'Prescription not found' };
-    const detail = {
-      prescriptionId: p.id || p._id,
-      appointmentId: p.appointmentId?._id || p.appointmentId,
-      doctor: {
-        doctorId: p.doctorId?._id || p.doctorId,
-        name: p.doctorId?.providerId?.fullName || '',
-        specialty: p.doctorId?.specialtyId?.name || '',
-        profileImage: p.doctorId?.providerId?.profilePhoto || '',
-        qualifications: p.doctorId?.qualifications || [],
-      },
-      patient: {
-        patientId: p.patientId?._id || p.patientId,
-        name: p.patientId?.fullName || '',
-        age: 0,
-        gender: '',
-      },
-      diagnosis: p.diagnosis || '',
-      medications: p.medications || [],
-      testsRecommended: (p.tests || []).map((t: any) => (typeof t === 'string' ? t : t?.name || '')),
-      specialInstructions: p.advice || '',
-      followUpDate: p.followUpDate ?? null,
-      issuedAt: p.createdAt || '',
-    };
-    return { ...res, data: prescriptionDetailSerializer(detail) };
+  let res = await healthcareApiRequest<any>(
+    `/prescriptions/${encodeURIComponent(prescriptionId)}`
+  );
+  let p = res.success ? res.data : null;
+
+  if (!p) {
+    // Backend without the single-prescription route: fall back to the patient's
+    // own list. limit is explicit because the endpoint defaults to 10.
+    const listRes = await healthcareApiRequest<any>('/prescriptions/my?limit=200');
+    if (!listRes.success) return listRes as ApiResponse<PrescriptionDetail>;
+    const list = Array.isArray(listRes.data)
+      ? listRes.data
+      : listRes.data?.prescriptions || [];
+    p = list.find(
+      (x: any) => String(x.id || x._id || x.prescriptionId) === String(prescriptionId)
+    );
+    res = listRes;
   }
-  return res as ApiResponse<PrescriptionDetail>;
+
+  if (!p) return { success: false, data: null as any, message: 'Prescription not found' };
+
+  const detail = {
+    prescriptionId: p.id || p._id,
+    appointmentId: p.appointmentId?._id || p.appointmentId,
+    doctor: {
+      doctorId: p.doctorId?._id || p.doctorId,
+      name: p.doctorId?.providerId?.fullName || '',
+      specialty: p.doctorId?.specialtyId?.name || '',
+      profileImage: p.doctorId?.providerId?.profilePhoto || '',
+      qualifications: p.doctorId?.qualifications || [],
+    },
+    patient: {
+      patientId: p.patientId?._id || p.patientId,
+      name: p.patientId?.fullName || '',
+      age: 0,
+      gender: '',
+    },
+    diagnosis: p.diagnosis || '',
+    medications: p.medications || [],
+    testsRecommended: (p.tests || []).map((t: any) => (typeof t === 'string' ? t : t?.name || '')),
+    specialInstructions: p.advice || '',
+    followUpDate: p.followUpDate ?? null,
+    issuedAt: p.createdAt || '',
+  };
+
+  return { ...res, data: prescriptionDetailSerializer(detail) };
 }
 
 // ═══════════════════════════════════════════
