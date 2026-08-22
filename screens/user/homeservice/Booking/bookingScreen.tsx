@@ -13,6 +13,7 @@ import {
   Image,
   Dimensions,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -113,12 +114,26 @@ export default function BookingScreen() {
     navigation.goBack();
   }, [navigation]);
 
-  const handleContinue = useCallback(() => {
-    if (!isFormValid || !bookingSummary) return;
-    dispatch(submitBooking(bookingSummary));
-    // @ts-ignore
-    navigation.navigate('BookConfirmation', { category });
-  }, [dispatch, isFormValid, bookingSummary, navigation, category]);
+  // The booking must exist on the server BEFORE we navigate: the confirmation
+  // screen and everything it leads to (tracking, service status, chat) are
+  // keyed by the real booking id. Firing this without awaiting is what left
+  // the next screen with no id at all.
+  const handleContinue = useCallback(async () => {
+    if (!isFormValid || !bookingSummary || isSubmitting) return;
+    try {
+      const result = await dispatch(submitBooking(bookingSummary)).unwrap();
+      // @ts-ignore
+      navigation.navigate('BookConfirmation', {
+        category,
+        bookingId: result.bookingId,
+      });
+    } catch (e) {
+      Alert.alert(
+        'Booking failed',
+        typeof e === 'string' ? e : 'We could not create your booking. Please try again.'
+      );
+    }
+  }, [dispatch, isFormValid, bookingSummary, isSubmitting, navigation, category]);
 
   const handleDateChange = useCallback((event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -196,9 +211,18 @@ export default function BookingScreen() {
         ? category 
         : 'ac-repairers';
       
-      dispatch(fetchBookingData({ 
-        providerId: providerId || 'default', 
-        category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers' 
+      // Same rule as the booking id: a missing providerId is a caller bug, and
+      // 'default' only ever produced GET /bookings/init/default → 404.
+      if (!providerId) {
+        if (__DEV__) {
+          console.warn('[bookingScreen] no providerId in route params — skipping fetch.');
+        }
+        return;
+      }
+
+      dispatch(fetchBookingData({
+        providerId,
+        category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers'
       }));
 
       // Cleanup when screen loses focus

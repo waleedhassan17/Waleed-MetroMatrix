@@ -1,26 +1,27 @@
 // ============================================================================
 // useCallSession — one call, from either side.
 //
-// SIGNALLING ONLY. ring / accept / decline / end travel over the socket so both
-// apps agree on call state; the actual audio is handed to the phone's native
-// dialer via a `tel:` URL. There is no in-app audio, no WebRTC, no Agora — that
-// is a deliberate product decision (it keeps the app in Expo's managed
-// workflow, with no native modules and no prebuild).
+// SIGNALLING. ring / accept / decline / end travel over the socket so both apps
+// agree on call state. The MEDIA is owned by usePeerConnection, which this hook
+// drives: audio (and video, for healthcare) flows peer-to-peer over WebRTC,
+// relayed through TURN only when a direct path is impossible.
 //
-// A consequence worth knowing: once the dialer takes over, the OS owns the
-// call. The app cannot observe when it ends, so the user hangs up in the dialer
-// and the app's own "End" button is what closes the signalling session.
+// This previously handed the audio to the phone's native dialer via a `tel:`
+// URL. Both sides did that independently, so two phones opened two dialers and
+// neither call ever connected in-app — that is the bug this replaces. It also
+// meant the app could not observe the call at all once the OS took over;
+// now 'connected' is a real state backed by a real connection.
 // ============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Alert } from 'react-native';
 import { getSocket, emitEvent, joinBooking, RoomType } from '../socket/socketClient';
+import { usePeerConnection, type MediaKind } from './usePeerConnection';
 
 export type CallPhase =
   | 'idle'
   | 'ringing'      // we are calling out
   | 'incoming'     // they are calling us
-  | 'connected'    // accepted; dialer handoff happens here
+  | 'connected'    // accepted; media is negotiating or live
   | 'busy'         // callee is on another call
   | 'declined'
   | 'missed'
@@ -34,9 +35,9 @@ const RING_TIMEOUT_MS = 30_000;
 export interface CallSessionOptions {
   roomId?: string;
   roomType?: RoomType;
-  /** Phone number to dial on connect — from the chat endpoint's participants. */
-  counterpartPhone?: string;
   counterpartName?: string;
+  /** 'video' adds a camera track — healthcare consultations. Audio otherwise. */
+  media?: MediaKind;
   /** Pre-existing call being answered (from a ring or a notification tap). */
   incomingCallId?: string;
   onClosed?: (phase: CallPhase) => void;
@@ -45,8 +46,8 @@ export interface CallSessionOptions {
 export function useCallSession({
   roomId,
   roomType = 'homeservice',
-  counterpartPhone,
   counterpartName,
+  media = 'audio',
   incomingCallId,
   onClosed,
 }: CallSessionOptions) {
@@ -74,6 +75,27 @@ export function useCallSession({
     [onClosed]
   );
 
+  // The media half. `isCaller` is decided by how this session began: a session
+  // seeded with an incoming callId is answering, everything else is placing.
+  // Both sides must agree, or they either deadlock or glare.
+  const isCaller = !incomingCallId;
+
+  const peer = usePeerConnection({
+    callId,
+    roomId,
+    roomType,
+    media,
+    isCaller,
+    onFailed: (message) => {
+      setError(message);
+      // Tell the other side, so they aren't left on a live call screen alone.
+      if (roomId && callId) {
+        emitEvent('call_end', { callId, roomId, bookingId: roomId, roomType });
+      }
+      close('ended');
+    },
+  });
+
   // Join the room so call frames for it reach this socket.
   useEffect(() => {
     if (roomId) joinBooking(roomId, roomType);
@@ -93,11 +115,11 @@ export function useCallSession({
       const onAccept = (p: any) => {
         if (!mounted || !sameCall(p)) return;
         clearRingTimer();
+        // They picked up. This used to read their phone number out of the
+        // payload and open the dialer; now it starts the peer connection, and
+        // as the caller we create the offer.
         setPhase('connected');
-        // The accepter's number rides along with the accept, so the caller can
-        // dial without another round-trip.
-        const number = p?.peer?.phoneNumber || counterpartPhone;
-        dial(number);
+        peer.start();
       };
       const onDecline = (p: any) => mounted && sameCall(p) && close('declined');
       const onEnd = (p: any) => mounted && sameCall(p) && close('ended');
@@ -128,28 +150,9 @@ export function useCallSession({
       mounted = false;
       detach?.();
     };
-  }, [callId, roomId, counterpartPhone, counterpartName, close]);
+  }, [callId, roomId, counterpartName, close, peer]);
 
   useEffect(() => () => clearRingTimer(), []);
-
-  const dial = useCallback(async (number?: string) => {
-    const target = (number || '').replace(/\s|-/g, '');
-    if (!target) {
-      Alert.alert('No phone number', 'This contact has no phone number on file.');
-      return;
-    }
-    const url = `tel:${target}`;
-    try {
-      const can = await Linking.canOpenURL(url);
-      if (!can) {
-        Alert.alert('Cannot place call', 'This device cannot open the phone dialer.');
-        return;
-      }
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert('Cannot place call', 'The dialer could not be opened.');
-    }
-  }, []);
 
   /** Outgoing: start ringing the counterpart. */
   const ring = useCallback(async () => {
@@ -187,22 +190,46 @@ export function useCallSession({
     }
     clearRingTimer();
     setPhase('connected');
-    dial(counterpartPhone);
-  }, [callId, roomId, roomType, counterpartPhone, close, dial]);
+    // Build the peer connection now and wait for the caller's offer. Starting
+    // before the ack would race the server's own accept check.
+    peer.start();
+  }, [callId, roomId, roomType, close, peer]);
 
   const decline = useCallback(async () => {
     if (roomId && callId) {
       await emitEvent('call_decline', { callId, roomId, bookingId: roomId, roomType });
     }
+    peer.teardown();
     close('declined');
-  }, [callId, roomId, roomType, close]);
+  }, [callId, roomId, roomType, close, peer]);
 
   const end = useCallback(async () => {
     if (roomId && callId) {
       await emitEvent('call_end', { callId, roomId, bookingId: roomId, roomType });
     }
+    // Release the mic/camera immediately. Waiting for unmount leaves the OS
+    // recording indicator lit after the user has clearly ended the call.
+    peer.teardown();
     close('ended');
-  }, [callId, roomId, roomType, close]);
+  }, [callId, roomId, roomType, close, peer]);
 
-  return { phase, callId, error, ring, accept, decline, end, dial };
+  // A call ended by the OTHER side (decline/end/missed) closes the signalling
+  // session through close(); the media must follow or the mic stays open.
+  useEffect(() => {
+    if (phase === 'ended' || phase === 'declined' || phase === 'missed' || phase === 'busy') {
+      peer.teardown();
+    }
+  }, [phase, peer]);
+
+  return {
+    phase,
+    callId,
+    error,
+    ring,
+    accept,
+    decline,
+    end,
+    // Media surface for the in-call UI.
+    media: peer,
+  };
 }

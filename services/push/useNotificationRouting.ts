@@ -32,7 +32,6 @@ async function openRoute(route: NotificationRoute, presentCall: (c: any) => void
         roomId: route.roomId,
         roomType: route.roomType,
         callerName: route.callerName,
-        callerPhone: route.callerPhone,
       });
     }
     return;

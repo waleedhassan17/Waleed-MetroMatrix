@@ -16,7 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { logout } from '../../../user-authentication/signin-screen/signinSlice';
+import { performLogout } from '../../../../services/auth/logout';
 
 // ── Theme ───────────────────────────────────
 const THEME = {
@@ -108,10 +108,12 @@ const HealthcareProfileScreen: React.FC = () => {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             // Navigating away left the session intact — going back or
-            // re-entering restored the logged-in user.
-            dispatch(logout());
+            // re-entering restored the logged-in user. `logout()` alone only
+            // cleared the sign-in slice, leaving the stored token and every
+            // other slice behind.
+            await performLogout(dispatch);
             navigation.reset({
               index: 0,
               routes: [{ name: 'RoleSelection' as never }],

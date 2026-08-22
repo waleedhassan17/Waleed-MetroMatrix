@@ -348,9 +348,18 @@ export default function LiveTrackingScreen() {
         ? category
         : 'ac-repairers';
 
-      // Initialize tracking
+      // No id, no fetch. This used to pass the literal string 'default',
+      // which the API answered with 404 "Resource not found" — a missing id is
+      // a caller bug, not something to paper over.
+      if (!bookingId) {
+        if (__DEV__) {
+          console.warn('[liveTracking] no bookingId in route params — skipping fetch.');
+        }
+        return;
+      }
+
       dispatch(initializeTracking({
-        bookingId: bookingId || 'default',
+        bookingId,
         category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
       }));
 
@@ -402,6 +411,24 @@ export default function LiveTrackingScreen() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
   };
+
+  // Without a booking there is nothing to track — say so rather than spinning
+  // on "Initializing tracking..." forever.
+  if (!bookingId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="navigate-outline" size={48} color="#94A3B8" />
+          <Text style={styles.loadingText}>No active booking to track</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
+              Go back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Loading state
   if (isLoading || !provider) {

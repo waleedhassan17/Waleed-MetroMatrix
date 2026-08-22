@@ -185,7 +185,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
               {counterpart?.name || fallbackTitle}
             </Text>
             <Text style={[styles.headerSub, { color: accentSoft }]}>
-              {typing ? 'typing…' : connected ? 'online' : 'offline mode'}
+              {typing ? 'typing…' : connected ? 'online' : 'reconnecting…'}
             </Text>
           </View>
         </View>
@@ -195,6 +195,19 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* A dropped socket is the most common reason a message silently fails to
+          deliver, and it used to be visible only as a two-word header
+          subtitle. Messages still queue and fall back to REST, so the wording
+          says "delayed", not "failed". */}
+      {!connected && !loading && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={15} color="#92400E" />
+          <Text style={styles.offlineBannerText}>
+            Reconnecting — new messages may be delayed
+          </Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -261,6 +274,22 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
 };
 
 const styles = StyleSheet.create({
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FEF3C7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+  },
+  offlineBannerText: {
+    fontSize: 12.5,
+    color: '#92400E',
+    fontWeight: '500',
+  },
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',

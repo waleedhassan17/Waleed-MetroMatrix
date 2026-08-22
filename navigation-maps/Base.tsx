@@ -99,6 +99,10 @@ import AdminHealthcareSettingsScreen from "../screens/admin/healthcare/AdminHeal
 // HS8: remaining Home Services customer + admin screens
 import AddressManagementScreen from "../screens/user/homeservice/address-management/AddressManagementScreen";
 import BookingDetailScreen from "../screens/user/homeservice/booking-detail/BookingDetailScreen";
+import FavoritesScreen from "../screens/user/homeservice/favorites/FavoritesScreen";
+import WebRTCDiagnosticScreen from "../screens/shared/communication/WebRTCDiagnosticScreen";
+import ProviderEditProfileScreen from "../screens/providers/homeservice/edit-profile/EditProfileScreen";
+import ProviderSettingsScreen from "../screens/providers/homeservice/settings/ProviderSettingsScreen";
 import RaiseDisputeScreen from "../screens/user/homeservice/raise-dispute/RaiseDisputeScreen";
 import HomeServiceNotificationsScreen from "../screens/user/homeservice/notifications/HomeServiceNotificationsScreen";
 import AdminHSBookingsScreen from "../screens/admin/homeservice/AdminBookings/AdminBookingsScreen";
@@ -195,6 +199,10 @@ export const BaseRouteNames = {
 
   // HS8: remaining customer + admin Home Services screens
   AddressManagement: "AddressManagement",
+  Favorites: "Favorites",
+  WebRTCDiagnostic: "WebRTCDiagnostic",
+  ProviderEditProfile: "ProviderEditProfile",
+  ProviderSettings: "ProviderSettings",
   BookingDetail: "BookingDetail",
   RaiseDispute: "RaiseDispute",
   HomeServiceNotifications: "HomeServiceNotifications",
@@ -258,7 +266,12 @@ export type RootStackParamList = {
   ProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; selectedServices?: string[] };
   ProviderProfile: { id: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   BookingScreen: { providerId: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
-  BookConfirmation: { category?: 'electricians' | 'plumbers' | 'ac-repairers' };
+  // bookingId is the real id returned by POST /bookings. It is optional only
+  // so legacy call sites still typecheck; every live path passes it.
+  BookConfirmation: {
+    category?: 'electricians' | 'plumbers' | 'ac-repairers';
+    bookingId?: string;
+  };
   liveTracking: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   serviceStatus: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   PaymentScreen: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; paymentData?: any };
@@ -320,13 +333,16 @@ export type RootStackParamList = {
   HealthcareConsultCall: {
     appointmentId: string;
     counterpartName?: string;
-    counterpartPhone?: string;
     counterpartImage?: string;
   };
   ProviderAvailability: undefined;
 
   // HS8
   AddressManagement: undefined;
+  Favorites: undefined;
+  WebRTCDiagnostic: undefined;
+  ProviderEditProfile: undefined;
+  ProviderSettings: undefined;
   BookingDetail: { bookingId: string };
   RaiseDispute: { bookingId: string };
   HomeServiceNotifications: undefined;
@@ -831,6 +847,31 @@ export const BaseRoutes: IRoute[] = [
   {
     component: AddressManagementScreen,
     title: BaseRouteNames.AddressManagement,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  // Dev diagnostic: proves the native WebRTC module builds, links and renders
+  // under the New Architecture on a given device. Reachable by name only.
+  {
+    component: WebRTCDiagnosticScreen,
+    title: BaseRouteNames.WebRTCDiagnostic,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  // Saved providers — the destination for the profile heart and the Favorites
+  // rows in both account menus.
+  {
+    component: FavoritesScreen,
+    title: BaseRouteNames.Favorites,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  // Provider account screens the profile's Account list and gear link to.
+  {
+    component: ProviderEditProfileScreen,
+    title: BaseRouteNames.ProviderEditProfile,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: ProviderSettingsScreen,
+    title: BaseRouteNames.ProviderSettings,
     options: { headerShown: false, animation: 'slide_from_right' }
   },
   {

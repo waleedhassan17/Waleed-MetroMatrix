@@ -317,9 +317,13 @@ const AppointmentDetailScreen: React.FC = () => {
 
   const handleJoinCall = () => {
     if (!appointment) return;
-    navigation.navigate(HealthcareRouteNames.VideoCall, {
-      appointmentId: appointment.appointmentId,
+    // Same unified call screen as voice — only `media` differs.
+    navigation.navigate('HealthcareConsultCall', {
       roomId: appointment.appointmentId,
+      appointmentId: appointment.appointmentId,
+      roomType: 'healthcare',
+      media: 'video',
+      counterpartName: appointment.doctorName,
     });
   };
 

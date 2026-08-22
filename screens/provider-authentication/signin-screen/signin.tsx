@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../../../store/store';
+import { resetAllState } from '../../../store/store';
 import { Ionicons } from '@expo/vector-icons';
 import {
   setEmail,
@@ -128,6 +129,12 @@ export default function ProviderSignInScreen() {
     if (!validateForm()) return;
 
     try {
+      // Clear any previous account's state BEFORE the new session lands.
+      // Logout is supposed to have done this already, but a crash, a force
+      // quit or an older build can leave another provider's slices in memory —
+      // and then this provider sees that provider's name, balance and jobs.
+      dispatch(resetAllState(true));
+
       const result = await dispatch(
         submitProviderSignInAsync({ email: email.trim().toLowerCase(), password })
       ).unwrap();

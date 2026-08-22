@@ -1,5 +1,5 @@
 // Bookings Screen - Professional MetroMatrix Style
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,10 @@ import {
   StatusBar,
   RefreshControl,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   MoreHorizontal,
   AlertCircle,
@@ -34,99 +35,50 @@ import {
 } from 'lucide-react-native';
 import { Colors, Gradients, Shadows, BorderRadius, Spacing } from '../../../../../constants/Colors';
 import { Typography } from '../../../../../constants/Fonts';
+import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
+import {
+  fetchBookings,
+  selectHomeServiceBookings,
+  selectBookingsLoading,
+  type Booking,
+  type BookingStatus,
+} from './bookingSlice';
 
 const { width } = Dimensions.get('window');
 
-// Types
-type BookingStatus = 'upcoming' | 'completed' | 'cancelled' | 'in_progress';
-
-interface Booking {
-  id: string;
-  serviceName: string;
-  serviceImage: string;
-  categoryName: string;
-  providerName: string;
-  providerAvatar: string;
-  status: BookingStatus;
-  date: string;
-  time: string;
-  address: string;
-  price: number;
-  rating?: number;
-}
-
+// Types, thunk and selectors all come from the slice — this screen used to
+// declare its own narrower Booking type and render a hardcoded mockBookings
+// array, which is why a freshly created booking never showed up here.
 type FilterType = 'all' | 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
 
-// Mock Bookings Data
-const mockBookings: Booking[] = [
-  {
-    id: 'booking-1',
-    serviceName: 'AC Installation & Repair',
-    serviceImage: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd',
-    categoryName: 'Maintenance',
-    providerName: 'CoolTech Services',
-    providerAvatar: 'https://i.pravatar.cc/150?img=1',
-    status: 'upcoming',
-    date: 'Jan 15, 2025',
-    time: '10:00 AM',
-    address: '123 Main Street, Lahore',
-    price: 2500,
-  },
-  {
-    id: 'booking-2',
-    serviceName: 'Pipe Leak Repair',
-    serviceImage: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7',
-    categoryName: 'Plumbing',
-    providerName: 'QuickFix Plumbing',
-    providerAvatar: 'https://i.pravatar.cc/150?img=2',
-    status: 'completed',
-    date: 'Jan 8, 2025',
-    time: '2:00 PM',
-    address: '456 Garden Road, Lahore',
-    price: 1500,
-    rating: 5,
-  },
-  {
-    id: 'booking-3',
-    serviceName: 'Wiring & Installation',
-    serviceImage: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e',
-    categoryName: 'Electrical',
-    providerName: 'PowerPro Electric',
-    providerAvatar: 'https://i.pravatar.cc/150?img=3',
-    status: 'cancelled',
-    date: 'Jan 12, 2025',
-    time: '11:00 AM',
-    address: '789 Tech Park, Lahore',
-    price: 3000,
-  },
-  {
-    id: 'booking-4',
-    serviceName: 'Home Deep Cleaning',
-    serviceImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952',
-    categoryName: 'Cleaning',
-    providerName: 'SparkleClean',
-    providerAvatar: 'https://i.pravatar.cc/150?img=4',
-    status: 'in_progress',
-    date: 'Jan 12, 2025',
-    time: '9:00 AM',
-    address: '321 Residence Lane, Lahore',
-    price: 4500,
-  },
-  {
-    id: 'booking-5',
-    serviceName: 'AC Maintenance',
-    serviceImage: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd',
-    categoryName: 'Maintenance',
-    providerName: 'CoolTech Services',
-    providerAvatar: 'https://i.pravatar.cc/150?img=1',
-    status: 'completed',
-    date: 'Dec 20, 2024',
-    time: '3:00 PM',
-    address: '123 Main Street, Lahore',
-    price: 1500,
-    rating: 4,
-  },
-];
+// The server's status vocabulary is wider than the filter tabs. A booking is
+// PENDING the moment it is created and only becomes CONFIRMED once a provider
+// accepts, so both must count as "Upcoming" — otherwise the booking a customer
+// just made is still missing from this list.
+const FILTER_STATUSES: Record<Exclude<FilterType, 'all'>, BookingStatus[]> = {
+  upcoming: ['pending', 'confirmed', 'upcoming'],
+  in_progress: ['in_progress'],
+  completed: ['completed'],
+  cancelled: ['cancelled'],
+};
+
+// Statuses where a provider is assigned and reachable, so call/chat make sense.
+const ACTIVE_STATUSES: BookingStatus[] = ['confirmed', 'upcoming', 'in_progress'];
+
+const matchesFilter = (booking: Booking, filter: FilterType) =>
+  filter === 'all' || FILTER_STATUSES[filter].includes(booking.status);
+
+// `categoryType` arrives as the raw service category slug.
+const CATEGORY_LABELS: Record<string, string> = {
+  electricians: 'Electrician',
+  plumbers: 'Plumber',
+  'ac-repairers': 'AC Repair',
+};
+
+// The bookings list serializer sends serviceImage as an empty string, which
+// renders as a broken image box rather than nothing.
+const CATEGORY_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=400&q=60';
 
 // Filter Options
 const filterOptions: { key: FilterType; label: string; icon: typeof Calendar }[] = [
@@ -142,6 +94,22 @@ const statusConfig: Record<
   BookingStatus,
   { label: string; color: string; bgColor: string; borderColor: string; icon: typeof AlertCircle }
 > = {
+  // A brand-new booking arrives as 'pending' and becomes 'confirmed' when a
+  // provider accepts. Both need a card style or the list crashes on lookup.
+  pending: {
+    label: 'Pending',
+    color: '#F59E0B',
+    bgColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+    icon: Loader,
+  },
+  confirmed: {
+    label: 'Confirmed',
+    color: '#0EA5E9',
+    bgColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    icon: CheckCircle,
+  },
   upcoming: {
     label: 'Upcoming',
     color: '#F59E0B',
@@ -255,7 +223,9 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const status = statusConfig[booking.status];
+  // Fall back rather than crash if the server ever adds a status the app
+  // doesn't know about yet.
+  const status = statusConfig[booking.status] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   useEffect(() => {
@@ -317,7 +287,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
           {/* Left: Service Image */}
           <View style={styles.serviceImageWrapper}>
             <Image
-              source={{ uri: booking.serviceImage }}
+              source={{ uri: booking.serviceImage || CATEGORY_FALLBACK_IMAGE }}
               style={styles.bookingServiceImage}
               resizeMode="cover"
             />
@@ -327,7 +297,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
             />
             <View style={styles.categoryOverlay}>
               <Text style={styles.categoryOverlayText}>
-                {booking.categoryName}
+                {CATEGORY_LABELS[booking.categoryType] || booking.categoryType}
               </Text>
             </View>
           </View>
@@ -388,12 +358,34 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
               </Text>
 
               {/* Action Buttons */}
-              {booking.status === 'upcoming' && (
+              {/* Both entry points carry the real bookingId, which is the
+                  room id the call/chat screens resolve against. */}
+              {ACTIVE_STATUSES.includes(booking.status) && (
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity style={styles.actionButton}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() =>
+                      navigation.navigate('CallScreen', {
+                        bookingId: booking.id,
+                        counterpartName: booking.providerName,
+                        counterpartImage: booking.providerAvatar,
+                      })
+                    }
+                    accessibilityLabel={`Call ${booking.providerName}`}
+                  >
                     <Phone size={16} color={Colors.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionButton}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() =>
+                      navigation.navigate('ProviderChatScreen', {
+                        bookingId: booking.id,
+                        counterpartName: booking.providerName,
+                        counterpartImage: booking.providerAvatar,
+                      })
+                    }
+                    accessibilityLabel={`Message ${booking.providerName}`}
+                  >
                     <MessageSquare size={16} color={Colors.primary} />
                   </TouchableOpacity>
                 </View>
@@ -412,7 +404,15 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
 
         {/* Rate Button for Completed */}
         {booking.status === 'completed' && !booking.rating && (
-          <TouchableOpacity style={styles.rateButton}>
+          <TouchableOpacity
+            style={styles.rateButton}
+            onPress={() =>
+              navigation.navigate('ReviewRating', {
+                bookingId: booking.id,
+                category: booking.categoryType as any,
+              })
+            }
+          >
             <LinearGradient
               colors={['#FEF3C7', '#FDE68A']}
               start={{ x: 0, y: 0 }}
@@ -431,7 +431,10 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
 };
 
 // Empty State Component
-const EmptyState: React.FC<{ filter: FilterType }> = ({ filter }) => (
+const EmptyState: React.FC<{ filter: FilterType }> = ({ filter }) => {
+  const navigation = useNavigation<any>();
+
+  return (
   <View style={styles.emptyState}>
     <View style={styles.emptyIconContainer}>
       <Calendar size={48} color="#9CA3AF" strokeWidth={1.5} />
@@ -442,7 +445,11 @@ const EmptyState: React.FC<{ filter: FilterType }> = ({ filter }) => (
         ? "You haven't made any bookings yet"
         : `You don't have any ${filter} bookings`}
     </Text>
-    <TouchableOpacity style={styles.emptyButton} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={styles.emptyButton}
+      activeOpacity={0.8}
+      onPress={() => navigation.navigate('ProvidersScreen', {})}
+    >
       <LinearGradient
         colors={Gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -453,12 +460,17 @@ const EmptyState: React.FC<{ filter: FilterType }> = ({ filter }) => (
       </LinearGradient>
     </TouchableOpacity>
   </View>
-);
+  );
+};
 
 // Main Bookings Screen Component
 export default function BookingsScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
+
+  const dispatch = useAppDispatch();
+  const bookings = useAppSelector(selectHomeServiceBookings);
+  const loading = useAppSelector(selectBookingsLoading);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
 
@@ -470,27 +482,39 @@ export default function BookingsScreen() {
     }).start();
   }, []);
 
-  // Filter bookings
-  const filteredBookings =
-    activeFilter === 'all'
-      ? mockBookings
-      : mockBookings.filter((b) => b.status === activeFilter);
+  // Refetch on every focus so a booking made moments ago on another screen is
+  // already here when the customer switches to this tab.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchBookings(undefined));
+    }, [dispatch])
+  );
 
-  // Get counts for each filter
-  const getCounts = () => ({
-    all: mockBookings.length,
-    upcoming: mockBookings.filter((b) => b.status === 'upcoming').length,
-    in_progress: mockBookings.filter((b) => b.status === 'in_progress').length,
-    completed: mockBookings.filter((b) => b.status === 'completed').length,
-    cancelled: mockBookings.filter((b) => b.status === 'cancelled').length,
-  });
+  // Filtering and counts are both computed from the real list.
+  const filteredBookings = useMemo(
+    () => bookings.filter((b) => matchesFilter(b, activeFilter)),
+    [bookings, activeFilter]
+  );
 
-  const counts = getCounts();
+  const counts = useMemo(
+    () => ({
+      all: bookings.length,
+      upcoming: bookings.filter((b) => matchesFilter(b, 'upcoming')).length,
+      in_progress: bookings.filter((b) => matchesFilter(b, 'in_progress')).length,
+      completed: bookings.filter((b) => matchesFilter(b, 'completed')).length,
+      cancelled: bookings.filter((b) => matchesFilter(b, 'cancelled')).length,
+    }),
+    [bookings]
+  );
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
-  };
+    try {
+      await dispatch(fetchBookings(undefined));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
 
   return (
     <View style={styles.container}>
@@ -519,8 +543,10 @@ export default function BookingsScreen() {
             Manage your service appointments
           </Text>
         </View>
-        <TouchableOpacity style={styles.menuButton}>
-          <SlidersHorizontal size={20} color="#374151" />
+        {/* Advanced filtering beyond the status tabs isn't built; dimmed and
+            disabled rather than tappable-but-inert. */}
+        <TouchableOpacity style={[styles.menuButton, styles.controlDisabled]} disabled>
+          <SlidersHorizontal size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -564,15 +590,23 @@ export default function BookingsScreen() {
               {filteredBookings.length} booking
               {filteredBookings.length !== 1 ? 's' : ''} found
             </Text>
-            <TouchableOpacity style={styles.sortButton}>
-              <Filter size={14} color="#6B7280" />
+            <TouchableOpacity
+              style={[styles.sortButton, styles.controlDisabled]}
+              disabled
+            >
+              <Filter size={14} color="#9CA3AF" />
               <Text style={styles.sortButtonText}>Sort</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Bookings or Empty State */}
-        {filteredBookings.length > 0 ? (
+        {/* Bookings, loader, or Empty State. The loader only shows on a cold
+            fetch — a pull-to-refresh already has its own spinner. */}
+        {loading.fetch && bookings.length === 0 ? (
+          <View style={styles.listLoading}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        ) : filteredBookings.length > 0 ? (
           filteredBookings.map((booking, index) => (
             <BookingCard key={booking.id} booking={booking} index={index} />
           ))
@@ -588,6 +622,14 @@ export default function BookingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  controlDisabled: {
+    opacity: 0.45,
+  },
+  listLoading: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',

@@ -49,6 +49,8 @@ import {
   toggleLanguage,
 } from './profileSlice';
 import { selectBalance, selectCurrency, fetchWallet } from '../../../../services/wallet';
+import { performLogout } from '../../../../services/auth/logout';
+import { contactSupport } from '../../../../utils/support/contactSupport';
 import { currencySymbol } from '../../../../constants/Currency';
 
 const { width } = Dimensions.get('window');
@@ -182,7 +184,9 @@ export default function ProviderProfileScreen() {
     },
   ];
 
-  // Account menu items - matching reference design
+  // Account menu items. Every entry now carries its own onPress — the array
+  // previously held presentation only, and the renderer spread no handler, so
+  // all four rows were decorative.
   const accountItems = [
     {
       id: 'edit',
@@ -191,30 +195,36 @@ export default function ProviderProfileScreen() {
       icon: User,
       color: '#059669',
       bgColor: '#D1FAE5',
+      onPress: () => (navigation as any).navigate('ProviderEditProfile'),
     },
     {
       id: 'payment',
       title: 'Payment Methods',
-      subtitle: 'Manage cards & wallets',
+      subtitle: 'Manage your wallet & payouts',
       icon: CreditCard,
       color: '#059669',
       bgColor: '#D1FAE5',
+      // The wallet is where payouts and balance actually live; a separate
+      // card-management screen has no backend behind it yet.
+      onPress: () => (navigation as any).navigate('WalletScreen'),
     },
     {
       id: 'addresses',
       title: 'My Addresses',
-      subtitle: 'Manage delivery locations',
+      subtitle: 'Manage saved locations',
       icon: MapPin,
       color: '#EF4444',
       bgColor: '#FEE2E2',
+      onPress: () => (navigation as any).navigate('AddressManagement'),
     },
     {
       id: 'favorites',
       title: 'Favorites',
-      subtitle: 'Your saved services',
+      subtitle: 'Providers you saved',
       icon: Heart,
       color: '#EC4899',
       bgColor: '#FCE7F3',
+      onPress: () => (navigation as any).navigate('Favorites'),
     },
   ];
 
@@ -224,7 +234,11 @@ export default function ProviderProfileScreen() {
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
+          // This used to only navigate. The token, the Redux state, the socket
+          // and the push registration all survived, so the next provider to
+          // sign in on this device inherited the previous one's session.
+          await performLogout(dispatch);
           (navigation as any).reset({
             index: 0,
             routes: [{ name: 'RoleSelection' }],
@@ -240,7 +254,14 @@ export default function ProviderProfileScreen() {
       'This action cannot be undone. All your data will be permanently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {} },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          // There is no account-deletion endpoint yet, and an empty handler
+          // that silently does nothing is worse than saying so: the provider
+          // would believe their account was gone.
+          onPress: () => contactSupport('Account deletion request'),
+        },
       ]
     );
   };
@@ -260,7 +281,11 @@ export default function ProviderProfileScreen() {
           style={styles.header}
         >
           {/* Settings Button */}
-          <TouchableOpacity style={styles.settingsButton}>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => (navigation as any).navigate('ProviderSettings')}
+            accessibilityLabel="Settings"
+          >
             <Settings size={22} color={theme.colors.text.inverse} />
           </TouchableOpacity>
 
@@ -289,8 +314,15 @@ export default function ProviderProfileScreen() {
                   <Shield size={10} color={theme.colors.text.inverse} fill={theme.colors.text.inverse} />
                 </View>
               )}
-              {/* Camera Button - Bottom Center */}
-              <TouchableOpacity style={styles.cameraButton}>
+              {/* Camera Button - Bottom Center.
+                  Avatar upload needs an image-picker + upload path that does
+                  not exist yet; sending the provider to Edit Profile is the
+                  honest nearest action. */}
+              <TouchableOpacity
+                style={styles.cameraButton}
+                onPress={() => (navigation as any).navigate('ProviderEditProfile')}
+                accessibilityLabel="Edit profile"
+              >
                 <Camera size={14} color={theme.colors.text.secondary} />
               </TouchableOpacity>
             </View>
@@ -359,7 +391,12 @@ export default function ProviderProfileScreen() {
         </View>
 
         {/* Rewards Card - Yellow Banner */}
-        <TouchableOpacity style={styles.rewardsCard} activeOpacity={0.8}>
+        {/* There is no rewards programme behind this yet. */}
+        <TouchableOpacity
+          style={[styles.rewardsCard, styles.menuItemDisabled]}
+          activeOpacity={0.8}
+          disabled
+        >
           <View style={styles.rewardsIconContainer}>
             <Gift size={24} color="#D97706" />
           </View>
@@ -414,6 +451,7 @@ export default function ProviderProfileScreen() {
                   index < accountItems.length - 1 && styles.menuItemBorder,
                 ]}
                 activeOpacity={0.7}
+                onPress={item.onPress}
               >
                 <View style={[styles.menuIconContainer, { backgroundColor: item.bgColor }]}>
                   <item.icon size={20} color={item.color} />
@@ -474,48 +512,49 @@ export default function ProviderProfileScreen() {
               />
             </View>
 
-            {/* Dark Mode */}
-            <View style={[styles.menuItem, styles.menuItemBorder]}>
+            {/* Dark Mode and Language are shown DISABLED on purpose.
+                Their switches were wired to Redux, but nothing in the app
+                consumes those values: there is no theme provider and no i18n
+                layer, and every screen hardcodes its colours and English
+                copy. A switch that flips and changes nothing reads as broken,
+                so until those layers exist these say so plainly. */}
+            <View style={[styles.menuItem, styles.menuItemBorder, styles.menuItemDisabled]}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#E0E7FF' }]}>
                 <Moon size={20} color="#6366F1" />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Dark Mode</Text>
-                <Text style={styles.menuSubtitle}>Switch theme</Text>
+                <Text style={styles.menuSubtitle}>Coming soon</Text>
               </View>
               <Switch
-                value={isDarkMode}
-                onValueChange={() => {
-                  dispatch(toggleDarkMode());
-                }}
+                value={false}
+                disabled
                 trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
-                thumbColor={isDarkMode ? theme.colors.primary : '#F3F4F6'}
+                thumbColor="#F3F4F6"
                 ios_backgroundColor="#E5E7EB"
               />
             </View>
 
             {/* Language */}
-            <View style={styles.menuItem}>
+            <View style={[styles.menuItem, styles.menuItemDisabled]}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#FCE7F3' }]}>
                 <Globe size={20} color="#EC4899" />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Language</Text>
-                <Text style={styles.menuSubtitle}>App language</Text>
+                <Text style={styles.menuSubtitle}>English · more coming soon</Text>
               </View>
               <View style={styles.languageToggle}>
-                <Text style={[styles.langText, !isUrdu && styles.langTextActive]}>EN</Text>
+                <Text style={[styles.langText, styles.langTextActive]}>EN</Text>
                 <Switch
-                  value={isUrdu}
-                  onValueChange={() => {
-                    dispatch(toggleLanguage());
-                  }}
+                  value={false}
+                  disabled
                   trackColor={{ false: '#E5E7EB', true: theme.colors.primaryLight }}
-                  thumbColor={isUrdu ? theme.colors.primary : '#F3F4F6'}
+                  thumbColor="#F3F4F6"
                   ios_backgroundColor="#E5E7EB"
                   style={styles.langSwitch}
                 />
-                <Text style={[styles.langText, isUrdu && styles.langTextActive]}>اردو</Text>
+                <Text style={styles.langText}>اردو</Text>
               </View>
             </View>
           </View>
@@ -565,6 +604,9 @@ export default function ProviderProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  menuItemDisabled: {
+    opacity: 0.5,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

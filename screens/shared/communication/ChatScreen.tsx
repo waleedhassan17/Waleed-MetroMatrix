@@ -69,7 +69,6 @@ export default function ChatScreen() {
         roomId: resolvedId || undefined,
         roomType: room.roomType,
         counterpartName: target?.name || room.name,
-        counterpartPhone: target?.phoneNumber || room.phone,
         counterpartImage: target?.image || room.image,
         accent: room.accent,
       });

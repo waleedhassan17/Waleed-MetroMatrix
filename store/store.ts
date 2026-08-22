@@ -34,6 +34,7 @@ import pendingReviewReducer from "../screens/admin/pending-review/pendingReviewS
 import notificationsReducer from "../screens/admin/notifications/notificationSlice";
 import settingsReducer from "../screens/admin/settings/settingsSlice";
 import homeServiceBookingsReducer from "../screens/user/homeservice/tabs/booking-screen/bookingSlice";
+import favoritesReducer from "../screens/user/homeservice/favorites/favoritesSlice";
 import serviceProvidersReducer from "../screens/user/homeservice/service-providers/providersSlice";
 import homeReducer from "../screens/user/homeservice/tabs/home-screen/homeSlice";
 import providerProfileReducer from "../screens/user/homeservice/provider-profile/providerProfileSlice";
@@ -160,7 +161,41 @@ const persistConfig = {
   whitelist: ['cart', 'wishlist'],
 };
 
-const rootReducer = combineReducers({
+// ============================================================================
+// Account-scoped state must not survive an account change.
+//
+// The store outlives a logout — it only dies with the JS bundle — so every
+// slice kept the previous account's data while the next account signed in.
+// That is why a provider could see another provider's name on Home, a stale
+// balance, or someone else's jobs: whichever screen had not refetched yet was
+// still rendering the last user's session.
+//
+// Resetting at the ROOT rather than slice by slice is deliberate. There are
+// well over a hundred slices here; any hand-maintained list of "the ones that
+// matter" would miss one, and the bug would quietly come back.
+// ============================================================================
+export const RESET_ALL_STATE = 'auth/resetAll' as const;
+
+// Slices that carry the SESSION rather than account-scoped data. On login they
+// must survive the wipe: the sign-in screens hold their email/password fields
+// in Redux, so clearing these mid-login would blank the form the user is
+// submitting — and lose their typed credentials if the attempt then failed.
+// On logout nothing is preserved.
+const SESSION_SLICES = ['signIn', 'providerSignIn', 'role', 'provider'] as const;
+
+/**
+ * Wipe every slice back to its initial state.
+ *
+ * `preserveSession` is for the LOGIN path, where the goal is to clear the
+ * previous account's data without disturbing the sign-in flow in progress.
+ * Logout calls this with no argument and keeps nothing.
+ */
+export const resetAllState = (preserveSession = false) => ({
+  type: RESET_ALL_STATE,
+  payload: { preserveSession },
+});
+
+const appReducer = combineReducers({
   role: roleSlice.reducer,
   provider: providerSlice.reducer,
   signIn: signInSlice.reducer,
@@ -183,6 +218,7 @@ const rootReducer = combineReducers({
   providerApproval: providerApprovalSlice.reducer,
   userHome: userHomeReducer,
   homeServiceBookings: homeServiceBookingsReducer,
+  favorites: favoritesReducer,
   serviceProviders: serviceProvidersReducer,
   home: homeReducer,
   providerProfile: providerProfileReducer,
@@ -287,6 +323,35 @@ const rootReducer = combineReducers({
   adminShoppingSettings: adminShoppingSettingsReducer,
 });
 
+// Handing `undefined` state to combineReducers makes every slice rebuild from
+// its own initial state. The action itself is still forwarded so any slice
+// that wants to react to it explicitly can.
+const rootReducer = (
+  state: ReturnType<typeof appReducer> | undefined,
+  action: { type: string; payload?: { preserveSession?: boolean } }
+) => {
+  if (action.type !== RESET_ALL_STATE) {
+    return appReducer(state, action as never);
+  }
+
+  if (!state || !action.payload?.preserveSession) {
+    return appReducer(undefined, action as never);
+  }
+
+  // Carry the session slices across the wipe by seeding the rebuilt tree with
+  // them; every other slice still rebuilds from its own initial state.
+  const kept: Partial<ReturnType<typeof appReducer>> = {};
+  for (const key of SESSION_SLICES) {
+    if (key in state) {
+      (kept as Record<string, unknown>)[key] = (state as Record<string, unknown>)[key];
+    }
+  }
+  return appReducer(
+    kept as ReturnType<typeof appReducer>,
+    action as never
+  );
+};
+
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
@@ -301,5 +366,5 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 
-export type RootState = ReturnType<typeof rootReducer>;
+export type RootState = ReturnType<typeof appReducer>;
 export type AppDispatch = typeof store.dispatch;

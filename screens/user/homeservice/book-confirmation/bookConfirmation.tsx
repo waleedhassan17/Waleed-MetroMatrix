@@ -25,12 +25,16 @@ import {
   setBookingStatus,
   cancelBooking,
   resetConfirmation,
+  initializeConfirmation,
+  cancelBookingRequest,
+  checkBookingStatus,
   selectBookingConfirmation,
   selectConfirmationProvider,
   selectConfirmationDetails,
   BookingStatusType,
 } from './bookConfirmationSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 
 const { width, height } = Dimensions.get('window');
 const isAndroid = Platform.OS === 'android';
@@ -68,22 +72,41 @@ const SERVICE_CONFIG: Record<string, {
 
 type BookConfirmationRouteParams = {
   category?: 'electricians' | 'plumbers' | 'ac-repairers';
+  // The real id from POST /bookings.
+  bookingId?: string;
 };
 
 const TOTAL_WAIT_TIME = 300; // 5 minutes in seconds
-const AUTO_ACCEPT_TIME = 10000; // 10 seconds for auto-accept
+// Backstop for the socket. The screen previously "accepted" every booking
+// after 10 seconds regardless of what the provider did.
+const STATUS_POLL_INTERVAL_MS = 10000;
 
 export default function BookConfirmationScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: BookConfirmationRouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { category = 'ac-repairers' } = route.params || {};
+  const { category = 'ac-repairers', bookingId: routeBookingId } = route.params || {};
 
   // Redux state
   const bookingConfirmation = useSelector(selectBookingConfirmation);
   const provider = useSelector(selectConfirmationProvider);
   const bookingDetails = useSelector(selectConfirmationDetails);
+
+  // What POST /bookings returned, still sitting in the booking slice. Seeding
+  // from it spares a round trip on the common path (straight from checkout).
+  const createdBooking = useSelector(
+    (state: RootState) => state.booking?.bookingConfirmation
+  );
+
+  // The one id every downstream screen keys off. Route param first (freshest),
+  // then whatever the store already holds. There is no fallback beyond that —
+  // no booking means no id, and the screen says so.
+  const bookingId = routeBookingId || bookingConfirmation?.bookingId || '';
+
+  // Live status straight from the realtime service, same hook serviceStatus
+  // and liveTracking use.
+  const { roomStatus } = useRoomSocket(bookingId || undefined, 'homeservice');
 
   // Local state
   const [timeLeft, setTimeLeft] = useState(TOTAL_WAIT_TIME);
@@ -113,15 +136,20 @@ export default function BookConfirmationScreen() {
     navigation.goBack();
   }, [navigation]);
 
+  // These used to read `bookingDetails?.bookingId` — a field BookingDetails
+  // does not even have, so it was always undefined and became 'default'
+  // downstream. Use the resolved real id, and don't navigate without one.
   const handleTrackProvider = useCallback(() => {
+    if (!bookingId) return;
     // @ts-ignore
-    navigation.navigate('liveTracking', { category, bookingId: bookingDetails?.bookingId });
-  }, [navigation, category, bookingDetails]);
+    navigation.navigate('liveTracking', { category, bookingId });
+  }, [navigation, category, bookingId]);
 
   const handleCheckServiceStatus = useCallback(() => {
+    if (!bookingId) return;
     // @ts-ignore
-    navigation.navigate('serviceStatus', { category, bookingId: bookingDetails?.bookingId });
-  }, [navigation, category, bookingDetails]);
+    navigation.navigate('serviceStatus', { category, bookingId });
+  }, [navigation, category, bookingId]);
 
   const handleBackToProviders = useCallback(() => {
     dispatch(resetConfirmation());
@@ -132,12 +160,18 @@ export default function BookConfirmationScreen() {
     setShowCancelModal(true);
   }, []);
 
+  // Cancelling must reach the server — otherwise the provider keeps seeing a
+  // live job the customer believes they cancelled.
   const handleConfirmCancel = useCallback(() => {
-    dispatch(cancelBooking());
+    if (bookingId) {
+      dispatch(cancelBookingRequest(bookingId));
+    } else {
+      dispatch(cancelBooking());
+    }
     setIsTimerActive(false);
     setShowCancelModal(false);
     navigation.goBack();
-  }, [dispatch, navigation]);
+  }, [dispatch, navigation, bookingId]);
 
   const handleDismissCancelModal = useCallback(() => {
     setShowCancelModal(false);
@@ -287,56 +321,95 @@ export default function BookConfirmationScreen() {
     };
   }, [timeLeft, isTimerActive, bookingStatus, dispatch, statusAnim, progressAnim]);
 
-  // Auto-accept after 10 seconds
+  // Success animations, now driven by a REAL 'accepted' status rather than a
+  // 10-second timer that fired whether or not a provider ever responded.
   useEffect(() => {
-    if (bookingStatus !== 'waiting') return;
+    if (bookingStatus !== 'accepted') return;
 
-    const autoAcceptTimeout = setTimeout(() => {
-      dispatch(setBookingStatus('accepted'));
-      setIsTimerActive(false);
+    setIsTimerActive(false);
 
-      // Staggered success animations
-      Animated.sequence([
-        Animated.timing(statusAnim, {
-          toValue: 1,
-          duration: 400,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          tension: 100,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Button animations with stagger
-      Animated.stagger(150, [
-        Animated.spring(buttonAnim1, {
-          toValue: 1,
-          tension: 80,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.spring(buttonAnim2, {
-          toValue: 1,
-          tension: 80,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      Animated.timing(checkmarkAnim, {
+    Animated.sequence([
+      Animated.timing(statusAnim, {
         toValue: 1,
-        duration: 600,
-        delay: 200,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
         useNativeDriver: true,
-      }).start();
-    }, AUTO_ACCEPT_TIME);
+      }),
+      Animated.spring(checkmarkScale, {
+        toValue: 1,
+        tension: 100,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    return () => clearTimeout(autoAcceptTimeout);
-  }, [bookingStatus, dispatch, statusAnim, checkmarkAnim, checkmarkScale, buttonAnim1, buttonAnim2]);
+    Animated.stagger(150, [
+      Animated.spring(buttonAnim1, {
+        toValue: 1,
+        tension: 80,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonAnim2, {
+        toValue: 1,
+        tension: 80,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.timing(checkmarkAnim, {
+      toValue: 1,
+      duration: 600,
+      delay: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [bookingStatus, statusAnim, checkmarkAnim, checkmarkScale, buttonAnim1, buttonAnim2]);
+
+  // Seed the screen from the real booking. Uses what POST /bookings already
+  // returned when it is still in the store, and reads GET /bookings/:id
+  // otherwise (deep link, app resumed on this screen).
+  useEffect(() => {
+    if (!bookingId) return;
+    if (bookingConfirmation?.bookingId === bookingId) return;
+
+    const seeded =
+      createdBooking && createdBooking.bookingId === bookingId ? createdBooking : null;
+
+    dispatch(
+      initializeConfirmation({
+        bookingId,
+        provider: (seeded?.provider as any) ?? null,
+        bookingDetails: (seeded?.bookingDetails as any) ?? null,
+      })
+    );
+  }, [dispatch, bookingId, bookingConfirmation?.bookingId, createdBooking]);
+
+  // Provider accepted/declined over the socket.
+  useEffect(() => {
+    const next = (roomStatus as any)?.status;
+    if (!next) return;
+
+    if (next === 'confirmed' || next === 'accepted') {
+      dispatch(setBookingStatus('accepted'));
+    } else if (next === 'rejected' || next === 'declined') {
+      dispatch(setBookingStatus('declined'));
+    } else if (next === 'cancelled') {
+      dispatch(setBookingStatus('cancelled'));
+    }
+  }, [roomStatus, dispatch]);
+
+  // Polling backstop: if the realtime service is unreachable the customer must
+  // still find out that their booking was accepted.
+  useEffect(() => {
+    if (!bookingId || bookingStatus !== 'waiting') return;
+
+    const poll = setInterval(() => {
+      dispatch(checkBookingStatus(bookingId));
+    }, STATUS_POLL_INTERVAL_MS);
+
+    return () => clearInterval(poll);
+  }, [dispatch, bookingId, bookingStatus]);
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -937,6 +1010,30 @@ export default function BookConfirmationScreen() {
     </Modal>
   );
 
+  // Reaching this screen without a booking id is a caller bug. Say so plainly
+  // instead of rendering a confirmation for a booking that does not exist.
+  if (!bookingId) {
+    if (__DEV__) {
+      console.warn('[BookConfirmation] opened with no bookingId — check the caller.');
+    }
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        {renderHeader()}
+        <View style={styles.emptyGuard}>
+          <Ionicons name="calendar-outline" size={56} color="#94A3B8" />
+          <Text style={styles.emptyGuardTitle}>No active booking</Text>
+          <Text style={styles.emptyGuardText}>
+            We couldn't find a booking to confirm. Please start a new booking.
+          </Text>
+          <TouchableOpacity style={styles.emptyGuardBtn} onPress={handleBackPress}>
+            <Text style={styles.emptyGuardBtnText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -966,6 +1063,38 @@ export default function BookConfirmationScreen() {
 }
 
 const styles = StyleSheet.create({
+  emptyGuard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  emptyGuardTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: '#1E293B',
+    marginTop: 8,
+  },
+  emptyGuardText: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyGuardBtn: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  emptyGuardBtnText: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    color: '#334155',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

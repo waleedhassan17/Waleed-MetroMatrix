@@ -13,6 +13,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -35,6 +36,19 @@ import {
   Activity,
   Wallet,
 } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
+import {
+  fetchEarningsData,
+  refreshEarnings,
+  requestPayout,
+  selectEarningsStats,
+  selectMonthlyData,
+  selectRecentPayments,
+  selectPerformanceMetrics,
+  selectEarningsLoading,
+  selectEarningsError,
+} from './earningSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -89,64 +103,19 @@ interface PaymentItem {
   description: string;
 }
 
-const mockStats = {
-  totalEarnings: 145600,
-  thisMonthEarnings: 34200,
-  pendingPayouts: 12400,
-  completedJobsCount: 87,
-  monthlyGrowth: 15.3,
-};
+// The four mock* constants that used to sit here fed this entire screen —
+// every figure a provider saw (total earnings, monthly chart, recent payments,
+// performance tier) was invented and identical for every account. The real
+// GET /provider/earnings payload matches these shapes field for field, and
+// fetchEarningsData has always existed to load it.
 
-const mockMonthlyData = [
-  { month: 'Aug', amount: 18500, jobs: 12 },
-  { month: 'Sep', amount: 22100, jobs: 15 },
-  { month: 'Oct', amount: 28400, jobs: 18 },
-  { month: 'Nov', amount: 31200, jobs: 21 },
-  { month: 'Dec', amount: 26800, jobs: 16 },
-  { month: 'Jan', amount: 34200, jobs: 19 },
-];
-
-const mockRecentPayments: PaymentItem[] = [
-  {
-    id: '1',
-    description: 'AC Installation Service',
-    amount: 8500,
-    date: '2026-01-24',
-    status: 'completed',
-    type: 'earning',
-  },
-  {
-    id: '2',
-    description: 'Plumbing Repair',
-    amount: 3200,
-    date: '2026-01-23',
-    status: 'pending',
-    type: 'earning',
-  },
-  {
-    id: '3',
-    description: 'Payout to Bank Account',
-    amount: 5000,
-    date: '2026-01-22',
-    status: 'processing',
-    type: 'payout',
-  },
-  {
-    id: '4',
-    description: 'Electrical Work',
-    amount: 2800,
-    date: '2026-01-20',
-    status: 'completed',
-    type: 'earning',
-  },
-];
-
-const mockPerformance = {
-  avgRating: 4.8,
-  onTimeRate: 96,
-  statusTier: 'Gold',
-  repeatCustomerRate: 78,
-};
+// One list of periods, shared by the chart's inline selector and the header
+// filter, so the two can never drift apart.
+const PERIOD_OPTIONS = [
+  { key: 'W', label: 'This week' },
+  { key: 'M', label: 'This month' },
+  { key: 'Y', label: 'This year' },
+] as const;
 
 // Utility functions
 const formatCurrency = (amount: number): string => {
@@ -159,11 +128,18 @@ const formatDate = (dateString: string): string => {
 };
 
 export default function EarningsScreen() {
-  const [stats] = useState(mockStats);
-  const [monthlyData] = useState(mockMonthlyData);
-  const [recentPayments] = useState(mockRecentPayments);
-  const [performance] = useState(mockPerformance);
+  const dispatch = useAppDispatch();
+
+  // Real figures, scoped to this provider by their own JWT.
+  const stats = useAppSelector(selectEarningsStats);
+  const monthlyData = useAppSelector(selectMonthlyData);
+  const recentPayments = useAppSelector(selectRecentPayments);
+  const performance = useAppSelector(selectPerformanceMetrics);
+  const loading = useAppSelector(selectEarningsLoading);
+  const error = useAppSelector(selectEarningsError);
+
   const [selectedPeriod, setSelectedPeriod] = useState('M');
+  const [showPeriodFilter, setShowPeriodFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState('');
@@ -178,12 +154,23 @@ export default function EarningsScreen() {
     }).start();
   }, []);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+  // Refetch on focus so a job completed since the last visit is reflected.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchEarningsData());
+    }, [dispatch])
+  );
 
-  const handleRequestPayout = useCallback(() => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(refreshEarnings());
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
+
+  const handleRequestPayout = useCallback(async () => {
     const amount = parseFloat(payoutAmount);
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid amount');
@@ -193,10 +180,24 @@ export default function EarningsScreen() {
       Alert.alert('Insufficient Balance', 'Amount exceeds available balance');
       return;
     }
-    setShowPayoutModal(false);
-    setPayoutAmount('');
-    Alert.alert('Success', 'Payout request submitted successfully');
-  }, [payoutAmount, stats.pendingPayouts]);
+
+    try {
+      // This used to close the modal and claim success without asking the
+      // server for anything.
+      // 'bank' matches the backend default; a method picker is a separate
+      // feature, not part of making this button honest.
+      await dispatch(requestPayout({ amount, method: 'bank' })).unwrap();
+      setShowPayoutModal(false);
+      setPayoutAmount('');
+      Alert.alert('Success', 'Payout request submitted successfully');
+      dispatch(fetchEarningsData());
+    } catch (e) {
+      Alert.alert(
+        'Payout failed',
+        typeof e === 'string' ? e : 'We could not submit your payout request.'
+      );
+    }
+  }, [dispatch, payoutAmount, stats.pendingPayouts]);
 
   // Stats Card Component
   const StatsCard = ({
@@ -259,9 +260,10 @@ export default function EarningsScreen() {
       <View style={styles.performanceHeader}>
         <Activity size={20} color={theme.colors.primary} />
         <Text style={styles.performanceTitle}>Performance</Text>
-        <TouchableOpacity style={styles.detailsBtn}>
+        {/* No performance-breakdown screen exists yet. */}
+        <TouchableOpacity style={[styles.detailsBtn, styles.controlDisabled]} disabled>
           <Text style={styles.detailsBtnText}>Details</Text>
-          <ChevronRight size={14} color={theme.colors.primary} />
+          <ChevronRight size={14} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
@@ -300,7 +302,11 @@ export default function EarningsScreen() {
 
   // Chart Section
   const ChartSection = () => {
-    const maxAmount = Math.max(...monthlyData.map((d) => d.amount));
+    // A provider with no completed jobs yet has an empty series. Math.max() of
+    // nothing is -Infinity, which turned every bar height into NaN.
+    const maxAmount = monthlyData.length
+      ? Math.max(...monthlyData.map((d) => d.amount), 1)
+      : 1;
 
     return (
       <View style={styles.chartCard}>
@@ -310,7 +316,7 @@ export default function EarningsScreen() {
             <Text style={styles.chartSubtitle}>Last 6 months</Text>
           </View>
           <View style={styles.periodSelector}>
-            {['W', 'M', 'Y'].map((period) => (
+            {PERIOD_OPTIONS.map(({ key: period }) => (
               <TouchableOpacity
                 key={period}
                 style={[
@@ -407,6 +413,58 @@ export default function EarningsScreen() {
     );
   };
 
+  // Period filter. The Filter button used to be inert even though the chart
+  // already had a W/M/Y control — this just surfaces it from the header.
+  const PeriodFilterModal = () => (
+    <Modal
+      visible={showPeriodFilter}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPeriodFilter(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter by period</Text>
+            <TouchableOpacity onPress={() => setShowPeriodFilter(false)}>
+              <X size={24} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalBody}>
+            {PERIOD_OPTIONS.map((option) => {
+              const isActive = selectedPeriod === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.periodOption, isActive && styles.periodOptionActive]}
+                  onPress={() => {
+                    setSelectedPeriod(option.key);
+                    setShowPeriodFilter(false);
+                  }}
+                >
+                  <Calendar
+                    size={18}
+                    color={isActive ? theme.colors.primary : theme.colors.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.periodOptionText,
+                      isActive && styles.periodOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {isActive && <CheckCircle2 size={18} color={theme.colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   // Payout Modal
   const PayoutModal = () => (
     <Modal
@@ -469,11 +527,21 @@ export default function EarningsScreen() {
           <Text style={styles.headerSubtitle}>Financial overview</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerBtn}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => setShowPeriodFilter(true)}
+            accessibilityLabel="Filter earnings by period"
+          >
             <Filter size={20} color={theme.colors.text.secondary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn}>
-            <Download size={20} color={theme.colors.text.secondary} />
+          {/* Export is not built yet. A disabled, dimmed control is honest;
+              a tappable one that does nothing is the bug QA reported. */}
+          <TouchableOpacity
+            style={[styles.headerBtn, styles.headerBtnDisabled]}
+            disabled
+            accessibilityLabel="Download earnings report (coming soon)"
+          >
+            <Download size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -491,6 +559,27 @@ export default function EarningsScreen() {
           />
         }
       >
+        {/* A failed fetch must be visible — otherwise the screen silently
+            shows zeroes and looks like a provider with no earnings. */}
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText} numberOfLines={3}>{error}</Text>
+            <TouchableOpacity
+              style={styles.errorRetryBtn}
+              onPress={() => dispatch(fetchEarningsData())}
+            >
+              <Text style={styles.errorRetryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Cold load only — a pull-to-refresh has its own spinner. */}
+        {loading && !stats.totalEarnings && !recentPayments.length && (
+          <View style={styles.coldLoading}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        )}
+
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           <StatsCard
@@ -516,11 +605,12 @@ export default function EarningsScreen() {
             bgColor="#FFFBEB"
             onPress={() => setShowPayoutModal(true)}
           />
+          {/* No trend badge here: the API sends growth for earnings only, and
+              a hardcoded "+12.3%" on completed jobs was fiction. */}
           <StatsCard
             title="Completed"
             value={stats.completedJobsCount.toString()}
             icon={CheckCircle2}
-            trend={12.3}
             color={theme.colors.purple}
             bgColor="#EDE9FE"
           />
@@ -538,9 +628,11 @@ export default function EarningsScreen() {
                 {recentPayments.length} payments
               </Text>
             </View>
-            <TouchableOpacity style={styles.viewAllBtn}>
+            {/* The API returns the 10 most recent payments; there is no
+                paginated transaction history endpoint behind "View All". */}
+            <TouchableOpacity style={[styles.viewAllBtn, styles.controlDisabled]} disabled>
               <Text style={styles.viewAllText}>View All</Text>
-              <ChevronRight size={14} color={theme.colors.primary} />
+              <ChevronRight size={14} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </View>
 
@@ -555,11 +647,75 @@ export default function EarningsScreen() {
       </ScrollView>
 
       <PayoutModal />
+      <PeriodFilterModal />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  controlDisabled: {
+    opacity: 0.4,
+  },
+  coldLoading: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.error,
+  },
+  errorRetryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.error,
+  },
+  errorRetryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text.inverse,
+  },
+  headerBtnDisabled: {
+    opacity: 0.4,
+  },
+  periodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 10,
+  },
+  periodOptionActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  periodOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: theme.colors.text.primary,
+  },
+  periodOptionTextActive: {
+    color: theme.colors.primaryDark,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

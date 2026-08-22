@@ -32,6 +32,7 @@ import {
 } from './serviceSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
+import { contactSupport } from '../../../../utils/support/contactSupport';
 
 const { width } = Dimensions.get('window');
 
@@ -131,9 +132,14 @@ export default function ServiceStatusScreen() {
     }
   }, [dispatch, navigation, serviceStatus, showPaymentSection]);
 
+  const handleSupportPress = useCallback(() => {
+    contactSupport(bookingId ? `Booking ${bookingId}` : 'Service status');
+  }, [bookingId]);
+
   const handleServiceCompleted = useCallback(() => {
-    dispatch(markServiceCompleted({ bookingId: bookingId || 'default' }));
-    
+    if (!bookingId) return;
+    dispatch(markServiceCompleted({ bookingId }));
+
     // Animate payment section
     setTimeout(() => {
       setShowPaymentSection(true);
@@ -267,10 +273,19 @@ export default function ServiceStatusScreen() {
         ? category
         : 'ac-repairers';
 
+      // No id, no fetch — 'default' was never a booking, it was just a 404
+      // waiting to happen ("API Response error" on this screen).
+      if (!bookingId) {
+        if (__DEV__) {
+          console.warn('[serviceStatus] no bookingId in route params — skipping fetch.');
+        }
+        return;
+      }
+
       // Small delay to ensure state is cleared before fetching
       const timer = setTimeout(() => {
         dispatch(fetchServiceStatus({
-          bookingId: bookingId || 'default',
+          bookingId,
           category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
         }));
       }, 50);
@@ -309,6 +324,23 @@ export default function ServiceStatusScreen() {
       return () => clearTimeout(timer);
     }
   }, [isLoading, provider, isReady, runEntranceAnimations]);
+
+  // No booking means no status to show — don't spin forever.
+  if (!bookingId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="clipboard-outline" size={48} color="#94A3B8" />
+          <Text style={styles.loadingText}>No active booking</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
+              Go back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Loading state
   if (isLoading || !provider) {
@@ -735,7 +767,11 @@ export default function ServiceStatusScreen() {
         },
       ]}
     >
-      <TouchableOpacity style={styles.helpCard} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.helpCard}
+        activeOpacity={0.8}
+        onPress={handleSupportPress}
+      >
         <View style={[styles.helpIconContainer, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
           <Ionicons name="help-circle-outline" size={22} color={serviceConfig.accentColor} />
         </View>

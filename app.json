@@ -45,6 +45,12 @@
           {
             "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
           }
+        ],
+        "NSCameraUsageDescription": "MetroMatrix uses your camera for video consultations with your doctor.",
+        "NSMicrophoneUsageDescription": "MetroMatrix uses your microphone so you can talk to your service provider or doctor during an in-app call.",
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
         ]
       }
     },
@@ -60,7 +66,11 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
     "web": {
@@ -102,7 +112,8 @@
           "color": "#2563EB",
           "defaultChannel": "messages"
         }
-      ]
+      ],
+      "@config-plugins/react-native-webrtc"
     ],
     "extra": {
       "eas": {

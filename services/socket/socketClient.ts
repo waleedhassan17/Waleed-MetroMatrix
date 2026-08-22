@@ -71,6 +71,19 @@ export async function getSocket(): Promise<Socket | null> {
   return socket;
 }
 
+/**
+ * Is the socket live RIGHT NOW — synchronous, never opens a connection.
+ *
+ * Exists for callers that must decide something instantly and cannot await
+ * getSocket(), which would connect as a side effect. The notification handler
+ * is the motivating case: it has microseconds to decide whether to show an
+ * incoming-call banner, and the answer depends on whether the in-app call
+ * sheet is already going to appear.
+ */
+export function isSocketConnected(): boolean {
+  return !!socket && socket.connected;
+}
+
 /** Call on logout — tears the connection down completely. */
 export function disconnectSocket() {
   if (socket) {

@@ -216,7 +216,6 @@ export default function BookingDetailScreen() {
                     bookingId,
                     provider: data.provider,
                     counterpartName: data.provider?.name,
-                    counterpartPhone: data.provider?.phoneNumber,
                   })
                 }
               />

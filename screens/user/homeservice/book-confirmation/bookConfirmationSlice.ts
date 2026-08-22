@@ -1,4 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { fetchBookingDetail } from '../../../../networks/serviceProviders/adminHomeServiceApi';
+import {
+  createBooking,
+  cancelBooking as cancelBookingApi,
+} from '../../../../networks/serviceProviders/bookingNetwork';
 
 // Define local state type for selectors to avoid circular dependency
 type BookConfirmationRootState = { bookConfirmation: BookConfirmationState };
@@ -98,147 +103,180 @@ const initialState: BookConfirmationState = {
   notificationSentAt: null,
 };
 
-// Mock Provider Data
-const MOCK_PROVIDERS: Record<string, ProviderInfo> = {
-  electricians: {
-    id: 'elec-001',
-    name: 'Usman Ali',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
-    service: 'Electrical Services',
-    specialty: 'Wiring & Installation Specialist',
-    rating: 4.8,
-    reviews: 189,
-    experience: '10+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~15 min',
-    basePrice: 3000,
-    category: 'electricians',
-  },
-  plumbers: {
-    id: 'plumb-001',
-    name: 'Ahmad Raza',
-    image: 'https://randomuser.me/api/portraits/men/1.jpg',
-    service: 'Plumbing Services',
-    specialty: 'Pipe Fitting & Leak Repairs',
-    rating: 4.9,
-    reviews: 245,
-    experience: '8+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~10 min',
-    basePrice: 2500,
-    category: 'plumbers',
-  },
-  'ac-repairers': {
-    id: 'ac-001',
-    name: 'Bilal Ahmed',
-    image: 'https://randomuser.me/api/portraits/men/45.jpg',
-    service: 'AC Repair Services',
-    specialty: 'AC Installation & Cooling Expert',
-    rating: 4.7,
-    reviews: 167,
-    experience: '6+ years',
-    verified: true,
-    isOnline: true,
-    responseTime: '~20 min',
-    basePrice: 3500,
-    category: 'ac-repairers',
-  },
+// ============================================================================
+// Every thunk below talks to the real backend.
+//
+// This slice used to simulate the whole flow: it invented a provider from a
+// MOCK_PROVIDERS table and minted a `BK-<timestamp>` booking id. That fake id
+// then flowed into tracking, service status and chat, where it became
+// `GET /bookings/default/tracking` and 404'd. There is no local booking id —
+// only the one POST /bookings returns.
+// ============================================================================
+
+// The server's confirmation vocabulary -> this screen's status vocabulary.
+// 'timeout' is intentionally absent: it is a client-side wait-expiry state and
+// the server never reports it.
+const toScreenStatus = (apiStatus?: string): BookingStatusType => {
+  switch (apiStatus) {
+    case 'confirmed':
+      return 'accepted';
+    case 'rejected':
+      return 'declined';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'waiting';
+  }
+};
+
+// The booking payload carries the provider under the shared BookingProvider
+// shape, which already matches ProviderInfo field for field.
+const toProviderInfo = (raw: any): ProviderInfo | null => {
+  if (!raw || !raw.id) return null;
+  return {
+    id: String(raw.id),
+    name: raw.name || '',
+    image: raw.image || '',
+    service: raw.service || '',
+    specialty: raw.specialty || '',
+    rating: raw.rating || 0,
+    reviews: raw.reviews || 0,
+    experience: raw.experience || '',
+    verified: !!raw.verified,
+    isOnline: !!raw.isOnline,
+    responseTime: raw.responseTime || '',
+    basePrice: raw.basePrice || 0,
+    category: raw.category || 'ac-repairers',
+  };
 };
 
 // Async Thunks
 
 /**
- * Initialize the confirmation screen with booking data
+ * Seed the confirmation screen for an EXISTING booking.
+ *
+ * `bookingId` is required — it comes from POST /bookings via the booking
+ * screen. When the caller already has the provider and details from that same
+ * response, they are used as-is; otherwise we read them back with
+ * GET /bookings/:id, which the backend documents as this screen's read path.
  */
 export const initializeConfirmation = createAsyncThunk(
   'bookConfirmation/initialize',
-  async (params: { 
-    category: 'electricians' | 'plumbers' | 'ac-repairers';
-    bookingDetails?: BookingDetails;
-  }) => {
-    // Simulate API call to get provider and send notification
-    return new Promise<{
-      provider: ProviderInfo;
+  async (
+    params: {
       bookingId: string;
-      notificationSentAt: string;
-    }>((resolve) => {
-      setTimeout(() => {
-        const provider = MOCK_PROVIDERS[params.category] || MOCK_PROVIDERS['ac-repairers'];
-        resolve({
-          provider,
-          bookingId: `BK-${Date.now().toString(36).toUpperCase()}`,
-          notificationSentAt: new Date().toISOString(),
-        });
-      }, 500);
-    });
+      provider?: ProviderInfo | null;
+      bookingDetails?: BookingDetails | null;
+    },
+    { rejectWithValue }
+  ) => {
+    const { bookingId } = params;
+    if (!bookingId) {
+      return rejectWithValue('Missing booking id.');
+    }
+
+    // Seeded from the create response — no round trip needed.
+    if (params.provider && params.bookingDetails) {
+      return {
+        bookingId,
+        provider: params.provider,
+        bookingDetails: params.bookingDetails,
+        status: 'waiting' as BookingStatusType,
+        notificationSentAt: new Date().toISOString(),
+        estimatedArrival: undefined as string | undefined,
+      };
+    }
+
+    const response = await fetchBookingDetail(bookingId);
+    if (!response.success || !response.data) {
+      return rejectWithValue(response.message || 'Failed to load your booking.');
+    }
+
+    const data = response.data;
+    return {
+      bookingId: String(data.bookingId || data.id || bookingId),
+      // A provider assignment may still be pending — that is a legitimate
+      // 'waiting' state, not a reason to invent someone.
+      provider: toProviderInfo(data.provider),
+      bookingDetails: (data.bookingDetails as BookingDetails) || null,
+      status: toScreenStatus(data.status),
+      notificationSentAt: new Date().toISOString(),
+      estimatedArrival: data.estimatedArrival as string | undefined,
+    };
   }
 );
 
 /**
- * Cancel the booking request
+ * Cancel the pending booking request.
  */
 export const cancelBookingRequest = createAsyncThunk(
   'bookConfirmation/cancelRequest',
-  async (bookingId: string) => {
-    // Simulate API call to cancel booking
-    return new Promise<{ success: boolean; cancelledAt: string }>((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          cancelledAt: new Date().toISOString(),
-        });
-      }, 500);
-    });
+  async (bookingId: string, { rejectWithValue }) => {
+    if (!bookingId) return rejectWithValue('Missing booking id.');
+
+    const response = await cancelBookingApi(bookingId, 'Cancelled by customer');
+    if (!response.success) {
+      return rejectWithValue(response.message || 'Failed to cancel booking.');
+    }
+    return { success: true, cancelledAt: new Date().toISOString() };
   }
 );
 
 /**
- * Retry booking with the same or different provider
+ * Retry by creating a NEW booking. The id this returns is a real one from the
+ * server — the screen must adopt it, because the previous booking is gone.
  */
 export const retryBooking = createAsyncThunk(
   'bookConfirmation/retry',
-  async (params: {
-    providerId: string;
-    bookingDetails: BookingDetails;
-  }) => {
-    // Simulate API call to retry booking
-    return new Promise<{
-      bookingId: string;
-      notificationSentAt: string;
-    }>((resolve) => {
-      setTimeout(() => {
-        resolve({
-          bookingId: `BK-${Date.now().toString(36).toUpperCase()}`,
-          notificationSentAt: new Date().toISOString(),
-        });
-      }, 500);
+  async (
+    params: {
+      providerId: string;
+      bookingDetails: BookingDetails;
+    },
+    { rejectWithValue }
+  ) => {
+    const { providerId, bookingDetails } = params;
+    const response = await createBooking({
+      providerId,
+      selectedDate: bookingDetails.selectedDate,
+      selectedTime: bookingDetails.selectedTime,
+      addressId: bookingDetails.selectedAddress?.id || '',
+      instructions: bookingDetails.instructions,
     });
+
+    if (!response.success || !response.data || !response.data.bookingId) {
+      return rejectWithValue(response.message || 'Failed to retry booking.');
+    }
+
+    return {
+      bookingId: String(response.data.bookingId),
+      provider: toProviderInfo(response.data.provider),
+      bookingDetails: (response.data.bookingDetails as unknown as BookingDetails) || bookingDetails,
+      notificationSentAt: new Date().toISOString(),
+    };
   }
 );
 
 /**
- * Check booking status (polling)
+ * Poll the live status of a booking. Backs up the socket subscription so the
+ * screen still advances if the realtime service is unreachable.
  */
 export const checkBookingStatus = createAsyncThunk(
   'bookConfirmation/checkStatus',
-  async (bookingId: string) => {
-    // Simulate API call to check status
-    return new Promise<{
-      status: BookingStatusType;
-      updatedAt: string;
-      estimatedArrival?: string;
-    }>((resolve) => {
-      setTimeout(() => {
-        // This would normally come from the server
-        // For now, we'll just return waiting
-        resolve({
-          status: 'waiting',
-          updatedAt: new Date().toISOString(),
-        });
-      }, 300);
-    });
+  async (bookingId: string, { rejectWithValue }) => {
+    if (!bookingId) return rejectWithValue('Missing booking id.');
+
+    const response = await fetchBookingDetail(bookingId);
+    if (!response.success || !response.data) {
+      return rejectWithValue(response.message || 'Failed to check booking status.');
+    }
+
+    return {
+      status: toScreenStatus(response.data.status),
+      provider: toProviderInfo(response.data.provider),
+      updatedAt: new Date().toISOString(),
+      estimatedArrival: response.data.estimatedArrival as string | undefined,
+    };
   }
 );
 
@@ -251,19 +289,21 @@ const bookConfirmationSlice = createSlice({
      * Set the booking status manually (for simulated provider response)
      */
     setBookingStatus: (state, action: PayloadAction<BookingStatusType>) => {
-      // Create bookingConfirmation if it doesn't exist
+      // No booking, no status. This used to mint a `BK-<timestamp>` id here,
+      // which is how a screen with no real booking still rendered a
+      // confirmation — and then 404'd on every follow-up request.
       if (!state.bookingConfirmation) {
-        state.bookingConfirmation = {
-          bookingId: `BK-${Date.now().toString(36).toUpperCase()}`,
-          status: action.payload,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      } else {
-        state.bookingConfirmation.status = action.payload;
-        state.bookingConfirmation.updatedAt = new Date().toISOString();
+        if (__DEV__) {
+          console.warn(
+            '[bookConfirmation] setBookingStatus ignored — no booking in state yet.'
+          );
+        }
+        return;
       }
-      
+
+      state.bookingConfirmation.status = action.payload;
+      state.bookingConfirmation.updatedAt = new Date().toISOString();
+
       // If accepted, set estimated arrival
       if (action.payload === 'accepted') {
         const arrivalTime = new Date();
@@ -339,11 +379,13 @@ const bookConfirmationSlice = createSlice({
       .addCase(initializeConfirmation.fulfilled, (state, action) => {
         state.isLoading = false;
         state.provider = action.payload.provider;
+        state.bookingDetails = action.payload.bookingDetails;
         state.bookingConfirmation = {
           bookingId: action.payload.bookingId,
-          status: 'waiting',
+          status: action.payload.status,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          estimatedArrival: action.payload.estimatedArrival,
         };
         state.notificationSent = true;
         state.notificationSentAt = action.payload.notificationSentAt;
@@ -351,7 +393,10 @@ const bookConfirmationSlice = createSlice({
       })
       .addCase(initializeConfirmation.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to initialize confirmation';
+        state.error =
+          (action.payload as string) ||
+          action.error.message ||
+          'Failed to initialize confirmation';
       })
 
       // Cancel Booking Request
@@ -367,7 +412,8 @@ const bookConfirmationSlice = createSlice({
       })
       .addCase(cancelBookingRequest.rejected, (state, action) => {
         state.isProcessing = false;
-        state.error = action.error.message || 'Failed to cancel booking';
+        state.error =
+          (action.payload as string) || action.error.message || 'Failed to cancel booking';
       })
 
       // Retry Booking
@@ -377,19 +423,23 @@ const bookConfirmationSlice = createSlice({
       })
       .addCase(retryBooking.fulfilled, (state, action) => {
         state.isProcessing = false;
+        // A retry is a NEW booking — adopt its id and provider wholesale.
         state.bookingConfirmation = {
           bookingId: action.payload.bookingId,
           status: 'waiting',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        if (action.payload.provider) state.provider = action.payload.provider;
+        state.bookingDetails = action.payload.bookingDetails;
         state.notificationSent = true;
         state.notificationSentAt = action.payload.notificationSentAt;
         state.waitingStartTime = new Date().toISOString();
       })
       .addCase(retryBooking.rejected, (state, action) => {
         state.isProcessing = false;
-        state.error = action.error.message || 'Failed to retry booking';
+        state.error =
+          (action.payload as string) || action.error.message || 'Failed to retry booking';
       })
 
       // Check Booking Status
@@ -400,6 +450,11 @@ const bookConfirmationSlice = createSlice({
           if (action.payload.estimatedArrival) {
             state.bookingConfirmation.estimatedArrival = action.payload.estimatedArrival;
           }
+        }
+        // The provider is assigned server-side after the booking is placed, so
+        // a poll is often where we first learn who it is.
+        if (action.payload.provider) {
+          state.provider = action.payload.provider;
         }
       });
   },

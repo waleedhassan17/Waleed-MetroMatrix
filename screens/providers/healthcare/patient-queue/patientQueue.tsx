@@ -174,7 +174,15 @@ const CurrentPatientCard: React.FC<{
         {patient.type === 'video' && (
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => navigation.navigate(DoctorRouteNames.DoctorVideoConsultation, { appointmentId: patient.appointmentId })}
+            onPress={() =>
+              navigation.navigate('HealthcareConsultCall', {
+                roomId: patient.appointmentId,
+                appointmentId: patient.appointmentId,
+                roomType: 'healthcare',
+                media: 'video',
+                counterpartName: patient.patientName,
+              })
+            }
             activeOpacity={0.8}
           >
             <Ionicons name="videocam-outline" size={17} color="#10B981" />

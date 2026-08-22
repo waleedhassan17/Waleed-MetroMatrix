@@ -12,6 +12,9 @@ import {
   SafeAreaView,
   Platform,
   FlatList,
+  Linking,
+  Share,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -29,6 +32,12 @@ import {
   GalleryItem,
 } from './providerProfileSlice';
 import { RootState } from '../../../../store/store';
+import {
+  fetchFavorites,
+  addFavorite,
+  removeFavorite,
+  selectIsFavorite,
+} from '../favorites/favoritesSlice';
 
 const { width, height } = Dimensions.get('window');
 const isAndroid = Platform.OS === 'android';
@@ -75,6 +84,7 @@ export default function ProviderProfileScreen() {
   const provider = useSelector((state: RootState) => state.providerProfile?.provider) as Provider | null;
   const isLoading = useSelector((state: RootState) => state.providerProfile?.isLoading) as boolean;
   const selectedTab = useSelector((state: RootState) => state.providerProfile?.selectedTab) as string;
+  const isFavorite = useSelector(selectIsFavorite(provider?.id));
 
   // Animation references - initialize to visible state for loading view
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -130,6 +140,80 @@ export default function ProviderProfileScreen() {
     dispatch(setSelectedTab(tab));
   }, [dispatch]);
 
+  // Open the provider's location in whatever map app the device has. Prefer
+  // real coordinates; fall back to a text search on the address so the button
+  // still does something useful for a provider without a geocoded location.
+  const handleLocationPress = useCallback(async () => {
+    if (!provider) return;
+
+    const { latitude, longitude } = provider.coordinates || {};
+    const label = encodeURIComponent(provider.name || 'Provider');
+
+    let url: string;
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      url = Platform.select({
+        ios: `maps://?ll=${latitude},${longitude}&q=${label}`,
+        default: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+      }) as string;
+    } else if (provider.address) {
+      const query = encodeURIComponent(
+        [provider.address, provider.city].filter(Boolean).join(', ')
+      );
+      url = Platform.select({
+        ios: `maps://?q=${query}`,
+        default: `geo:0,0?q=${query}`,
+      }) as string;
+    } else {
+      Alert.alert('Location unavailable', "This provider hasn't shared a location yet.");
+      return;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+        return;
+      }
+      // No native maps handler (common on emulators) — the web fallback works
+      // everywhere.
+      const fallbackQuery =
+        typeof latitude === 'number' && typeof longitude === 'number'
+          ? `${latitude},${longitude}`
+          : encodeURIComponent([provider.address, provider.city].filter(Boolean).join(', '));
+      await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${fallbackQuery}`);
+    } catch {
+      Alert.alert('Location unavailable', "We couldn't open a map on this device.");
+    }
+  }, [provider]);
+
+  // The Schedule button surfaces the availability tab this screen already has.
+  const handleSchedulePress = useCallback(() => {
+    handleTabChange('availability');
+  }, [handleTabChange]);
+
+  // Optimistic heart: the icon flips immediately and the slice rolls back if
+  // the request fails. Reflecting saved state on mount comes from the
+  // fetchFavorites dispatch in the focus effect below.
+  const handleToggleWishlist = useCallback(() => {
+    if (!provider?.id) return;
+    if (isFavorite) {
+      dispatch(removeFavorite(provider.id) as any);
+    } else {
+      dispatch(addFavorite(provider.id) as any);
+    }
+  }, [dispatch, provider?.id, isFavorite]);
+
+  const handleSharePress = useCallback(async () => {
+    if (!provider) return;
+    try {
+      await Share.share({
+        message: `Check out ${provider.name} on MetroMatrix — ${provider.specialty || 'home services'}, rated ${provider.rating}/5.`,
+      });
+    } catch {
+      /* the user dismissed the sheet */
+    }
+  }, [provider]);
+
   // Track animations ref for cleanup
   const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -144,6 +228,8 @@ export default function ProviderProfileScreen() {
 
       // Fetch data on focus
       dispatch(fetchProviderById({ providerId: id, category }) as any);
+      // So the heart shows the saved state the user left it in.
+      dispatch(fetchFavorites() as any);
 
       // Start animations
       animationsRef.current = Animated.parallel([
@@ -217,11 +303,26 @@ export default function ProviderProfileScreen() {
           <Text style={styles.headerTitle}>Provider Profile</Text>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.headerIconButton}
+              activeOpacity={0.8}
+              onPress={handleSharePress}
+            >
               <Ionicons name="share-outline" size={20} color="#64748B" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.8}>
-              <Ionicons name="heart-outline" size={20} color={serviceConfig.accentColor} />
+            <TouchableOpacity
+              style={styles.headerIconButton}
+              activeOpacity={0.8}
+              onPress={handleToggleWishlist}
+              accessibilityLabel={
+                isFavorite ? 'Remove from favorites' : 'Save to favorites'
+              }
+            >
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={20}
+                color={isFavorite ? '#EF4444' : serviceConfig.accentColor}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -356,7 +457,11 @@ export default function ProviderProfileScreen() {
         <Text style={styles.quickActionText}>Chat</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.quickActionButton}
+        activeOpacity={0.8}
+        onPress={handleLocationPress}
+      >
         <LinearGradient
           colors={['#FEF3C7', '#FDE68A']}
           style={styles.quickActionIcon}
@@ -366,7 +471,11 @@ export default function ProviderProfileScreen() {
         <Text style={styles.quickActionText}>Location</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.quickActionButton}
+        activeOpacity={0.8}
+        onPress={handleSchedulePress}
+      >
         <LinearGradient
           colors={['#FCE7F3', '#FBCFE8']}
           style={styles.quickActionIcon}
@@ -694,10 +803,12 @@ export default function ProviderProfileScreen() {
             )}
 
             <View style={styles.reviewFooter}>
-              <TouchableOpacity style={styles.helpfulButton}>
-                <Ionicons name="thumbs-up-outline" size={14} color="#64748B" />
+              {/* Marking a review helpful has no endpoint; shown as a
+                  read-only count rather than a button that does nothing. */}
+              <View style={styles.helpfulButton}>
+                <Ionicons name="thumbs-up-outline" size={14} color="#94A3B8" />
                 <Text style={styles.helpfulText}>Helpful ({review.helpfulCount})</Text>
-              </TouchableOpacity>
+              </View>
             </View>
           </View>
         );
@@ -725,13 +836,11 @@ export default function ProviderProfileScreen() {
         <Text style={styles.sectionTitle}>Work Portfolio</Text>
       </View>
 
+      {/* Plain tiles: there is no lightbox or full-screen viewer to open, so
+          these are not rendered as tappable. */}
       <View style={styles.galleryGrid}>
-        {provider.gallery.map((item: GalleryItem, index: number) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.galleryItem}
-            activeOpacity={0.9}
-          >
+        {provider.gallery.map((item: GalleryItem) => (
+          <View key={item.id} style={styles.galleryItem}>
             <Image source={{ uri: item.image }} style={styles.galleryImage} />
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.7)']}
@@ -742,7 +851,7 @@ export default function ProviderProfileScreen() {
               </View>
               <Text style={styles.galleryTitle}>{item.title}</Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </View>
         ))}
       </View>
     </Animated.View>

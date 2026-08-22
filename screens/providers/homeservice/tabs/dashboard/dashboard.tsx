@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -53,6 +53,7 @@ import type {
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
 import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
+import { fetchProfile } from '../../profile-screen/profileSlice';
 import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 
 type RootStackParamList = {
@@ -482,6 +483,26 @@ export default function Dashboard() {
     error,
   } = useAppSelector((state: RootState) => state.dashboard);
 
+  // ONE identity source for the provider shell.
+  //
+  // Home read `state.dashboard.profile` (GET /provider/dashboard) while the
+  // Profile screen read `state.profile` (GET /provider/profile). Two payloads,
+  // two fetch times, no shared reset — so whichever was stale showed the wrong
+  // provider, and the two screens disagreed about who was signed in.
+  // /provider/profile is canonical; the dashboard payload only fills in while
+  // it is still loading.
+  const canonicalProfile = useAppSelector((state: RootState) => state.profile.provider);
+
+  const identity = useMemo(
+    () => ({
+      ...profile,
+      name: canonicalProfile.name || profile.name,
+      avatar: canonicalProfile.profileImage ?? profile.avatar,
+      rating: canonicalProfile.rating || profile.rating,
+    }),
+    [profile, canonicalProfile]
+  );
+
   const [refreshing, setRefreshing] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -489,6 +510,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     dispatch(fetchDashboardData());
+    // The provider shell's canonical identity. Fetched here too so Home never
+    // has to render someone else's name while waiting for the Profile tab to
+    // be opened.
+    dispatch(fetchProfile());
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -554,13 +579,13 @@ export default function Dashboard() {
     [dispatch]
   );
 
-  const showInitialLoader = loading && !profile.name;
+  const showInitialLoader = loading && !identity.name;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} translucent={false} />
 
-      <Header profile={profile} insetTop={insets.top} />
+      <Header profile={identity} insetTop={insets.top} />
 
       <ScrollView
         style={styles.scrollView}

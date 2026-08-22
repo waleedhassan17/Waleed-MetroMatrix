@@ -30,13 +30,19 @@ export type RoomParams = {
 
   roomType?: RoomType;
 
+  // Answering rather than placing: set by the incoming-call sheet and by a
+  // call push tap. `autoAccept` means the user already pressed Accept, so the
+  // call screen should not make them press it again.
+  incomingCallId?: string;
+  autoAccept?: boolean;
+  /** Overrides the per-vertical default (healthcare = video, otherwise audio). */
+  media?: 'audio' | 'video';
+
   // Counterpart labelling — canonical, then per-screen aliases.
   counterpartName?: string;
   customerName?: string;
   doctorName?: string;
   patientName?: string;
-  counterpartPhone?: string;
-  customerPhone?: string;
   counterpartImage?: string;
   customerImage?: string;
 
@@ -48,7 +54,6 @@ export type RoomParams = {
   provider?: {
     id?: string;
     name?: string;
-    phoneNumber?: string;
     image?: string;
     profileImage?: string;
   };
@@ -65,7 +70,6 @@ export interface NormalizedRoom {
   roomId: string;
   roomType: RoomType;
   name?: string;
-  phone?: string;
   image?: string;
   accent: string;
   accentSoft: string;
@@ -85,7 +89,6 @@ export function normalizeRoomParams(p: RoomParams = {}): NormalizedRoom {
     roomId,
     roomType,
     name: p.counterpartName || p.customerName || p.doctorName || p.patientName || p.provider?.name,
-    phone: p.counterpartPhone || p.customerPhone || p.provider?.phoneNumber,
     image: p.counterpartImage || p.customerImage || p.provider?.image || p.provider?.profileImage,
     accent: p.accent || theme.accent,
     accentSoft: p.accentSoft || theme.accentSoft,

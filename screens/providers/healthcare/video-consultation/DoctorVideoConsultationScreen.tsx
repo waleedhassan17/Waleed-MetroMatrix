@@ -1,113 +1,47 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// Doctor video consultation — now a redirect.
+//
+// This screen used to render a Jitsi room in a WebView, using a `roomUrl`
+// minted by the healthcare backend. Video consultations have moved onto the
+// same peer-to-peer WebRTC stack as every other call in the app, so that URL
+// no longer exists and the WebView had nothing to load.
+//
+// Every known entry point already navigates straight to the unified call
+// screen. This redirect exists for the ones that might not — a deep link, a
+// stale notification, a nav stack restored from before the change — so they
+// land on a working call instead of a blank WebView.
+// ============================================================================
+
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { WebView } from 'react-native-webview';
-import { startVideoCallApi } from '../../../../networks/healthcare/appointmentApi';
 
-// The doctor-side counterpart of the patient VideoCall screen: both join the
-// same Jitsi room (H6 transport), so the call can actually connect.
-const DARK = {
-  bg: '#070B18',
-  surface: 'rgba(255,255,255,0.07)',
-  primary: '#2A7FFF',
-  danger: '#EF4444',
-  text: '#F1F5F9',
-  textDim: 'rgba(241,245,249,0.55)',
-};
-
-const DoctorVideoConsultationScreen: React.FC = () => {
+export default function DoctorVideoConsultationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const appointmentId = route.params?.appointmentId as string;
-
-  const [roomUrl, setRoomUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const join = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await startVideoCallApi(appointmentId);
-    if (res.success && res.data?.roomUrl) {
-      setRoomUrl(res.data.roomUrl);
-    } else {
-      setError(res.message || 'Could not join the consultation room');
-    }
-    setLoading(false);
-  }, [appointmentId]);
+  const appointmentId = route.params?.appointmentId ?? '';
 
   useEffect(() => {
-    join();
-  }, [join]);
-
-  const handleEnd = () => {
-    Alert.alert('End consultation?', 'You can rejoin from the appointment while it is active.', [
-      { text: 'Stay', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => navigation.goBack() },
-    ]);
-  };
+    if (!appointmentId) {
+      navigation.goBack();
+      return;
+    }
+    navigation.replace('HealthcareConsultCall', {
+      roomId: appointmentId,
+      appointmentId,
+      roomType: 'healthcare',
+      media: 'video',
+      counterpartName: route.params?.patientName,
+    });
+  }, [appointmentId, navigation, route.params?.patientName]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={DARK.bg} />
-      <View style={styles.header}>
-        <Text style={styles.title}>Video Consultation</Text>
-        <TouchableOpacity style={styles.endBtn} onPress={handleEnd}>
-          <Ionicons name="call" size={18} color="#FFF" style={{ transform: [{ rotate: '135deg' }] }} />
-          <Text style={styles.endText}>End</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={DARK.primary} size="large" />
-          <Text style={styles.centerText}>Joining consultation room…</Text>
-        </View>
-      ) : error || !roomUrl ? (
-        <View style={styles.center}>
-          <Ionicons name="videocam-off-outline" size={44} color={DARK.textDim} />
-          <Text style={styles.centerText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={join}>
-            <Text style={styles.retryText}>Try again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <WebView
-          source={{ uri: roomUrl }}
-          style={styles.webview}
-          javaScriptEnabled
-          domStorageEnabled
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          mediaCapturePermissionGrantType="grant"
-          originWhitelist={['*']}
-        />
-      )}
-    </SafeAreaView>
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#2563EB" />
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: DARK.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  title: { color: DARK.text, fontSize: 16, fontWeight: '700' },
-  endBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: DARK.danger, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  endText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  centerText: { color: DARK.textDim, textAlign: 'center', fontSize: 14 },
-  retryBtn: { backgroundColor: DARK.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  webview: { flex: 1, backgroundColor: DARK.bg },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A' },
 });
-
-export default DoctorVideoConsultationScreen;

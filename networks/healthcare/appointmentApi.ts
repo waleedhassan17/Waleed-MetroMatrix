@@ -335,8 +335,11 @@ export async function startVideoCallApi(
   appointmentId: string
 ): Promise<ApiResponse<VideoCall>> {
 
-  // H6 BUILD: join/create the call room. Backend returns provider 'jitsi'
-  // with a roomUrl the screen renders in a WebView (TELEMEDICINE_DECISION.md).
+  // Marks the VideoCall record active and notifies the other party via
+  // `video_call_started`. It no longer returns a room URL — media is
+  // peer-to-peer WebRTC signalled by the realtime service, with the
+  // APPOINTMENT as the room. This call is now lifecycle bookkeeping only, so
+  // callers treat a failure as non-fatal: the consultation still connects.
   const res = await healthcareApiRequest<any>(
     `/video-calls/join/${encodeURIComponent(appointmentId)}`,
     { method: 'POST' }
@@ -357,6 +360,16 @@ export async function startVideoCallApi(
     };
   }
   return res as ApiResponse<VideoCall>;
+}
+
+/** Close out the VideoCall record when a consultation ends. Best-effort. */
+export async function endVideoCallApi(
+  callId: string
+): Promise<ApiResponse<unknown>> {
+  return healthcareApiRequest<unknown>(
+    `/video-calls/${encodeURIComponent(callId)}/end`,
+    { method: 'POST' }
+  );
 }
 
 // ── H2/H5/H6 additions: payment, prescriptions list, symptom checker ──

@@ -117,9 +117,16 @@ const MyAppointmentsScreen: React.FC = () => {
   const handleJoinCall = (a: Appointment) => {
     if (!a?.appointmentId) return;
     if (a.type === 'video') {
-      navigation.navigate(HealthcareRouteNames.VideoCall, {
-        appointmentId: a.appointmentId,
+      // Video consultations now run on the same WebRTC stack as every other
+      // call — one signalling path, one TURN account, one in-call UI. The
+      // appointment IS the room, which is what the realtime service
+      // authorizes against.
+      navigation.navigate('HealthcareConsultCall', {
         roomId: a.appointmentId,
+        appointmentId: a.appointmentId,
+        roomType: 'healthcare',
+        media: 'video',
+        counterpartName: a.doctorName,
       });
       return;
     }

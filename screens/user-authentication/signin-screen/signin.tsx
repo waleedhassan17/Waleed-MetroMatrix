@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../../../hooks/useReduxHooks';
+import { resetAllState } from '../../../store/store';
 import {
   selectEmail,
   selectPassword,
@@ -193,6 +194,11 @@ const SignIn = () => {
     }
 
     try {
+      // Clear any previous account's state BEFORE the new session lands, so a
+      // crashed or interrupted logout cannot leak the last user's data into
+      // this one's screens.
+      dispatch(resetAllState(true));
+
       const result = await dispatch(
         submitSignInAsync({ email: email.trim().toLowerCase(), password })
       ).unwrap();

@@ -6,11 +6,11 @@
 //   providers/homeservice/call-screen     (provider -> customer)
 //   user/healthcare/ConsultCall           (patient  <-> doctor)
 //
-// SIGNALLING ONLY. Ring / accept / end travel over the socket to the real
-// counterpart; the audio is handed to the phone's native dialer. The screen
-// this replaced on the customer side was entirely fake — it moved itself to
-// "connected" after setTimeout(3000) and offered toggles that flipped local
-// booleans.
+// Ring / accept / end travel over the socket to the real counterpart, and the
+// audio (plus video, for a healthcare consultation) flows peer-to-peer over
+// WebRTC. The screen this replaced on the customer side was entirely fake — it
+// moved itself to "connected" after setTimeout(3000) and offered toggles that
+// flipped local booleans; the toggles here operate on real media tracks.
 //
 // A CALL NEEDS A ROOM, AND A ROOM IS A BOOKING — that is what the realtime
 // service authorizes against (metromatrix-realtime/src/utils/access.js). Entry
@@ -107,9 +107,13 @@ export default function CallScreen() {
       roomId={resolvedId}
       roomType={room.roomType}
       counterpartName={room.name}
-      counterpartPhone={room.phone}
       counterpartImage={room.image}
       accent={room.accent}
+      incomingCallId={route.params?.incomingCallId}
+      autoAccept={route.params?.autoAccept}
+      // A healthcare room is a consultation, so it carries video unless the
+      // caller explicitly asked for audio.
+      media={route.params?.media || (room.roomType === 'healthcare' ? 'video' : 'audio')}
     />
   );
 }

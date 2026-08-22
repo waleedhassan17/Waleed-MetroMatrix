@@ -8,8 +8,9 @@
 // The server targets a per-user room, so the ring arrives regardless of which
 // screen the callee is on and whether they have joined the conversation room.
 //
-// Answering hands off to the phone's native dialer (`tel:`), consistent with
-// the rest of the calling design — there is no in-app audio.
+// Answering does NOT accept the call here — it navigates to the call screen,
+// which owns both the accept and the peer connection. See accept() below for
+// why splitting those two would race.
 // ============================================================================
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -21,17 +22,16 @@ import {
   StyleSheet,
   Vibration,
   Platform,
-  Linking,
   Alert,
 } from 'react-native';
 import { getSocket, emitEvent, RoomType } from '../../services/socket/socketClient';
+import { navigate } from '../../navigation-maps/navigationRef';
 
 interface IncomingCall {
   callId: string;
   roomId: string;
   roomType: RoomType;
   callerName?: string;
-  callerPhone?: string;
   callerId?: string;
 }
 
@@ -90,7 +90,6 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
           roomId: p.roomId,
           roomType: p.roomType || 'homeservice',
           callerName: p?.from?.name,
-          callerPhone: p?.from?.phoneNumber,
           callerId: p?.from?.id,
         });
       };
@@ -121,34 +120,27 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [present, dismiss]);
 
-  const accept = useCallback(async () => {
+  const accept = useCallback(() => {
     if (!incoming) return;
-    const { callId, roomId, roomType, callerPhone } = incoming;
+    const { callId, roomId, roomType, callerName } = incoming;
     Vibration.cancel();
-
-    const ack = await emitEvent('call_accept', {
-      callId,
-      roomId,
-      bookingId: roomId,
-      roomType,
-    });
     dismiss();
 
-    if (!ack.success) {
-      Alert.alert('Call ended', ack.message || 'That call is no longer active.');
-      return;
-    }
-
-    const number = (callerPhone || '').replace(/\s|-/g, '');
-    if (!number) {
-      Alert.alert('No phone number', 'The caller has no phone number on file.');
-      return;
-    }
-    try {
-      await Linking.openURL(`tel:${number}`);
-    } catch {
-      Alert.alert('Cannot place call', 'The dialer could not be opened.');
-    }
+    // This sheet deliberately does NOT emit `call_accept` itself any more.
+    //
+    // It used to accept here and then open the native dialer. Under WebRTC the
+    // accept and the peer connection have to be owned by the same thing, or
+    // they race: the server retires the call from 'ring' on the first accept,
+    // so a second one from the call screen would be refused as "no longer
+    // ringing" and the media would never start. So the sheet hands off, and
+    // the call screen's session does the accepting.
+    navigate('CallScreen', {
+      roomId,
+      roomType,
+      incomingCallId: callId,
+      counterpartName: callerName,
+      autoAccept: true,
+    });
   }, [incoming, dismiss]);
 
   const decline = useCallback(async () => {
@@ -169,7 +161,9 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
               {incoming?.roomType === 'healthcare' ? 'Incoming consultation call' : 'Incoming call'}
             </Text>
             <Text style={styles.name}>{incoming?.callerName || 'Unknown caller'}</Text>
-            {!!incoming?.callerPhone && <Text style={styles.phone}>{incoming.callerPhone}</Text>}
+            <Text style={styles.phone}>
+              {incoming?.roomType === 'healthcare' ? 'Video consultation' : 'MetroMatrix audio call'}
+            </Text>
           </View>
 
           <View style={styles.actions}>
@@ -181,7 +175,7 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.hint}>Accepting opens your phone's dialer</Text>
+          <Text style={styles.hint}>Connects inside the app — no call charges</Text>
         </View>
       </Modal>
     </IncomingCallContext.Provider>

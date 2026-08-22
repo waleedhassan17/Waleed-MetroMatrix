@@ -24,23 +24,39 @@ import {
   unregisterPushToken,
 } from '../../networks/realtime/realtimeClient';
 import { KeyForStorage, retrieveData, saveData } from '../../utils/storage_utils/storageUtils';
+import { isSocketConnected } from '../socket/socketClient';
 
 export const CALLS_CHANNEL = 'calls';
 export const MESSAGES_CHANNEL = 'messages';
 
-/** Show call notifications even while the app is foregrounded. */
+/**
+ * Foreground presentation policy. (Only consulted while the app is in the
+ * foreground — a backgrounded or killed app is handled by the OS channel.)
+ *
+ * A call push is normally redundant: the socket delivers `call_ring` and
+ * IncomingCallProvider throws up a full-screen sheet, so a banner on top of it
+ * is noise. But that is only true WHILE THE SOCKET IS ACTUALLY CONNECTED.
+ *
+ * Suppressing unconditionally meant that an app which was foregrounded but
+ * mid-reconnect — just resumed, weak signal, token refresh in flight — showed
+ * nothing at all: no banner, because we suppressed it, and no sheet, because
+ * no socket delivered the event. The call was silently dropped, which is the
+ * worst possible failure for a ringing phone.
+ *
+ * So the push is now suppressed only when the sheet is genuinely going to
+ * appear. When the socket is down the banner is the only signal there is.
+ */
 export function configureNotificationHandler() {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const type = notification.request.content.data?.type;
-      // An incoming call already renders the full-screen IncomingCallProvider
-      // sheet when the socket is live, so suppress the duplicate banner.
       const isCall = type === 'call';
+      const suppress = isCall && isSocketConnected();
       return {
-        shouldShowAlert: !isCall,
-        shouldPlaySound: !isCall,
+        shouldShowAlert: !suppress,
+        shouldPlaySound: !suppress,
         shouldSetBadge: false,
-        shouldShowBanner: !isCall,
+        shouldShowBanner: !suppress,
         shouldShowList: true,
       };
     },
@@ -135,7 +151,6 @@ export interface NotificationRoute {
   roomType: 'homeservice' | 'healthcare';
   callId?: string;
   callerName?: string;
-  callerPhone?: string;
 }
 
 /** Normalize a notification payload into something navigable, or null. */
@@ -148,6 +163,5 @@ export function routeFromNotification(data: any): NotificationRoute | null {
     roomType: data.roomType === 'healthcare' ? 'healthcare' : 'homeservice',
     callId: data.callId,
     callerName: data.callerName,
-    callerPhone: data.callerPhone,
   };
 }

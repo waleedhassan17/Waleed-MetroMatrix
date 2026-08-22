@@ -147,9 +147,11 @@ const VideoWaitingRoomScreen: React.FC = () => {
   useEffect(() => {
     if (waitingStatus === 'ready' && appointment) {
       const t = setTimeout(() => {
-        navigation.replace(HealthcareRouteNames.VideoCall, {
+        navigation.replace('HealthcareConsultCall', {
+          roomId: appointment.appointmentId,
           appointmentId: appointment.appointmentId,
-          roomId: route.params?.roomId ?? '',
+          roomType: 'healthcare',
+          media: 'video',
         });
       }, 1500);
       return () => clearTimeout(t);
@@ -167,9 +169,13 @@ const VideoWaitingRoomScreen: React.FC = () => {
 
   useEffect(() => {
     if (videoCall?.phase !== 'started') return;
-    navigation.replace(HealthcareRouteNames.VideoCall, {
+    // This used to pass `roomUrl` in a param named `roomId`, which the old
+    // screen then ignored entirely. The room is the appointment.
+    navigation.replace('HealthcareConsultCall', {
+      roomId: route.params?.appointmentId ?? '',
       appointmentId: route.params?.appointmentId ?? '',
-      roomId: videoCall.roomUrl || route.params?.roomId || '',
+      roomType: 'healthcare',
+      media: 'video',
     });
   }, [videoCall, navigation, route.params?.appointmentId, route.params?.roomId]);
 

@@ -7,6 +7,10 @@ import {
 import {
   bookingDataSerializer,
 } from '../../../../serializers/serviceProviders/bookingSerializer';
+import type {
+  BookingProvider,
+  BookingDetails as ApiBookingDetails,
+} from '../../../../models/serviceProviders/booking';
 
 // Types
 export interface SavedAddress {
@@ -67,9 +71,15 @@ export interface BookingState {
   isLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
+  // Mirrors the POST /bookings response so the confirmation screen can be
+  // seeded from it directly. `status` uses the server's confirmation
+  // vocabulary — a new booking starts as 'waiting', not 'confirmed'.
   bookingConfirmation: {
     bookingId: string;
-    status: 'pending' | 'confirmed' | 'cancelled';
+    status: 'waiting' | 'confirmed' | 'rejected' | 'cancelled';
+    provider: BookingProvider | null;
+    bookingDetails: ApiBookingDetails | null;
+    estimatedArrival?: string;
   } | null;
 }
 
@@ -177,9 +187,23 @@ const bookingSlice = createAppSlice({
         if (!response.success || !response.data) {
           return rejectWithValue(response.message || 'Failed to submit booking');
         }
+        if (!response.data.bookingId) {
+          // Never let a booking without a server id reach the confirmation
+          // screen — everything downstream (tracking, service status, chat)
+          // keys off this id, and a missing one used to become the literal
+          // string 'default' and 404.
+          return rejectWithValue('Booking was created without an id. Please try again.');
+        }
+        // POST /bookings already returns the assigned provider and the
+        // normalised booking details alongside the id. Carrying them through
+        // means the confirmation screen needs no second round trip — and no
+        // fabricated stand-ins.
         return {
           bookingId: response.data.bookingId,
-          status: 'confirmed' as const,
+          status: response.data.status ?? ('waiting' as const),
+          provider: response.data.provider ?? null,
+          bookingDetails: response.data.bookingDetails ?? null,
+          estimatedArrival: response.data.estimatedArrival,
         };
       },
       {
@@ -192,6 +216,9 @@ const bookingSlice = createAppSlice({
           state.bookingConfirmation = {
             bookingId: action.payload.bookingId,
             status: action.payload.status,
+            provider: action.payload.provider,
+            bookingDetails: action.payload.bookingDetails,
+            estimatedArrival: action.payload.estimatedArrival,
           };
         },
         rejected: (state, action) => {
