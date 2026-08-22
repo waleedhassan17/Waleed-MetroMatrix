@@ -12,6 +12,7 @@ import {
   Platform,
   Keyboard,
   Dimensions,
+  InteractionManager,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -151,12 +152,29 @@ const DoctorSearchScreen: React.FC = () => {
   const searchBarAnim = useRef(new Animated.Value(0)).current;
   const resultsAnim = useRef(new Animated.Value(0)).current;
 
+  // Built once. Calling .interpolate() inline in the JSX created a fresh
+  // animated node on every render — and this component re-renders the moment
+  // the input takes focus, because onFocus sets isSearchFocused. That pushed a
+  // new transform onto the native view wrapping the TextInput at exactly the
+  // wrong moment.
+  const searchBarScale = useMemo(
+    () =>
+      searchBarAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.95, 1],
+      }),
+    [searchBarAnim]
+  );
+
   const { searchQuery, loading, error } = useAppSelector((s) => s.doctorSearch);
   const results = useAppSelector(selectSearchResults);
   const recentSearches = useAppSelector(selectRecentSearches);
   const popularSearches = useAppSelector(selectPopularSearches);
 
-  // Auto-focus & animations
+  // Entrance animations. The search bar's scale runs HERE, with the rest, and
+  // deliberately not alongside the focus call below: a transform animating on
+  // an ancestor of a focused TextInput is a second way Android drops focus, and
+  // this spring used to start in the same tick as .focus().
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -170,19 +188,28 @@ const DoctorSearchScreen: React.FC = () => {
         friction: 10,
         useNativeDriver: true,
       }),
-    ]).start();
-
-    const timer = setTimeout(() => {
-      inputRef.current?.focus();
       Animated.spring(searchBarAnim, {
         toValue: 1,
         tension: 100,
         friction: 8,
         useNativeDriver: true,
-      }).start();
-    }, 200);
+      }),
+    ]).start();
+  }, []);
 
-    return () => clearTimeout(timer);
+  // Auto-focus, once the screen has actually settled.
+  //
+  // This was a bare setTimeout(..., 200) racing the navigation transition. In a
+  // bottom-tab navigator the screen mounts while the tab is still animating, so
+  // the timer regularly fired mid-transition; react-native-screens then
+  // attaches the screen container and the pending focus is lost.
+  // runAfterInteractions waits for the transition to finish instead of guessing
+  // at a duration that is wrong on slower devices.
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      inputRef.current?.focus();
+    });
+    return () => task.cancel();
   }, []);
 
   // Cleanup on unmount
@@ -589,19 +616,7 @@ const DoctorSearchScreen: React.FC = () => {
           </TouchableOpacity>)}
 
           <Animated.View
-            style={[
-              styles.searchBarWrapper,
-              {
-                transform: [
-                  {
-                    scale: searchBarAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.95, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+            style={[styles.searchBarWrapper, { transform: [{ scale: searchBarScale }] }]}
           >
             <View
               style={[
@@ -754,19 +769,31 @@ const styles = StyleSheet.create({
     height: 48,
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  searchBarFocused: {
-    borderColor: THEME.primary,
+    // Elevation is declared HERE, unconditionally, and must stay that way.
+    // It used to be added only in searchBarFocused, i.e. applied to the view
+    // that directly wraps the TextInput at the moment that input took focus.
+    // On Android, changing elevation reconfigures the native view (it switches
+    // the shadow/z-ordering path), and reconfiguring the parent of a focused
+    // EditText drops its focus — which dismissed the keyboard a few frames
+    // after it opened, fired onBlur, removed the elevation again, and left the
+    // field unusable. Only paint-only properties may vary with focus.
     ...Platform.select({
       ios: {
         shadowColor: THEME.primary,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0,
         shadowRadius: 8,
       },
-      android: {
-        elevation: 4,
-      },
+      android: { elevation: 4 },
+    }),
+  },
+  searchBarFocused: {
+    // Border colour and iOS shadow opacity only: both repaint in place without
+    // recreating or reconfiguring the native view, so focus survives.
+    borderColor: THEME.primary,
+    ...Platform.select({
+      ios: { shadowOpacity: 0.2 },
+      android: {},
     }),
   },
   searchInput: {
