@@ -1,5 +1,6 @@
-import { toLocalISODate, todayLocalISODate } from '../../../../utils/date/localDate';
-import React, {useEffect, useMemo, useCallback, useRef } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { toLocalISODate, todayLocalISODate, fromLocalISODate } from '../../../../utils/date/localDate';
+import React, {useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -258,6 +259,7 @@ const DoctorScheduleScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const isInTab = route.params?.isTab === true;
 
   const { selectedDate, appointments, viewMode, loading, error } = useAppSelector(
@@ -420,12 +422,22 @@ const DoctorScheduleScreen: React.FC = () => {
               <Text style={styles.headerTitle}>Schedule</Text>
               <Text style={styles.headerSubtitle}>{formatDateHeader(selectedDate)}</Text>
             </View>
+            {/*
+              This jumped straight to today. Its calendar icon reads as "pick a
+              date", and when the doctor was already on today — the default —
+              tapping it changed nothing, so it looked broken. It now opens a
+              real date picker; a long-press keeps the one-tap jump to today.
+            */}
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => dispatch(setSelectedDate(todayLocalISODate()))}
+              onPress={() => setShowDatePicker(true)}
+              onLongPress={() => dispatch(setSelectedDate(todayLocalISODate()))}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Pick a date"
+              accessibilityHint="Long press to jump to today"
             >
-              <Ionicons name="today-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
@@ -562,6 +574,21 @@ const DoctorScheduleScreen: React.FC = () => {
 
         <View style={{ height: 60 }} />
       </Animated.ScrollView>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={fromLocalISODate(selectedDate)}
+          mode="date"
+          display="default"
+          onChange={(event, picked) => {
+            setShowDatePicker(false);
+            // Android fires onChange for dismiss too; only act on a real pick.
+            if (event.type === 'set' && picked) {
+              dispatch(setSelectedDate(toLocalISODate(picked)));
+            }
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
