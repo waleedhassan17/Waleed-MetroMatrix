@@ -28,6 +28,7 @@ import {
   appointmentSerializer,
   timeSlotSerializer,
   medicalRecordSerializer,
+  clinicSerializer,
 } from '../../serializers/healthcare/healthcareSerializer';
 
 import type { ApiResponse } from '../../models/serviceProviders';
@@ -244,7 +245,22 @@ export async function fetchManageSlotsApi(
     healthcareApiRequest<any>('/doctors/me/clinics'),
   ]);
   const slots = (slotsRes.success ? slotsRes.data || [] : []).map(timeSlotSerializer);
-  const clinics = clinicsRes.success ? clinicsRes.data?.clinics || clinicsRes.data || [] : [];
+
+  // clinicSerializer, not the raw documents. These were returned straight from
+  // the API, and the backend sends Mongoose documents keyed `_id` while the app
+  // reads `clinicId` — so every clinic arrived with clinicId === undefined.
+  // That one omission caused three separate reported bugs:
+  //   · every <TouchableOpacity key={clinic.clinicId}> got key `undefined`,
+  //     hence "Each child in a list should have a unique key";
+  //   · `isActive = clinic.clinicId === selectedClinic` became
+  //     undefined === undefined, TRUE for every row — so selecting one clinic
+  //     appeared to select all of them;
+  //   · removing one issued DELETE /doctors/me/clinics/undefined → 404.
+  // The serializer already resolves clinicId || id || _id and normalises the
+  // GeoJSON coordinates, so this is the whole fix.
+  const rawClinics = clinicsRes.success ? clinicsRes.data?.clinics || clinicsRes.data || [] : [];
+  const clinics = (Array.isArray(rawClinics) ? rawClinics : []).map(clinicSerializer);
+
   return { success: true, data: { slots, clinics }, message: 'Slots loaded' };
 }
 
@@ -267,8 +283,11 @@ export async function createClinicApi(input: ClinicInput): Promise<ApiResponse<C
     method: 'POST',
     data: input,
   });
+  // Serialized for the same reason as the fetch path: the newly created clinic
+  // is pushed straight into state, so returning it raw would reintroduce an
+  // id-less row the moment a doctor added one.
   return res.success
-    ? { ...res, data: res.data?.clinic ?? res.data }
+    ? { ...res, data: clinicSerializer(res.data?.clinic ?? res.data) }
     : (res as ApiResponse<Clinic>);
 }
 
@@ -276,17 +295,29 @@ export async function updateClinicApi(
   clinicId: string,
   input: Partial<ClinicInput>,
 ): Promise<ApiResponse<Clinic>> {
-  const res = await healthcareApiRequest<any>(`/doctors/me/clinics/${clinicId}`, {
+  if (!clinicId) {
+    return { success: false, data: null as any, message: 'Clinic id is missing' };
+  }
+  const res = await healthcareApiRequest<any>(`/doctors/me/clinics/${encodeURIComponent(clinicId)}`, {
     method: 'PATCH',
     data: input,
   });
   return res.success
-    ? { ...res, data: res.data?.clinic ?? res.data }
+    ? { ...res, data: clinicSerializer(res.data?.clinic ?? res.data) }
     : (res as ApiResponse<Clinic>);
 }
 
 export async function deleteClinicApi(clinicId: string): Promise<ApiResponse<{ success: boolean }>> {
-  return healthcareApiRequest<any>(`/doctors/me/clinics/${clinicId}`, { method: 'DELETE' });
+  // Refuse rather than interpolate a missing id into the path. Without this an
+  // id-less clinic produced DELETE /doctors/me/clinics/undefined, which reaches
+  // the server and 404s — the failure QA saw. Fail here, with a message that
+  // names the cause, instead of at the API.
+  if (!clinicId) {
+    return { success: false, data: null as any, message: 'Clinic id is missing' };
+  }
+  return healthcareApiRequest<any>(`/doctors/me/clinics/${encodeURIComponent(clinicId)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ success: boolean }>> {
