@@ -26,6 +26,7 @@ import {
   selectSlotsByPeriod,
 } from './slotSelectionSlice';
 import type { ConsultationType } from './slotSelectionSlice';
+import { clearSelectedClinic } from '../clinic-selection/clinicSelectionSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { TimeSlot, HealthcareStackParamList } from '../../../../models/healthcare/types';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
@@ -157,11 +158,33 @@ const SlotSelectionScreen: React.FC = () => {
   const selectedClinic = useAppSelector((s) => s.clinicSelection?.selectedClinic);
   const lockedToClinic = !!selectedClinic;
 
+  // Only offer the switch when this doctor actually consults over video, so we
+  // never send someone to a slot list that can only ever be empty. Falls back to
+  // offering it when the doctor is not in the store, which matches the
+  // unlocked branch below — that has always shown both options unconditionally.
+  const detailDoctor = useAppSelector((s) => s.doctorDetail?.doctor);
+  const offersVideo =
+    !detailDoctor || String(detailDoctor.doctorId) !== String(doctorId)
+      ? true
+      : (detailDoctor.videoConsultationFee ?? 0) > 0;
+
   useEffect(() => {
     if (lockedToClinic && consultationType !== 'in-clinic') {
       dispatch(setConsultationType('in-clinic'));
     }
   }, [lockedToClinic, consultationType, dispatch]);
+
+  /**
+   * Switch a clinic-locked booking to a video consultation.
+   *
+   * The clinic MUST be cleared here. `lockedToClinic` is derived from it, and
+   * the effect above forces the type back to 'in-clinic' for as long as it is
+   * set — so changing the type alone would be reverted on the very next render.
+   */
+  const handleSwitchToVideo = useCallback(() => {
+    dispatch(clearSelectedClinic());
+    dispatch(setConsultationType('video'));
+  }, [dispatch]);
 
   const handleContinue = useCallback(() => {
     if (!selectedSlot) return;
@@ -303,23 +326,69 @@ const SlotSelectionScreen: React.FC = () => {
             that choice away and booked a different kind of appointment — so
             when a clinic is set, state it rather than offer it. */}
         {lockedToClinic ? (
-          <View style={styles.toggleWrapper}>
-            <Text style={styles.toggleLabel}>Consultation Type</Text>
-            <View style={styles.lockedTypeRow}>
-              <View style={styles.lockedTypeIcon}>
-                <MaterialCommunityIcons name="hospital-building" size={18} color={THEME.primary} />
+          /*
+            Two rows, not one.
+            This was a single "Consultation Type" row showing the visit type AND
+            the clinic name, with one "Change" link that called goBack() — so a
+            control captioned "Consultation Type" actually took you back to
+            clinic selection and changed the clinic. It also left no route to a
+            video consultation once a clinic had been picked, even though the
+            appointment type enum supports it.
+            Each row now says what it is and its action changes exactly that.
+          */
+          <>
+            <View style={styles.toggleWrapper}>
+              <Text style={styles.toggleLabel}>Consultation Type</Text>
+              <View style={styles.lockedTypeRow}>
+                <View style={styles.lockedTypeIcon}>
+                  <MaterialCommunityIcons name="hospital-building" size={18} color={THEME.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.lockedTypeTitle}>In-Clinic Visit</Text>
+                  <Text style={styles.lockedTypeSub} numberOfLines={1}>
+                    Visit the doctor in person
+                  </Text>
+                </View>
+                {offersVideo && (
+                  <TouchableOpacity
+                    onPress={handleSwitchToVideo}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Switch to a video consultation"
+                  >
+                    <Text style={styles.lockedTypeChange}>Switch to Video</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.lockedTypeTitle}>In-Clinic Visit</Text>
-                <Text style={styles.lockedTypeSub} numberOfLines={1}>
-                  {selectedClinic?.name}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.lockedTypeChange}>Change</Text>
-              </TouchableOpacity>
             </View>
-          </View>
+
+            <View style={styles.toggleWrapper}>
+              <Text style={styles.toggleLabel}>Clinic</Text>
+              <View style={styles.lockedTypeRow}>
+                <View style={styles.lockedTypeIcon}>
+                  <MaterialCommunityIcons name="map-marker" size={18} color={THEME.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.lockedTypeTitle} numberOfLines={1}>
+                    {selectedClinic?.name}
+                  </Text>
+                  {!!selectedClinic?.address && (
+                    <Text style={styles.lockedTypeSub} numberOfLines={1}>
+                      {selectedClinic.address}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigation.goBack()}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change clinic"
+                >
+                  <Text style={styles.lockedTypeChange}>Change</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
         ) : (
         <View style={styles.toggleWrapper}>
           <Text style={styles.toggleLabel}>Consultation Type</Text>
