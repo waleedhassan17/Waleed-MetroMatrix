@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectService, Service } from './userhomeSlice';
+import { setSelection, Service } from './userhomeSlice';
 import { LinearGradient } from 'expo-linear-gradient';
 import SlideOutSidebar from '../../components/SlideOutSidebar/SlideOutSidebar';
 
@@ -39,25 +39,41 @@ const SERVICE_IMAGES: Record<string, ImageSourcePropType> = {
 const UserHomeScreen: React.FC = () => {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
-  const { selectedService, services } = useAppSelector((state) => state.userHome);
+  const { services } = useAppSelector((state) => state.userHome);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
+  // One tap opens the service.
+  //
+  // This screen used to be select-then-confirm: tapping a card only set
+  // `selectedService`, and the user then had to scroll past three large cards
+  // to a "Continue" button pinned at the bottom. Three problems came with it:
+  //
+  //  1. The "Explore" chip on each card — visually the primary call to action —
+  //     was a TouchableOpacity with NO onPress. Because it was nested inside
+  //     the card's own touchable it swallowed the tap rather than letting it
+  //     through, so the most obvious control on the screen did nothing at all.
+  //  2. selectService TOGGLES, and the slice pre-selects 'shopping'. Tapping
+  //     the pre-selected card therefore DESELECTED it and disabled the only
+  //     way forward — the exact dead end in the report.
+  //  3. A confirm step buys nothing for a three-item launcher; the label even
+  //     read "Select a Service", describing what the user still had to do
+  //     rather than what the button would do.
+  //
+  // A launcher's job is to launch, so the card is now the button.
   const handleServicePress = (serviceId: string) => {
-    dispatch(selectService(serviceId));
-  };
+    // setSelection, not selectService: the latter toggles, so re-opening the
+    // service you already came from would clear the record instead of setting it.
+    dispatch(setSelection(serviceId));
 
-  const handleContinue = () => {
-    if (selectedService) {
-      // Map service IDs to navigation routes
-      if (selectedService === 'homeServices') {
-        navigation.navigate('HomeServiceLayout' as never);
-      } else if (selectedService === 'healthcare') {
-        navigation.navigate('HealthcareStack' as never);
-      } else if (selectedService === 'shopping') {
-        navigation.navigate('Shopping' as never);
-      } else {
-        navigation.navigate(selectedService as never);
-      }
+    // Map service IDs to navigation routes
+    if (serviceId === 'homeServices') {
+      navigation.navigate('HomeServiceLayout' as never);
+    } else if (serviceId === 'healthcare') {
+      navigation.navigate('HealthcareStack' as never);
+    } else if (serviceId === 'shopping') {
+      navigation.navigate('Shopping' as never);
+    } else {
+      navigation.navigate(serviceId as never);
     }
   };
 
@@ -69,65 +85,21 @@ const UserHomeScreen: React.FC = () => {
     return SERVICE_IMAGES['shopping'];
   };
 
-  // Render SELECTED card - Description appears ON the image
-  const renderSelectedCard = (service: Service) => {
-    return (
-      <TouchableOpacity
-        key={service.id}
-        style={[styles.serviceCard, styles.serviceCardSelected]}
-        onPress={() => handleServicePress(service.id)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.selectedCardContainer}>
-          <Image
-            source={getImageSource(service)}
-            style={styles.serviceImage}
-            resizeMode="cover"
-          />
-          
-          {/* Gradient Overlay - stronger for text readability */}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.65)']}
-            style={styles.imageOverlay}
-          />
-
-          {/* Category Badge - Top Left */}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{service.subtitle}</Text>
-          </View>
-
-          {/* Stats Badge - Top Right */}
-          <View style={styles.statsBadge}>
-            <Text style={styles.statsText}>
-              {service.stats.value} {service.stats.label}
-            </Text>
-          </View>
-
-          {/* Bottom Content - Title + Description ON image */}
-          <View style={styles.selectedBottomContent}>
-            <Text style={styles.selectedCardTitle}>{service.title}</Text>
-            <Text style={styles.selectedCardDescription} numberOfLines={2}>
-              {service.description}
-            </Text>
-          </View>
-
-          {/* Checkmark - Bottom Right */}
-          <View style={styles.checkmarkContainer}>
-            <Text style={styles.checkmark}>✓</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Render UNSELECTED card - Description appears BELOW the image
-  const renderUnselectedCard = (service: Service) => {
+  // One card design for every service. The old "selected" variant — which moved
+  // the description onto the image, hid the Explore chip and added a checkmark —
+  // communicated a pending choice that no longer exists now that a tap opens the
+  // service. Left in, it would style whichever service you last opened
+  // differently from its neighbours, implying a state you cannot act on.
+  const renderServiceCard = (service: Service) => {
     return (
       <TouchableOpacity
         key={service.id}
         style={styles.serviceCard}
         onPress={() => handleServicePress(service.id)}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={`${service.title}. ${service.description}`}
+        accessibilityHint="Opens this service"
       >
         {/* Image Section */}
         <View style={styles.imageContainer}>
@@ -169,20 +141,23 @@ const UserHomeScreen: React.FC = () => {
               {service.description}
             </Text>
 
-            {/* Explore Button */}
-            <TouchableOpacity style={styles.exploreButton} activeOpacity={0.7}>
+            {/*
+              A View, deliberately, not a TouchableOpacity. As a nested
+              touchable it captured the tap and — having no onPress — did
+              nothing, which is why this chip appeared broken. As a plain View
+              the press falls through to the card, so tapping the chip and
+              tapping anywhere else on the card do the same thing, and the whole
+              card is one large target instead of a live button sitting on a
+              dead one.
+            */}
+            <View style={styles.exploreButton}>
               <Text style={styles.exploreText}>Explore</Text>
               <Text style={styles.exploreArrow}>{'>'}</Text>
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
     );
-  };
-
-  const renderServiceCard = (service: Service) => {
-    const isSelected = selectedService === service.id;
-    return isSelected ? renderSelectedCard(service) : renderUnselectedCard(service);
   };
 
   return (
@@ -248,36 +223,12 @@ const UserHomeScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Container */}
+      {/*
+        The "Continue" / "Select a Service" button that stood here is gone: the
+        cards navigate on tap, so a confirm step would only add a second tap and
+        a scroll. Its footer is kept for the home indicator spacing.
+      */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            !selectedService && styles.continueButtonDisabled,
-          ]}
-          onPress={handleContinue}
-          disabled={!selectedService}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={selectedService ? ['#10B981', '#059669'] : ['#E5E7EB', '#E5E7EB']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.buttonGradient}
-          >
-            <Text
-              style={[
-                styles.continueButtonText,
-                !selectedService && styles.continueButtonTextDisabled,
-              ]}
-            >
-              {selectedService ? 'Continue' : 'Select a Service'}
-            </Text>
-            {selectedService && <Text style={styles.buttonArrow}>→</Text>}
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* Home Indicator */}
         <View style={styles.homeIndicator} />
       </View>
     </SafeAreaView>
@@ -410,41 +361,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  serviceCardSelected: {
-    borderColor: '#10B981',
-    shadowColor: '#10B981',
-    shadowOpacity: 0.15,
-  },
 
   // ============ SELECTED CARD (Description ON image) ============
-  selectedCardContainer: {
-    height: 200,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  selectedBottomContent: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    right: 60,
-  },
-  selectedCardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    marginBottom: 4,
-  },
-  selectedCardDescription: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
 
   // ============ UNSELECTED CARD (Description BELOW image) ============
   imageContainer: {
@@ -518,27 +436,6 @@ const styles = StyleSheet.create({
   },
 
   // Checkmark - Bottom Right
-  checkmarkContainer: {
-    position: 'absolute',
-    bottom: 14,
-    right: 14,
-    width: 32,
-    height: 32,
-    backgroundColor: '#10B981',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
 
   // ============ CARD CONTENT (Below image for unselected) ============
   cardContent: {
@@ -591,39 +488,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     backgroundColor: '#FFFFFF',
-  },
-  continueButton: {
-    borderRadius: 28,
-    overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  continueButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  continueButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  continueButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
-  buttonArrow: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontWeight: '500',
   },
   homeIndicator: {
     display: 'none',
