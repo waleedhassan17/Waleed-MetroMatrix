@@ -28,10 +28,11 @@ import {
   selectRecentSearches,
   selectPopularSearches,
 } from './doctorSearchSlice';
+import { fetchSpecialties } from '../specialty-list/specialtyListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
-import type { Doctor } from '../../../../models/healthcare/types';
+import type { Doctor, Specialty } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import {
   getDoctorDisplayName,
@@ -63,21 +64,46 @@ const THEME = {
 
 // ── Popular Search Categories ───────────────
 
+// Browse entry points.
+//
+// There were four of these, and all four navigated to SpecialtyList with only a
+// `categoryType` param to tell them apart — a param specialtyList.tsx never
+// read. So every tile opened the same screen.
+//
+// Only these two have anything behind them. "By Hospital" would need an
+// endpoint that does not exist (clinics are listable only per doctor, via
+// GET /doctors/:doctorId/clinics), and "By Condition" would render empty:
+// Specialty.commonConditions exists in the schema and is already mapped by the
+// client serializer, but the healthcare seed never populates it. Both were
+// removed rather than left pointing at the specialty list.
 const SEARCH_CATEGORIES = [
   { id: 'specialty', label: 'By Specialty', icon: 'stethoscope', color: '#2A7FFF' },
-  { id: 'condition', label: 'By Condition', icon: 'medical-bag', color: '#10B981' },
   { id: 'doctor', label: 'By Name', icon: 'doctor', color: '#5A9FFF' },
-  { id: 'hospital', label: 'By Hospital', icon: 'hospital-building', color: '#F59E0B' },
-];
+] as const;
 
-const QUICK_SUGGESTIONS = [
-  { label: 'Cardiologist', icon: 'heart-pulse', color: '#EF4444' },
-  { label: 'Dermatologist', icon: 'face-woman-shimmer', color: '#2A7FFF' },
-  { label: 'Pediatrician', icon: 'baby-face-outline', color: '#5A9FFF' },
-  { label: 'Orthopedic', icon: 'bone', color: '#5A9FFF' },
-  { label: 'ENT Specialist', icon: 'ear-hearing', color: '#06B6D4' },
-  { label: 'Neurologist', icon: 'brain', color: '#1857C0' },
-];
+/**
+ * Icons for the specialty chips, keyed by the `icon` the backend stores on each
+ * Specialty (see scripts/seed-healthcare.js: 'heart', 'brain', 'bone', …).
+ *
+ * The chips themselves are NOT hardcoded any more — see renderQuickSuggestions.
+ * They used to be a fixed list of practitioner nouns ('Cardiologist',
+ * 'Neurologist') fed to the free-text search, while specialties are stored as
+ * field nouns ('Cardiology', 'Neurology'), so five of the six matched nothing
+ * at all and one matched by accident. This map only decorates; if a specialty
+ * arrives with an unknown icon it falls back rather than disappearing.
+ */
+const SPECIALTY_ICONS: Record<string, { icon: string; color: string }> = {
+  heart: { icon: 'heart-pulse', color: '#EF4444' },
+  body: { icon: 'face-woman-shimmer', color: '#2A7FFF' },
+  brain: { icon: 'brain', color: '#1857C0' },
+  stomach: { icon: 'stomach', color: '#10B981' },
+  bone: { icon: 'bone', color: '#5A9FFF' },
+  child: { icon: 'baby-face-outline', color: '#5A9FFF' },
+  female: { icon: 'human-female', color: '#EC4899' },
+  stethoscope: { icon: 'stethoscope', color: '#06B6D4' },
+};
+
+const SPECIALTY_ICON_FALLBACK = { icon: 'medical-bag', color: '#2A7FFF' };
 
 // ── Skeleton Component ──────────────────────
 
@@ -171,6 +197,14 @@ const DoctorSearchScreen: React.FC = () => {
   const recentSearches = useAppSelector(selectRecentSearches);
   const popularSearches = useAppSelector(selectPopularSearches);
 
+  // Real specialties, from the same slice the specialty list screen uses — one
+  // fetch path, not a second copy. The chips carry a specialtyId, so tapping
+  // one navigates straight to that specialty's doctors instead of round-
+  // tripping a display label through free-text search.
+  const popularSpecialties = useAppSelector(
+    (s) => s.specialtyList.specialties
+  ).slice(0, 6);
+
   // Entrance animations. The search bar's scale runs HERE, with the rest, and
   // deliberately not alongside the focus call below: a transform animating on
   // an ancestor of a focused TextInput is a second way Android drops focus, and
@@ -196,6 +230,14 @@ const DoctorSearchScreen: React.FC = () => {
       }),
     ]).start();
   }, []);
+
+  // The chips are data now, so they need the specialties. Skipped when another
+  // screen has already loaded them — they change about as often as the app is
+  // released.
+  useEffect(() => {
+    if (popularSpecialties.length === 0) dispatch(fetchSpecialties());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   // Auto-focus, once the screen has actually settled.
   //
@@ -261,6 +303,27 @@ const DoctorSearchScreen: React.FC = () => {
     dispatch(setSearchQuery(term));
     dispatch(addRecentSearch(term));
     dispatch(searchDoctors(term));
+  };
+
+  // Chips know which specialty they are, so go straight to its doctors — the
+  // same destination and params specialtyList.tsx uses. No search round-trip,
+  // so a label can never drift from the data behind it again.
+  const handleSpecialtyPress = (specialty: Specialty) => {
+    navigation.navigate(HealthcareRouteNames.DoctorList, {
+      specialtyId: specialty.specialtyId,
+      specialtyName: specialty.name,
+    });
+  };
+
+  const handleCategoryPress = (categoryId: (typeof SEARCH_CATEGORIES)[number]['id']) => {
+    if (categoryId === 'doctor') {
+      // Searching by name IS this screen's search field, which already matches
+      // Provider.fullName server-side. Focus it rather than pushing a screen
+      // that would duplicate it.
+      inputRef.current?.focus();
+      return;
+    }
+    navigation.navigate(HealthcareRouteNames.SpecialtyList);
   };
 
   const handleDoctorPress = (doctor: Doctor) => {
@@ -411,7 +474,10 @@ const DoctorSearchScreen: React.FC = () => {
   // ── Quick Suggestions ───────────────────
 
   const renderQuickSuggestions = () => {
-    if (searchQuery.trim()) return null;
+    // Nothing to show until the specialties arrive. Previously this section was
+    // a hardcoded list, so it always rendered — with labels that returned no
+    // doctors.
+    if (searchQuery.trim() || popularSpecialties.length === 0) return null;
 
     return (
       <View style={styles.suggestionsSection}>
@@ -427,28 +493,30 @@ const DoctorSearchScreen: React.FC = () => {
         </View>
 
         <View style={styles.suggestionsGrid}>
-          {QUICK_SUGGESTIONS.map((suggestion) => (
-            <TouchableOpacity
-              key={suggestion.label}
-              style={styles.suggestionChip}
-              onPress={() => handleRecentPress(suggestion.label)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.suggestionIcon,
-                  { backgroundColor: suggestion.color + '15' },
-                ]}
+          {popularSpecialties.map((specialty) => {
+            const theme = SPECIALTY_ICONS[specialty.icon] || SPECIALTY_ICON_FALLBACK;
+            return (
+              <TouchableOpacity
+                key={specialty.specialtyId}
+                style={styles.suggestionChip}
+                onPress={() => handleSpecialtyPress(specialty)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${specialty.name} doctors`}
               >
-                <MaterialCommunityIcons
-                  name={suggestion.icon as any}
-                  size={16}
-                  color={suggestion.color}
-                />
-              </View>
-              <Text style={styles.suggestionText}>{suggestion.label}</Text>
-            </TouchableOpacity>
-          ))}
+                <View
+                  style={[styles.suggestionIcon, { backgroundColor: theme.color + '15' }]}
+                >
+                  <MaterialCommunityIcons
+                    name={theme.icon as any}
+                    size={16}
+                    color={theme.color}
+                  />
+                </View>
+                <Text style={styles.suggestionText}>{specialty.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -474,12 +542,9 @@ const DoctorSearchScreen: React.FC = () => {
               key={category.id}
               style={styles.categoryCard}
               activeOpacity={0.8}
-              onPress={() => {
-                // Navigate to category-specific search
-                navigation.navigate(HealthcareRouteNames.SpecialtyList, {
-                  categoryType: category.id,
-                });
-              }}
+              onPress={() => handleCategoryPress(category.id)}
+              accessibilityRole="button"
+              accessibilityLabel={category.label}
             >
               <LinearGradient
                 colors={[category.color + '15', category.color + '08']}
