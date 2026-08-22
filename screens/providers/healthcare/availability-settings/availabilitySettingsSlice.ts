@@ -1,3 +1,4 @@
+import { toLocalISODate } from '../../../../utils/date/localDate';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
   fetchAvailabilitySettingsApi,
@@ -149,12 +150,26 @@ export const fetchSettings = createAsyncThunk<
     const res = await fetchAvailabilitySettingsApi();
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     const data: any = res.data || {};
-    const schedule: DaySchedule[] = Array.isArray(data.weeklySchedule) && data.weeklySchedule.length
-      ? data.weeklySchedule.map((d: any, i: number) => normaliseDay(d, WEEKDAYS[i % 7]))
-      : [];
+
+    // FIELD NAMES: the backend (getAvailability, healthcareDoctorController)
+    // returns `weeklyAvailability` and `absentDates`. This read only
+    // `weeklySchedule` / `vacationDates`, so the schedule was ALWAYS undefined
+    // and fell through to [] — which is why the Availability screen rendered
+    // completely blank apart from its Save button. Both spellings are accepted
+    // so a legacy payload still loads.
+    const rawSchedule = data.weeklyAvailability ?? data.weeklySchedule;
+
+    // An empty result means "never configured", not "nothing to show". Fall
+    // back to the all-OFF week so the doctor gets seven rows they can switch
+    // on. blankWeeklySchedule is deliberately all-off: seeding a fabricated
+    // 09:00-17:00 week would show hours patients cannot actually book.
+    const schedule: DaySchedule[] = Array.isArray(rawSchedule) && rawSchedule.length
+      ? rawSchedule.map((d: any, i: number) => normaliseDay(d, WEEKDAYS[i % 7]))
+      : blankWeeklySchedule();
+
     return {
       weeklySchedule: schedule,
-      vacationDates: data.vacationDates ?? [],
+      vacationDates: data.absentDates ?? data.vacationDates ?? [],
       instantBooking: data.instantBooking ?? true,
       videoConsultation: data.videoConsultation ?? true,
     };
@@ -170,6 +185,17 @@ export const saveSettings = createAsyncThunk<
 >('availabilitySettings/saveSettings', async (_, { getState, rejectWithValue }) => {
   try {
     const { weeklySchedule, vacationDates, instantBooking, videoConsultation } = getState().availabilitySettings;
+
+    // Never PATCH a schedule the doctor was not shown. While the fetch was
+    // reading the wrong field the screen rendered blank with weeklySchedule
+    // still [], and the Save button was live — one tap would have written an
+    // empty week over real availability and silently unbooked the doctor.
+    // The fetch now falls back to a seven-day all-OFF week, so [] here can only
+    // mean the load never completed.
+    if (!weeklySchedule.length) {
+      return rejectWithValue('Availability has not loaded yet — pull to refresh and try again.');
+    }
+
     const res = await saveAvailabilitySettingsApi({ weeklySchedule, vacationDates, instantBooking, videoConsultation });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
   } catch {
@@ -188,7 +214,7 @@ export const generateSlots = createAsyncThunk<
     const start = new Date();
     const end = new Date();
     end.setDate(end.getDate() + days);
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    const fmt = (d: Date) => toLocalISODate(d);
     const res = await generateSlotsApi({ startDate: fmt(start), endDate: fmt(end), slotDuration: opts?.slotDuration ?? 30 });
     if (!res.success) return rejectWithValue(res.message ?? 'Failed to generate slots');
     return res.message ?? 'Slots generated';
