@@ -38,10 +38,10 @@ import {
 import { RootState, AppDispatch } from '../../../../store/store';
 import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
 
-// 'jazzcash' and 'easypaisa' both ride the in-app wallet on the backend
-// (see MetroMatrix-Backend paymentController.js) — the wallet IS the
-// mobile-money stand-in for FYP scope. 'cash' and 'card' don't touch it.
-const WALLET_BACKED_METHODS: PaymentMethodType[] = ['jazzcash', 'easypaisa'];
+// The wallet is the only method that debits a balance; cash is settled
+// in person. This used to list 'jazzcash' and 'easypaisa', which were the
+// same wallet under two other brands' names.
+const WALLET_BACKED_METHODS: PaymentMethodType[] = ['wallet'];
 
 const { width, height } = Dimensions.get('window');
 

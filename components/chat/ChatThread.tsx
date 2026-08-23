@@ -20,7 +20,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  SafeAreaView,
   Platform,
   TextInput,
   Image,
@@ -28,6 +27,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchChatData, RoomType } from '../../networks/serviceProviders/chatNetwork';
@@ -58,6 +58,10 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   onCall,
 }) => {
   const navigation = useNavigation<any>();
+  // React Native's own SafeAreaView does nothing on Android, so the composer
+  // used to sit UNDER the gesture/navigation bar and could not be tapped.
+  // The real inset has to come from safe-area-context.
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +137,14 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
     if (typingTimer.current) clearTimeout(typingTimer.current);
   }, []);
 
+  // Follow the conversation. Without this a new message lands off-screen and
+  // the thread looks stuck on the last thing you read.
+  useEffect(() => {
+    if (!messages.length) return;
+    const t = setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 60);
+    return () => clearTimeout(t);
+  }, [messages.length]);
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const mine = item.sender === myRole;
     return (
@@ -166,7 +178,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={accent} />
       <View style={[styles.header, { backgroundColor: accent }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -225,7 +237,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
       ) : (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
           <FlatList
@@ -241,7 +253,15 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
               </View>
             }
           />
-          <View style={styles.inputRow}>
+          <View
+            style={[
+              styles.inputRow,
+              // Clear the gesture bar, plus a little breathing room so the
+              // send button is comfortably reachable rather than flush against
+              // the system UI.
+              { paddingBottom: Math.max(insets.bottom, 8) + 6 },
+            ]}
+          >
             <TextInput
               style={styles.input}
               placeholder="Type a message…"
@@ -304,42 +324,65 @@ const styles = StyleSheet.create({
   avatarFallback: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   headerName: { color: '#fff', fontSize: 16, fontWeight: '700' },
   headerSub: { fontSize: 12 },
-  listContent: { padding: 16, paddingBottom: 8, flexGrow: 1 },
-  bubbleRow: { marginBottom: 10, flexDirection: 'row' },
+  listContent: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, flexGrow: 1 },
+  bubbleRow: { marginBottom: 8, flexDirection: 'row' },
   rowMine: { justifyContent: 'flex-end' },
   rowTheirs: { justifyContent: 'flex-start' },
-  bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9 },
+  bubble: {
+    maxWidth: '80%',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    // A hairline shadow separates bubbles from the canvas without the heavy
+    // borders the previous version relied on.
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
   bubbleTheirs: {
     backgroundColor: '#fff',
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  bubbleText: { fontSize: 15, color: '#111827', lineHeight: 20 },
+  bubbleText: { fontSize: 15, color: '#111827', lineHeight: 21 },
   bubbleTextMine: { color: '#fff' },
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', marginTop: 3 },
   timeText: { fontSize: 10, color: '#9CA3AF' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 10,
+    paddingHorizontal: 12,
+    paddingTop: 10,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   input: {
     flex: 1,
-    maxHeight: 110,
+    minHeight: 44,
+    maxHeight: 120,
     backgroundColor: '#F3F4F6',
-    borderRadius: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingTop: Platform.OS === 'ios' ? 12 : 9,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 9,
     fontSize: 15,
     color: '#111827',
     marginRight: 8,
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { backgroundColor: '#9CA3AF' },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
   retryBtn: { marginTop: 14, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },

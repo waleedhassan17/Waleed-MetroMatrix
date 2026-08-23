@@ -20,11 +20,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallSession, CallPhase } from '../../services/call/useCallSession';
 import type { MediaKind } from '../../services/call/usePeerConnection';
@@ -89,6 +89,9 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
   media = 'audio',
 }) => {
   const navigation = useNavigation<any>();
+  // React Native's SafeAreaView is a no-op on Android, so the action row could
+  // sit under the gesture bar — on a call screen that means End is unreachable.
+  const insets = useSafeAreaInsets();
   const [seconds, setSeconds] = useState(0);
 
   const { phase, error, ring, accept, decline, end, media: peer } = useCallSession({
@@ -183,7 +186,7 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" />
 
       {/* Remote video fills the screen behind everything else. */}
@@ -228,37 +231,48 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
         />
       )}
 
-      <View style={styles.actions}>
+      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, 12) + 16 }]}>
         {inCall && (
           <>
-            <TouchableOpacity
-              style={[styles.roundBtn, styles.utilBtn, !peer.micEnabled && styles.utilBtnOff]}
-              onPress={peer.toggleMic}
-              accessibilityLabel={peer.micEnabled ? 'Mute' : 'Unmute'}
-            >
-              <Ionicons name={peer.micEnabled ? 'mic' : 'mic-off'} size={24} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.control}>
+              <TouchableOpacity
+                style={[styles.roundBtn, styles.utilBtn, !peer.micEnabled && styles.utilBtnOff]}
+                onPress={peer.toggleMic}
+                accessibilityLabel={peer.micEnabled ? 'Mute' : 'Unmute'}
+              >
+                <Ionicons name={peer.micEnabled ? 'mic' : 'mic-off'} size={24} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.controlLabel}>{peer.micEnabled ? 'Mute' : 'Unmute'}</Text>
+            </View>
 
             {media === 'video' && (
               <>
-                <TouchableOpacity
-                  style={[styles.roundBtn, styles.utilBtn, !peer.cameraEnabled && styles.utilBtnOff]}
-                  onPress={peer.toggleCamera}
-                  accessibilityLabel={peer.cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
-                >
-                  <Ionicons
-                    name={peer.cameraEnabled ? 'videocam' : 'videocam-off'}
-                    size={24}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.roundBtn, styles.utilBtn]}
-                  onPress={peer.switchCamera}
-                  accessibilityLabel="Switch camera"
-                >
-                  <Ionicons name="camera-reverse" size={24} color="#fff" />
-                </TouchableOpacity>
+                <View style={styles.control}>
+                  <TouchableOpacity
+                    style={[styles.roundBtn, styles.utilBtn, !peer.cameraEnabled && styles.utilBtnOff]}
+                    onPress={peer.toggleCamera}
+                    accessibilityLabel={peer.cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+                  >
+                    <Ionicons
+                      name={peer.cameraEnabled ? 'videocam' : 'videocam-off'}
+                      size={24}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.controlLabel}>
+                    {peer.cameraEnabled ? 'Camera' : 'Camera off'}
+                  </Text>
+                </View>
+                <View style={styles.control}>
+                  <TouchableOpacity
+                    style={[styles.roundBtn, styles.utilBtn]}
+                    onPress={peer.switchCamera}
+                    accessibilityLabel="Switch camera"
+                  >
+                    <Ionicons name="camera-reverse" size={24} color="#fff" />
+                  </TouchableOpacity>
+                  <Text style={styles.controlLabel}>Flip</Text>
+                </View>
               </>
             )}
           </>
@@ -311,6 +325,8 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
 };
 
 const styles = StyleSheet.create({
+  control: { alignItems: 'center', gap: 6 },
+  controlLabel: { color: '#94A3B8', fontSize: 11, fontWeight: '500' },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',

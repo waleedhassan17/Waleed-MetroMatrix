@@ -9,7 +9,31 @@ import {
 } from '../../../../serializers/serviceProviders/paymentSerializer';
 
 // Types
-export type PaymentMethodType = 'jazzcash' | 'easypaisa' | 'cash' | 'card' | null;
+// Home services settles through the MetroMatrix wallet or cash on completion.
+//
+// 'jazzcash' | 'easypaisa' | 'card' used to be listed here as separate methods,
+// but none of them were real: the backend routed jazzcash and easypaisa
+// straight to payWithWallet() — the same in-app wallet under two other brands'
+// names — and card was never implemented at all. Offering four options where
+// two of them silently did the same thing and one did nothing is worse than
+// offering the two that are true.
+//
+// The legacy ids stay accepted when READING an old booking's payment record
+// (see normalizePaymentMethod) so historical rows still render.
+export type PaymentMethodType = 'wallet' | 'cash' | null;
+
+/** Old rows and older app builds still carry the retired ids. */
+export type LegacyPaymentMethodType = 'jazzcash' | 'easypaisa' | 'card';
+
+/** Map any historical method id onto one of the two real ones. */
+export const normalizePaymentMethod = (
+  method?: string | null
+): PaymentMethodType => {
+  if (!method) return null;
+  if (method === 'cash') return 'cash';
+  // Everything else that ever existed was the wallet wearing a different name.
+  return 'wallet';
+};
 export type PaymentStatusType = 'idle' | 'processing' | 'completed' | 'failed';
 export type ServiceCategory = 'electricians' | 'plumbers' | 'ac-repairers';
 
@@ -83,19 +107,9 @@ const initialState: PaymentState = {
   error: null,
   paymentMethods: [
     {
-      id: 'jazzcash',
-      name: 'JazzCash',
-      subtitle: 'Pay with JazzCash Wallet',
-      icon: 'phone-portrait-outline',
-      color: '#E63946',
-      bgColor: '#FEF2F2',
-      borderColor: '#FECACA',
-      enabled: true,
-    },
-    {
-      id: 'easypaisa',
-      name: 'EasyPaisa',
-      subtitle: 'Pay with EasyPaisa Wallet',
+      id: 'wallet',
+      name: 'MetroMatrix Wallet',
+      subtitle: 'Pay instantly from your wallet balance',
       icon: 'wallet-outline',
       color: '#059669',
       bgColor: '#ECFDF5',
@@ -103,19 +117,9 @@ const initialState: PaymentState = {
       enabled: true,
     },
     {
-      id: 'card',
-      name: 'Card Payment',
-      subtitle: 'Credit or Debit Card',
-      icon: 'card-outline',
-      color: '#7C3AED',
-      bgColor: '#F5F3FF',
-      borderColor: '#DDD6FE',
-      enabled: true,
-    },
-    {
       id: 'cash',
-      name: 'Cash Payment',
-      subtitle: 'Pay in cash to provider',
+      name: 'Cash',
+      subtitle: 'Pay the provider in cash on completion',
       icon: 'cash-outline',
       color: '#64748B',
       bgColor: '#F8FAFC',
