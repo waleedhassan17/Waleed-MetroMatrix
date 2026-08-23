@@ -176,19 +176,34 @@ const persistConfig = {
 // ============================================================================
 export const RESET_ALL_STATE = 'auth/resetAll' as const;
 
-// Slices that carry the SESSION rather than account-scoped data. On login they
-// must survive the wipe: the sign-in screens hold their email/password fields
-// in Redux, so clearing these mid-login would blank the form the user is
-// submitting — and lose their typed credentials if the attempt then failed.
-// On logout nothing is preserved.
-const SESSION_SLICES = ['signIn', 'providerSignIn', 'role', 'provider'] as const;
+// Slices describing the APP PROCESS rather than an account.
+//
+// These survive EVERY reset, logout included. `appContainer` holds the boot
+// flags the whole app is gated on — `isAppReady`, `status`, and the onboarding
+// flag — and its initial state is `isAppReady: false`. Wiping it parks the app
+// on its black boot spinner forever, because the effect that sets the flag
+// runs once at mount and never again. Clearing an account must never be able
+// to un-boot the app.
+//
+// Identity inside this slice (currentUser / currentProvider / userType) is
+// still cleared on logout — by appContainer's own `logout` reducer, which
+// performLogout dispatches. That is the right split: the slice decides which
+// of its own fields are account-scoped, instead of an outside allowlist
+// guessing all-or-nothing.
+const SHELL_SLICES = ['appContainer'] as const;
+
+// Slices carrying an IN-FLIGHT SIGN-IN. Preserved on login only: the sign-in
+// screens hold their email/password fields in Redux, so clearing these
+// mid-login would blank the form being submitted — and lose the user's typed
+// credentials if the attempt then failed.
+const SIGN_IN_SLICES = ['signIn', 'providerSignIn', 'role', 'provider'] as const;
 
 /**
- * Wipe every slice back to its initial state.
+ * Wipe account-scoped state back to initial.
  *
- * `preserveSession` is for the LOGIN path, where the goal is to clear the
- * previous account's data without disturbing the sign-in flow in progress.
- * Logout calls this with no argument and keeps nothing.
+ * `preserveSession` marks the LOGIN path, where the goal is to clear the
+ * PREVIOUS account without disturbing the sign-in in progress. Logout calls
+ * this with no argument. Either way the shell slices above are kept.
  */
 export const resetAllState = (preserveSession = false) => ({
   type: RESET_ALL_STATE,
@@ -334,14 +349,17 @@ const rootReducer = (
     return appReducer(state, action as never);
   }
 
-  if (!state || !action.payload?.preserveSession) {
-    return appReducer(undefined, action as never);
-  }
+  if (!state) return appReducer(undefined, action as never);
 
-  // Carry the session slices across the wipe by seeding the rebuilt tree with
-  // them; every other slice still rebuilds from its own initial state.
+  // Carry the surviving slices across the wipe by seeding the rebuilt tree with
+  // them; every other slice rebuilds from its own initial state.
+  const survivors: string[] = [
+    ...SHELL_SLICES,
+    ...(action.payload?.preserveSession ? SIGN_IN_SLICES : []),
+  ];
+
   const kept: Partial<ReturnType<typeof appReducer>> = {};
-  for (const key of SESSION_SLICES) {
+  for (const key of survivors) {
     if (key in state) {
       (kept as Record<string, unknown>)[key] = (state as Record<string, unknown>)[key];
     }

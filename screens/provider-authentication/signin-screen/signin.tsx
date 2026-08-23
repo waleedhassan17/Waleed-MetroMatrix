@@ -37,6 +37,7 @@ import {
   selectProviderSubType,
 } from '../../provider-selection/providerSlice';
 import { ActionButton } from '../../../components/FormComponents';
+import { setCurrentProvider } from '../../../components/app-container/appContainerSlice';
 
 const isAndroid = Platform.OS === 'android';
 
@@ -138,6 +139,12 @@ export default function ProviderSignInScreen() {
       const result = await dispatch(
         submitProviderSignInAsync({ email: email.trim().toLowerCase(), password })
       ).unwrap();
+
+      // Hydrate app-container state immediately so the provider dashboard can
+      // render without waiting for a stale or missing profile fetch.
+      if (result?.provider) {
+        dispatch(setCurrentProvider(result.provider as any));
+      }
 
       // Route based on the provider type the backend returned, not the
       // Redux provider-selection state (which reflects signup flow choice

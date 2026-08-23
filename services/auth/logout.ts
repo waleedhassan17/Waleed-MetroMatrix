@@ -23,6 +23,7 @@ import { clearAuthData } from '../../utils/storage_utils/storageUtils';
 import { disconnectSocket } from '../socket/socketClient';
 import { unregisterPushOnLogout } from '../push/pushNotifications';
 import { resetAllState } from '../../store/store';
+import { logout as appContainerLogout } from '../../components/app-container/appContainerSlice';
 
 /**
  * End the current session completely.
@@ -64,6 +65,13 @@ export async function performLogout(dispatch: Dispatch): Promise<void> {
     console.log('[logout] clearAuthData failed:', e);
   }
 
-  // Last: drop every slice back to its initial state.
+  // Drop every account-scoped slice back to its initial state.
   dispatch(resetAllState());
+
+  // The app-shell slice deliberately SURVIVES that reset — it holds the boot
+  // flags the whole UI is gated on, and resetting it would strand the app on
+  // its loading spinner. So clear the identity inside it explicitly: this
+  // nulls currentUser / currentProvider / userType while leaving isAppReady
+  // and the onboarding flag intact.
+  dispatch(appContainerLogout());
 }

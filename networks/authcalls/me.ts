@@ -1,8 +1,10 @@
 import { UserInfo } from '../../models/user';
 import { ProviderInfo } from '../../models/provider';
+import { API_URL } from '../network/network';
 
-// Base API URL - update this with your actual API endpoint
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.example.com';
+// Use the same configured API host as the app-level network layer so the auth
+// bootstrap does not silently point at the placeholder example.com domain.
+const API_BASE_URL = API_URL;
 
 /**
  * Fetch current user or provider information
@@ -39,7 +41,15 @@ export const me = async (userType: 'user' | 'provider' = 'user'): Promise<UserIn
     }
 
     const data = await response.json();
-    return data;
+    const normalized = userType === 'provider'
+      ? data?.provider ?? data?.data ?? data
+      : data?.user ?? data?.data ?? data;
+
+    if (!normalized) {
+      throw new Error('No user data returned by the backend');
+    }
+
+    return normalized;
   } catch (error) {
     console.error('Error fetching user/provider data:', error);
     throw error;

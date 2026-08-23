@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
   BackHandler,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -31,6 +32,8 @@ import {
   Crown,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { performLogout } from '../../services/auth/logout';
+import { contactSupport } from '../../utils/support/contactSupport';
 import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
 import {
   selectSidebarUserData,
@@ -184,10 +187,40 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
     }
   }, [navigation, onClose]);
 
-  const handleLogout = () => {
-    onClose();
-    // dispatch(logout());
-  };
+  // This was `onClose()` with the dispatch commented out — the Logout button
+  // in the sidebar closed the drawer and did nothing else, leaving the session,
+  // the token and the socket fully alive.
+  const handleLogout = useCallback(() => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          onClose();
+          await performLogout(dispatch);
+          navigation.reset({ index: 0, routes: [{ name: 'RoleSelection' as never }] });
+        },
+      },
+    ]);
+  }, [dispatch, navigation, onClose]);
+
+  // No account-deletion endpoint exists; a silent no-op here would let someone
+  // believe their account was gone.
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete account',
+      'This cannot be undone. Our support team will confirm your identity and remove your account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Contact support',
+          style: 'destructive',
+          onPress: () => contactSupport('Account deletion request'),
+        },
+      ]
+    );
+  }, []);
 
   const mainMenuItems: MenuItem[] = [
     { id: 'profile', icon: User, label: 'My Profile' },
@@ -403,7 +436,11 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
             </TouchableOpacity>
 
             {/* Delete Account */}
-            <TouchableOpacity style={styles.deleteAccount} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.deleteAccount}
+              activeOpacity={0.7}
+              onPress={handleDeleteAccount}
+            >
               <Trash2 size={16} color="#EF4444" />
               <Text style={styles.deleteAccountText}>Delete Account</Text>
             </TouchableOpacity>
