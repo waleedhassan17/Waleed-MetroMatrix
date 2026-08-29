@@ -13,7 +13,7 @@
 // along with the handoff.
 // ============================================================================
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -52,14 +52,20 @@ export interface OutgoingCallViewProps {
 
 const STATUS_COPY: Record<CallPhase, string> = {
   idle: 'Ready to call',
+  // "Calling…" until THEIR device confirms it is ringing. See useCallSession.
+  calling: 'Calling…',
   ringing: 'Ringing…',
   incoming: 'Incoming call',
   connected: 'Connected',
   busy: 'On another call',
+  unavailable: 'User unavailable',
   declined: 'Call declined',
   missed: 'No answer',
   ended: 'Call ended',
 };
+
+/** Phases from which there is no way back — the screen shows an outcome. */
+const TERMINAL: CallPhase[] = ['busy', 'unavailable', 'declined', 'missed', 'ended'];
 
 /** RTCView is only loadable in a build with the native module linked. */
 function loadRTCView(): any {
@@ -94,6 +100,44 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
   const insets = useSafeAreaInsets();
   const [seconds, setSeconds] = useState(0);
 
+  // ==========================================================================
+  // LEAVING THIS SCREEN, EXACTLY ONCE.
+  //
+  // This is the "Close sends me to the wrong screen" bug. There was no stack
+  // reset anywhere — the cause was two goBack() calls racing. A terminal phase
+  // scheduled an unconditional goBack() on a timer (1800ms after a decline),
+  // and the Close button called goBack() too. Press Close inside that window,
+  // which is the natural thing to do, and the timer fired afterwards and popped
+  // a SECOND screen — landing the user one level above where they started, at
+  // the Home Services root instead of the list they came from.
+  //
+  // The timer is now owned and cancellable, and both exits go through one
+  // guarded path, so the screen pops exactly one entry no matter how it is
+  // dismissed or how fast.
+  // ==========================================================================
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasExitedRef = useRef(false);
+
+  const exit = useCallback(() => {
+    if (hasExitedRef.current) return;
+    hasExitedRef.current = true;
+    if (exitTimer.current) {
+      clearTimeout(exitTimer.current);
+      exitTimer.current = null;
+    }
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
+
+  // A screen torn down by any other route change must not leave a timer alive
+  // to pop a screen the user has since navigated to.
+  useEffect(
+    () => () => {
+      if (exitTimer.current) clearTimeout(exitTimer.current);
+      hasExitedRef.current = true;
+    },
+    []
+  );
+
   const { phase, error, ring, accept, decline, end, media: peer } = useCallSession({
     roomId,
     roomType,
@@ -103,8 +147,9 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
     onClosed: (final) => {
       // Leave the outcome on screen briefly so the user sees WHY it ended
       // rather than being bounced back with no explanation.
-      const delay = final === 'busy' || final === 'missed' || final === 'declined' ? 1800 : 700;
-      setTimeout(() => navigation.canGoBack() && navigation.goBack(), delay);
+      const lingers = final === 'busy' || final === 'missed' || final === 'declined' || final === 'unavailable';
+      if (exitTimer.current) clearTimeout(exitTimer.current);
+      exitTimer.current = setTimeout(exit, lingers ? 1800 : 700);
     },
   });
 
@@ -156,8 +201,7 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
     };
   }, [isConsult, peer.state, roomId]);
 
-  const terminal =
-    phase === 'busy' || phase === 'declined' || phase === 'missed' || phase === 'ended';
+  const terminal = TERMINAL.includes(phase);
 
   // Close the record once, when the call reaches a terminal state.
   useEffect(() => {
@@ -213,10 +257,19 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
         <Text style={styles.name}>{counterpartName || 'Contact'}</Text>
         <Text style={styles.status}>{statusLine()}</Text>
 
-        {phase === 'ringing' && <ActivityIndicator style={{ marginTop: 18 }} color="#94A3B8" />}
+        {(phase === 'calling' || phase === 'ringing') && (
+          <ActivityIndicator style={{ marginTop: 18 }} color="#94A3B8" />
+        )}
 
         {phase === 'busy' && (
           <Text style={styles.hint}>They are already on a call. Try again in a moment.</Text>
+        )}
+
+        {phase === 'unavailable' && (
+          <Text style={styles.hint}>
+            {counterpartName || 'They'} aren't online right now. We've let them know you
+            called, so they can call you back.
+          </Text>
         )}
       </View>
 
@@ -308,7 +361,8 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
         {terminal && (
           <TouchableOpacity
             style={[styles.roundBtn, { backgroundColor: accent }]}
-            onPress={() => navigation.canGoBack() && navigation.goBack()}
+            onPress={exit}
+            accessibilityLabel="Close"
           >
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>

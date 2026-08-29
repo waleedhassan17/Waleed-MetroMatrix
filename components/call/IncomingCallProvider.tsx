@@ -37,14 +37,17 @@ interface IncomingCall {
 
 interface IncomingCallContextValue {
   incoming: IncomingCall | null;
-  /** Surface a call that arrived via a notification tap rather than a socket. */
-  present: (call: IncomingCall) => void;
+  /**
+   * Surface a call that arrived via a notification tap rather than a socket.
+   * @returns whether it was actually presented (false = already on screen).
+   */
+  present: (call: IncomingCall) => boolean;
   dismiss: () => void;
 }
 
 const IncomingCallContext = createContext<IncomingCallContextValue>({
   incoming: null,
-  present: () => {},
+  present: () => false,
   dismiss: () => {},
 });
 
@@ -55,7 +58,25 @@ export const useIncomingCall = () => useContext(IncomingCallContext);
 // native dependency.
 const VIBRATION_PATTERN = Platform.OS === 'android' ? [0, 700, 700] : [0, 700, 700];
 
-export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface IncomingCallProviderProps {
+  children: React.ReactNode;
+  /**
+   * Identity of the signed-in session, or null when there is none.
+   *
+   * LOAD-BEARING. This provider mounts above the navigator, which is before a
+   * token necessarily exists, and getSocket() returns null without one. The
+   * listener used to bind once on mount and never retry, so anyone who signed
+   * in AFTER mount — which is everyone on a fresh install, and everyone who
+   * signs out and back in — had no ring listener at all until the app was
+   * restarted. Changing this value rebinds.
+   */
+  sessionKey?: string | null;
+}
+
+export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({
+  children,
+  sessionKey = null,
+}) => {
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
 
@@ -69,13 +90,32 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Ignore a duplicate ring for a call already on screen (the server targets
     // both the personal room and the conversation room, so a callee who has the
     // chat open receives it twice).
-    if (activeRef.current === call.callId) return;
+    if (activeRef.current === call.callId) return false;
     activeRef.current = call.callId;
     setIncoming(call);
     Vibration.vibrate(VIBRATION_PATTERN, true);
+
+    // TELL THE CALLER THEIR CALL IS ACTUALLY RINGING.
+    //
+    // This is the moment — and the only moment — at which "Ringing…" becomes
+    // true. Until this ack reaches them the caller's screen says "Calling…".
+    // Emitted here rather than in the socket handler so a call surfaced from a
+    // notification tap acknowledges too; the server ignores it if the call has
+    // already moved on.
+    emitEvent('call_ringing', {
+      callId: call.callId,
+      roomId: call.roomId,
+      bookingId: call.roomId,
+      roomType: call.roomType,
+    }).catch(() => {
+      /* best effort — the caller simply stays on "Calling…" */
+    });
+
+    return true;
   }, []);
 
   useEffect(() => {
+    if (!sessionKey) return;
     let mounted = true;
     let detach: (() => void) | null = null;
 
@@ -118,7 +158,7 @@ export const IncomingCallProvider: React.FC<{ children: React.ReactNode }> = ({ 
       Vibration.cancel();
       detach?.();
     };
-  }, [present, dismiss]);
+  }, [present, dismiss, sessionKey]);
 
   const accept = useCallback(() => {
     if (!incoming) return;

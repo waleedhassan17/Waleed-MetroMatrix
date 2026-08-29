@@ -19,13 +19,27 @@ import { usePeerConnection, type MediaKind } from './usePeerConnection';
 
 export type CallPhase =
   | 'idle'
-  | 'ringing'      // we are calling out
+  | 'calling'      // we have asked the server to place the call
+  | 'ringing'      // THEIR device has confirmed it is presenting the call
   | 'incoming'     // they are calling us
   | 'connected'    // accepted; media is negotiating or live
   | 'busy'         // callee is on another call
+  | 'unavailable'  // callee has no live socket — never rang
   | 'declined'
   | 'missed'
   | 'ended';
+
+// CALLING AND RINGING ARE NOT THE SAME STATE, and the gap between them is
+// exactly where the old UI lied. It showed "Ringing…" the instant the user
+// pressed call — before the server had accepted the request, before anyone had
+// checked whether the callee was even connected, and before their device had
+// seen anything. A callee with the app closed produced a full 30 seconds of
+// "Ringing…" followed by "No answer", describing a phone that never rang.
+//
+// Now 'calling' means "we asked", and only the callee's own `call_ringing`
+// acknowledgement — sent when their device actually presents the call —
+// advances to 'ringing'. If the server reports them offline first, the phase
+// goes to 'unavailable' and never passes through 'ringing' at all.
 
 // Mirrors the server's RING_TIMEOUT_MS. The server is authoritative (it marks
 // the CallLog 'missed'); this is the UI's own guard so the screen never hangs
@@ -131,7 +145,23 @@ export function useCallSession({
         close('busy');
       };
 
+      // Their device is presenting the call. This is the ONLY thing that may
+      // advance us to 'ringing'.
+      const onRinging = (p: any) => {
+        if (!mounted || !sameCall(p)) return;
+        setPhase((current) => (current === 'calling' ? 'ringing' : current));
+      };
+
+      const onUnavailable = (p: any) => {
+        if (!mounted) return;
+        if (p?.roomId && roomId && p.roomId !== roomId) return;
+        setError(`${counterpartName || 'They'} are not available right now`);
+        close('unavailable');
+      };
+
       s.on('call_accept', onAccept);
+      s.on('call_ringing', onRinging);
+      s.on('call_unavailable', onUnavailable);
       s.on('call_decline', onDecline);
       s.on('call_end', onEnd);
       s.on('call_missed', onMissed);
@@ -139,6 +169,8 @@ export function useCallSession({
 
       detach = () => {
         s.off('call_accept', onAccept);
+        s.off('call_ringing', onRinging);
+        s.off('call_unavailable', onUnavailable);
         s.off('call_decline', onDecline);
         s.off('call_end', onEnd);
         s.off('call_missed', onMissed);
@@ -154,12 +186,19 @@ export function useCallSession({
 
   useEffect(() => () => clearRingTimer(), []);
 
-  /** Outgoing: start ringing the counterpart. */
+  /** Outgoing: place the call. */
   const ring = useCallback(async () => {
     if (!roomId) return;
     closedRef.current = false;
     setError(null);
-    setPhase('ringing');
+    // "Calling…", not "Ringing…" — nothing has reached the other device yet.
+    setPhase('calling');
+
+    // Be in the room BEFORE asking to ring. The server puts us there anyway
+    // while authorizing, but doing it explicitly first means call_accept and
+    // the WebRTC frames — which are addressed to the room — cannot arrive
+    // before we are in it.
+    await joinBooking(roomId, roomType);
 
     const ack = await emitEvent('call_ring', { roomId, bookingId: roomId, roomType });
 
@@ -167,6 +206,14 @@ export function useCallSession({
       if (ack.reason === 'busy') {
         setError(`${counterpartName || 'They'} are on another call`);
         close('busy');
+      } else if (ack.reason === 'unavailable') {
+        setError(`${counterpartName || 'They'} are not available right now`);
+        close('unavailable');
+      } else if (ack.reason === 'offline') {
+        // Our own connection, not theirs. Recoverable, and the user can simply
+        // press call again — so do not close the session out from under them.
+        setError('Reconnecting… check your connection and try again');
+        setPhase('idle');
       } else {
         setError(ack.message || 'Could not place the call');
         close('ended');
@@ -216,7 +263,13 @@ export function useCallSession({
   // A call ended by the OTHER side (decline/end/missed) closes the signalling
   // session through close(); the media must follow or the mic stays open.
   useEffect(() => {
-    if (phase === 'ended' || phase === 'declined' || phase === 'missed' || phase === 'busy') {
+    if (
+      phase === 'ended' ||
+      phase === 'declined' ||
+      phase === 'missed' ||
+      phase === 'busy' ||
+      phase === 'unavailable'
+    ) {
       peer.teardown();
     }
   }, [phase, peer]);

@@ -123,6 +123,45 @@ export interface SocketAck {
   throttled?: boolean;
 }
 
+/**
+ * Resolve once the socket is actually connected.
+ *
+ * THIS IS THE FIX FOR "Socket Unavailable" ON THE FIRST CALL AFTER LAUNCH.
+ * getSocket() returns as soon as the socket OBJECT exists; connecting is
+ * asynchronous and takes a handshake. Anything that emitted immediately after
+ * awaiting it — which is every call and every message on a cold start — found
+ * `connected === false` and gave up, so the very first action after launch
+ * failed and the same action succeeded on the second try. Restarting the app
+ * "fixed" it only because by then the socket had had time to come up.
+ *
+ * joinBooking already deferred on `once('connect')`; this generalises that so
+ * every emit gets the same treatment rather than only the one that happened to
+ * be written carefully.
+ *
+ * @returns true if the socket is connected, false if it did not come up in time.
+ *   Deliberately does not throw — callers turn this into a retryable message,
+ *   and an exception at this layer would have to be caught at every call site.
+ */
+export async function whenReady(timeoutMs = 8000): Promise<boolean> {
+  const s = await getSocket();
+  if (!s) return false;
+  if (s.connected) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      s.off('connect', onConnect);
+      resolve(value);
+    };
+    const onConnect = () => done(true);
+    const timer = setTimeout(() => done(false), timeoutMs);
+    s.on('connect', onConnect);
+  });
+}
+
 function ackEmit(s: Socket, event: string, payload: Record<string, any>): Promise<SocketAck> {
   return new Promise((resolve) => {
     let settled = false;
@@ -145,18 +184,13 @@ export async function joinBooking(
   roomId: string,
   roomType: RoomType = 'homeservice'
 ): Promise<SocketAck> {
+  const ready = await whenReady(10000);
   const s = await getSocket();
-  if (!s) return { success: false, message: 'Socket unavailable' };
+  if (!s || !ready) {
+    return { success: false, reason: 'offline', message: 'Reconnecting…' };
+  }
   // `bookingId` is sent alongside `roomId` because the server accepts either.
-  const payload = { roomId, bookingId: roomId, roomType };
-  if (s.connected) return ackEmit(s, 'join_booking', payload);
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve({ success: false, message: 'join timeout' }), 10000);
-    s.once('connect', async () => {
-      clearTimeout(timer);
-      resolve(await ackEmit(s, 'join_booking', payload));
-    });
-  });
+  return ackEmit(s, 'join_booking', { roomId, bookingId: roomId, roomType });
 }
 
 export async function leaveBooking(roomId: string) {
@@ -168,7 +202,14 @@ export async function emitEvent(
   event: string,
   payload: Record<string, any>
 ): Promise<SocketAck> {
+  // Wait for the handshake instead of failing the moment it hasn't finished.
+  // The `reason` matters: callers distinguish "we never got on the network"
+  // (retryable, show "Reconnecting…") from a real server refusal, and the raw
+  // string "Socket unavailable" must never reach a user again.
+  const ready = await whenReady();
   const s = await getSocket();
-  if (!s || !s.connected) return { success: false, message: 'Socket unavailable' };
+  if (!s || !ready) {
+    return { success: false, reason: 'offline', message: 'Reconnecting…' };
+  }
   return ackEmit(s, event, payload);
 }

@@ -69,6 +69,14 @@ const nextClientMsgId = () =>
     .toString(36)
     .slice(2, 8)}`;
 
+/** Server-reported presence of the other party in the room. */
+export interface CounterpartPresence {
+  userId: string;
+  status: 'online' | 'offline';
+  /** ISO timestamp, or null when unknown (or currently online). */
+  lastSeen: string | null;
+}
+
 export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice') {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [providerLocation, setProviderLocation] = useState<ProviderLocationUpdate | null>(null);
@@ -78,12 +86,21 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
   const [videoCall, setVideoCall] = useState<RoomVideoCallUpdate | null>(null);
   const [typing, setTyping] = useState(false);
   const [connected, setConnected] = useState(false);
+  // The COUNTERPART's presence, from the server. Distinct from `connected`,
+  // which is our own socket — see the note on the return value below.
+  const [counterpartPresence, setCounterpartPresence] = useState<CounterpartPresence | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const counterpartIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!roomId) return;
     let mounted = true;
+    // A different room means a different counterpart; carrying the previous
+    // one's presence over would briefly label the new person with the old
+    // person's status.
+    counterpartIdRef.current = null;
+    setCounterpartPresence(null);
 
     (async () => {
       const s = await getSocket();
@@ -177,12 +194,48 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       s.on('payment_status_changed', onPaymentStatus);
       s.on('video_call_started', onVideoStarted);
       s.on('video_call_ended', onVideoEnded);
+      // Presence of the OTHER party. The server sends this directly on join and
+      // again on every transition, so the header tracks their real state rather
+      // than inferring it from our own connection.
+      //
+      // Frames are filtered against the known counterpart id. A room broadcast
+      // carries whichever user changed, and with two devices signed into the
+      // same account that can be US — accepting it unfiltered would show a user
+      // their own presence as if it were the other person's.
+      const onPresence = (p: CounterpartPresence & { roomId?: string }) => {
+        if (!mounted || !p?.userId) return;
+        if (counterpartIdRef.current && counterpartIdRef.current !== p.userId) return;
+        counterpartIdRef.current = p.userId;
+        setCounterpartPresence({ userId: p.userId, status: p.status, lastSeen: p.lastSeen ?? null });
+      };
+      s.on('presence_update', onPresence);
+
       s.on('typing', onTyping);
       s.on('messages_read', onRead);
 
       if (s.connected) {
         setConnected(true);
         await joinBooking(roomId, roomType);
+      }
+
+      // Ask outright as well as listening. A transition only fires when
+      // something changes; a screen opening onto a counterpart who has been
+      // offline for an hour would otherwise wait forever for an event that
+      // never comes, and render nothing.
+      const presenceAck = await emitEvent('presence_get', {
+        roomId,
+        bookingId: roomId,
+        roomType,
+      });
+      if (mounted && presenceAck.success && presenceAck.data?.userId) {
+        // Authoritative on WHO the counterpart is, which is what lets the
+        // listener above reject frames about anyone else.
+        counterpartIdRef.current = presenceAck.data.userId;
+        setCounterpartPresence({
+          userId: presenceAck.data.userId,
+          status: presenceAck.data.status,
+          lastSeen: presenceAck.data.lastSeen ?? null,
+        });
       }
 
       cleanupRef.current = () => {
@@ -196,6 +249,7 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         s.off('payment_status_changed', onPaymentStatus);
         s.off('video_call_started', onVideoStarted);
         s.off('video_call_ended', onVideoEnded);
+        s.off('presence_update', onPresence);
         s.off('typing', onTyping);
         s.off('messages_read', onRead);
       };
@@ -279,6 +333,14 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
     payment,
     videoCall,
     typing,
+    /**
+     * OUR OWN socket. Answers "are my messages sending?" — NOT whether the
+     * other person is there. The chat header used to render this as "online",
+     * which is why a provider who had force-closed their app still showed as
+     * online to the customer: the customer's own socket was fine.
+     */
     connected,
+    /** The OTHER party, from the server. Null until the first frame arrives. */
+    counterpartPresence,
   };
 }

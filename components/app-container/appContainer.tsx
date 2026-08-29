@@ -259,7 +259,9 @@ export const AppContainer: React.FC = () => {
           {/* Wraps the navigator so an incoming ring can surface over ANY
               screen — the server targets a per-user room, so a call arrives
               regardless of where the callee happens to be. */}
-          <IncomingCallProvider>
+          <IncomingCallProvider
+            sessionKey={currentUser?.id || currentProvider?.id || null}
+          >
             <NotificationRouter />
             <BaseNavigator initialRouteName={initialRoute} />
           </IncomingCallProvider>

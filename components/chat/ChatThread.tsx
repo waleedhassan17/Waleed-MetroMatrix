@@ -13,7 +13,7 @@
 // sides of a conversation.
 // ============================================================================
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { fetchChatData, RoomType } from '../../networks/serviceProviders/chatNetwork';
 import { useRoomSocket } from '../../hooks/useRoomSocket';
 import { ChatMessage, ChatParticipant } from '../../models/serviceProviders';
+
+/**
+ * "last seen" phrasing, deliberately coarse.
+ *
+ * Rounded to the minute/hour/day rather than shown to the second: this is a
+ * courtesy signal about whether it is worth waiting for a reply, and reporting
+ * someone's exact activity time to the minute is more precision than the
+ * feature needs or than the other person agreed to share.
+ */
+function formatLastSeen(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'recently';
+
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days}d ago`;
+}
 
 export interface ChatThreadProps {
   roomId: string;
@@ -73,8 +96,51 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { messages, seedMessages, sendMessage, emitTyping, markRead, typing, connected } =
-    useRoomSocket(roomId, roomType);
+  const {
+    messages,
+    seedMessages,
+    sendMessage,
+    emitTyping,
+    markRead,
+    typing,
+    connected,
+    counterpartPresence,
+  } = useRoomSocket(roomId, roomType);
+
+  // ==========================================================================
+  // WHOSE STATE IS THIS, ACTUALLY?
+  //
+  // This line used to read `connected ? 'online' : 'reconnecting…'`, where
+  // `connected` is the VIEWER's own socket. So it said "online" whenever the
+  // person reading the screen had a working connection — which is essentially
+  // always, and says nothing at all about the other party. A provider could
+  // force-close their app and the customer went on being told they were online
+  // indefinitely.
+  //
+  // `counterpartPresence` is the server's answer about the OTHER person. Our
+  // own connection is still surfaced, but as the banner below, where it belongs:
+  // it answers "are my messages sending?", a different and also useful question.
+  // ==========================================================================
+  // "5m ago" is only true for a minute. Without this the label freezes at
+  // whatever it said when the last message arrived, which on a quiet screen can
+  // be a very long time.
+  const [presenceTick, setPresenceTick] = useState(0);
+  const showingRelativeTime =
+    counterpartPresence?.status === 'offline' && !!counterpartPresence.lastSeen;
+  useEffect(() => {
+    if (!showingRelativeTime) return;
+    const t = setInterval(() => setPresenceTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, [showingRelativeTime]);
+
+  const presenceLabel = useMemo(() => {
+    if (!counterpartPresence) return connected ? '' : 'reconnecting…';
+    if (counterpartPresence.status === 'online') return 'online';
+    if (!counterpartPresence.lastSeen) return 'offline';
+    return `last seen ${formatLastSeen(counterpartPresence.lastSeen)}`;
+    // presenceTick is a deliberate re-render trigger, not a value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counterpartPresence, connected, presenceTick]);
 
   const loadHistory = useCallback(async () => {
     if (!roomId) {
@@ -197,7 +263,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
               {counterpart?.name || fallbackTitle}
             </Text>
             <Text style={[styles.headerSub, { color: accentSoft }]}>
-              {typing ? 'typing…' : connected ? 'online' : 'reconnecting…'}
+              {typing ? 'typing…' : presenceLabel}
             </Text>
           </View>
         </View>
