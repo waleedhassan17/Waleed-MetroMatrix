@@ -21,7 +21,6 @@ export * from './paymentSerializer';
 export * from './reviewSerializer';
 
 // Chat serializers
-export * from './chatSerializer';
 
 // Dashboard serializers
 export * from './dashboardSerializer';

@@ -205,7 +205,8 @@ export async function emitEvent(
   // Wait for the handshake instead of failing the moment it hasn't finished.
   // The `reason` matters: callers distinguish "we never got on the network"
   // (retryable, show "Reconnecting…") from a real server refusal, and the raw
-  // string "Socket unavailable" must never reach a user again.
+  // string "Socket unavailable" must never reach a user again. Callers that
+  // branch on this MUST test `reason`, not the message text.
   const ready = await whenReady();
   const s = await getSocket();
   if (!s || !ready) {

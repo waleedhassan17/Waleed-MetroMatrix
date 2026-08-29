@@ -43,6 +43,11 @@ export const USE_SHOPPING_DUMMY_DATA = false;
 // hitting the API. Must stay FALSE for the real backend flows.
 export const USE_HOMESERVICE_DUMMY_DATA = false;
 
-// Telemedicine BUILT (see TELEMEDICINE_DECISION.md): Jitsi Meet rooms in a
-// WebView on both patient and doctor sides, joined via /video-calls/join.
+// Telemedicine BUILT. NOTE: no longer Jitsi-in-a-WebView, whatever
+// TELEMEDICINE_DECISION.md still says — a consultation is a peer-to-peer WebRTC
+// call on the same stack as every other call in the app (services/call/*),
+// relayed through Cloudflare TURN when a direct path is impossible. The old
+// /video-calls/* endpoints survive as bookkeeping only: they open and close the
+// VideoCall record that billing and history read, and opening it is what
+// publishes `video_call_started`. They no longer carry the media.
 export const FEATURE_TELEMEDICINE = true;
