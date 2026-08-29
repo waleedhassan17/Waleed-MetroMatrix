@@ -1,8 +1,11 @@
 # Chat & Call — verification matrix
 
-Status as of this branch. **Nothing below marked "device" has been run** — that
-needs two physical phones on different networks, and neither the realtime
-service nor the app build has been deployed yet. Fill in as you go.
+Status as of this branch.
+
+**DEPLOYED.** Realtime is live on Heroku (v13, commit `9e7bbe9`) and the backend
+auto-deployed to Vercel. The server-side halves of BUG-03 and BUG-04 are
+verified against production — results below. The device matrix still needs two
+physical phones on different networks.
 
 ## Before any of this
 
@@ -42,15 +45,27 @@ the whole of BUG-03 and no unit test can see it.
 
 Note it creates CallLog rows in the production database.
 
+Run against production on 2026-08-29 (release v13). CallLog rows created by the
+call checks were deleted afterwards; no pre-existing data was touched.
+
 | Check | Result | Notes |
 |---|---|---|
-| A and B join a real room | | |
-| Nonexistent room refused, no crash | | |
-| `presence_get` returns counterpart online | | |
-| Clean disconnect → `presence_update` offline | | |
-| Offline callee → `reason:'unavailable'` | | |
-| No `call_ringing` before the callee acks | | |
-| `call_ringing` arrives after the ack | | |
+| A and B join a real room | **PASS** | |
+| Nonexistent room refused, no crash | **PASS** | ack `Not a participant` |
+| `presence_get` returns counterpart online | **PASS** | correct counterpart id |
+| Clean disconnect → `presence_update` offline | **PASS** | with `lastSeen`; **failed on v12** — see note |
+| `presence_get` reports offline afterwards | **PASS** | |
+| Back online after reconnect | **PASS** | |
+| Offline callee → `reason:'unavailable'` | **PASS** | `call_unavailable` delivered to caller only |
+| No `call_ringing` before the callee acks | **PASS** | the core BUG-03 assertion |
+| `call_ringing` arrives after the ack | **PASS** | |
+
+**The v12 failure is worth remembering.** The offline broadcast iterated
+`socket.rooms` inside the `disconnect` handler — but Socket.IO clears rooms
+*before* emitting `disconnect`, so it broadcast to an empty list and nobody was
+ever told about a clean sign-out. Only a live two-socket test caught it;
+`presence_get` passed throughout, so the feature looked fine. Fixed in `9e7bbe9`
+by moving to `disconnecting`.
 
 ## Per-bug device matrix
 
@@ -77,6 +92,36 @@ actually exercised (same-wifi passes on host candidates and proves nothing).
 | Chat history still loads for old messages | `chatSerializer.ts` was deleted as dead code — confirm nothing regressed | |
 | Healthcare video consultation still connects | Shares `useCallSession`, which gained two new phases | |
 | A user who signs in *after* app launch receives an incoming call | The ring listener now rebinds on session change | |
+
+## BLOCKER: push notifications are dead in production
+
+`EXPO_ACCESS_TOKEN` is **not set** on the Heroku dyno. Token *registration*
+works (`[push] registered token for provider=…` appears in the logs), but every
+*send* fails:
+
+```
+[push] ticket error: InvalidCredentials
+```
+
+Expo rejects the send because the project enforces push security and no access
+token is presented. This is pre-existing and unrelated to this branch, but it
+means:
+
+- an offline callee is **never** woken — BUG-03's offline path stops at the
+  caller's "User unavailable" and nothing reaches the callee;
+- BUG-07's background incoming call cannot work;
+- offline chat-message notifications never arrive.
+
+Fix (no code change, takes effect immediately):
+
+```bash
+# expo.dev → Account Settings → Access Tokens → create
+heroku config:set EXPO_ACCESS_TOKEN=<token> -a metromatrix-realtime
+```
+
+Then re-check with a real call to a backgrounded device and confirm the logs show
+no `ticket error`. Until this is done, treat every "background" row in the device
+matrix as expected-to-fail.
 
 ## Known gaps at hand-off
 

@@ -265,10 +265,16 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
           <Text style={styles.hint}>They are already on a call. Try again in a moment.</Text>
         )}
 
+        {/* Deliberately does NOT promise "we notified them". A push IS attempted
+            server-side, but it is best-effort and silently fails whenever the
+            Expo credentials are missing — which is the live state today. Telling
+            the user their call was announced when it may not have been is worse
+            than saying nothing, so this points at the action that always works:
+            a chat message persists whether or not the push lands. */}
         {phase === 'unavailable' && (
           <Text style={styles.hint}>
-            {counterpartName || 'They'} aren't online right now. We've let them know you
-            called, so they can call you back.
+            {counterpartName || 'They'} aren't online right now. Try again shortly, or
+            send a message — they'll see it when they're back.
           </Text>
         )}
       </View>
