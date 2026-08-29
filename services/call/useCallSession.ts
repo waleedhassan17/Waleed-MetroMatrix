@@ -78,16 +78,20 @@ export function useCallSession({
     }
   };
 
-  const close = useCallback(
-    (next: CallPhase) => {
-      if (closedRef.current) return;
-      closedRef.current = true;
-      clearRingTimer();
-      setPhase(next);
-      onClosed?.(next);
-    },
-    [onClosed]
-  );
+  // Callers pass onClosed as an inline arrow, so it is a new reference on every
+  // render. Depending on it directly made `close` unstable, which made the
+  // socket subscription below unstable, which is the churn the refs there exist
+  // to avoid — so hold it in a ref and keep `close` genuinely constant.
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
+
+  const close = useCallback((next: CallPhase) => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    clearRingTimer();
+    setPhase(next);
+    onClosedRef.current?.(next);
+  }, []);
 
   // The media half. `isCaller` is decided by how this session began: a session
   // seeded with an incoming callId is answering, everything else is placing.
@@ -115,6 +119,20 @@ export function useCallSession({
     if (roomId) joinBooking(roomId, roomType);
   }, [roomId, roomType]);
 
+  // usePeerConnection returns a fresh object every render, so depending on it
+  // directly tore down and re-attached every socket listener below on each
+  // render — during an active call, dozens of times. Any frame arriving inside
+  // one of those gaps was simply lost, and the phase split added renders. The
+  // ref keeps the handlers stable; they only ever call peer.start().
+  const peerRef = useRef(peer);
+  peerRef.current = peer;
+
+  // Likewise for the callId used to match incoming frames: reading it through a
+  // ref means a late call_ringing is still matched without re-subscribing the
+  // instant setCallId lands.
+  const callIdRef = useRef(callId);
+  callIdRef.current = callId;
+
   // Server -> client call frames.
   useEffect(() => {
     let mounted = true;
@@ -124,7 +142,8 @@ export function useCallSession({
       const s = await getSocket();
       if (!s || !mounted) return;
 
-      const sameCall = (p: any) => !callId || !p?.callId || p.callId === callId;
+      const sameCall = (p: any) =>
+        !callIdRef.current || !p?.callId || p.callId === callIdRef.current;
 
       const onAccept = (p: any) => {
         if (!mounted || !sameCall(p)) return;
@@ -133,7 +152,7 @@ export function useCallSession({
         // payload and open the dialer; now it starts the peer connection, and
         // as the caller we create the offer.
         setPhase('connected');
-        peer.start();
+        peerRef.current.start();
       };
       const onDecline = (p: any) => mounted && sameCall(p) && close('declined');
       const onEnd = (p: any) => mounted && sameCall(p) && close('ended');
@@ -182,7 +201,10 @@ export function useCallSession({
       mounted = false;
       detach?.();
     };
-  }, [callId, roomId, counterpartName, close, peer]);
+    // Deliberately NOT depending on callId or peer — both are read through refs
+    // above precisely so this subscription is set up once per room and stays
+    // put for the life of the call.
+  }, [roomId, counterpartName, close]);
 
   useEffect(() => () => clearRingTimer(), []);
 
