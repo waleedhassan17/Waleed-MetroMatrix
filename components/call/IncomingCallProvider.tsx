@@ -60,23 +60,12 @@ const VIBRATION_PATTERN = Platform.OS === 'android' ? [0, 700, 700] : [0, 700, 7
 
 interface IncomingCallProviderProps {
   children: React.ReactNode;
-  /**
-   * Identity of the signed-in session, or null when there is none.
-   *
-   * LOAD-BEARING. This provider mounts above the navigator, which is before a
-   * token necessarily exists, and getSocket() returns null without one. The
-   * listener used to bind once on mount and never retry, so anyone who signed
-   * in AFTER mount — which is everyone on a fresh install, and everyone who
-   * signs out and back in — had no ring listener at all until the app was
-   * restarted. Changing this value rebinds.
-   */
-  sessionKey?: string | null;
 }
 
-export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({
-  children,
-  sessionKey = null,
-}) => {
+/** How often to retry binding while there is no socket yet (no token). */
+const BIND_RETRY_MS = 3000;
+
+export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ children }) => {
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
 
@@ -114,51 +103,91 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({
     return true;
   }, []);
 
+  // ==========================================================================
+  // BINDING THE RING LISTENER — driven by the SOCKET, never by identity.
+  //
+  // This is the bug where a provider could place calls but never receive them.
+  // The listener was gated on a `sessionKey` derived from
+  // `currentUser?.id || currentProvider?.id`, and that identity is not
+  // trustworthy: the backend's User/Provider toJSON emit `_id` (toObject with
+  // no virtuals), and the profile fetch hit `/user/me` and `/provider/me`,
+  // which are 404 in production. So the id was frequently undefined, the gate
+  // never opened, and the device silently never listened for calls. Outgoing
+  // calls kept working because they don't come through here at all — which is
+  // exactly why the failure looked one-directional rather than broken.
+  //
+  // A missed ring is unrecoverable: there is no retry, the caller waits 30s and
+  // is told "No answer". So this must not depend on anything that can be
+  // absent. It binds whenever a socket exists, re-binds on every reconnect, and
+  // keeps retrying while getSocket() returns null (no token yet), which also
+  // covers signing in after mount — the case the old gate was added for.
+  // ==========================================================================
   useEffect(() => {
-    if (!sessionKey) return;
     let mounted = true;
     let detach: (() => void) | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
 
-    (async () => {
+    const onRing = (p: any) => {
+      if (!mounted || !p?.callId) return;
+      present({
+        callId: p.callId,
+        roomId: p.roomId,
+        roomType: p.roomType || 'homeservice',
+        callerName: p?.from?.name,
+        callerId: p?.from?.id,
+      });
+    };
+    // The caller hung up, the ring timed out, or the other side cancelled —
+    // take the sheet down rather than leaving it buzzing forever.
+    const onStop = (p: any) => {
+      if (!mounted) return;
+      if (!p?.callId || p.callId === activeRef.current) dismiss();
+    };
+
+    const bind = async () => {
+      if (!mounted) return;
       const s = await getSocket();
-      if (!s || !mounted) return;
+      if (!mounted) return;
 
-      const onRing = (p: any) => {
-        if (!mounted || !p?.callId) return;
-        present({
-          callId: p.callId,
-          roomId: p.roomId,
-          roomType: p.roomType || 'homeservice',
-          callerName: p?.from?.name,
-          callerId: p?.from?.id,
-        });
-      };
-      // The caller hung up, the ring timed out, or the other side cancelled —
-      // take the sheet down rather than leaving it buzzing forever.
-      const onStop = (p: any) => {
-        if (!mounted) return;
-        if (!p?.callId || p.callId === activeRef.current) dismiss();
-      };
+      if (!s) {
+        // No token yet — the user has not signed in, or the session is still
+        // hydrating. Keep trying; giving up here is what left a whole session
+        // unable to receive calls.
+        retry = setTimeout(bind, BIND_RETRY_MS);
+        return;
+      }
+
+      // Idempotent: off() before on() so a re-bind after a reconnect cannot
+      // stack a second copy of every handler and ring twice.
+      detach?.();
 
       s.on('call_ring', onRing);
       s.on('call_end', onStop);
       s.on('call_missed', onStop);
       s.on('call_decline', onStop);
+      // Socket.IO reconnects transparently, but a reconnect is also the moment
+      // a fresh token took effect — re-binding here keeps this correct across
+      // token refreshes and Heroku dyno cycles.
+      s.on('connect', bind);
 
       detach = () => {
         s.off('call_ring', onRing);
         s.off('call_end', onStop);
         s.off('call_missed', onStop);
         s.off('call_decline', onStop);
+        s.off('connect', bind);
       };
-    })();
+    };
+
+    bind();
 
     return () => {
       mounted = false;
+      if (retry) clearTimeout(retry);
       Vibration.cancel();
       detach?.();
     };
-  }, [present, dismiss, sessionKey]);
+  }, [present, dismiss]);
 
   const accept = useCallback(() => {
     if (!incoming) return;

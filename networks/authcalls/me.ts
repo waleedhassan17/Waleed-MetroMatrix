@@ -21,8 +21,14 @@ export const me = async (userType: 'user' | 'provider' = 'user'): Promise<UserIn
       throw new Error('No authentication token found');
     }
 
-    // Determine endpoint based on user type
-    const endpoint = userType === 'provider' ? '/provider/me' : '/user/me';
+    // These were `/user/me` and `/provider/me`, which are 404 in production —
+    // verified against the live API. The routers are mounted at `/api/users`
+    // and `/api/providers` (plural, src/app.js) and expose `/profile`, not
+    // `/me`. So this call ALWAYS failed: fetchMe always rejected, and both
+    // currentUser and currentProvider stayed null on any session restored from
+    // storage. Identity then only existed after a fresh in-session login, which
+    // is what made the incoming-call bug look intermittent and role-dependent.
+    const endpoint = userType === 'provider' ? '/providers/profile' : '/users/profile';
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',

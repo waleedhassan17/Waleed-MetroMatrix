@@ -152,8 +152,17 @@ export const appContainerSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.status = "idle";
           
-          const payload = action.payload.data;
-          
+          // NORMALISE THE ID. The two profile endpoints disagree: the user one
+          // builds an explicit `{ id: user._id, ... }` while the provider one
+          // returns the raw Mongoose document, which serializes to `_id` with
+          // no `id` (its toJSON is toObject() without virtuals). Anything
+          // reading `currentProvider.id` therefore got undefined — which is how
+          // a provider ended up unable to RECEIVE calls while still able to
+          // place them. Normalising here means no consumer has to know which
+          // endpoint it came from.
+          const raw = action.payload.data as any;
+          const payload = raw && !raw.id && raw._id ? { ...raw, id: String(raw._id) } : raw;
+
           if (action.payload.userType === "provider") {
             state.currentProvider = payload as ProviderInfo;
             state.currentUser = null;

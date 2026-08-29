@@ -232,7 +232,18 @@ const performTokenRefresh = async (): Promise<string | null> => {
   }
 };
 
-const refreshSessionOnce = (): Promise<string | null> => {
+/**
+ * Renew the session, at most once concurrently.
+ *
+ * EXPORTED for the realtime socket. The socket's handshake token expires on the
+ * server's clock, and the server disconnects it when it does. Reconnecting with
+ * the stored token cannot work — it is the same expired token — so the socket
+ * needs a genuinely fresh one, and it must come through this single-flight path
+ * rather than a second refresh racing this one: /auth/refresh ROTATES the
+ * refresh token, so the loser of that race presents an already-replaced token
+ * and gets the user logged out.
+ */
+export const refreshSessionOnce = (): Promise<string | null> => {
   if (!refreshPromise) {
     refreshPromise = performTokenRefresh().finally(() => {
       refreshPromise = null;

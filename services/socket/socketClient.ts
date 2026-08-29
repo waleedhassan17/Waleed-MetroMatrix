@@ -54,12 +54,37 @@ export async function getSocket(): Promise<Socket | null> {
     console.log('🔌 Socket connect error (REST fallback stays active):', err.message);
   });
 
+  // ==========================================================================
+  // TOKEN EXPIRY — the reason everyone silently went offline after ~4 minutes.
+  //
   // The server sweeps sockets whose access token has expired and emits this
-  // before disconnecting. Reconnect with a fresh token rather than letting the
-  // socket sit dead for the rest of the session.
-  socket.on('token_expired', () => {
-    console.log('🔌 Socket token expired — reconnecting with a fresh token');
-    refreshSocketAuth();
+  // before disconnecting. This used to call refreshSocketAuth() with no
+  // argument, which re-reads the SAME token from storage — the expired one —
+  // and hands it straight back to a server that has just rejected it. So the
+  // socket never came back. Production logs showed both parties hitting
+  // "token expired — disconnecting" and then nothing: no reconnect, ever.
+  // Calls after that point failed as "User unavailable" and live chat stopped,
+  // while REST carried on working because it refreshes on its own 401s.
+  //
+  // Renew through the SAME single-flight refresh the axios layer uses — a
+  // second, competing refresh would rotate the refresh token out from under it
+  // and log the user out.
+  // ==========================================================================
+  socket.on('token_expired', async () => {
+    console.log('🔌 Socket token expired — renewing the session');
+    try {
+      // Lazily required: network.ts already lazily requires this module, and a
+      // top-level import either way would close the cycle.
+      const { refreshSessionOnce } = require('../../networks/network/network');
+      const fresh = await refreshSessionOnce();
+      if (fresh) {
+        await refreshSocketAuth(fresh);
+        return;
+      }
+      console.warn('🔌 Session could not be renewed — realtime is down until sign-in');
+    } catch (e: any) {
+      console.warn('🔌 Token renewal failed:', e?.message || e);
+    }
   });
 
   socket.on('server_shutdown', ({ reconnectInMs = 1000 } = {}) => {
