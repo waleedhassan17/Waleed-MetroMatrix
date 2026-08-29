@@ -55,6 +55,7 @@ import SearchProvidersScreen from "../screens/user/homeservice/search-providers/
 import type { RoomParams } from "../screens/shared/communication/roomParams";
 import ChatScreen from "../screens/shared/communication/ChatScreen";
 import CallScreen from "../screens/shared/communication/CallScreen";
+import ConversationsScreen from "../screens/shared/communication/ConversationsScreen";
 
 // Centralized User Screens
 import UserProfileScreen from "../screens/user/shared/profile/UserProfileScreen";
@@ -163,6 +164,10 @@ export const BaseRouteNames = {
   Call: "Call",
   ProviderChatScreen: "ProviderChatScreen",
   CallScreen: "CallScreen",
+  // The inbox. One screen; two names so each vertical can theme it and reach
+  // it from its own navigator.
+  Conversations: "Conversations",
+  ProviderConversations: "ProviderConversations",
   UserProfileScreen: "UserProfileScreen",
   WalletScreen: "WalletScreen",
   TransactionHistoryScreen: "TransactionHistoryScreen",
@@ -288,6 +293,9 @@ export type RootStackParamList = {
   Call: RoomParams;
   ProviderChatScreen: RoomParams;
   CallScreen: RoomParams;
+  // Only `roomType` and the accent are read — the list resolves its own rooms.
+  Conversations: RoomParams | undefined;
+  ProviderConversations: RoomParams | undefined;
   UserWalletScreen: undefined;
   TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
@@ -675,6 +683,22 @@ export const BaseRoutes: IRoute[] = [
     options: {
       headerShown: false,
       animation: 'slide_from_bottom',
+    }
+  },
+  {
+    component: ConversationsScreen,
+    title: BaseRouteNames.Conversations,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ConversationsScreen,
+    title: BaseRouteNames.ProviderConversations,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
     }
   },
   {

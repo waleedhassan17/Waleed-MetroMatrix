@@ -63,6 +63,7 @@ import {
   X,
   ChevronLeft,
   Plus,
+  MessageSquare,
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -218,6 +219,17 @@ export default function UserProfileScreen() {
       iconBg: '#EDE9FE',
       iconColor: '#8B5CF6',
       onPress: () => setShowEditModal(true),
+    },
+    {
+      // Symmetry with the provider dashboard: chat was previously reachable
+      // only from inside one booking, on both sides.
+      id: 'messages',
+      icon: MessageSquare,
+      label: 'Messages',
+      subtitle: 'Your conversations with providers',
+      iconBg: '#DBEAFE',
+      iconColor: '#2563EB',
+      onPress: () => navigation.navigate('Conversations' as never),
     },
     {
       id: 'payment-methods',

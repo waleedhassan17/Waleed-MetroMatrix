@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import {
   Calendar,
   Clock,
@@ -133,6 +134,7 @@ const serviceImages: Record<string, string> = {
 
 const JobsScreen: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigation = useNavigation<any>();
   const filteredJobs = useAppSelector(selectFilteredJobs);
   const stats = useAppSelector(selectJobsStats);
   const { loading, currentFilter } = useAppSelector((state: RootState) => state.jobs);
@@ -289,11 +291,34 @@ const JobsScreen: React.FC = () => {
                   <Text style={styles.ratingText}>{job.customer.rating?.toFixed(1) || '5.0'}</Text>
                 </View>
               ) : job.status === 'active' || job.status === 'upcoming' ? (
+                // These two rendered but did nothing — no onPress at all — so
+                // the Jobs list looked like it offered contact and did not.
+                // Both now open the in-app room for the job, matching every
+                // other provider surface. `job.id` is the booking id.
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity style={styles.actionBtn}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() =>
+                      navigation.navigate('ProviderCallScreen', {
+                        bookingId: job.id,
+                        customerName: job.customer.name,
+                        customerImage: job.customer.avatar || undefined,
+                      })
+                    }
+                    accessibilityLabel={`Call ${job.customer.name}`}
+                  >
                     <Phone size={16} color={theme.colors.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionBtn}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() =>
+                      navigation.navigate('ProviderJobChat', {
+                        bookingId: job.id,
+                        customerName: job.customer.name,
+                      })
+                    }
+                    accessibilityLabel={`Message ${job.customer.name}`}
+                  >
                     <MessageSquare size={16} color={theme.colors.primary} />
                   </TouchableOpacity>
                 </View>

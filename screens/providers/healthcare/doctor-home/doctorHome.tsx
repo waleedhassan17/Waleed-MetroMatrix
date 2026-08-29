@@ -356,6 +356,10 @@ const DoctorHomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
             {[
+              // The doctor's inbox. Without it, a patient's message was only
+              // visible by opening that patient's appointment from the queue —
+              // so nothing ever told a doctor a message had arrived.
+              { icon: 'chatbubbles-outline', label: 'Messages', color: THEME.primary, bg: THEME.primaryLight, route: 'ProviderConversations', params: { roomType: 'healthcare' } },
               { icon: 'create-outline', label: 'Write Rx', color: THEME.accent, bg: THEME.accentLight, route: DoctorRouteNames.PrescriptionWriter },
               { icon: 'time-outline', label: 'Manage Slots', color: THEME.warning, bg: THEME.warningLight, route: DoctorRouteNames.ManageSlots },
               // Schedule / Earnings / Patients are TABS. Pushing the duplicate
@@ -380,7 +384,7 @@ const DoctorHomeScreen: React.FC = () => {
                 onPress={() =>
                   action.tab
                     ? navigation.navigate(DoctorRouteNames.DoctorTabs, { screen: action.tab })
-                    : navigation.navigate(action.route)
+                    : navigation.navigate(action.route, action.params)
                 }
               >
                 <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>

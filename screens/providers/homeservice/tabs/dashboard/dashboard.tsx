@@ -605,6 +605,25 @@ export default function Dashboard() {
             other provider's balance. */}
         <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
+        {/* The provider's inbox. Until this existed, chat was reachable only by
+            drilling into one specific job, so a provider had no screen that
+            would ever show them a customer had written — a message could sit
+            unread indefinitely with nothing to surface it. */}
+        <TouchableOpacity
+          style={styles.messagesRow}
+          onPress={() => (navigation as any).navigate('ProviderConversations')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.messagesIcon}>
+            <Text style={styles.messagesEmoji}>💬</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.messagesTitle}>Messages</Text>
+            <Text style={styles.messagesSub}>Chat and call your customers</Text>
+          </View>
+          <Text style={styles.messagesChevron}>›</Text>
+        </TouchableOpacity>
+
         {/* A single fade wrapper for the whole feed. Each section used to own
             its own `opacity: fadeAnim` binding; because the sections remounted
             on every data change they latched at opacity 0 and never appeared. */}
@@ -656,6 +675,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  messagesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginHorizontal: theme.spacing.xl,
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  messagesIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  messagesEmoji: { fontSize: 19 },
+  messagesTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.text.primary },
+  messagesSub: { fontSize: 12, color: theme.colors.text.secondary, marginTop: 2 },
+  messagesChevron: { fontSize: 24, color: theme.colors.text.tertiary },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
