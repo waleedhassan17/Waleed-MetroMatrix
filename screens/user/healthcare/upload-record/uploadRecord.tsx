@@ -35,6 +35,7 @@ import {
   UploadRecordType,
   PickedFile,
 } from './uploadRecordSlice';
+import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ─────────────────────────────────────
 
@@ -211,7 +212,7 @@ const UploadRecordScreen: React.FC = () => {
       // inline until it is closed explicitly.
       setShowDatePicker(Platform.OS === 'ios');
       if (event.type === 'dismissed' || !selected) return;
-      dispatch(setDate(selected.toISOString().split('T')[0]));
+      dispatch(setDate(toLocalISODate(selected)));
     },
     [dispatch],
   );

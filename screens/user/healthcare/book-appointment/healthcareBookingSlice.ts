@@ -10,6 +10,7 @@ import {
   bookAppointmentApi,
 } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';
+import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Types ───────────────────────────────────
 
@@ -110,7 +111,7 @@ const getNextAvailableDates = (days: number = 14): string[] => {
     date.setDate(today.getDate() + i);
     // Skip Sundays (optional)
     if (date.getDay() !== 0) {
-      dates.push(date.toISOString().split('T')[0]);
+      dates.push(toLocalISODate(date));
     }
   }
   

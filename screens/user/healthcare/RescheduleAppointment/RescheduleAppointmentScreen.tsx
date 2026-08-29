@@ -26,6 +26,7 @@ import {
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { TimeSlot } from '../../../../models/healthcare/types';
+import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ────────────────────────────────────
 
@@ -62,7 +63,7 @@ const generateNext14Days = (): {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      date: d.toISOString().split('T')[0],
+      date: toLocalISODate(d),
       dayLabel: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAY_NAMES[d.getDay()],
       dayNum: String(d.getDate()),
       month: MONTH_NAMES[d.getMonth()],

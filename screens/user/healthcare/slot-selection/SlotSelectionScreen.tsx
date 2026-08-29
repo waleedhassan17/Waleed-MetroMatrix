@@ -24,6 +24,7 @@ import {
   setConsultationType,
   clearSelection,
   selectSlotsByPeriod,
+  fetchAvailabilitySummary,
 } from './slotSelectionSlice';
 import type { ConsultationType } from './slotSelectionSlice';
 import { clearSelectedClinic } from '../clinic-selection/clinicSelectionSlice';
@@ -32,6 +33,7 @@ import type { TimeSlot, HealthcareStackParamList } from '../../../../models/heal
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
+import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ─────────────────────────────────────
 
@@ -72,7 +74,7 @@ const getNext14Days = (): {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      date: d.toISOString().split('T')[0],
+      date: toLocalISODate(d),
       dayLabel: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayNames[d.getDay()],
       dateLabel: `${d.getDate()} ${monthNames[d.getMonth()]}`,
       isToday: i === 0,
@@ -105,6 +107,18 @@ const SlotSelectionScreen: React.FC = () => {
   const loading = useAppSelector((s) => s.slotSelection.loading);
   const error = useAppSelector((s) => s.slotSelection.error);
   const { morning, afternoon, evening } = useAppSelector(selectSlotsByPeriod);
+  const availabilityByDate = useAppSelector((st) => st.slotSelection.availabilityByDate);
+  const nextAvailableDate = useAppSelector((st) => st.slotSelection.nextAvailableDate);
+
+  // A date with no slots is rendered disabled rather than tappable-but-empty.
+  // Unknown dates (summary still loading, or the request failed) read as
+  // AVAILABLE on purpose: losing the hint is a small degradation, but hiding
+  // real slots because a secondary request failed would be a serious one.
+  const hasSummary = Object.keys(availabilityByDate).length > 0;
+  const dateHasSlots = useCallback(
+    (date: string) => (!hasSummary ? true : (availabilityByDate[date] ?? 0) > 0),
+    [availabilityByDate, hasSummary]
+  );
 
   const days = useMemo(getNext14Days, []);
   const dateFlatListRef = useRef<FlatList>(null);
@@ -122,6 +136,21 @@ const SlotSelectionScreen: React.FC = () => {
   useEffect(() => {
     dispatch(fetchSlots({ doctorId, date: selectedDate, consultationType }));
   }, [dispatch, doctorId, selectedDate, consultationType]);
+
+  // Which of the next 14 days have anything at all. One request for the whole
+  // strip, so empty days can be greyed out instead of the patient tapping
+  // through them one by one hunting for availability.
+  useEffect(() => {
+    const days = getNext14Days();
+    dispatch(
+      fetchAvailabilitySummary({
+        doctorId,
+        from: days[0].date,
+        to: days[days.length - 1].date,
+        consultationType,
+      })
+    );
+  }, [dispatch, doctorId, consultationType]);
 
   useEffect(() => {
     return () => { dispatch(clearSelection()); };
@@ -260,11 +289,23 @@ const SlotSelectionScreen: React.FC = () => {
   const renderDateItem = useCallback(
     ({ item }: { item: ReturnType<typeof getNext14Days>[0] }) => {
       const isSelected = item.date === selectedDate;
+      const hasSlots = dateHasSlots(item.date);
       return (
         <TouchableOpacity
-          style={[styles.dateChip, isSelected && styles.dateChipSelected]}
+          style={[
+            styles.dateChip,
+            isSelected && styles.dateChipSelected,
+            !hasSlots && !isSelected && styles.dateChipEmpty,
+          ]}
           onPress={() => handleDatePress(item.date)}
+          // Still tappable when empty — pressing shows the "no availability"
+          // empty state, which is clearer than a chip that ignores taps.
           activeOpacity={0.75}
+          accessibilityLabel={
+            hasSlots
+              ? `${item.dayLabel} ${item.dateLabel}`
+              : `${item.dayLabel} ${item.dateLabel}, no availability`
+          }
         >
           {isSelected && (
             <LinearGradient
@@ -277,16 +318,28 @@ const SlotSelectionScreen: React.FC = () => {
           {item.isToday && !isSelected && (
             <View style={styles.todayDot} />
           )}
-          <Text style={[styles.dateChipDay, isSelected && styles.dateChipDaySelected]}>
+          <Text
+            style={[
+              styles.dateChipDay,
+              isSelected && styles.dateChipDaySelected,
+              !hasSlots && !isSelected && styles.dateChipTextEmpty,
+            ]}
+          >
             {item.dayLabel}
           </Text>
-          <Text style={[styles.dateChipDate, isSelected && styles.dateChipDateSelected]}>
+          <Text
+            style={[
+              styles.dateChipDate,
+              isSelected && styles.dateChipDateSelected,
+              !hasSlots && !isSelected && styles.dateChipTextEmpty,
+            ]}
+          >
             {item.dateLabel}
           </Text>
         </TouchableOpacity>
       );
     },
-    [selectedDate, handleDatePress],
+    [selectedDate, handleDatePress, dateHasSlots],
   );
 
   const totalSlots = morning.length + afternoon.length + evening.length;
@@ -472,6 +525,37 @@ const SlotSelectionScreen: React.FC = () => {
             renderItem={renderDateItem}
           />
         </View>
+
+        {/*
+          The "jump to the next open day" shortcut.
+
+          A doctor may have nothing for a week or more, and the strip only
+          covers 14 days — so without this a patient scrolls past empty chip
+          after empty chip with no idea whether anything exists at all. Shown
+          only when the CURRENT selection is empty but something else is not,
+          which is exactly the moment it helps.
+        */}
+        {nextAvailableDate && !dateHasSlots(selectedDate) && (
+          <TouchableOpacity
+            style={styles.nextAvailableBar}
+            onPress={() => handleDatePress(nextAvailableDate)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#1D4ED8" />
+            <Text style={styles.nextAvailableText}>
+              Next available{' '}
+              {(() => {
+                const d = new Date(`${nextAvailableDate}T00:00:00`);
+                return d.toLocaleDateString('en-PK', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                });
+              })()}
+            </Text>
+            <Text style={styles.nextAvailableAction}>View</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Slots Content ── */}
         <View style={styles.slotsSection}>
@@ -754,6 +838,36 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 1 },
     }),
+  },
+  dateChipEmpty: {
+    opacity: 0.4,
+  },
+  dateChipTextEmpty: {
+    textDecorationLine: 'line-through',
+  },
+  nextAvailableBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  nextAvailableText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1D4ED8',
+    fontWeight: '600',
+  },
+  nextAvailableAction: {
+    fontSize: 13,
+    color: '#1D4ED8',
+    fontWeight: '800',
   },
   dateChipSelected: {
     borderColor: 'transparent',

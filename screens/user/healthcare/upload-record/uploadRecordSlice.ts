@@ -4,6 +4,7 @@ import {
   type HealthRecordCategory,
   type HealthRecordFileInput,
 } from '../../../../networks/healthcare/appointmentApi';
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Types ───────────────────────────────────
 
@@ -63,7 +64,7 @@ const initialState: UploadRecordState = {
   files: [],
   recordType: 'prescription',
   title: '',
-  date: new Date().toISOString().split('T')[0],
+  date: todayLocalISODate(),
   uploading: false,
   uploadProgress: 0,
   error: null,

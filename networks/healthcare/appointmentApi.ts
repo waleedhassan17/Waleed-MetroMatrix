@@ -44,16 +44,78 @@ export async function fetchTimeSlotsApi(
     `/doctors/${encodeURIComponent(params.doctorId)}/slots?${queryParams}`
   );
   if (res.success) {
-    // Backend groups slots by time-of-day { morning, afternoon, evening }.
+    // The backend now groups BY CLINIC — an array of { clinic, slots } — so a
+    // patient can see which times are at which location. It used to group by
+    // time of day, which hid that entirely and silently dropped any slot
+    // outside 06:00–22:00.
+    //
+    // Both shapes are handled: a build of this app can be live against a
+    // backend that has not been redeployed yet, and slots quietly vanishing is
+    // the worst possible failure here.
     const g = res.data || {};
-    const flat = Array.isArray(g)
-      ? g
-      : [...(g.morning?.slots || []), ...(g.afternoon?.slots || []), ...(g.evening?.slots || [])];
+    let flat: any[];
+
+    if (Array.isArray(g)) {
+      // New shape when entries carry a `slots` array; a bare array of slots
+      // otherwise (the flat-list endpoint).
+      flat = g.some((entry: any) => Array.isArray(entry?.slots))
+        ? g.flatMap((group: any) =>
+            (group.slots || []).map((s: any) => ({ ...s, clinic: s.clinic ?? group.clinic }))
+          )
+        : g;
+    } else {
+      // Legacy time-of-day buckets.
+      flat = [...(g.morning?.slots || []), ...(g.afternoon?.slots || []), ...(g.evening?.slots || [])];
+    }
+
     // Each grouped slot carries the date implicitly (the query date).
     const withDate = flat.map((s: any) => ({ date: params.date, ...s }));
     return { ...res, data: withDate.map(timeSlotSerializer) };
   }
   return res as ApiResponse<TimeSlot[]>;
+}
+
+// ── Which upcoming DATES have availability ──────────────────
+//
+// So the patient's date strip can grey out empty days instead of making
+// someone tap through two weeks of identical chips looking for one that has
+// anything — the case of booking on Monday for a Saturday visit.
+
+export interface AvailabilityDay {
+  date: string;
+  total: number;
+  earliest: string;
+  clinics: { clinicId: string | null; count: number }[];
+}
+
+export async function fetchAvailabilitySummaryApi(params: {
+  doctorId: string;
+  from?: string;
+  to?: string;
+  type?: string;
+  clinicId?: string;
+}): Promise<ApiResponse<{ from: string; to: string; days: AvailabilityDay[] }>> {
+  const q = new URLSearchParams();
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  if (params.type) q.set('type', params.type);
+  if (params.clinicId) q.set('clinicId', params.clinicId);
+
+  return healthcareApiRequest<any>(
+    `/doctors/${encodeURIComponent(params.doctorId)}/availability-summary?${q}`
+  );
+}
+
+/** The earliest moment a doctor can next be seen — "Available from Sat, 5 Sep". */
+export async function fetchNextAvailableApi(params: {
+  doctorId: string;
+  type?: string;
+}): Promise<ApiResponse<any>> {
+  const q = new URLSearchParams();
+  if (params.type) q.set('type', params.type);
+  return healthcareApiRequest<any>(
+    `/doctors/${encodeURIComponent(params.doctorId)}/next-available?${q}`
+  );
 }
 
 // ── Book Appointment ────────────────────────

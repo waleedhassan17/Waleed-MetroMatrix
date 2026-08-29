@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { Appointment, Doctor } from '../../../../models/healthcare/types';
 import { startVideoCallApi } from '../../../../networks/healthcare/appointmentApi';
 import { fetchDoctorByIdApi } from '../../../../networks/healthcare/doctorApi';
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Types ───────────────────────────────────
 
@@ -64,7 +65,7 @@ export const joinWaitingRoom = createAsyncThunk<
         patientId: '',
         doctorId,
         type: 'video' as const,
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocalISODate(),
         status: 'confirmed' as const,
         createdAt: new Date().toISOString(),
       } as Appointment,

@@ -12,6 +12,7 @@ import {
 } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';
 import { getDoctorDisplayName } from '../../../../utils/healthcare/doctorDisplay';
+import { todayLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Types ───────────────────────────────────
 
@@ -472,7 +473,7 @@ export const selectIsToday = (state: RootState): boolean => {
   const appointment = state.appointmentDetail.appointment;
   if (!appointment) return false;
   
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalISODate();
   return appointment.date === today;
 };
 
