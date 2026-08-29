@@ -181,3 +181,81 @@ Already fixed in commit `339d5d0`, before this work. `ChatThread` uses
   metromatrix-realtime`); the live one was pasted into a chat transcript.
 - `lastSeen` does not survive a dyno restart; it is in-memory by design.
 - Group calls, and video for home services, are unbuilt.
+
+---
+
+# Round 2 — device testing findings
+
+Three problems surfaced on real devices after round 1 shipped.
+
+## A user could not call a provider (and the socket died after 4 minutes)
+
+**Root cause, from production logs — not what the symptom suggested.** The
+server rang the provider, the provider's socket was connected and in its
+personal room, and the provider's *app* never presented the call: no
+`call_ringing` ack, timing out as `missed` after exactly 30s. Every
+provider→user ring acked in half a second. Outgoing calls never touch
+`IncomingCallProvider`, which is why the failure looked one-directional.
+
+The cause was a gate added in round 1: the ring listener early-returned on
+`sessionKey = currentUser?.id || currentProvider?.id`. That identity was
+unreliable twice over — `getUserProfile` returns an explicit `{ id: user._id }`
+while `getProviderProfile` returned the raw document (whose `toJSON` is
+`toObject()` without virtuals, so `_id` and no `id`), and the app was calling
+`/user/me` and `/provider/me`, both **404 in production**. So `fetchMe` always
+rejected and identity existed only after a fresh in-session login.
+
+Fixed at every level: the listener now binds on the socket and retries, the
+endpoints are corrected to `/users/profile` and `/providers/profile`, the store
+normalises `_id`→`id`, and `getProviderProfile` returns `id`.
+
+**Separately**, the same logs showed both sockets hitting `token expired —
+disconnecting` and never reconnecting: `refreshSocketAuth()` replayed the same
+expired token. Now renews through the axios layer's single-flight refresh
+(rotating the refresh token twice concurrently would log the user out).
+
+*Verified on production: both directions ring, ack, and connect.*
+
+## Calls never rang; notifications were unreliable
+
+- **No audio library was installed at all.** Added `expo-audio` and a generated
+  ringtone (440/480 Hz pair — one sine reads as an alarm, the pair as a
+  telephone; 2s/3s cadence so looping sounds like a phone). `accept()` awaits
+  the stop before WebRTC takes the mic, or the call starts on a route media
+  playback already owns.
+- **A backgrounded callee could never be rung.** The server treated "no socket"
+  as `unavailable` and sent a past-tense "Missed call" — but no socket is
+  exactly what a pocketed phone looks like. Now only a callee with neither a
+  socket nor a push token is unavailable; everyone else gets a real ring push
+  carrying `callId`.
+- **Channels moved to `calls_v2`.** Android channels are immutable once created,
+  so existing installs had `calls` frozen at the system blip. Client and server
+  constants must move together or call pushes fall back to the quiet default.
+- Notifee full-screen intent gives a lock-screen Accept/Decline when the app is
+  alive but backgrounded.
+- Chat pushes are gated on room membership — they previously fired over the
+  conversation the recipient was reading.
+
+## The provider had no notifications
+
+Added a persisted `HSNotification` with a polymorphic recipient (User or
+Provider `_id`), emitted from `bookingService.transition` — the single choke
+point every status change passes through. One set of endpoints serves both roles
+because `protect` resolves either and every query is scoped by `req.user._id`.
+
+The dashboard bell had **no `onPress` at all**, and its badge was the count of
+*pending bookings* under a notifications label — unclearable by definition. Both
+fixed; the badge is now a real unread count.
+
+## Still outstanding
+
+- **`EXPO_ACCESS_TOKEN` is unset on the dyno.** Every push is still rejected
+  with `InvalidCredentials`, so none of the notification work above is
+  observable until `heroku config:set EXPO_ACCESS_TOKEN=<token>` is run.
+- A **fully killed** app has no JS to raise the full-screen call UI; it gets the
+  loud `calls_v2` heads-up notification instead. A true full-screen intent from
+  a dead process needs a data-only FCM message and a native background handler —
+  a push-transport change (Expo → `@react-native-firebase/messaging`), not a UI
+  one.
+- `calls_v2` means the old APK must be **uninstalled, not upgraded**, for a
+  clean channel.
