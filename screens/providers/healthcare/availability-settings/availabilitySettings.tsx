@@ -30,6 +30,7 @@ import {
   toggleDayMode,
   updateDayMode,
   updateRange,
+  setRangeClinic,
   addRange,
   removeRange,
   addVacation,
@@ -155,8 +156,20 @@ const DayScheduleRow: React.FC<{
   onTimePress: (mode: 'online' | 'onsite', field: 'startTime' | 'endTime', index: number) => void;
   onAddRange: (mode: 'online' | 'onsite') => void;
   onRemoveRange: (mode: 'online' | 'onsite', index: number) => void;
+  /** The doctor's clinics, so each onsite period can name where it is held. */
+  clinics: { id: string; name: string; address?: string }[];
+  onPickClinic: (mode: 'online' | 'onsite', index: number) => void;
   index: number;
-}> = ({ schedule, onToggleWorking, onToggleMode, onTimePress, onAddRange, onRemoveRange }) => {
+}> = ({
+  schedule,
+  onToggleWorking,
+  onToggleMode,
+  onTimePress,
+  onAddRange,
+  onRemoveRange,
+  clinics,
+  onPickClinic,
+}) => {
   const dc = DAY_COLORS[schedule.day];
   const pressAnim = useRef(new Animated.Value(1)).current;
 
@@ -218,6 +231,39 @@ const DayScheduleRow: React.FC<{
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/*
+                WHICH CLINIC THIS PERIOD IS AT.
+
+                Per PERIOD, not per day — that is what lets one Monday be
+                09:00-12:00 at Gulberg and 17:00-20:00 at DHA. The editor
+                previously had no clinic control at all (the reducer existed
+                but nothing rendered it), so every onsite hour was saved with
+                a null clinic and patients were never told where to go.
+              */}
+              {mode === 'onsite' && (
+                <TouchableOpacity
+                  style={modeStyles.clinicChip}
+                  onPress={() => onPickClinic(mode, i)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={12}
+                    color={range.clinicId ? '#1E6AE1' : THEME.error}
+                  />
+                  <Text
+                    style={[
+                      modeStyles.clinicChipText,
+                      !range.clinicId && { color: THEME.error },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {clinics.find((c) => c.id === range.clinicId)?.name || 'Choose a clinic'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={11} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
           );
         })}
@@ -273,6 +319,25 @@ const DayScheduleRow: React.FC<{
 };
 
 const modeStyles = StyleSheet.create({
+  clinicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    marginLeft: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+  },
+  clinicChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+    flexShrink: 1,
+  },
   modeBlock: { marginTop: 8 },
   rangeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 2 },
   rangeRemove: {
@@ -490,6 +555,9 @@ const AvailabilitySettingsScreen: React.FC = () => {
     error,
     saveSuccess,
   } = useAppSelector((state) => state.availabilitySettings);
+  const clinics = useAppSelector(
+    (state) => (state.availabilitySettings as any).clinics || []
+  ) as { id: string; name: string; address?: string }[];
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [timePickerTarget, setTimePickerTarget] = useState<{
@@ -544,6 +612,37 @@ const AvailabilitySettingsScreen: React.FC = () => {
     ? weeklySchedule.find((s) => s.day === timePickerTarget.day)
         ?.[timePickerTarget.mode]?.ranges?.[timePickerTarget.index]?.[timePickerTarget.field] ?? '09:00'
     : '09:00';
+
+  // Which period's clinic is being chosen. Null when the sheet is closed.
+  const [clinicTarget, setClinicTarget] = React.useState<{
+    day: Weekday;
+    mode: 'online' | 'onsite';
+    index: number;
+  } | null>(null);
+
+  const handleOpenClinicPicker = useCallback(
+    (day: Weekday, mode: 'online' | 'onsite', index: number) => {
+      if (!clinics.length) {
+        Alert.alert(
+          'No clinics yet',
+          'Add a clinic first — patients need to know where to come. You can add one from Manage Slots.',
+        );
+        return;
+      }
+      setClinicTarget({ day, mode, index });
+    },
+    [clinics.length],
+  );
+
+  const handleSelectClinic = useCallback(
+    (clinicId: string) => {
+      if (clinicTarget) {
+        dispatch(setRangeClinic({ ...clinicTarget, clinicId }));
+      }
+      setClinicTarget(null);
+    },
+    [clinicTarget, dispatch],
+  );
 
   const handleOpenTimePicker = useCallback(
     (day: Weekday, mode: 'online' | 'onsite', field: 'startTime' | 'endTime', index: number) => {
@@ -814,6 +913,8 @@ const AvailabilitySettingsScreen: React.FC = () => {
                   onTimePress={(mode, field, i) => handleOpenTimePicker(schedule.day, mode, field, i)}
                   onAddRange={(mode) => handleAddRange(schedule.day, mode)}
                   onRemoveRange={(mode, i) => handleRemoveRange(schedule.day, mode, i)}
+                  clinics={clinics}
+                  onPickClinic={(mode, i) => handleOpenClinicPicker(schedule.day, mode, i)}
                 />
               ))}
             </View>
@@ -956,6 +1057,45 @@ const AvailabilitySettingsScreen: React.FC = () => {
       </View>
 
       {/* ── Modals ── */}
+      {/* Clinic picker for one period. */}
+      <Modal
+        visible={!!clinicTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClinicTarget(null)}
+      >
+        <TouchableOpacity
+          style={pickerStyles.backdrop}
+          activeOpacity={1}
+          onPress={() => setClinicTarget(null)}
+        >
+          <View style={pickerStyles.sheet}>
+            <Text style={pickerStyles.title}>Where are these hours held?</Text>
+            <Text style={pickerStyles.subtitle}>
+              Patients see this location when they book this time.
+            </Text>
+            {clinics.map((c: any) => (
+              <TouchableOpacity
+                key={c.id}
+                style={pickerStyles.option}
+                onPress={() => handleSelectClinic(c.id)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="business-outline" size={16} color="#1E6AE1" />
+                <View style={{ flex: 1 }}>
+                  <Text style={pickerStyles.optionName}>{c.name}</Text>
+                  {!!c.address && (
+                    <Text style={pickerStyles.optionAddress} numberOfLines={1}>
+                      {c.address}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <TimePicker
         visible={timePickerVisible}
         title={
@@ -1665,4 +1805,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+});
+
+const pickerStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 4,
+  },
+  title: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  subtitle: { fontSize: 13, color: '#64748B', marginBottom: 10 },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E2E8F0',
+  },
+  optionName: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  optionAddress: { fontSize: 12, color: '#64748B', marginTop: 2 },
 });

@@ -349,10 +349,26 @@ export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ suc
 // ═══════════════════════════════════════════
 
 export async function fetchAvailabilitySettingsApi(): Promise<
-  ApiResponse<{ weeklySchedule: DaySchedule[]; vacationDates: VacationDate[]; instantBooking: boolean; videoConsultation: boolean }>
+  ApiResponse<{
+    weeklySchedule: DaySchedule[];
+    vacationDates: VacationDate[];
+    instantBooking: boolean;
+    videoConsultation: boolean;
+    clinics: { id: string; name: string; address?: string }[];
+  }>
 > {
-  const res = await healthcareApiRequest<any>('/doctors/me/availability');
+  // Clinics come back alongside the schedule because the editor now needs them
+  // inline: every onsite period names the clinic it is held at, so the picker
+  // has to be populated before the doctor can save anything valid.
+  const [res, clinicsRes] = await Promise.all([
+    healthcareApiRequest<any>('/doctors/me/availability'),
+    healthcareApiRequest<any>('/doctors/me/clinics').catch(() => ({ success: false, data: [] })),
+  ]);
   const av = res.success ? res.data || {} : {};
+  const rawClinics = clinicsRes?.success ? clinicsRes.data || [] : [];
+  const clinics = (Array.isArray(rawClinics) ? rawClinics : rawClinics.clinics || []).map(
+    (c: any) => ({ id: String(c.id || c._id), name: c.name, address: c.address })
+  );
   // Backend absentDates → vacation entries (single-day each).
   const vacationDates = (av.absentDates || []).map((d: any, i: number) => {
     const day = toLocalISODate(new Date(d));
@@ -366,6 +382,7 @@ export async function fetchAvailabilitySettingsApi(): Promise<
       vacationDates,
       instantBooking: av.isAvailable ?? true,
       videoConsultation: true,
+      clinics,
     },
     message: 'Settings loaded',
   };
@@ -400,8 +417,20 @@ export async function saveAvailabilitySettingsApi(settings: {
     },
     onsite: {
       enabled: !!d.onsite?.enabled,
+      // Day-level clinic, kept for older saved schedules. The server reads the
+      // RANGE's clinic first and falls back to this.
       clinicId: d.onsite?.clinicId || null,
-      ranges: d.onsite?.enabled ? (d.onsite.ranges || []) : [],
+      // Each period carries its own clinic, so one day can span two locations
+      // — the thing a single day-level clinicId made impossible. Falls back to
+      // the day value so a schedule saved before this still names a clinic
+      // rather than suddenly having none (which the server now rejects).
+      ranges: d.onsite?.enabled
+        ? (d.onsite.ranges || []).map((r: any) => ({
+            startTime: r.startTime,
+            endTime: r.endTime,
+            clinicId: r.clinicId ?? d.onsite?.clinicId ?? null,
+          }))
+        : [],
     },
   }));
   const absentDates = (settings.vacationDates || []).flatMap((v: any) => expandDateRange(v.startDate, v.endDate));
@@ -748,4 +777,35 @@ export async function fetchMyPatientsApi(): Promise<
     }
   }
   return { success: true, data: [...byPatient.values()], message: 'Patients derived from appointments' };
+}
+
+// ═══════════════════════════════════════════
+//  AVAILABILITY RUNWAY  (the doctor's warning)
+// ═══════════════════════════════════════════
+//
+// Slot generation used to be one-shot: publish 30 days, and when they ran out
+// nothing said so. That is how production reached zero bookable slots across
+// every doctor without a single error being raised. A rolling job now keeps the
+// horizon full; this endpoint is the second line of defence, so a doctor whose
+// template is missing or exhausted is TOLD rather than left invisible to
+// patients.
+
+export type AvailabilityState = 'ok' | 'running_out' | 'exhausted' | 'not_set';
+
+export interface AvailabilityStatus {
+  state: AvailabilityState;
+  hasTemplate: boolean;
+  hasClinics: boolean;
+  lastAvailableDate: string | null;
+  daysRemaining: number;
+  horizonDays: number;
+}
+
+export async function fetchAvailabilityStatusApi(): Promise<ApiResponse<AvailabilityStatus>> {
+  return healthcareApiRequest<AvailabilityStatus>('/doctors/me/availability/status');
+}
+
+/** Top the rolling horizon back up now. Idempotent. */
+export async function refreshMySlotsApi(): Promise<ApiResponse<any>> {
+  return healthcareApiRequest<any>('/doctors/me/slots/refresh', { method: 'POST' });
 }

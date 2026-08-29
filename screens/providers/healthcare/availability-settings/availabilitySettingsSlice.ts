@@ -12,6 +12,8 @@ export type Weekday = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday'
 
 /** One continuous working period, e.g. 10:00-14:00. */
 export interface TimeRange {
+  /** Which clinic this period is held at. Null = online / unset. */
+  clinicId?: string | null;
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
 }
@@ -31,7 +33,14 @@ export interface DayMode {
   enabled: boolean;
   /** Ordered, non-overlapping. Gaps between entries are breaks. */
   ranges: TimeRange[];
-  /** Onsite only: which clinic these hours are held at. */
+  /**
+   * @deprecated Day-level fallback. Use `range.clinicId`.
+   *
+   * A single clinic per DAY made the product requirement unrepresentable: a
+   * doctor working Clinic A in the morning and Clinic B in the evening had
+   * nowhere to say so. Kept only so schedules saved before the move keep
+   * resolving to the clinic they always did.
+   */
   clinicId?: string | null;
 }
 
@@ -49,6 +58,12 @@ export interface VacationDate {
   reason: string;
 }
 
+export interface ClinicOption {
+  id: string;
+  name: string;
+  address?: string;
+}
+
 export interface AvailabilitySettingsState {
   weeklySchedule: DaySchedule[];
   vacationDates: VacationDate[];
@@ -60,6 +75,8 @@ export interface AvailabilitySettingsState {
   error: string | null;
   saveSuccess: boolean;
   generateSuccess: string | null;
+  /** The doctor's clinics, for the per-period clinic picker. */
+  clinics: ClinicOption[];
 }
 
 const WEEKDAYS: Weekday[] = [
@@ -85,6 +102,7 @@ const blankDay = (day: Weekday): DaySchedule => ({
 const blankWeeklySchedule = (): DaySchedule[] => WEEKDAYS.map(blankDay);
 
 const initialState: AvailabilitySettingsState = {
+  clinics: [],
   weeklySchedule: [],
   vacationDates: [],
   instantBooking: true,
@@ -306,7 +324,33 @@ const availabilitySettingsSlice = createSlice({
       }
     },
 
-    /** Which clinic the onsite hours are held at. */
+    /**
+     * Which clinic THIS PERIOD is held at.
+     *
+     * The binding that makes "09:00-12:00 at Gulberg, 17:00-20:00 at DHA" on
+     * one day expressible. setDayClinic below is the older day-level version,
+     * kept for existing data.
+     */
+    setRangeClinic(
+      state,
+      action: PayloadAction<{
+        day: Weekday;
+        mode: 'online' | 'onsite';
+        index: number;
+        clinicId: string | null;
+      }>
+    ) {
+      const m = state.weeklySchedule.find((s) => s.day === action.payload.day)?.[
+        action.payload.mode
+      ];
+      const range = m?.ranges[action.payload.index];
+      if (range) {
+        range.clinicId = action.payload.clinicId;
+        state.saveSuccess = false;
+      }
+    },
+
+    /** @deprecated Which clinic the whole day's onsite hours are held at. */
     setDayClinic(state, action: PayloadAction<{ day: Weekday; clinicId: string | null }>) {
       const d = state.weeklySchedule.find((s) => s.day === action.payload.day);
       if (d) {
@@ -361,6 +405,7 @@ const availabilitySettingsSlice = createSlice({
         state.loading = false;
         if (action.payload.weeklySchedule) state.weeklySchedule = action.payload.weeklySchedule;
         if (action.payload.vacationDates) state.vacationDates = action.payload.vacationDates;
+        state.clinics = (action.payload as any).clinics || [];
         if (action.payload.instantBooking !== undefined) state.instantBooking = action.payload.instantBooking;
         if (action.payload.videoConsultation !== undefined) state.videoConsultation = action.payload.videoConsultation;
       })
@@ -398,6 +443,7 @@ const availabilitySettingsSlice = createSlice({
 });
 
 export const {
+  setRangeClinic,
   seedWeeklySchedule,
   toggleDayWorking,
   toggleDayMode,

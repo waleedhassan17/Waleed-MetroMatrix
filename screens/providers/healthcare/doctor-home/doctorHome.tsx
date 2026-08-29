@@ -32,6 +32,7 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight |
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 import { formatMoney } from '../../../../constants/Currency';
+import AvailabilityWarning from '../../../../components/Healthcare/AvailabilityWarning';
 
 // ── Helpers ───────────────────────────────────
 
@@ -203,6 +204,19 @@ const DoctorHomeScreen: React.FC = () => {
           />
         }
       >
+        {/*
+          Availability warning — renders nothing when there is nothing wrong.
+
+          Placed above everything because a doctor who is unbookable has no
+          more important information on this screen: production once had every
+          doctor's slots expired with nothing anywhere saying so.
+        */}
+        <AvailabilityWarning
+          onSetAvailability={() =>
+            (navigation as any).navigate(DoctorRouteNames.DoctorAvailability)
+          }
+        />
+
         {/* ── Header with subtle gradient ── */}
         <LinearGradient
           colors={['#FFFFFF', THEME.pageBg]}
