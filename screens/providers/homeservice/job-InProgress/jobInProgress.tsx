@@ -21,6 +21,8 @@ import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice'
 type RootStackParamList = {
   AwaitingApproval: undefined;
   NavigationMap: undefined;
+  ProviderJobChat: { bookingId: string; customerName?: string };
+  ProviderCallScreen: { bookingId: string; customerName?: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -150,16 +152,28 @@ const JobInProgressScreen: React.FC = () => {
     );
   };
 
+  // In-app call and chat, matching the job-detail screen. These two used to
+  // hand off to the phone's dialer and to SMS, which meant the provider's
+  // busiest screen — the one they are on while actually doing the job — was the
+  // one place the in-app conversation was unreachable. It also put the exchange
+  // outside the booking, where neither side could refer back to it.
+  //
+  // `jobId` is the booking id, and a booking is what the realtime service
+  // authorizes a room against.
   const handleCallCustomer = () => {
-    if (customerPhone && customerPhone !== 'N/A') {
-      Linking.openURL(`tel:${customerPhone}`);
-    }
+    if (!jobId) return;
+    navigation.navigate('ProviderCallScreen', {
+      bookingId: jobId,
+      customerName,
+    });
   };
 
   const handleMessageCustomer = () => {
-    if (customerPhone && customerPhone !== 'N/A') {
-      Linking.openURL(`sms:${customerPhone}`);
-    }
+    if (!jobId) return;
+    navigation.navigate('ProviderJobChat', {
+      bookingId: jobId,
+      customerName,
+    });
   };
 
   const openDirections = () => {

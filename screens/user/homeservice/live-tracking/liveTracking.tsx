@@ -81,7 +81,7 @@ type LiveTrackingRouteParams = {
 };
 
 export default function LiveTrackingScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: LiveTrackingRouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -163,33 +163,29 @@ export default function LiveTrackingScreen() {
     );
   }, [dispatch, navigation]);
 
+  // In-app call and chat, keyed on the booking — not the phone's dialer and SMS.
+  //
+  // Reaching the provider while they are on their way is the whole point of this
+  // screen, and handing that off to the carrier put it outside the booking:
+  // nothing was logged, the provider's app never knew, and neither side could
+  // refer back to what was agreed. It also exposed both parties' phone numbers
+  // for a conversation the app can carry itself.
   const handleCallProvider = useCallback(() => {
-    if (!provider?.phone) return;
-    const phoneUrl = `tel:${provider.phone}`;
-    Linking.canOpenURL(phoneUrl)
-      .then((supported) => {
-        if (supported) {
-          return Linking.openURL(phoneUrl);
-        } else {
-          Alert.alert('Error', 'Unable to make phone call');
-        }
-      })
-      .catch((error) => console.error('Call error:', error));
-  }, [provider]);
+    if (!bookingId) return;
+    navigation.navigate('CallScreen', {
+      bookingId,
+      counterpartName: provider?.name,
+      counterpartImage: provider?.image,
+    });
+  }, [navigation, bookingId, provider]);
 
   const handleMessageProvider = useCallback(() => {
-    if (!provider?.phone) return;
-    const smsUrl = `sms:${provider.phone}`;
-    Linking.canOpenURL(smsUrl)
-      .then((supported) => {
-        if (supported) {
-          return Linking.openURL(smsUrl);
-        } else {
-          Alert.alert('Error', 'Unable to send message');
-        }
-      })
-      .catch((error) => console.error('SMS error:', error));
-  }, [provider]);
+    if (!bookingId) return;
+    navigation.navigate('ProviderChatScreen', {
+      bookingId,
+      counterpartName: provider?.name,
+    });
+  }, [navigation, bookingId, provider]);
 
   const handleCenterMap = useCallback(() => {
     if (mapRef.current && providerLocation && userLocation) {

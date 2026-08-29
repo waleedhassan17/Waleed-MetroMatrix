@@ -37,6 +37,7 @@ const ARRIVAL_THRESHOLD = 100; // meters
 type RootStackParamList = {
   JobInProgress: undefined;
   JobDetail: undefined;
+  ProviderCallScreen: { bookingId: string; customerName?: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -149,7 +150,10 @@ const NavigationMapScreen: React.FC = () => {
             lat: updatedLocation.latitude,
             lng: updatedLocation.longitude,
           });
-          if (!ack.success && /unavailable/i.test(ack.message || '')) {
+          // Match on the typed reason, not the message text. This used to test
+          // the message against /unavailable/i, which coupled a fallback to
+          // human-facing copy — and broke silently the moment that copy changed.
+          if (!ack.success && ack.reason === 'offline') {
             // Socket down (serverless host) — REST fallback keeps FR-09 alive.
             updateProviderLocationApi({ ...updatedLocation, jobId: job.id });
           }
@@ -250,10 +254,15 @@ const NavigationMapScreen: React.FC = () => {
     );
   };
 
+  // In-app call rather than the phone's dialer, matching the job-detail and
+  // job-in-progress screens. A provider driving to a job is exactly who needs to
+  // reach the customer, and the booking room is where that conversation belongs.
   const handleCallCustomer = () => {
-    if (customerPhone && customerPhone !== 'N/A') {
-      Linking.openURL(`tel:${customerPhone}`);
-    }
+    if (!job?.id) return;
+    navigation.navigate('ProviderCallScreen', {
+      bookingId: job.id,
+      customerName,
+    });
   };
 
   const centerOnRoute = () => {

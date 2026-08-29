@@ -84,7 +84,8 @@ const JobDetailScreen: React.FC = () => {
     if (!roomId) return;
     // Routed through the realtime service rather than dialling straight out, so
     // the customer's app knows a call is incoming, the attempt is logged, and
-    // the busy signal applies. The native dialer still places the actual call.
+    // the busy signal applies. The audio itself flows peer-to-peer over WebRTC —
+    // no native dialer is involved on either side.
     navigation.navigate('ProviderCallScreen', {
       bookingId: roomId,
       customerName: currentJob.customerName,

@@ -63,10 +63,18 @@ export function bookingDataSerializer(payload: any): {
   };
 }
 
+// A FABRICATED BOOKING ID IS WORSE THAN NO BOOKING ID.
+//
+// These two fields used to fall back to `BK-${Date.now()}`. That id addresses
+// nothing: it is not a booking the server knows about, so chat and calling —
+// which key their room off it — fail with "Not a participant", a long way from
+// the response that was actually malformed. Empty string is the honest answer,
+// and every consumer already handles it (ChatScreen and CallScreen both show a
+// "this opens with your booking" state rather than dead-ending).
 export function bookingSerializer(data: any): Booking {
   return {
     id: data?.id || '',
-    bookingId: data?.bookingId || `BK-${Date.now()}`,
+    bookingId: data?.bookingId || '',
     status: data?.status || 'pending',
     provider: bookingProviderSerializer(data?.provider || {}),
     selectedDate: data?.selectedDate || '',
@@ -83,7 +91,7 @@ export function bookingSerializer(data: any): Booking {
 
 export function bookingConfirmationSerializer(payload: any): BookingConfirmation {
   return {
-    bookingId: payload?.bookingId || `BK-${Date.now()}`,
+    bookingId: payload?.bookingId || '',
     status: payload?.status || 'waiting',
     provider: bookingProviderSerializer(payload?.provider || {}),
     bookingDetails: {

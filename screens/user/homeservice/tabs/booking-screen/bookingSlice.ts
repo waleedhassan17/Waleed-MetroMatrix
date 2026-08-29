@@ -167,9 +167,19 @@ const homeServiceBookingsSlice = createAppSlice({
           if (!response.success) {
             return rejectWithValue(response.message || 'Failed to create booking.');
           }
-          
+
+          // A booking with no server id cannot be opened, cancelled, chatted
+          // about or called about — every one of those addresses it by id. This
+          // used to fall back to `b${Date.now()}`, which papered over the
+          // failure and then surfaced it much later as "Not a participant" when
+          // the user tried to call about a booking the server had never heard
+          // of. Fail here, where the cause is still visible.
+          if (!response.data?.bookingId) {
+            return rejectWithValue('Booking was not confirmed. Please try again.');
+          }
+
           const newBooking: Booking = {
-            id: response.data?.bookingId || `b${Date.now()}`,
+            id: response.data.bookingId,
             serviceId: bookingData.serviceId || '',
             serviceName: bookingData.serviceName || '',
             serviceImage: bookingData.serviceImage || '',
