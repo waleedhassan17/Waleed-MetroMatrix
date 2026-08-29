@@ -218,6 +218,31 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       s.on('typing', onTyping);
       s.on('messages_read', onRead);
 
+      // REGISTERED BEFORE THE AWAITS BELOW, deliberately.
+      //
+      // Every listener is attached by this point, and what follows can block
+      // for seconds — joinBooking waits on the handshake, and presence_get
+      // waits up to 8s for an ack that an older server will never send at all.
+      // Assigning cleanup after those awaits left a window in which the effect
+      // had live listeners but no way to remove them: leave the chat inside it
+      // and the teardown found `cleanupRef.current` still null, so every
+      // handler stayed attached and re-entering the screen stacked another set.
+      cleanupRef.current = () => {
+        s.off('connect', onConnect);
+        s.off('disconnect', onDisconnect);
+        s.off('new_message', onMessage);
+        s.off('provider_location_update', onLocation);
+        s.off('booking_status_changed', onStatus);
+        s.off('appointment_status_changed', onAppointmentStatus);
+        s.off('payment_requested', onPaymentRequested);
+        s.off('payment_status_changed', onPaymentStatus);
+        s.off('video_call_started', onVideoStarted);
+        s.off('video_call_ended', onVideoEnded);
+        s.off('presence_update', onPresence);
+        s.off('typing', onTyping);
+        s.off('messages_read', onRead);
+      };
+
       if (s.connected) {
         setConnected(true);
         await joinBooking(roomId, roomType);
@@ -242,22 +267,6 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
           lastSeen: presenceAck.data.lastSeen ?? null,
         });
       }
-
-      cleanupRef.current = () => {
-        s.off('connect', onConnect);
-        s.off('disconnect', onDisconnect);
-        s.off('new_message', onMessage);
-        s.off('provider_location_update', onLocation);
-        s.off('booking_status_changed', onStatus);
-        s.off('appointment_status_changed', onAppointmentStatus);
-        s.off('payment_requested', onPaymentRequested);
-        s.off('payment_status_changed', onPaymentStatus);
-        s.off('video_call_started', onVideoStarted);
-        s.off('video_call_ended', onVideoEnded);
-        s.off('presence_update', onPresence);
-        s.off('typing', onTyping);
-        s.off('messages_read', onRead);
-      };
     })();
 
     return () => {
