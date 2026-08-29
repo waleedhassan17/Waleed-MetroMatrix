@@ -198,14 +198,19 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       // again on every transition, so the header tracks their real state rather
       // than inferring it from our own connection.
       //
-      // Frames are filtered against the known counterpart id. A room broadcast
-      // carries whichever user changed, and with two devices signed into the
-      // same account that can be US — accepting it unfiltered would show a user
-      // their own presence as if it were the other person's.
+      // Frames are matched against the counterpart id that presence_get below
+      // establishes, and IGNORED until it has. A room broadcast carries
+      // whichever user changed, and the direct join frame is indistinguishable
+      // from it on the wire — so with two devices signed into the same account,
+      // trusting the first frame to arrive could pin the viewer's OWN id and
+      // then render their own status as the other person's.
+      //
+      // Nothing is lost by waiting: presence_get is emitted immediately after
+      // the join and returns the counterpart's current state, so any transition
+      // during that window is already reflected in its answer.
       const onPresence = (p: CounterpartPresence & { roomId?: string }) => {
         if (!mounted || !p?.userId) return;
-        if (counterpartIdRef.current && counterpartIdRef.current !== p.userId) return;
-        counterpartIdRef.current = p.userId;
+        if (counterpartIdRef.current !== p.userId) return;
         setCounterpartPresence({ userId: p.userId, status: p.status, lastSeen: p.lastSeen ?? null });
       };
       s.on('presence_update', onPresence);
