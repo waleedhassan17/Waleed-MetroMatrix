@@ -23,8 +23,14 @@ import {
   Vibration,
   Platform,
   Alert,
+  AppState,
 } from 'react-native';
 import { getSocket, emitEvent, RoomType } from '../../services/socket/socketClient';
+import { startRingtone, stopRingtone, stopRingtoneSync } from '../../services/call/ringtone';
+import {
+  showIncomingCallNotification,
+  dismissIncomingCallNotification,
+} from '../../services/call/callNotification';
 import { navigate } from '../../navigation-maps/navigationRef';
 
 interface IncomingCall {
@@ -69,8 +75,17 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
 
+  // The single teardown path — decline, remote hangup, timeout and accept all
+  // funnel through here, so the ringtone is stopped in one place rather than
+  // five that can drift apart. Leaving it playing is the worst failure mode
+  // available: a phone that will not stop ringing.
   const dismiss = useCallback(() => {
     Vibration.cancel();
+    stopRingtoneSync();
+    // The call notification is `ongoing`, so the user CANNOT swipe it away
+    // themselves. Failing to cancel it here leaves a permanently ringing phone
+    // with no way to stop it — strictly worse than never showing one.
+    dismissIncomingCallNotification();
     activeRef.current = null;
     setIncoming(null);
   }, []);
@@ -83,6 +98,22 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     activeRef.current = call.callId;
     setIncoming(call);
     Vibration.vibrate(VIBRATION_PATTERN, true);
+
+    // Two surfaces, chosen by whether anyone can actually see the app.
+    //
+    // Foregrounded: the modal below, plus a ringtone — a call arriving with the
+    // app open used to make no sound whatsoever, because there was no audio
+    // here and the push that would have made one is deliberately suppressed for
+    // exactly this case, on the assumption this sheet announced itself.
+    //
+    // Backgrounded or locked: there is no React tree on screen, so the modal is
+    // invisible and a ringtone alone gives the user nothing to press. A
+    // full-screen-intent notification is the only actionable surface there.
+    if (AppState.currentState === 'active') {
+      startRingtone();
+    } else {
+      showIncomingCallNotification(call);
+    }
 
     // TELL THE CALLER THEIR CALL IS ACTUALLY RINGING.
     //
@@ -185,14 +216,21 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       mounted = false;
       if (retry) clearTimeout(retry);
       Vibration.cancel();
+      stopRingtoneSync();
       detach?.();
     };
   }, [present, dismiss]);
 
-  const accept = useCallback(() => {
+  const accept = useCallback(async () => {
     if (!incoming) return;
     const { callId, roomId, roomType, callerName } = incoming;
     Vibration.cancel();
+    // AWAITED, not fire-and-forget. The ringtone and the call want the same
+    // audio hardware; if it is still playing when usePeerConnection calls
+    // getUserMedia, the call can start on a route media playback already owns —
+    // no audio, or earpiece audio at ringer volume. Release it first, then hand
+    // off to the call screen.
+    await stopRingtone();
     dismiss();
 
     // This sheet deliberately does NOT emit `call_accept` itself any more.
@@ -219,6 +257,29 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     emitEvent('call_decline', { callId, roomId, bookingId: roomId, roomType });
     dismiss();
   }, [incoming, dismiss]);
+
+  // Accept / Decline pressed on the LOCK-SCREEN notification rather than in the
+  // app. Without this the buttons render and do nothing, which is worse than
+  // not offering them: the phone keeps ringing and the caller keeps waiting.
+  useEffect(() => {
+    let mod: any;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      mod = require('@notifee/react-native');
+    } catch {
+      return; // build without the native module — the in-app sheet still works
+    }
+    const notifee = mod?.default;
+    if (!notifee?.onForegroundEvent) return;
+
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }: any) => {
+      if (type !== mod.EventType.ACTION_PRESS) return;
+      const id = detail?.pressAction?.id;
+      if (id === 'accept') accept();
+      else if (id === 'decline') decline();
+    });
+    return () => unsubscribe?.();
+  }, [accept, decline]);
 
   return (
     <IncomingCallContext.Provider value={{ incoming, present, dismiss }}>

@@ -26,8 +26,22 @@ import {
 import { KeyForStorage, retrieveData, saveData } from '../../utils/storage_utils/storageUtils';
 import { isSocketConnected } from '../socket/socketClient';
 
-export const CALLS_CHANNEL = 'calls';
+// MUST MATCH metromatrix-realtime/src/utils/pushChannels.js EXACTLY.
+//
+// `calls_v2`, not `calls`, because an Android notification channel is IMMUTABLE
+// once created: its sound, importance and vibration are fixed at creation and
+// no amount of code can change them afterwards. Every install from a previous
+// build has `calls` frozen at the system default — a one-second blip. A new
+// channel id is the only way to deliver a real ringtone to those devices.
+//
+// The server's constant must move in the same release. Ship one without the
+// other and Android routes call pushes to the manifest default (`messages`),
+// so calls arrive as quiet chat notifications — worse than before.
+export const CALLS_CHANNEL = 'calls_v2';
 export const MESSAGES_CHANNEL = 'messages';
+
+/** Bundled by the expo-notifications plugin `sounds` array into res/raw. */
+const RINGTONE_SOUND = 'ringtone.wav';
 
 /**
  * Foreground presentation policy. (Only consulted while the app is in the
@@ -66,18 +80,34 @@ export function configureNotificationHandler() {
 async function ensureAndroidChannels() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(CALLS_CHANNEL, {
-    name: 'Calls',
+    name: 'Incoming calls',
+    // MAX is what earns a heads-up notification and, with the full-screen
+    // intent Notifee attaches, a lock-screen call UI.
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 700, 700, 700],
+    vibrationPattern: [0, 1000, 1000],
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    sound: 'default',
+    // The real ringtone, not the system blip. This is the line the whole
+    // channel rename exists for.
+    sound: RINGTONE_SOUND,
     enableVibrate: true,
-    bypassDnd: false,
+    // A call is the one thing that should get through Do Not Disturb. Android
+    // only honours this if the user has granted the app DND access, so it is a
+    // request, not a guarantee — and it costs nothing when refused.
+    bypassDnd: true,
+    audioAttributes: {
+      usage: Notifications.AndroidAudioUsage.NOTIFICATION_RINGTONE,
+      contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      flags: { enforceAudibility: true, requestHardwareAudioVideoSynchronization: false },
+    },
   });
   await Notifications.setNotificationChannelAsync(MESSAGES_CHANNEL, {
     name: 'Messages',
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250],
+    // Without this, message content is hidden on the lock screen and the
+    // notification is useless until you unlock — which is most of "I don't get
+    // notified about messages".
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     sound: 'default',
   });
 }
@@ -146,17 +176,25 @@ export async function unregisterPushOnLogout(): Promise<void> {
 }
 
 export interface NotificationRoute {
-  type: 'call' | 'message';
+  /**
+   * 'call'        — a live ring; opens the incoming-call surface (needs callId)
+   * 'missed_call' — after the fact; there is nothing to answer, so it opens the
+   *                 conversation instead, where the user can call back
+   * 'message'     — opens the thread
+   */
+  type: 'call' | 'missed_call' | 'message';
   roomId: string;
   roomType: 'homeservice' | 'healthcare';
   callId?: string;
   callerName?: string;
 }
 
+const ROUTABLE_TYPES = ['call', 'missed_call', 'message'];
+
 /** Normalize a notification payload into something navigable, or null. */
 export function routeFromNotification(data: any): NotificationRoute | null {
   if (!data?.type || !data?.roomId) return null;
-  if (data.type !== 'call' && data.type !== 'message') return null;
+  if (!ROUTABLE_TYPES.includes(data.type)) return null;
   return {
     type: data.type,
     roomId: String(data.roomId),

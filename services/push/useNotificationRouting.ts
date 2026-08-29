@@ -37,7 +37,10 @@ async function openRoute(route: NotificationRoute, presentCall: (c: any) => void
     return;
   }
 
-  // type === 'message'
+  // 'missed_call' and 'message' both land on the conversation. A missed call
+  // has nothing left to answer — the ring is over — so dropping the user into
+  // an incoming-call screen would be a dead end. The thread is where they can
+  // see who called and call back.
   if (route.roomType === 'healthcare') {
     navigate(isProvider ? 'DoctorConsultChat' : 'HealthcareConsultChat', {
       appointmentId: route.roomId,
