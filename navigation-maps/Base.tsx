@@ -56,6 +56,7 @@ import type { RoomParams } from "../screens/shared/communication/roomParams";
 import ChatScreen from "../screens/shared/communication/ChatScreen";
 import CallScreen from "../screens/shared/communication/CallScreen";
 import ConversationsScreen from "../screens/shared/communication/ConversationsScreen";
+import ProviderNotificationsScreen from "../screens/providers/homeservice/notifications/ProviderNotificationsScreen";
 
 // Centralized User Screens
 import UserProfileScreen from "../screens/user/shared/profile/UserProfileScreen";
@@ -168,6 +169,7 @@ export const BaseRouteNames = {
   // it from its own navigator.
   Conversations: "Conversations",
   ProviderConversations: "ProviderConversations",
+  ProviderNotifications: "ProviderNotifications",
   UserProfileScreen: "UserProfileScreen",
   WalletScreen: "WalletScreen",
   TransactionHistoryScreen: "TransactionHistoryScreen",
@@ -296,6 +298,7 @@ export type RootStackParamList = {
   // Only `roomType` and the accent are read — the list resolves its own rooms.
   Conversations: RoomParams | undefined;
   ProviderConversations: RoomParams | undefined;
+  ProviderNotifications: undefined;
   UserWalletScreen: undefined;
   TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
@@ -696,6 +699,14 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ConversationsScreen,
     title: BaseRouteNames.ProviderConversations,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: ProviderNotificationsScreen,
+    title: BaseRouteNames.ProviderNotifications,
     options: {
       headerShown: false,
       animation: 'slide_from_right',

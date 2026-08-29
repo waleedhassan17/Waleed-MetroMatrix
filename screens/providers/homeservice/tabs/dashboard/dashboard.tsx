@@ -123,9 +123,18 @@ const getInitials = (name?: string) => {
 // card" bug. Keep these out here.
 // ---------------------------------------------------------------------------
 
-const Header: React.FC<{ profile: DashboardProfile; insetTop: number }> = ({
+const Header: React.FC<{
+  profile: DashboardProfile;
+  insetTop: number;
+  /** Passed in rather than taken from useNavigation here: this component is
+   *  deliberately module-scope (see the note at its call site about inline
+   *  components remounting and latching the fade at opacity 0), and a prop
+   *  keeps it that way. */
+  onOpenNotifications: () => void;
+}> = ({
   profile,
   insetTop,
+  onOpenNotifications,
 }) => {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = !!profile.avatar && !avatarFailed;
@@ -165,7 +174,15 @@ const Header: React.FC<{ profile: DashboardProfile; insetTop: number }> = ({
           </View>
         </View>
       </View>
-      <TouchableOpacity style={styles.notificationBtn}>
+      {/* This bell had no onPress at all — it rendered, showed a badge, and did
+          nothing when tapped. The badge was also the count of PENDING BOOKINGS
+          under a notifications label, so it could never be cleared by reading
+          anything; the server now returns a real unread count. */}
+      <TouchableOpacity
+        style={styles.notificationBtn}
+        onPress={onOpenNotifications}
+        accessibilityLabel="Notifications"
+      >
         <Text style={styles.bellIcon}>🔔</Text>
         {(profile.unreadNotifications ?? 0) > 0 && (
           <View style={styles.notificationBadge}>
@@ -585,7 +602,11 @@ export default function Dashboard() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} translucent={false} />
 
-      <Header profile={identity} insetTop={insets.top} />
+      <Header
+        profile={identity}
+        insetTop={insets.top}
+        onOpenNotifications={() => (navigation as any).navigate('ProviderNotifications')}
+      />
 
       <ScrollView
         style={styles.scrollView}
