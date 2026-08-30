@@ -19,6 +19,16 @@ type RequestOptions = {
   data?: any; // optional pre-parsed body
   params?: Record<string, any>;
   headers?: Record<string, string>;
+  /**
+   * This call's failure is already tolerated by the caller.
+   *
+   * Bookkeeping requests (opening/closing a VideoCall record) are wrapped in
+   * try/catch by design — the consultation proceeds either way. Without this
+   * flag the axios interceptor still printed a red "API Response error", so QA
+   * saw an alarming failure for something the code had deliberately decided to
+   * ignore. Downgrades that one log line; nothing else changes.
+   */
+  bestEffort?: boolean;
 };
 
 /**
@@ -36,6 +46,11 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const method = (options.method || 'GET').toUpperCase();
   const URL = `${prefix}${endpoint}`;
+  // Carried as a header purely so it reaches the interceptor on error.config;
+  // the backend ignores it.
+  const headers = options.bestEffort
+    ? { ...(options.headers || {}), 'x-best-effort': '1' }
+    : options.headers;
   const data =
     options.data !== undefined
       ? options.data
@@ -47,20 +62,20 @@ async function request<T>(
     let response: any;
     switch (method) {
       case 'POST':
-        response = await API.POST({ URL, data, headers: options.headers });
+        response = await API.POST({ URL, data, headers });
         break;
       case 'PUT':
-        response = await API.PUT({ URL, data, headers: options.headers });
+        response = await API.PUT({ URL, data, headers });
         break;
       case 'PATCH':
-        response = await API.PATCH({ URL, data, headers: options.headers });
+        response = await API.PATCH({ URL, data, headers });
         break;
       case 'DELETE':
-        response = await API.DELETE({ URL, params: options.params, headers: options.headers });
+        response = await API.DELETE({ URL, params: options.params, headers });
         break;
       case 'GET':
       default:
-        response = await API.GET({ URL, params: options.params, headers: options.headers });
+        response = await API.GET({ URL, params: options.params, headers });
         break;
     }
 

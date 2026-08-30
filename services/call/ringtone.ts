@@ -22,17 +22,12 @@
 // ============================================================================
 
 import { Platform } from 'react-native';
+import { getAudio } from '../native/optionalNativeModule';
 
-/** The module is required lazily so a build without the native audio module
- *  degrades to vibration-only rather than failing to start. */
-function loadAudio(): any {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('expo-audio');
-  } catch {
-    return null;
-  }
-}
+// expo-audio throws "Cannot find native module 'ExpoAudio'" from MODULE SCOPE
+// when its native half is missing, so a try/catch around require() here was not
+// reliably catching it. getAudio() probes for the native module first and only
+// imports the wrapper once it is known to exist — see optionalNativeModule.ts.
 
 let player: any = null;
 let starting = false;
@@ -45,8 +40,9 @@ export async function startRingtone(): Promise<void> {
   if (player || starting) return;
   starting = true;
   try {
-    const audio = loadAudio();
-    if (!audio?.createAudioPlayer) return;
+    const audio = getAudio();
+    // No native audio in this build: vibration remains the signal.
+    if (!audio) return;
 
     // Ring THROUGH the silent switch and through other audio. Someone who has
     // silenced their phone still expects a call to ring; and without this an
@@ -93,8 +89,8 @@ export async function stopRingtone(): Promise<void> {
   // strict one here; on Android this is a no-op in practice but harmless.
   if (Platform.OS === 'ios') {
     try {
-      const audio = loadAudio();
-      await audio?.setAudioModeAsync?.({ playsInSilentMode: false }).catch(() => {});
+      const audio = getAudio();
+      await audio?.setAudioModeAsync?.({ playsInSilentMode: false })?.catch(() => {});
     } catch {
       /* nothing to restore */
     }

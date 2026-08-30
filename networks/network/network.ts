@@ -272,10 +272,18 @@ MainAxiosInstance.interceptors.response.use(
       !(error.config as any)?.__retriedAfterRefresh &&
       !error.config?.url?.includes('auth/refresh');
 
-    const report = willAttemptRecovery ? console.log : console.error;
+    // A caller that marked the request best-effort has already decided the
+    // failure is survivable, so shouting about it only misleads whoever is
+    // looking at the screen.
+    const isBestEffort =
+      (error.config?.headers as any)?.['x-best-effort'] === '1';
+
+    const report = willAttemptRecovery || isBestEffort ? console.log : console.error;
     report(
       willAttemptRecovery
         ? 'ℹ️ 401 — refreshing token and retrying:'
+        : isBestEffort
+        ? 'ℹ️ best-effort request failed (ignored):'
         : '❌ API Response error:',
       {
         message: error.message,

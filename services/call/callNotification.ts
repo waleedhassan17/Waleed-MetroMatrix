@@ -27,17 +27,15 @@
 
 import { Platform } from 'react-native';
 import { CALLS_CHANNEL } from '../push/pushNotifications';
+import { getNotifee } from '../native/optionalNativeModule';
 
 const NOTIFICATION_ID = 'incoming-call';
 
-function loadNotifee(): any {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('@notifee/react-native');
-  } catch {
-    return null;
-  }
-}
+// Notifee throws "Notifee native module not found." from a GETTER on first API
+// ACCESS, not at import — so a try/catch around require() catches nothing and
+// the first real call throws uncaught. getNotifee() checks
+// NativeModules.NotifeeApiModule (the exact value that getter reads) before
+// touching the API at all. See optionalNativeModule.ts.
 
 export interface CallNotificationInput {
   callId: string;
@@ -52,9 +50,12 @@ export interface CallNotificationInput {
  */
 export async function showIncomingCallNotification(call: CallNotificationInput): Promise<void> {
   if (Platform.OS !== 'android') return;
-  const mod = loadNotifee();
-  const notifee = mod?.default;
-  if (!notifee) return;
+  const loaded = getNotifee();
+  // No Notifee in this build: the in-app modal remains the incoming-call
+  // surface. A backgrounded device loses the lock-screen UI, which is a real
+  // degradation — but far better than an uncaught throw on every call.
+  if (!loaded) return;
+  const { api: notifee, constants: mod } = loaded;
 
   try {
     // Notifee owns its own channel registry, separate from expo-notifications'.
@@ -119,7 +120,7 @@ export async function showIncomingCallNotification(call: CallNotificationInput):
  */
 export async function dismissIncomingCallNotification(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  const notifee = loadNotifee()?.default;
+  const notifee = getNotifee()?.api;
   if (!notifee) return;
   try {
     await notifee.cancelNotification(NOTIFICATION_ID);

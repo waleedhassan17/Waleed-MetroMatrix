@@ -404,7 +404,11 @@ export async function startVideoCallApi(
   // callers treat a failure as non-fatal: the consultation still connects.
   const res = await healthcareApiRequest<any>(
     `/video-calls/join/${encodeURIComponent(appointmentId)}`,
-    { method: 'POST' }
+    // The consultation connects over peer-to-peer WebRTC whether or not this
+    // record opens, and OutgoingCallView already swallows the failure. Marked
+    // best-effort so a tolerated failure is logged quietly instead of putting a
+    // red "API Response error" in front of whoever is on the call.
+    { method: 'POST', bestEffort: true }
   );
   if (res.success && res.data) {
     const d: any = res.data;
@@ -430,7 +434,8 @@ export async function endVideoCallApi(
 ): Promise<ApiResponse<unknown>> {
   return healthcareApiRequest<unknown>(
     `/video-calls/${encodeURIComponent(callId)}/end`,
-    { method: 'POST' }
+    // Closing the record is bookkeeping too — the call has already ended.
+    { method: 'POST', bestEffort: true }
   );
 }
 

@@ -31,6 +31,7 @@ import {
   showIncomingCallNotification,
   dismissIncomingCallNotification,
 } from '../../services/call/callNotification';
+import { getNotifee } from '../../services/native/optionalNativeModule';
 import { navigate } from '../../navigation-maps/navigationRef';
 
 interface IncomingCall {
@@ -59,9 +60,9 @@ const IncomingCallContext = createContext<IncomingCallContextValue>({
 
 export const useIncomingCall = () => useContext(IncomingCallContext);
 
-// Repeating buzz while ringing. expo-av is not installed, so there is no
-// ringtone — vibration is the honest signal we can give without adding a
-// native dependency.
+// Repeating buzz while ringing, alongside the ringtone. Kept as its own signal
+// because it is the ONLY one that survives a build without expo-audio, and
+// because a silenced phone still buzzes.
 const VIBRATION_PATTERN = Platform.OS === 'android' ? [0, 700, 700] : [0, 700, 700];
 
 interface IncomingCallProviderProps {
@@ -261,24 +262,40 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
   // Accept / Decline pressed on the LOCK-SCREEN notification rather than in the
   // app. Without this the buttons render and do nothing, which is worse than
   // not offering them: the phone keeps ringing and the caller keeps waiting.
+  //
+  // THIS IS WHERE "Notifee native module not found." CAME FROM. The guard was a
+  // try/catch around require(), but notifee's import succeeds — it throws from
+  // a getter on the FIRST API ACCESS, which is the onForegroundEvent call
+  // below, outside the try. So every incoming call on a build without the
+  // native module raised an uncaught error on the receiver.
+  //
+  // getNotifee() checks NativeModules.NotifeeApiModule before touching the API,
+  // and the subscription itself is wrapped too.
   useEffect(() => {
-    let mod: any;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      mod = require('@notifee/react-native');
-    } catch {
-      return; // build without the native module — the in-app sheet still works
-    }
-    const notifee = mod?.default;
-    if (!notifee?.onForegroundEvent) return;
+    const loaded = getNotifee();
+    if (!loaded) return;
+    const { api: notifee, constants: mod } = loaded;
 
-    const unsubscribe = notifee.onForegroundEvent(({ type, detail }: any) => {
-      if (type !== mod.EventType.ACTION_PRESS) return;
-      const id = detail?.pressAction?.id;
-      if (id === 'accept') accept();
-      else if (id === 'decline') decline();
-    });
-    return () => unsubscribe?.();
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = notifee.onForegroundEvent(({ type, detail }: any) => {
+        if (type !== mod.EventType.ACTION_PRESS) return;
+        const id = detail?.pressAction?.id;
+        if (id === 'accept') accept();
+        else if (id === 'decline') decline();
+      });
+    } catch {
+      // The in-app sheet remains the surface; nothing else to do.
+      return;
+    }
+
+    return () => {
+      try {
+        unsubscribe?.();
+      } catch {
+        /* already torn down */
+      }
+    };
   }, [accept, decline]);
 
   return (
