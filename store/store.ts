@@ -153,6 +153,7 @@ import adminShoppingOrdersReducer from '../screens/admin/Shopping/AdminShoppingO
 import adminShoppingOrderDetailReducer from '../screens/admin/Shopping/AdminShoppingOrderDetail/adminShoppingOrderDetailSlice';
 import adminShoppingAnalyticsReducer from '../screens/admin/Shopping/AdminShoppingAnalytics/adminShoppingAnalyticsSlice';
 import adminShoppingSettingsReducer from '../screens/admin/Shopping/AdminShoppingSettings/adminShoppingSettingsSlice';
+import unreadReducer from './unreadSlice';
 
 // ── Redux Persist Config ────────────────────
 const persistConfig = {
@@ -336,6 +337,8 @@ const appReducer = combineReducers({
   adminShoppingOrderDetail: adminShoppingOrderDetailReducer,
   adminShoppingAnalytics: adminShoppingAnalyticsReducer,
   adminShoppingSettings: adminShoppingSettingsReducer,
+  // App-wide unread message counts, so a badge can exist outside the chat screen.
+  unread: unreadReducer,
 });
 
 // Handing `undefined` state to combineReducers makes every slice rebuild from

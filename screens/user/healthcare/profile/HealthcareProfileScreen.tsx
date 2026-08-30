@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { performLogout } from '../../../../services/auth/logout';
+import { selectTotalUnread } from '../../../../store/unreadSlice';
 
 // ── Theme ───────────────────────────────────
 const THEME = {
@@ -39,6 +40,22 @@ const QUICK_ACTIONS = [
   { id: 'appointments', label: 'My Appointments', icon: 'calendar-outline', color: THEME.primary, bg: THEME.primaryLight, route: 'MyAppointments' },
   { id: 'records', label: 'Health Records', icon: 'document-text-outline', color: '#10B981', bg: '#ECFDF5', route: 'HealthRecords' },
   { id: 'prescriptions', label: 'Prescriptions', icon: 'medkit-outline', color: '#7C3AED', bg: '#F5F3FF', route: 'MyPrescriptions' },
+  // A PATIENT HAD NO INBOX AT ALL.
+  //
+  // Home-service customers reach Conversations from their profile and both
+  // provider roles have a Messages tile, but nothing anywhere in the patient
+  // surface listed conversations. A patient who missed or dismissed a push had
+  // no screen that would ever tell them a doctor had written — the only route
+  // in was remembering which appointment it was and drilling into it.
+  {
+    id: 'messages',
+    label: 'Messages',
+    icon: 'chatbubbles-outline',
+    color: '#2563EB',
+    bg: '#DBEAFE',
+    route: 'Conversations',
+    params: { roomType: 'healthcare' },
+  },
 ];
 
 const SETTINGS_SECTIONS = [
@@ -71,6 +88,7 @@ const SETTINGS_SECTIONS = [
 const HealthcareProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const totalUnread = useAppSelector(selectTotalUnread);
   const user = useAppSelector((s) => s.signIn.user);
 
   // Real identity from auth; medical details default to "not set" rather than
@@ -237,11 +255,20 @@ const HealthcareProfileScreen: React.FC = () => {
             <TouchableOpacity
               key={action.id}
               style={styles.quickActionItem}
-              onPress={() => navigation.navigate(action.route as never)}
+              onPress={() =>
+                navigation.navigate(action.route as never, (action as any).params as never)
+              }
               activeOpacity={0.8}
             >
               <View style={[styles.quickActionIconBg, { backgroundColor: action.bg }]}>
                 <Ionicons name={action.icon as any} size={22} color={action.color} />
+                {action.id === 'messages' && totalUnread > 0 && (
+                  <View style={styles.quickActionBadge}>
+                    <Text style={styles.quickActionBadgeText}>
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.quickActionLabel}>{action.label}</Text>
             </TouchableOpacity>
@@ -468,6 +495,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.border,
   },
+  quickActionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  quickActionBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   quickActionIconBg: {
     width: 44,
     height: 44,

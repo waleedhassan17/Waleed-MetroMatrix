@@ -34,6 +34,9 @@ import {
 } from '../../services/call/callNotification';
 import { getNotifee } from '../../services/native/optionalNativeModule';
 import { navigate } from '../../navigation-maps/navigationRef';
+import { useAppDispatch } from '../../hooks/useReduxHooks';
+import { messageReceived, loadUnread } from '../../store/unreadSlice';
+import { activeChatRoomId } from '../../services/chat/activeRoom';
 
 interface IncomingCall {
   callId: string;
@@ -84,6 +87,7 @@ const BIND_RETRY_MS = 3000;
 const LOCAL_RING_TIMEOUT_MS = 40_000;
 
 export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ children }) => {
+  const dispatch = useAppDispatch();
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,6 +235,23 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       if (!p?.callId || p.callId === activeRef.current) dismiss();
     };
 
+    // THE GLOBAL UNREAD LISTENER.
+    //
+    // `new_message` was bound only inside useRoomSocket, which only the open
+    // chat screen mounts — so leaving the thread meant nothing in the app was
+    // listening, and a message produced no in-app signal of any kind. This
+    // rides the same socket and the same retry/rebind logic the ring uses.
+    //
+    // Skipped for the room currently on screen: that screen appends the
+    // message itself and marks it read, so counting it would show a badge for
+    // something the user is looking at.
+    const onAnyMessage = (m: any) => {
+      if (!mounted || !m) return;
+      const roomId = String(m.bookingId || m.roomId || m.booking || '');
+      if (!roomId || roomId === activeChatRoomId()) return;
+      dispatch(messageReceived({ roomId }));
+    };
+
     const bind = async () => {
       if (!mounted) return;
       const s = await getSocket();
@@ -248,6 +269,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       // stack a second copy of every handler and ring twice.
       detach?.();
 
+      s.on('new_message', onAnyMessage);
       s.on('call_ring', onRing);
       s.on('call_end', onStop);
       s.on('call_missed', onStop);
@@ -257,7 +279,13 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       // token refreshes and Heroku dyno cycles.
       s.on('connect', bind);
 
+      // Seed the counts from the server. The live listener above only sees what
+      // arrives from now on; anything unread from before — including while the
+      // app was closed — comes from here.
+      dispatch(loadUnread());
+
       detach = () => {
+        s.off('new_message', onAnyMessage);
         s.off('call_ring', onRing);
         s.off('call_end', onStop);
         s.off('call_missed', onStop);
@@ -282,7 +310,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       dismissIncomingCallNotification();
       detach?.();
     };
-  }, [present, dismiss]);
+  }, [present, dismiss, dispatch]);
 
   const accept = useCallback(async () => {
     if (!incoming) return;

@@ -55,6 +55,7 @@ import type { RootState } from '../../../../../store/store';
 import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
 import { fetchProfile } from '../../profile-screen/profileSlice';
 import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
+import { selectTotalUnread } from '../../../../../store/unreadSlice';
 
 type RootStackParamList = {
   JobDetail: { job?: JobData };
@@ -489,6 +490,7 @@ export default function Dashboard() {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const unreadTotal = useAppSelector(selectTotalUnread);
   const {
     profile,
     stats,
@@ -642,6 +644,13 @@ export default function Dashboard() {
             <Text style={styles.messagesTitle}>Messages</Text>
             <Text style={styles.messagesSub}>Chat and call your customers</Text>
           </View>
+          {unreadTotal > 0 && (
+            <View style={styles.messagesBadge}>
+              <Text style={styles.messagesBadgeText}>
+                {unreadTotal > 99 ? '99+' : unreadTotal}
+              </Text>
+            </View>
+          )}
           <Text style={styles.messagesChevron}>›</Text>
         </TouchableOpacity>
 
@@ -720,6 +729,17 @@ const styles = StyleSheet.create({
   messagesEmoji: { fontSize: 19 },
   messagesTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.text.primary },
   messagesSub: { fontSize: 12, color: theme.colors.text.secondary, marginTop: 2 },
+  messagesBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  messagesBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   messagesChevron: { fontSize: 24, color: theme.colors.text.tertiary },
   header: {
     flexDirection: 'row',

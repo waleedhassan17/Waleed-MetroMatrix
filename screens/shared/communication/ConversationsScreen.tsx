@@ -12,7 +12,7 @@
 // show it.
 // ============================================================================
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ import {
   type ConversationSummary,
 } from '../../../networks/realtime/conversationsNetwork';
 import { normalizeRoomParams, type RoomParams } from './roomParams';
+import { useAppSelector } from '../../../hooks/useReduxHooks';
+import { selectTotalUnread } from '../../../store/unreadSlice';
 
 /** Where tapping a row should land, per vertical and role. */
 const CHAT_ROUTE = {
@@ -86,6 +88,22 @@ export default function ConversationsScreen() {
       load();
     }, [load])
   );
+
+  // Refresh while the list is ALREADY open.
+  //
+  // It only reloaded on focus, so a message arriving while the user sat on this
+  // very screen changed nothing — the row stayed stale and its unread count
+  // stayed wrong. The global unread listener updates this total the moment a
+  // message lands, so watching it gives the list a live trigger without a
+  // second socket subscription.
+  const liveUnread = useAppSelector(selectTotalUnread);
+  const seenUnread = useRef(liveUnread);
+  useEffect(() => {
+    if (liveUnread !== seenUnread.current) {
+      seenUnread.current = liveUnread;
+      load();
+    }
+  }, [liveUnread, load]);
 
   const openChat = (c: ConversationSummary) => {
     navigation.navigate(CHAT_ROUTE[c.roomType][c.role], {

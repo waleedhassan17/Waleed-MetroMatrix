@@ -33,6 +33,7 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight |
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 import { formatMoney } from '../../../../constants/Currency';
 import AvailabilityWarning from '../../../../components/Healthcare/AvailabilityWarning';
+import { selectTotalUnread } from '../../../../store/unreadSlice';
 
 // ── Helpers ───────────────────────────────────
 
@@ -103,6 +104,7 @@ const StatCard: React.FC<{
 const DoctorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const unreadTotal = useAppSelector(selectTotalUnread);
 
   const { doctorName, todayStats, upcomingAppointments, earnings, loading, error } =
     useAppSelector((state) => state.doctorDashboard) as DoctorDashboardState;
@@ -406,6 +408,13 @@ const DoctorHomeScreen: React.FC = () => {
                     <MaterialCommunityIcons name={action.icon as any} size={22} color={action.color} />
                   ) : (
                     <Ionicons name={action.icon as any} size={22} color={action.color} />
+                  )}
+                  {action.route === 'ProviderConversations' && unreadTotal > 0 && (
+                    <View style={styles.quickActionBadge}>
+                      <Text style={styles.quickActionBadgeText}>
+                        {unreadTotal > 99 ? '99+' : unreadTotal}
+                      </Text>
+                    </View>
                   )}
                 </View>
                 <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -957,6 +966,21 @@ const styles = StyleSheet.create({
       android: { elevation: 2 },
     }),
   },
+  quickActionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  quickActionBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   quickActionIconWrap: {
     width: 44,
     height: 44,

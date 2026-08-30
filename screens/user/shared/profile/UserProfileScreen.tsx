@@ -19,6 +19,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';
+import { selectTotalUnread } from '../../../../store/unreadSlice';
 import {
   selectUser,
   selectUserAddresses,
@@ -169,6 +170,7 @@ const StatsCard: React.FC<{
 export default function UserProfileScreen() {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
+  const unreadTotal = useAppSelector(selectTotalUnread);
   const user = useAppSelector(selectUser);
   const addresses = useAppSelector(selectUserAddresses);
   const isPremium = useAppSelector(selectIsPremium);
@@ -229,6 +231,10 @@ export default function UserProfileScreen() {
       subtitle: 'Your conversations with providers',
       iconBg: '#DBEAFE',
       iconColor: '#2563EB',
+      // Live unread count — the menu already renders a `badge` field.
+      ...(unreadTotal > 0
+        ? { badge: unreadTotal > 99 ? '99+' : String(unreadTotal), badgeColor: '#EF4444' }
+        : {}),
       onPress: () => navigation.navigate('Conversations' as never),
     },
     {

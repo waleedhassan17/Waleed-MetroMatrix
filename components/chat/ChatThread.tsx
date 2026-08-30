@@ -33,6 +33,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { fetchChatData, RoomType } from '../../networks/serviceProviders/chatNetwork';
 import { useRoomSocket } from '../../hooks/useRoomSocket';
 import { ChatMessage, ChatParticipant } from '../../models/serviceProviders';
+import { setActiveChatRoom } from '../../services/chat/activeRoom';
+import { useAppDispatch } from '../../hooks/useReduxHooks';
+import { roomRead } from '../../store/unreadSlice';
 
 /**
  * "last seen" phrasing, deliberately coarse.
@@ -167,6 +170,18 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
     }
     setLoading(false);
   }, [roomId, roomType, seedMessages, onParticipantsLoaded]);
+
+  const unreadDispatch = useAppDispatch();
+
+  // Tell the global unread listener which room is on screen, so it does not
+  // badge the conversation the user is reading. Clearing the count here too,
+  // because opening the thread IS reading it.
+  useEffect(() => {
+    if (!roomId) return;
+    setActiveChatRoom(roomId);
+    unreadDispatch(roomRead({ roomId }));
+    return () => setActiveChatRoom(null);
+  }, [roomId, unreadDispatch]);
 
   useEffect(() => {
     loadHistory();
