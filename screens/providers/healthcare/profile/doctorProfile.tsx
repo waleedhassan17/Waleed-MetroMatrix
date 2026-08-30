@@ -11,6 +11,7 @@ import {
   Platform,
   Animated,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +29,7 @@ import type { DoctorProfileData } from '../../../../models/healthcare/types';
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+import { performLogout } from '../../../../services/auth/logout';
 
 const formatCurrency = (amount: number, currency: string) =>
   `${currency} ${amount.toLocaleString()}`;
@@ -396,6 +398,31 @@ const DoctorProfileScreen: React.FC = () => {
             </View>
           </View>
         </Animated.View>
+
+        {/* SIGN OUT — a doctor had no way to log out at all.
+            The one shared component that offered it (SlideOutSidebar) was
+            removed from the doctor surface as a customer component, and nothing
+            replaced it. That is not only a missing button: without
+            performLogout, unregisterPushOnLogout never runs, so the device's
+            push token is never retired and the phone keeps ringing for an
+            account nobody is signed into. */}
+        <TouchableOpacity
+          style={styles.signOutBtn}
+          activeOpacity={0.8}
+          onPress={() =>
+            Alert.alert('Sign out', 'Sign out of your doctor account?', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Sign out',
+                style: 'destructive',
+                onPress: () => performLogout(navigation as any),
+              },
+            ])
+          }
+        >
+          <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </Animated.ScrollView>
@@ -770,6 +797,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  signOutText: { color: '#DC2626', fontWeight: '800', fontSize: 15 },
   langChipText: {
     fontSize: 13,
     fontWeight: '700',
