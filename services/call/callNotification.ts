@@ -60,6 +60,18 @@ export async function showIncomingCallNotification(call: CallNotificationInput):
   try {
     // Notifee owns its own channel registry, separate from expo-notifications'.
     // Same id and same sound, so the two agree about what a call sounds like.
+    // NOTIFEE IS THE SOLE OWNER OF THIS CHANNEL.
+    //
+    // expo-notifications used to create it too, with different importance and
+    // vibration. Android channel creation is first-write-wins, so whichever ran
+    // first froze the settings and the other's were silently discarded — and if
+    // Notifee lost that race the channel was permanently stuck at HIGH with no
+    // enforced audibility, repairable only by shipping a calls_v3.
+    //
+    // These values are the stronger set the push layer used to declare: MAX
+    // importance so it can raise a heads-up and a full-screen intent, and audio
+    // attributes marking it a ringtone so the OS routes it to the ring stream
+    // rather than the (often muted) notification stream.
     await notifee.createChannel({
       id: CALLS_CHANNEL,
       name: 'Incoming calls',
@@ -69,6 +81,9 @@ export async function showIncomingCallNotification(call: CallNotificationInput):
       vibrationPattern: [300, 1000, 300, 1000],
       bypassDnd: true,
       visibility: mod.AndroidVisibility.PUBLIC,
+      // Ring stream, not notification stream.
+      audioAttributesUsage: mod.AndroidAudioAttributesUsage?.NOTIFICATION_RINGTONE,
+      audioAttributesContentType: mod.AndroidAudioAttributesContentType?.SONIFICATION,
     });
 
     await notifee.displayNotification({

@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import {
   getSocket,
@@ -86,6 +87,10 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
   const [videoCall, setVideoCall] = useState<RoomVideoCallUpdate | null>(null);
   const [typing, setTyping] = useState(false);
   const [connected, setConnected] = useState(false);
+  // Bumped when the app returns to the foreground and re-joins the room. The
+  // consumer watches it to refetch history, because anything that arrived
+  // while backgrounded came as a push rather than over this socket.
+  const [resumedAt, setResumedAt] = useState(0);
   // The COUNTERPART's presence, from the server. Distinct from `connected`,
   // which is our own socket — see the note on the return value below.
   const [counterpartPresence, setCounterpartPresence] = useState<CounterpartPresence | null>(null);
@@ -269,8 +274,42 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       }
     })();
 
+    // ------------------------------------------------------------------
+    // LEAVE THE ROOM WHEN THE APP GOES TO THE BACKGROUND.
+    //
+    // The server suppresses a chat push when the recipient is already IN the
+    // room, on the reasonable assumption that someone looking at the thread
+    // does not need to be told about it (chatService.deliverMessage ->
+    // isUserInRoom). But nothing ever left the room: press Home with a thread
+    // open and the socket stays connected and joined, so the server keeps
+    // believing you are reading it and sends NOTHING. The message lands in a
+    // handler attached to a screen that is not on the display.
+    //
+    // That was the most likely real-world silent miss in the whole chat
+    // feature, and it needed no network failure to happen — just backgrounding
+    // the app without navigating away first.
+    //
+    // Leaving on background makes the server's check honest. Re-joining on
+    // foreground restores live delivery, and history is refetched because
+    // anything missed while away arrived as a push instead.
+    // ------------------------------------------------------------------
+    const onAppStateChange = (next: AppStateStatus) => {
+      if (!mounted || !roomId) return;
+      if (next === 'active') {
+        joinBooking(roomId, roomType);
+        // Anything that arrived while we were away was delivered as a push, not
+        // over this socket, so the in-memory list is stale. Bump a timestamp
+        // the consumer watches to refetch history.
+        setResumedAt(Date.now());
+      } else if (next === 'background' || next === 'inactive') {
+        leaveBooking(roomId);
+      }
+    };
+    const appStateSub = AppState.addEventListener('change', onAppStateChange);
+
     return () => {
       mounted = false;
+      appStateSub.remove();
       cleanupRef.current?.();
       cleanupRef.current = null;
       if (roomId) leaveBooking(roomId);
@@ -335,6 +374,7 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
 
   return {
     messages,
+    resumedAt,
     seedMessages,
     sendMessage,
     emitTyping,

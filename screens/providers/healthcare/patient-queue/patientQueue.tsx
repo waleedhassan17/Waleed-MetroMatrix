@@ -210,6 +210,12 @@ const CurrentPatientCard: React.FC<{
           onPress={() =>
             navigation.navigate('HealthcareConsultCall', {
               appointmentId: patient.appointmentId,
+              roomType: 'healthcare',
+              // EXPLICITLY AUDIO. Without it, roomParams infers healthcare
+              // from the appointmentId alias and CallScreen defaults
+              // healthcare to video — so this phone-icon "Call" button opened
+              // the camera.
+              media: 'audio',
               counterpartName: patient.patientName,
             })
           }

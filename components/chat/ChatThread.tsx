@@ -105,6 +105,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
     typing,
     connected,
     counterpartPresence,
+    resumedAt,
   } = useRoomSocket(roomId, roomType);
 
   // ==========================================================================
@@ -170,6 +171,17 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  // Refetch when the app comes back to the foreground.
+  //
+  // While backgrounded the hook leaves the room — deliberately, so the server
+  // stops suppressing pushes for a thread nobody is looking at. That means any
+  // message received while away arrived as a notification and NOT over this
+  // socket, so the in-memory list is missing it. Without this the thread looks
+  // empty of everything that happened while the phone was in a pocket.
+  useEffect(() => {
+    if (resumedAt) loadHistory();
+  }, [resumedAt, loadHistory]);
 
   // Mark the thread read once it is open and history has landed.
   useEffect(() => {

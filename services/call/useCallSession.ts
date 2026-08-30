@@ -222,7 +222,10 @@ export function useCallSession({
     // before we are in it.
     await joinBooking(roomId, roomType);
 
-    const ack = await emitEvent('call_ring', { roomId, bookingId: roomId, roomType });
+    // `media` tells the callee what kind of call this is. Without it they could
+    // only infer it from roomType — healthcare meaning video — so a doctor
+    // placing a VOICE call had their patient answer with the camera on.
+    const ack = await emitEvent('call_ring', { roomId, bookingId: roomId, roomType, media });
 
     if (!ack.success) {
       if (ack.reason === 'busy') {

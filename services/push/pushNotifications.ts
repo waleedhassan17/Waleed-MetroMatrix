@@ -79,36 +79,43 @@ export function configureNotificationHandler() {
 
 async function ensureAndroidChannels() {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CALLS_CHANNEL, {
-    name: 'Incoming calls',
-    // MAX is what earns a heads-up notification and, with the full-screen
-    // intent Notifee attaches, a lock-screen call UI.
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 1000, 1000],
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-    // The real ringtone, not the system blip. This is the line the whole
-    // channel rename exists for.
-    sound: RINGTONE_SOUND,
-    enableVibrate: true,
-    // A call is the one thing that should get through Do Not Disturb. Android
-    // only honours this if the user has granted the app DND access, so it is a
-    // request, not a guarantee — and it costs nothing when refused.
-    bypassDnd: true,
-    audioAttributes: {
-      usage: Notifications.AndroidAudioUsage.NOTIFICATION_RINGTONE,
-      contentType: Notifications.AndroidAudioContentType.SONIFICATION,
-      flags: { enforceAudibility: true, requestHardwareAudioVideoSynchronization: false },
-    },
-  });
+
+  // NOTE: the CALLS channel is created by Notifee, not here.
+  //
+  // Both libraries were creating `calls_v2`, and Android channel creation is
+  // FIRST-WRITE-WINS: whichever ran first froze the channel's importance,
+  // vibration and audio attributes, and the loser's settings were silently
+  // discarded with no error. Since Notifee owns the full-screen incoming-call
+  // notification and the looping sound, it owns the channel too — see
+  // services/call/callNotification.ts. One writer, no race.
+  //
+  // Messages stay here, because nothing else creates them.
   await Notifications.setNotificationChannelAsync(MESSAGES_CHANNEL, {
     name: 'Messages',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250],
     // Without this, message content is hidden on the lock screen and the
-    // notification is useless until you unlock — which is most of "I don't get
-    // notified about messages".
+    // notification is useless until you unlock.
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     sound: 'default',
+  });
+
+  // Accept / Decline buttons on the CALL push. The server already sends
+  // `categoryId: 'incoming_call'` (callHandler.js), but the category was never
+  // registered anywhere, so those actions never rendered.
+  await Notifications.setNotificationCategoryAsync('incoming_call', [
+    {
+      identifier: 'accept',
+      buttonTitle: 'Accept',
+      options: { opensAppToForeground: true },
+    },
+    {
+      identifier: 'decline',
+      buttonTitle: 'Decline',
+      options: { opensAppToForeground: false, isDestructive: true },
+    },
+  ]).catch(() => {
+    /* categories are a nicety; never block registration on them */
   });
 }
 

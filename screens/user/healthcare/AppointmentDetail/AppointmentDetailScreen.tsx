@@ -345,6 +345,10 @@ const AppointmentDetailScreen: React.FC = () => {
     // screen resolves itself — nothing sensitive is threaded through navigation.
     navigation.navigate('HealthcareConsultCall', {
       appointmentId: appointment.appointmentId,
+      roomType: 'healthcare',
+      // EXPLICITLY AUDIO — see the note in patientQueue. A voice-call button
+      // must not open the camera.
+      media: 'audio',
       counterpartName: (appointment as any).doctorName,
     });
   };

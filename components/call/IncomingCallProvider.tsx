@@ -24,6 +24,7 @@ import {
   Platform,
   Alert,
   AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { getSocket, emitEvent, RoomType } from '../../services/socket/socketClient';
 import { startRingtone, stopRingtone, stopRingtoneSync } from '../../services/call/ringtone';
@@ -40,6 +41,8 @@ interface IncomingCall {
   roomType: RoomType;
   callerName?: string;
   callerId?: string;
+  /** What the CALLER placed. Undefined falls back to the per-vertical default. */
+  media?: 'audio' | 'video';
 }
 
 interface IncomingCallContextValue {
@@ -72,15 +75,31 @@ interface IncomingCallProviderProps {
 /** How often to retry binding while there is no socket yet (no token). */
 const BIND_RETRY_MS = 3000;
 
+/**
+ * Local backstop for a ring the server never closes.
+ *
+ * Deliberately LONGER than the server's 30s RING_TIMEOUT_MS so the server wins
+ * the race normally and this only fires when its frame never arrived at all.
+ */
+const LOCAL_RING_TIMEOUT_MS = 40_000;
+
 export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ children }) => {
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
+  const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appStateSubRef = useRef<{ remove: () => void } | null>(null);
 
   // The single teardown path — decline, remote hangup, timeout and accept all
   // funnel through here, so the ringtone is stopped in one place rather than
   // five that can drift apart. Leaving it playing is the worst failure mode
   // available: a phone that will not stop ringing.
   const dismiss = useCallback(() => {
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+    appStateSubRef.current?.remove();
+    appStateSubRef.current = null;
     Vibration.cancel();
     stopRingtoneSync();
     // The call notification is `ongoing`, so the user CANNOT swipe it away
@@ -116,6 +135,41 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       showIncomingCallNotification(call);
     }
 
+    // A RING CAN OUTLIVE THE STATE IT STARTED IN.
+    //
+    // The surface above was chosen once, at ring time, and never revisited. So
+    // backgrounding the app mid-ring left the callee with nothing: the OS
+    // silences the tone (the player is created with shouldPlayInBackground
+    // false) and the full-screen notification was never raised, because that
+    // decision had already been made. A vibration, and nothing to press.
+    //
+    // Swap surfaces whenever the app crosses that boundary, for as long as this
+    // call is the active one.
+    const onAppState = (next: AppStateStatus) => {
+      if (activeRef.current !== call.callId) return;
+      if (next === 'active') {
+        dismissIncomingCallNotification();
+        startRingtone();
+      } else {
+        stopRingtoneSync();
+        showIncomingCallNotification(call);
+      }
+    };
+    appStateSubRef.current?.remove();
+    appStateSubRef.current = AppState.addEventListener('change', onAppState);
+
+    // A LOCAL SAFETY NET FOR THE RING ITSELF.
+    //
+    // The 30s no-answer timeout lives on the CALLER's screen; the callee's
+    // sheet only stops when the server's call_missed/call_end frame arrives.
+    // If the callee's socket drops in between — waking from doze is the classic
+    // case — that frame never lands and the phone rings forever with no way to
+    // stop it but force-quitting. Slightly longer than the server's timeout so
+    // the server still wins the race in the normal case.
+    ringTimeoutRef.current = setTimeout(() => {
+      if (activeRef.current === call.callId) dismiss();
+    }, LOCAL_RING_TIMEOUT_MS);
+
     // TELL THE CALLER THEIR CALL IS ACTUALLY RINGING.
     //
     // This is the moment — and the only moment — at which "Ringing…" becomes
@@ -133,7 +187,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     });
 
     return true;
-  }, []);
+  }, [dismiss]);
 
   // ==========================================================================
   // BINDING THE RING LISTENER — driven by the SOCKET, never by identity.
@@ -165,6 +219,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
         callId: p.callId,
         roomId: p.roomId,
         roomType: p.roomType || 'homeservice',
+        media: p.media === 'video' || p.media === 'audio' ? p.media : undefined,
         callerName: p?.from?.name,
         callerId: p?.from?.id,
       });
@@ -216,15 +271,22 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     return () => {
       mounted = false;
       if (retry) clearTimeout(retry);
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+      appStateSubRef.current?.remove();
+      appStateSubRef.current = null;
       Vibration.cancel();
       stopRingtoneSync();
+      // The call notification is `ongoing`, so the user cannot swipe it away.
+      // Unmounting without cancelling it left a stuck, looping notification
+      // with no way to dismiss it.
+      dismissIncomingCallNotification();
       detach?.();
     };
   }, [present, dismiss]);
 
   const accept = useCallback(async () => {
     if (!incoming) return;
-    const { callId, roomId, roomType, callerName } = incoming;
+    const { callId, roomId, roomType, callerName, media } = incoming;
     Vibration.cancel();
     // AWAITED, not fire-and-forget. The ringtone and the call want the same
     // audio hardware; if it is still playing when usePeerConnection calls
@@ -247,6 +309,10 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
       roomType,
       incomingCallId: callId,
       counterpartName: callerName,
+      // Answer the kind of call that was actually placed. Omitting this left
+      // CallScreen to infer it from roomType, so a healthcare VOICE call was
+      // answered with the camera on.
+      media,
       autoAccept: true,
     });
   }, [incoming, dismiss]);

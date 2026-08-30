@@ -133,6 +133,9 @@ const MyAppointmentsScreen: React.FC = () => {
     // In-clinic appointments have no video room; offer the voice call instead.
     navigation.navigate('HealthcareConsultCall', {
       appointmentId: a.appointmentId,
+      roomType: 'healthcare',
+      // EXPLICITLY AUDIO — see the note in patientQueue.
+      media: 'audio',
       counterpartName: (a as any).doctorName,
     });
   };
