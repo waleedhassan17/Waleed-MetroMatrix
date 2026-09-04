@@ -50,10 +50,14 @@ export interface RoomStatusUpdate {
 
 export interface RoomPaymentUpdate {
   roomId: string;
-  /** 'requested' (home services) or paid | refunded (healthcare). */
+  /** 'requested' | 'paid' (home services) or paid | refunded (healthcare). */
   status: string;
   amount?: number;
   refundAmount?: number;
+  /** Set on 'paid': how it was settled, and the server's transaction id. */
+  method?: string;
+  transactionId?: string;
+  paidAt?: string;
 }
 
 export interface RoomVideoCallUpdate {
@@ -170,6 +174,30 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         setPayment({ roomId, status: p.status, refundAmount: p.refundAmount });
       };
 
+      // The customer actually paid. Distinct from `payment_requested`, which is
+      // only the provider ASKING — binding just that one is why the provider's
+      // payment screen had no way to hear about the money arriving and fell
+      // back to a random timer. Normalised to status 'paid' so consumers test
+      // one field rather than the event name.
+      const onPaymentReceived = (p: {
+        roomId?: string;
+        bookingId?: string;
+        amount?: number;
+        method?: string;
+        transactionId?: string;
+        paidAt?: string;
+      }) => {
+        if (!mounted || (p.roomId || p.bookingId) !== roomId) return;
+        setPayment({
+          roomId,
+          status: 'paid',
+          amount: p.amount,
+          method: p.method,
+          transactionId: p.transactionId,
+          paidAt: p.paidAt,
+        });
+      };
+
       const onVideoStarted = (p: { roomId?: string; callId?: string; roomUrl?: string }) => {
         if (!mounted || (p.roomId && p.roomId !== roomId)) return;
         setVideoCall({ roomId, phase: 'started', callId: p.callId, roomUrl: p.roomUrl });
@@ -196,6 +224,7 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       s.on('booking_status_changed', onStatus);
       s.on('appointment_status_changed', onAppointmentStatus);
       s.on('payment_requested', onPaymentRequested);
+      s.on('payment_received', onPaymentReceived);
       s.on('payment_status_changed', onPaymentStatus);
       s.on('video_call_started', onVideoStarted);
       s.on('video_call_ended', onVideoEnded);
@@ -240,6 +269,7 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         s.off('booking_status_changed', onStatus);
         s.off('appointment_status_changed', onAppointmentStatus);
         s.off('payment_requested', onPaymentRequested);
+        s.off('payment_received', onPaymentReceived);
         s.off('payment_status_changed', onPaymentStatus);
         s.off('video_call_started', onVideoStarted);
         s.off('video_call_ended', onVideoEnded);

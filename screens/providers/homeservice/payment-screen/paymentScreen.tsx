@@ -118,13 +118,12 @@ const PaymentRequestScreen: React.FC = () => {
     []
   );
 
-  // Route 1 — the live event.
+  // Route 1 — the live event. useRoomSocket normalises `payment_received` to
+  // status 'paid' and carries the server's transaction id with it.
   useEffect(() => {
-    if (!livePayment) return;
-    const status = (livePayment as any).status;
-    const isPaid =
-      (livePayment as any).event === 'payment_received' || status === 'paid' || status === 'completed';
-    if (isPaid) handleOnlinePaymentConfirmed((livePayment as any).transactionId);
+    if (livePayment?.status === 'paid') {
+      handleOnlinePaymentConfirmed(livePayment.transactionId);
+    }
   }, [livePayment, handleOnlinePaymentConfirmed]);
 
   // Route 2 — poll while waiting. Cleared on unmount and once confirmed, so a
