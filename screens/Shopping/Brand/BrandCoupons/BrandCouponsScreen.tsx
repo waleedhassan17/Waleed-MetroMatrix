@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,13 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandCoupons, selectBrandCoupons, updateBrandCoupon } from './brandCouponsSlice';
 import { ShopColors } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 const CURRENCY = 'PKR';
 
 const BrandCouponsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { coupons, loading, error } = useAppSelector(selectBrandCoupons);
@@ -36,14 +39,14 @@ const BrandCouponsScreen: React.FC = () => {
         showBack
         actions={
           <BrandHeaderAction onPress={() => navigation.navigate(BrandRouteNames.AddCoupon, {})}>
-            <Plus size={20} stroke={ShopColors.primary} strokeWidth={2} />
+            <Plus size={20} stroke={colors.accent} strokeWidth={2} />
           </BrandHeaderAction>
         }
       />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {loading && coupons.length === 0 && (
-          <ActivityIndicator color={ShopColors.primary} style={{ marginVertical: Spacing.xl }} />
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: Spacing.xl }} />
         )}
         {error && (
           <View style={styles.center}>
@@ -116,24 +119,26 @@ const BrandCouponsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },
-  retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
+  retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  code: { fontSize: 16, fontWeight: '800', color: ShopColors.primary, letterSpacing: 0.5 },
+  code: { fontSize: 16, fontWeight: '800', color: c.accent, letterSpacing: 0.5 },
   stateChip: { borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 3 },
   stateText: { fontSize: 11, fontWeight: '700' },
   desc: { fontSize: 13, fontWeight: '600', color: Colors.text.primary, marginTop: Spacing.xs },
   meta: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2 },
   actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
   actionBtn: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 14, paddingVertical: 7 },
-  actionText: { fontSize: 13, fontWeight: '600', color: ShopColors.primary },
+  actionText: { fontSize: 13, fontWeight: '600', color: c.accent },
 });
 
 export default BrandCouponsScreen;

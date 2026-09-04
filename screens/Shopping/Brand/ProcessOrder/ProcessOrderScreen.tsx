@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { selectBrandOrderById, updateOrderStatus } from '../BrandOrders/brandOrd
 import { resetProcessOrder, selectProcessOrder, setCarrier, setNotes, setSaving, setTrackingNumber } from './processOrderSlice';
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -65,6 +66,8 @@ const NEXT_ACTIONS: Record<string, { status: NextStatus; label: string; color: s
 };
 
 const ProcessOrderScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -135,8 +138,8 @@ const ProcessOrderScreen: React.FC = () => {
         {/* Customer & Payment */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.cardIcon, { backgroundColor: B.primaryLight }]}>
-              <MapPin size={16} stroke={B.primary} strokeWidth={2} />
+            <View style={[styles.cardIcon, { backgroundColor: colors.accentSoft }]}>
+              <MapPin size={16} stroke={colors.accent} strokeWidth={2} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardLabel}>Ship to</Text>
@@ -174,7 +177,7 @@ const ProcessOrderScreen: React.FC = () => {
         {/* Tracking */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
-            <FileText size={16} stroke={B.primary} strokeWidth={2} />
+            <FileText size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.sectionTitle}>Shipping & Notes</Text>
           </View>
           <Text style={styles.inputLabel}>Tracking Number</Text>
@@ -236,7 +239,9 @@ const ProcessOrderScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
   statusBadge: {
     flexDirection: 'row',

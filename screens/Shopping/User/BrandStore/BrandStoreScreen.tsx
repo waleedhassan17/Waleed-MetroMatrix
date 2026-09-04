@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';
+import { ThemeProvider } from '../../../../theme';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 import type { Product, Category } from '../../../../types/shopping';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
@@ -281,6 +282,11 @@ const BrandStoreScreen: React.FC = () => {
   }
 
   return (
+    // The inline `theme` below still paints this screen's own chrome. The
+    // provider is what reaches BELOW it: ProductCard, the empty and error
+    // states, and anything else shared now render in this brand's colours
+    // without knowing whose store they are in.
+    <ThemeProvider module="shopping" brand={brand}>
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.primaryColor} />
 
@@ -418,6 +424,7 @@ const BrandStoreScreen: React.FC = () => {
         />
       )}
     </View>
+    </ThemeProvider>
   );
 };
 

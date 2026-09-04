@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ import {
 } from './brandDeliveriesSlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -59,6 +60,8 @@ const FILTERS: { key: DeliveryFilter; label: string }[] = [
 ];
 
 const BrandDeliveriesScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const shipments = useAppSelector(selectFilteredShipments);
@@ -95,7 +98,7 @@ const BrandDeliveriesScreen: React.FC = () => {
         <View key={c.courierName} style={[styles.courierRow, idx < courierStats.length - 1 && styles.courierRowBorder]}>
           <View style={styles.courierLeft}>
             <View style={styles.courierAvatar}>
-              <Truck size={14} stroke={B.primary} strokeWidth={2} />
+              <Truck size={14} stroke={colors.accent} strokeWidth={2} />
             </View>
             <View>
               <Text style={styles.courierName}>{c.courierName}</Text>
@@ -156,7 +159,7 @@ const BrandDeliveriesScreen: React.FC = () => {
           {item.status !== 'delivered' && (
             <View style={styles.shipRow}>
               <Text style={styles.shipFieldLabel}>ETA</Text>
-              <Text style={[styles.shipFieldValue, { color: B.primary, fontWeight: '700' }]}>{item.estimatedDelivery}</Text>
+              <Text style={[styles.shipFieldValue, { color: colors.accent, fontWeight: '700' }]}>{item.estimatedDelivery}</Text>
             </View>
           )}
         </View>
@@ -170,7 +173,7 @@ const BrandDeliveriesScreen: React.FC = () => {
 
       {/* Avg delivery time */}
       <View style={styles.avgTimeCard}>
-        <Clock size={16} stroke={B.primary} strokeWidth={2} />
+        <Clock size={16} stroke={colors.accent} strokeWidth={2} />
         <Text style={styles.avgTimeLabel}>Average Delivery Time</Text>
         <Text style={styles.avgTimeValue}>{kpis.avgDeliveryTime}</Text>
       </View>
@@ -244,7 +247,9 @@ const BrandDeliveriesScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
 
   // Search
@@ -262,7 +267,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14, color: B.text },
-  clearBtn: { fontSize: 12, fontWeight: '700', color: B.primary },
+  clearBtn: { fontSize: 12, fontWeight: '700', color: c.accent },
 
   // Filters
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginTop: 10, marginBottom: 4 },
@@ -274,7 +279,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: B.border,
   },
-  filterChipActive: { backgroundColor: B.primary, borderColor: B.primary },
+  filterChipActive: { backgroundColor: c.accent, borderColor: c.accent },
   filterText: { fontSize: 11, fontWeight: '700', color: B.textSec },
   filterTextActive: { color: '#FFF' },
 
@@ -304,11 +309,11 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
     marginBottom: 12,
   },
   avgTimeLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: B.text },
-  avgTimeValue: { fontSize: 16, fontWeight: '800', color: B.primary },
+  avgTimeValue: { fontSize: 16, fontWeight: '800', color: c.accent },
 
   // Courier
   courierCard: {
@@ -329,7 +334,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },

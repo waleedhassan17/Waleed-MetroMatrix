@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,10 +18,14 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from '../BrandProfile/brandProfileSlice';
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
+import BrandThemeEditor, { BrandThemeValue } from '../../../../components/Shopping/BrandThemeEditor';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 const PAYMENT_OPTIONS = ['wallet', 'cod'];
 
 const BrandSettingsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { brand, loading, saving, error } = useAppSelector(selectBrandProfile);
@@ -29,12 +33,24 @@ const BrandSettingsScreen: React.FC = () => {
   const [returnDays, setReturnDays] = useState('7');
   const [shippingInfo, setShippingInfo] = useState('');
   const [paymentMethods, setPaymentMethods] = useState<string[]>(PAYMENT_OPTIONS);
+  const [theme, setTheme] = useState<BrandThemeValue>({
+    primaryColor: '',
+    secondaryColor: '',
+    accentColor: '',
+  });
 
   useEffect(() => {
     if (!brand) dispatch(fetchMyBrand());
   }, [dispatch, brand]);
 
   useEffect(() => {
+    if (brand) {
+      setTheme({
+        primaryColor: brand.primaryColor ?? '',
+        secondaryColor: brand.secondaryColor ?? '',
+        accentColor: brand.accentColor ?? '',
+      });
+    }
     if (brand?.policies) {
       setReturnDays(String(brand.policies.returnDays ?? 7));
       setShippingInfo(brand.policies.shippingInfo ?? '');
@@ -59,7 +75,10 @@ const BrandSettingsScreen: React.FC = () => {
       return;
     }
     const result = await dispatch(
-      updateMyBrand({ policies: { returnDays: days, shippingInfo, paymentMethods } })
+      updateMyBrand({
+        policies: { returnDays: days, shippingInfo, paymentMethods },
+        ...theme,
+      })
     );
     if (updateMyBrand.fulfilled.match(result)) {
       Alert.alert('Saved', 'Your brand settings have been updated.');
@@ -74,7 +93,7 @@ const BrandSettingsScreen: React.FC = () => {
       <BrandHeader title="Brand Settings" showBack />
 
       {loading && !brand ? (
-        <View style={styles.center}><ActivityIndicator color={ShopColors.primary} size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.accent} size="large" /></View>
       ) : error && !brand ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
@@ -117,11 +136,20 @@ const BrandSettingsScreen: React.FC = () => {
                 <Switch
                   value={paymentMethods.includes(method)}
                   onValueChange={() => togglePayment(method)}
-                  trackColor={{ true: ShopColors.primary, false: Colors.border }}
+                  trackColor={{ true: colors.accent, false: Colors.border }}
                   thumbColor="#FFF"
                 />
               </View>
             ))}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Store appearance</Text>
+            <Text style={styles.sectionHelp}>
+              Your colours across your own dashboard and the store your customers see.
+              Leave them as they are to use the MetroMatrix shopping default.
+            </Text>
+            <BrandThemeEditor value={theme} onChange={setTheme} />
           </View>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
@@ -134,21 +162,24 @@ const BrandSettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
-  retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
+  retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.text.primary, marginBottom: Spacing.md },
+  sectionHelp: { fontSize: 12, lineHeight: 17, color: Colors.text.secondary, marginBottom: Spacing.md },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 4 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.text.primary },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm },
   switchLabel: { fontSize: 14, color: Colors.text.primary },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ShopColors.primary, borderRadius: BorderRadius.lg, paddingVertical: 14 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
   saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });
 

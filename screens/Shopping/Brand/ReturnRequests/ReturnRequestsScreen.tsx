@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,34 +21,38 @@ import {
 } from './returnRequestsSlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
 
-const STATUS_STYLES: Record<ReturnServerStatus, { color: string; bg: string; label: string }> = {
+// Theme-parameterised for the same reason the stylesheet is: 'Picked Up' is
+// carried by the brand's own colour, and these maps live at module scope where
+// a hook cannot reach.
+const statusStyles = (c: ThemeColors): Record<ReturnServerStatus, { color: string; bg: string; label: string }> => ({
   requested: { color: B.warning, bg: B.warningLight, label: 'Requested' },
   approved: { color: B.success, bg: B.successLight, label: 'Approved' },
   rejected: { color: B.error, bg: B.errorLight, label: 'Rejected' },
-  picked_up: { color: B.primary, bg: B.primaryLight, label: 'Picked Up' },
+  picked_up: { color: c.accent, bg: c.accentSoft, label: 'Picked Up' },
   refunded: { color: B.textMuted, bg: B.bg, label: 'Refunded' },
-};
+});
 
 // Mirrors the backend's RETURN_FLOW exactly (vendorOrderController.js) —
 // requested/rejected/refunded are terminal or single-branch; only these
 // transitions are ever legal to offer.
-const NEXT_RETURN_ACTIONS: Record<
+const nextReturnActions = (c: ThemeColors): Record<
   ReturnServerStatus,
   { status: ReturnServerStatus; label: string; color: string; icon: any }[]
-> = {
+> => ({
   requested: [
     { status: 'approved', label: 'Approve', color: B.success, icon: CheckCircle2 },
     { status: 'rejected', label: 'Reject', color: B.error, icon: XCircle },
   ],
-  approved: [{ status: 'picked_up', label: 'Mark Picked Up', color: B.primary, icon: Package }],
+  approved: [{ status: 'picked_up', label: 'Mark Picked Up', color: c.accent, icon: Package }],
   picked_up: [{ status: 'refunded', label: 'Confirm Refund', color: B.success, icon: CheckCircle2 }],
   rejected: [],
   refunded: [],
-};
+});
 
 const getInitials = (name: string) => {
   const parts = name.trim().split(' ');
@@ -58,6 +62,10 @@ const getInitials = (name: string) => {
 };
 
 const ReturnRequestsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const STATUS_STYLES = useMemo(() => statusStyles(colors), [colors]);
+  const NEXT_RETURN_ACTIONS = useMemo(() => nextReturnActions(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { requests, loading, error } = useAppSelector(selectReturnRequests);
@@ -142,7 +150,7 @@ const ReturnRequestsScreen: React.FC = () => {
 
       {loading && requests.length === 0 ? (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={B.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : error && requests.length === 0 ? (
         <View style={styles.emptyState}>
@@ -174,7 +182,9 @@ const ReturnRequestsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
 
   // Content
@@ -197,9 +207,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
-  avatarText: { fontSize: 14, fontWeight: '800', color: B.primary },
+  avatarText: { fontSize: 14, fontWeight: '800', color: c.accent },
   customerName: { fontSize: 14, fontWeight: '700', color: B.text },
   requestMeta: { fontSize: 11, color: B.textMuted, marginTop: 1 },
   statusPill: {
@@ -246,7 +256,7 @@ const styles = StyleSheet.create({
   },
   actionText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
   finalStateText: { fontSize: 12, color: B.textMuted, fontStyle: 'italic' },
-  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: B.primary },
+  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: c.accent },
   retryText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 
   // Empty

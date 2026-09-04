@@ -28,5 +28,5 @@ export { brandPalette, MODULE_PALETTES } from './palettes';
 export type { ModuleName, ModulePalette } from './palettes';
 
 export { ThemeProvider, useTheme } from './ThemeProvider';
-export type { BrandColors, Theme, ThemeProviderProps } from './ThemeProvider';
+export type { BrandColors, Theme, ThemeColors, ThemeProviderProps } from './ThemeProvider';
 export { default } from './ThemeProvider';

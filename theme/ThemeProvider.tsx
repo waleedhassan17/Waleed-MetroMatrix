@@ -37,9 +37,19 @@ import {
 import { textOn } from './contrast';
 import { brandPalette, MODULE_PALETTES, ModuleName, ModulePalette } from './palettes';
 
+/**
+ * The resolved colour set.
+ *
+ * Exported because a screen's StyleSheet lives at module scope and cannot call
+ * a hook, so brand-aware screens take the shape
+ * `const makeStyles = (c: ThemeColors) => StyleSheet.create({ … })` and build
+ * it inside the component with `useMemo`.
+ */
+export type ThemeColors = typeof C & ModulePalette;
+
 export interface Theme {
   /** Neutrals and semantics from the base, plus the active accent set. */
-  colors: typeof C & ModulePalette;
+  colors: ThemeColors;
   type: typeof T;
   families: typeof F;
   spacing: typeof S;

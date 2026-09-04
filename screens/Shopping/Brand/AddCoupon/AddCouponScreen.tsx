@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,14 @@ import {
 } from '../BrandCoupons/brandCouponsSlice';
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 const DAY_MS = 86400000;
 
 const AddCouponScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -152,7 +155,9 @@ const AddCouponScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
@@ -161,10 +166,10 @@ const styles = StyleSheet.create({
   inputDisabled: { backgroundColor: Colors.background, color: Colors.text.tertiary },
   typeRow: { flexDirection: 'row', gap: Spacing.sm },
   typeChip: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
-  typeChipOn: { backgroundColor: ShopColors.primaryLight, borderColor: ShopColors.primary },
+  typeChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
   typeText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
-  typeTextOn: { color: ShopColors.primary },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ShopColors.primary, borderRadius: BorderRadius.lg, paddingVertical: 14 },
+  typeTextOn: { color: c.accent },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
   saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });
 

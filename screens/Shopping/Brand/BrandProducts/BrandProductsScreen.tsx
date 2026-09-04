@@ -20,6 +20,7 @@ import { fetchBrandProducts,
   removeProduct, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -38,6 +39,8 @@ const filterLabels: { key: 'all' | 'in_stock' | 'low_stock' | 'out_of_stock'; la
 ];
 
 const BrandProductsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { products, searchQuery, stockFilter } = useAppSelector(selectBrandProducts);
@@ -102,7 +105,7 @@ const BrandProductsScreen: React.FC = () => {
           </View>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate(BrandRouteNames.EditProduct, { productId: product.productId })}>
-              <Edit3 size={14} stroke={B.primary} strokeWidth={2} />
+              <Edit3 size={14} stroke={colors.accent} strokeWidth={2} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(product)}>
@@ -196,7 +199,9 @@ const BrandProductsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
   addBtn: {
     width: 38,
@@ -204,7 +209,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
 
   // Search
@@ -236,8 +241,8 @@ const styles = StyleSheet.create({
     borderColor: B.border,
   },
   filterChipActive: {
-    backgroundColor: B.primary,
-    borderColor: B.primary,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   filterText: { fontSize: 12, fontWeight: '700', color: B.textSec },
   filterTextActive: { color: '#FFF' },
@@ -291,9 +296,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
-  editBtnText: { fontSize: 13, fontWeight: '700', color: B.primary },
+  editBtnText: { fontSize: 13, fontWeight: '700', color: c.accent },
   deleteBtn: {
     width: 40,
     height: 40,
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
   emptyCtaText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 });

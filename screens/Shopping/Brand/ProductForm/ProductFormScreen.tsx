@@ -38,6 +38,7 @@ import { swatchColor } from '../../../../constants/ProductColors';
 import { upsertProduct } from '../BrandProducts/brandProductsSlice';
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -49,6 +50,8 @@ const FLAG_LABELS: Record<string, string> = {
 };
 
 const ProductFormScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -147,7 +150,7 @@ const ProductFormScreen: React.FC = () => {
         {/* Basic Info */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Tag size={16} stroke={B.primary} strokeWidth={2} />
+            <Tag size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.sectionTitle}>Basic Information</Text>
           </View>
           <Text style={styles.label}>Product Name</Text>
@@ -180,7 +183,7 @@ const ProductFormScreen: React.FC = () => {
         {/* Pricing */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <DollarSign size={16} stroke={B.primary} strokeWidth={2} />
+            <DollarSign size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.sectionTitle}>Pricing</Text>
           </View>
           <View style={styles.row}>
@@ -260,7 +263,7 @@ const ProductFormScreen: React.FC = () => {
           <View style={styles.variantHeaderRow}>
             <Text style={styles.sectionTitle}>Variants</Text>
             <TouchableOpacity style={styles.addVariantBtn} onPress={() => dispatch(addVariant())}>
-              <Plus size={14} stroke={B.primary} strokeWidth={2.5} />
+              <Plus size={14} stroke={colors.accent} strokeWidth={2.5} />
               <Text style={styles.addVariantText}>Add variant</Text>
             </TouchableOpacity>
           </View>
@@ -379,13 +382,15 @@ const ProductFormScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   hintText: { fontSize: 12, color: B.textMuted, marginBottom: 10, lineHeight: 17 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   inlineInput: { flex: 1, marginBottom: 0 },
   inlineBtn: {
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10,
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
   inlineBtnDisabled: { opacity: 0.5 },
   inlineBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
@@ -393,7 +398,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   addVariantBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, padding: 6 },
-  addVariantText: { color: B.primary, fontWeight: '700', fontSize: 13 },
+  addVariantText: { color: c.accent, fontWeight: '700', fontSize: 13 },
   variantCard: {
     borderWidth: 1, borderColor: B.border, borderRadius: 12,
     padding: 12, marginTop: 10, backgroundColor: B.surface,
@@ -418,7 +423,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
   content: { padding: 16, paddingBottom: 40 },
 
@@ -476,8 +481,8 @@ const styles = StyleSheet.create({
     borderColor: B.border,
   },
   flagChipActive: {
-    backgroundColor: B.primary,
-    borderColor: B.primary,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   flagText: { fontSize: 13, fontWeight: '700', color: B.textSec },
   flagTextActive: { color: '#FFF' },
@@ -491,7 +496,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
   saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
 });

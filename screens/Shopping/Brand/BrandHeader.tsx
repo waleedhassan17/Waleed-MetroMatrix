@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 import { B, BRadius, BSpacing } from './theme';
+import { F, T, useTheme } from '../../../theme';
 
 interface BrandHeaderProps {
   title: string;
@@ -34,6 +35,7 @@ export const BrandHeader: React.FC<BrandHeaderProps> = ({
 }) => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   const handleBack = () => {
     if (onBack) return onBack();
@@ -41,7 +43,12 @@ export const BrandHeader: React.FC<BrandHeaderProps> = ({
   };
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+    <View
+      style={[
+        styles.header,
+        { paddingTop: insets.top + 10, borderBottomColor: colors.accent },
+      ]}
+    >
       <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
 
       {showBack && (
@@ -90,8 +97,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: BSpacing.xl,
     paddingBottom: 14,
     backgroundColor: B.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: B.border,
+    // A 2pt brand stripe replaces the grey hairline. The header keeps a white
+    // ground and ink title — a brand-coloured header bar would put the title's
+    // legibility at the mercy of whatever hex the vendor picked — so this rule
+    // is where the brand actually shows on their own screens.
+    borderBottomWidth: 2,
   },
   backBtn: {
     width: 38,
@@ -105,14 +115,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 21,
-    fontWeight: '800',
+    ...T.heading,
     color: B.text,
-    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12.5,
-    fontWeight: '500',
+    ...T.caption,
+    fontFamily: F.medium,
     color: B.textMuted,
     marginTop: 2,
   },

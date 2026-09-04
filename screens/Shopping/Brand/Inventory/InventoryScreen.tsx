@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -28,6 +29,8 @@ const getStockLevel = (qty: number) => {
 };
 
 const InventoryScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { rows, loading, error } = useAppSelector(selectInventory);
@@ -81,7 +84,7 @@ const InventoryScreen: React.FC = () => {
               style={styles.qtyBtn}
               onPress={() => handleStockChange(row.variantId, Math.max(0, row.stockQuantity - 1))}
             >
-              <Minus size={14} stroke={B.primary} strokeWidth={2.5} />
+              <Minus size={14} stroke={colors.accent} strokeWidth={2.5} />
             </TouchableOpacity>
             <View style={styles.qtyDisplay}>
               <Text style={styles.qtyValue}>{row.stockQuantity}</Text>
@@ -91,7 +94,7 @@ const InventoryScreen: React.FC = () => {
               style={styles.qtyBtn}
               onPress={() => handleStockChange(row.variantId, row.stockQuantity + 1)}
             >
-              <Plus size={14} stroke={B.primary} strokeWidth={2.5} />
+              <Plus size={14} stroke={colors.accent} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
         </View>
@@ -142,13 +145,13 @@ const InventoryScreen: React.FC = () => {
       {/* List */}
       {loading && rows.length === 0 ? (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={B.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : error && rows.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Couldn't load inventory</Text>
           <TouchableOpacity onPress={() => dispatch(fetchInventory())}>
-            <Text style={[styles.emptyTitle, { color: B.primary, marginTop: 8 }]}>Retry</Text>
+            <Text style={[styles.emptyTitle, { color: colors.accent, marginTop: 8 }]}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -160,7 +163,7 @@ const InventoryScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         ListFooterComponent={
           <View style={styles.notice}>
-            <Warehouse size={16} stroke={B.primary} strokeWidth={2} />
+            <Warehouse size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.noticeText}>Stock changes are applied instantly and are visible to customers immediately.</Text>
           </View>
         }
@@ -176,7 +179,9 @@ const InventoryScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
 
   // Stats
@@ -259,7 +264,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
   qtyDisplay: { alignItems: 'center', minWidth: 42 },
   qtyValue: { fontSize: 18, fontWeight: '800', color: B.text },
@@ -273,7 +278,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
   noticeText: { flex: 1, fontSize: 12, color: B.textSec },
 

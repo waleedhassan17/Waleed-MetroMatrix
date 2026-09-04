@@ -33,9 +33,12 @@ import { fetchMyBrand, selectBrandProfile } from '../BrandProfile/brandProfileSl
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { B, statusTone, humanizeStatus, formatOrderNumber } from '../theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 const BrandHomeScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -80,7 +83,7 @@ const BrandHomeScreen: React.FC = () => {
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const quickActions = [
-    { label: 'Products', icon: Package, route: BrandRouteNames.BrandProducts, color: B.primary },
+    { label: 'Products', icon: Package, route: BrandRouteNames.BrandProducts, color: colors.accent },
     { label: 'Orders', icon: ClipboardList, route: BrandRouteNames.BrandOrders, color: B.info },
     { label: 'Inventory', icon: Warehouse, route: BrandRouteNames.BrandInventory, color: '#8B5CF6' },
     { label: 'Analytics', icon: BarChart3, route: BrandRouteNames.BrandAnalytics, color: B.success },
@@ -121,7 +124,7 @@ const BrandHomeScreen: React.FC = () => {
           onPress={() => navigation.navigate('WalletScreen' as never)}
           activeOpacity={0.7}
         >
-          <Wallet size={13} stroke={B.primary} strokeWidth={2} />
+          <Wallet size={13} stroke={colors.accent} strokeWidth={2} />
           <Text style={styles.walletChipText}>
             {currencySym}{walletBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </Text>
@@ -140,7 +143,7 @@ const BrandHomeScreen: React.FC = () => {
 
         {loading && kpis.orders === 0 && recentOrders.length === 0 && (
           <View style={styles.loaderWrap}>
-            <ActivityIndicator size="small" color={B.primary} />
+            <ActivityIndicator size="small" color={colors.accent} />
           </View>
         )}
         {error && (
@@ -155,7 +158,7 @@ const BrandHomeScreen: React.FC = () => {
         {/* ── KPI Cards ── */}
         <View style={styles.kpiRow}>
           {[
-            { label: 'Revenue', value: `₨${(kpis.revenue / 1000).toFixed(0)}K`, icon: TrendingUp, color: B.primary, bg: B.primaryLight },
+            { label: 'Revenue', value: `₨${(kpis.revenue / 1000).toFixed(0)}K`, icon: TrendingUp, color: colors.accent, bg: colors.accentSoft },
             { label: 'Income', value: `₨${(kpis.income / 1000).toFixed(0)}K`, icon: Wallet, color: B.success, bg: B.successLight },
             { label: 'Orders', value: String(kpis.orders), icon: ShoppingBag, color: B.info, bg: '#EFF6FF' },
             { label: 'Shipments', value: String(kpis.activeShipments), icon: Truck, color: '#F59E0B', bg: '#FFFBEB' },
@@ -204,10 +207,10 @@ const BrandHomeScreen: React.FC = () => {
                   <View
                     style={[
                       styles.chartBar,
-                      { height: barH, backgroundColor: isMax ? B.primary : `${B.primary}40` },
+                      { height: barH, backgroundColor: isMax ? colors.accent : `${colors.accent}40` },
                     ]}
                   />
-                  <Text style={[styles.chartDay, isMax && { color: B.primary, fontWeight: '700' }]}>
+                  <Text style={[styles.chartDay, isMax && { color: colors.accent, fontWeight: '700' }]}>
                     {dayLabels[index]}
                   </Text>
                 </View>
@@ -225,7 +228,7 @@ const BrandHomeScreen: React.FC = () => {
               onPress={() => navigation.navigate(BrandRouteNames.BrandOrders)}
             >
               <Text style={styles.viewAllText}>View All</Text>
-              <ChevronRight size={14} stroke={B.primary} strokeWidth={2} />
+              <ChevronRight size={14} stroke={colors.accent} strokeWidth={2} />
             </TouchableOpacity>
           </View>
           {recentOrders.map((order, idx) => {
@@ -271,7 +274,7 @@ const BrandHomeScreen: React.FC = () => {
                 onPress={() => navigation.navigate(BrandRouteNames.BrandInventory)}
               >
                 <Text style={styles.viewAllText}>Manage</Text>
-                <ChevronRight size={14} stroke={B.primary} strokeWidth={2} />
+                <ChevronRight size={14} stroke={colors.accent} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             {lowStockByProduct.map((item, idx) => (
@@ -318,7 +321,9 @@ const BrandHomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
   header: {
     flexDirection: 'row',
@@ -341,18 +346,18 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
   brandMarkFallback: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: `${B.primary}33`,
+    borderColor: `${c.accent}33`,
   },
   brandMarkText: {
     fontSize: 18,
     fontWeight: '800',
-    color: B.primary,
+    color: c.accent,
   },
   headerText: {
     flex: 1,
@@ -376,15 +381,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
     borderWidth: 1,
-    borderColor: `${B.primary}20`,
+    borderColor: `${c.accent}20`,
     flexShrink: 0,
   },
   walletChipText: {
     fontSize: 13,
     fontWeight: '700',
-    color: B.primary,
+    color: c.accent,
   },
   scrollContent: {
     padding: 16,
@@ -480,7 +485,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 12,
     fontWeight: '700',
-    color: B.primary,
+    color: c.accent,
   },
   loaderWrap: { paddingVertical: Spacing.lg, alignItems: 'center' },
   dashboardErrorCard: {

@@ -8,13 +8,13 @@ import BrandProductsScreen from '../BrandProducts/BrandProductsScreen';
 import BrandOrdersScreen from '../BrandOrders/BrandOrdersScreen';
 import BrandAnalyticsScreen from '../BrandAnalytics/BrandAnalyticsScreen';
 import BrandProfileScreen from '../BrandProfile/BrandProfileScreen';
+import { F, useTheme } from '../../../../theme';
 
-const COLORS = {
-  primary: '#E67E22',
-  surface: '#FFFFFF',
-  border: '#F0E4D7',
-  inactive: '#94A3B8',
-};
+// The local `const COLORS` block that used to live here is gone. It hardcoded
+// `primary: '#E67E22'` — so a brand could set its colours and then look at the
+// most prominent brand surface it has, its own tab bar, still painted the
+// generic shopping orange. It also carried `border: '#F0E4D7'`, a value that
+// appears in no palette anywhere in the app.
 
 type BrandTabParamList = {
   Dashboard: undefined;
@@ -42,15 +42,20 @@ const BrandTabsNavigator: React.FC = () => {
   // window. With a fixed 62pt height the OS back/home/recents buttons landed
   // on top of the tab labels — reserve the inset as real padding instead.
   const insets = useSafeAreaInsets();
+  // `accentDeep` rather than `accent`: the active tint is a small label on a
+  // white ground, which is the one place a mid-tone brand colour most often
+  // fails contrast. For a brand that set no secondary this resolves back to
+  // their primary, and with no brand at all to shopping orange.
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.inactive,
+        tabBarActiveTintColor: colors.accentDeep,
+        tabBarInactiveTintColor: colors.inkFaint,
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
+          backgroundColor: colors.surface,
           height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
           paddingBottom: insets.bottom + 6,
           paddingTop: 8,
@@ -64,7 +69,7 @@ const BrandTabsNavigator: React.FC = () => {
           elevation: 12,
         },
         tabBarLabel: TAB_CONFIG[route.name]?.label ?? route.name,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontFamily: F.semibold, fontSize: 11 },
         tabBarIcon: ({ focused, color, size }) => {
           const config = TAB_CONFIG[route.name];
           return (

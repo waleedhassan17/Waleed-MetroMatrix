@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from './brandProfileSlice';
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
+import BrandThemeEditor from '../../../../components/Shopping/BrandThemeEditor';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 type EditableField = 'name' | 'tagline' | 'description' | 'contactEmail' | 'contactPhone' | 'website';
@@ -31,13 +33,9 @@ const FIELDS: { key: EditableField; label: string; multiline?: boolean }[] = [
   { key: 'website', label: 'Website' },
 ];
 
-const COLOR_FIELDS: { key: 'primaryColor' | 'secondaryColor' | 'accentColor'; label: string }[] = [
-  { key: 'primaryColor', label: 'Primary' },
-  { key: 'secondaryColor', label: 'Secondary' },
-  { key: 'accentColor', label: 'Accent' },
-];
-
 const BrandProfileScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { brand, loading, saving, error, noBrand } = useAppSelector(selectBrandProfile);
@@ -78,7 +76,7 @@ const BrandProfileScreen: React.FC = () => {
       <BrandHeader title="Brand Profile" showBack />
 
       {loading && !brand && (
-        <View style={styles.center}><ActivityIndicator color={ShopColors.primary} size="large" /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.accent} size="large" /></View>
       )}
 
       {noBrand && (
@@ -105,14 +103,14 @@ const BrandProfileScreen: React.FC = () => {
             {brand.bannerImage ? (
               <Image source={{ uri: brand.bannerImage }} style={styles.banner} />
             ) : (
-              <View style={[styles.banner, { backgroundColor: brand.primaryColor || ShopColors.primary }]} />
+              <View style={[styles.banner, { backgroundColor: brand.primaryColor || colors.accent }]} />
             )}
             <View style={styles.logoWrap}>
               {brand.logo ? (
                 <Image source={{ uri: brand.logo }} style={styles.logo} />
               ) : (
                 <View style={[styles.logo, styles.logoFallback]}>
-                  <Store size={24} stroke={ShopColors.primary} strokeWidth={2} />
+                  <Store size={24} stroke={colors.accent} strokeWidth={2} />
                 </View>
               )}
             </View>
@@ -139,21 +137,18 @@ const BrandProfileScreen: React.FC = () => {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Theme Colours</Text>
-            <View style={styles.colorRow}>
-              {COLOR_FIELDS.map((field) => (
-                <View key={field.key} style={styles.colorField}>
-                  <View style={[styles.swatch, { backgroundColor: form[field.key] || '#CCC' }]} />
-                  <Text style={styles.fieldLabel}>{field.label}</Text>
-                  <TextInput
-                    style={styles.colorInput}
-                    value={form[field.key] ?? ''}
-                    autoCapitalize="characters"
-                    onChangeText={(value) => setForm((f) => ({ ...f, [field.key]: value }))}
-                  />
-                </View>
-              ))}
-            </View>
+            <Text style={styles.sectionTitle}>Store appearance</Text>
+            <Text style={styles.sectionHelp}>
+              These colours are used across your own dashboard and the store your customers see.
+            </Text>
+            <BrandThemeEditor
+              value={{
+                primaryColor: form.primaryColor ?? '',
+                secondaryColor: form.secondaryColor ?? '',
+                accentColor: form.accentColor ?? '',
+              }}
+              onChange={(next) => setForm((f) => ({ ...f, ...next }))}
+            />
           </View>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
@@ -166,31 +161,30 @@ const BrandProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   emptyText: { color: Colors.text.secondary, textAlign: 'center', marginTop: Spacing.md },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
-  retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
+  retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   bannerWrap: { marginBottom: 36 },
   banner: { width: '100%', height: 120, borderRadius: BorderRadius.lg },
   logoWrap: { position: 'absolute', bottom: -28, left: Spacing.lg },
   logo: { width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: Colors.surface },
-  logoFallback: { backgroundColor: ShopColors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  logoFallback: { backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
   statusLine: { fontSize: 13, color: Colors.text.secondary, marginBottom: Spacing.md },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.text.primary, marginBottom: Spacing.md },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.text.primary, marginBottom: 4 },
+  sectionHelp: { fontSize: 12, lineHeight: 17, color: Colors.text.secondary, marginBottom: Spacing.md },
   field: { marginBottom: Spacing.md },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 4 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.text.primary },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
-  colorRow: { flexDirection: 'row', gap: Spacing.md },
-  colorField: { flex: 1, alignItems: 'center' },
-  swatch: { width: 32, height: 32, borderRadius: 16, marginBottom: 6, borderWidth: 1, borderColor: Colors.border },
-  colorInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.sm, paddingHorizontal: 8, paddingVertical: 6, fontSize: 12, color: Colors.text.primary, width: '100%', textAlign: 'center' },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ShopColors.primary, borderRadius: BorderRadius.lg, paddingVertical: 14 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
   saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });
 

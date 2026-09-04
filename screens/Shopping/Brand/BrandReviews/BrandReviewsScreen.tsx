@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -22,9 +22,12 @@ import {
 } from './brandReviewsSlice';
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 const BrandReviewsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { reviews, ratingFilter, loading, responding, error } = useAppSelector(selectBrandReviews);
@@ -71,7 +74,7 @@ const BrandReviewsScreen: React.FC = () => {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {loading && reviews.length === 0 && (
-          <ActivityIndicator color={ShopColors.primary} style={{ marginVertical: Spacing.xl }} />
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: Spacing.xl }} />
         )}
         {error && (
           <View style={styles.center}>
@@ -144,33 +147,35 @@ const BrandReviewsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   filterRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.full, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.surface },
-  filterChipOn: { backgroundColor: ShopColors.primaryLight, borderColor: ShopColors.primary },
+  filterChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
   filterText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
-  filterTextOn: { color: ShopColors.primary },
+  filterTextOn: { color: c.accent },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },
-  retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
+  retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewer: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
   starsRow: { flexDirection: 'row', gap: 2 },
-  productName: { fontSize: 12, color: ShopColors.primary, fontWeight: '600', marginTop: 2 },
+  productName: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 2 },
   reviewTitle: { fontSize: 14, fontWeight: '700', color: Colors.text.primary, marginTop: Spacing.xs },
   comment: { fontSize: 13, color: Colors.text.secondary, marginTop: 4, lineHeight: 19 },
   date: { fontSize: 11, color: Colors.text.tertiary, marginTop: Spacing.xs },
   responseBox: { backgroundColor: Colors.background, borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.sm },
-  responseLabel: { fontSize: 11, fontWeight: '700', color: ShopColors.primary, marginBottom: 2 },
+  responseLabel: { fontSize: 11, fontWeight: '700', color: c.accent, marginBottom: 2 },
   responseText: { fontSize: 13, color: Colors.text.secondary },
   respondRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   respondInput: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: Colors.text.primary },
-  respondBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 16, justifyContent: 'center' },
+  respondBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 16, justifyContent: 'center' },
   respondBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
 });
 

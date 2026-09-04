@@ -27,6 +27,7 @@ import { fetchBrandOrders, selectBrandOrders, setStatusFilter } from './brandOrd
 import type { OrderStatus } from '../../../../types/shopping';
 import { B } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -64,6 +65,8 @@ const getInitials = (name: string) => {
 };
 
 const BrandOrdersScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { orders, statusFilter, loading, error } = useAppSelector(selectBrandOrders);
@@ -178,7 +181,7 @@ const BrandOrdersScreen: React.FC = () => {
       {/* Order List */}
       {loading && orders.length === 0 ? (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={B.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : error && orders.length === 0 ? (
         <View style={styles.emptyState}>
@@ -215,7 +218,9 @@ const BrandOrdersScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
 
   // Filters
@@ -237,8 +242,8 @@ const styles = StyleSheet.create({
     borderColor: B.border,
   },
   filterChipActive: {
-    backgroundColor: B.primary,
-    borderColor: B.primary,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   filterText: { fontSize: 12, fontWeight: '700', color: B.textSec },
   filterTextActive: { color: '#FFF' },
@@ -275,12 +280,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
   },
   avatarText: {
     fontSize: 14,
     fontWeight: '800',
-    color: B.primary,
+    color: c.accent,
   },
   cardMid: { flex: 1 },
   customerName: { fontSize: 14, fontWeight: '700', color: B.text },
@@ -339,7 +344,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: B.primary,
+    backgroundColor: c.accent,
   },
   refreshText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
 });

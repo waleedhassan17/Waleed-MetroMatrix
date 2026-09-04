@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ import {
 } from './brandAnalyticsSlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
+import { ThemeColors, useTheme } from '../../../../theme';
 
 
 
@@ -47,6 +48,8 @@ const formatCurrency = (amount: number): string => {
 };
 
 const BrandAnalyticsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const {
@@ -98,8 +101,8 @@ const BrandAnalyticsScreen: React.FC = () => {
         {/* ── Financial Summary Cards ── */}
         <View style={styles.finGrid}>
           <View style={[styles.finCard, styles.finCardWide]}>
-            <View style={[styles.finIcon, { backgroundColor: B.primaryLight }]}>
-              <TrendingUp size={18} stroke={B.primary} strokeWidth={2} />
+            <View style={[styles.finIcon, { backgroundColor: colors.accentSoft }]}>
+              <TrendingUp size={18} stroke={colors.accent} strokeWidth={2} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.finLabel}>Total Revenue</Text>
@@ -172,7 +175,7 @@ const BrandAnalyticsScreen: React.FC = () => {
         {/* ── Revenue Chart ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <BarChart3 size={16} stroke={B.primary} strokeWidth={2} />
+            <BarChart3 size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.cardTitle}>Revenue Trend</Text>
           </View>
           <View style={styles.chartContainer}>
@@ -187,11 +190,11 @@ const BrandAnalyticsScreen: React.FC = () => {
                       styles.chartBar,
                       {
                         height: barH,
-                        backgroundColor: isMax ? B.primary : `${B.primary}40`,
+                        backgroundColor: isMax ? colors.accent : `${colors.accent}40`,
                       },
                     ]}
                   />
-                  <Text style={[styles.chartLabel, isMax && { color: B.primary, fontWeight: '700' }]}>
+                  <Text style={[styles.chartLabel, isMax && { color: colors.accent, fontWeight: '700' }]}>
                     {point.label}
                   </Text>
                   <Text style={styles.chartOrders}>{point.orders} orders</Text>
@@ -204,7 +207,7 @@ const BrandAnalyticsScreen: React.FC = () => {
         {/* ── Category Breakdown ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <PieChart size={16} stroke={B.primary} strokeWidth={2} />
+            <PieChart size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.cardTitle}>Revenue by Category</Text>
           </View>
           {/* Mini donut representation */}
@@ -236,7 +239,7 @@ const BrandAnalyticsScreen: React.FC = () => {
         {/* ── Top Products ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <TrendingUp size={16} stroke={B.primary} strokeWidth={2} />
+            <TrendingUp size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.cardTitle}>Top Selling Products</Text>
           </View>
           {topProducts.map((product, idx) => (
@@ -263,7 +266,7 @@ const BrandAnalyticsScreen: React.FC = () => {
         {/* ── Conversion Metrics ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <BarChart3 size={16} stroke={B.primary} strokeWidth={2} />
+            <BarChart3 size={16} stroke={colors.accent} strokeWidth={2} />
             <Text style={styles.cardTitle}>Conversion & Performance</Text>
           </View>
           <View style={styles.metricGrid}>
@@ -285,7 +288,9 @@ const BrandAnalyticsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+// Built per render from the resolved theme so a brand's colours reach
+// rules that live at module scope. Layout, spacing and type are unchanged.
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: B.bg },
   scrollContent: { padding: 16, paddingBottom: 40 },
 
@@ -300,7 +305,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: B.border,
   },
-  periodChipActive: { backgroundColor: B.primary, borderColor: B.primary },
+  periodChipActive: { backgroundColor: c.accent, borderColor: c.accent },
   periodText: { fontSize: 12, fontWeight: '700', color: B.textSec },
   periodTextActive: { color: '#FFF' },
 
@@ -380,11 +385,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: B.primaryLight,
+    backgroundColor: c.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  prodRankText: { fontSize: 12, fontWeight: '800', color: B.primary },
+  prodRankText: { fontSize: 12, fontWeight: '800', color: c.accent },
   prodInfo: { flex: 1 },
   prodName: { fontSize: 13, fontWeight: '700', color: B.text },
   prodMeta: { fontSize: 11, color: B.textMuted, marginTop: 2 },
