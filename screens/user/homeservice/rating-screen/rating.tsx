@@ -1,99 +1,83 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+// ============================================================================
+// Rate the service
+//
+// The stars are the one expressive element on this screen, so everything else
+// steps back. What went:
+//   • the five-emoji confetti row and the "Thank You!" celebration state
+//   • the reactive rating copy ("Amazing! Thank you for the wonderful review!")
+//     and its face emoji — see the note in ratingSlice
+//   • four gradient section-icon chips, a gradient hero rule, a gradient avatar
+//     ring, a gradient loading tile and a gradient submit button
+//   • the entrance fade/slide/scale on every section
+//
+// What stayed: the star bounce, which answers a tap, and a confirmation that
+// says the thing plainly.
+// ============================================================================
+
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
   Animated,
-  StatusBar,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-// react-native's SafeAreaView is a no-op on Android; the context one applies
-// real insets on both platforms.
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SectionHeader,
+  Skeleton,
+} from '../../../../components/ui';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
+import { useReducedMotion } from '../../../../hooks/useReducedMotion';
+import { AppDispatch, RootState } from '../../../../store/store';
+import { formatAmount, formatInstant } from '../../../../utils/homeservice/format';
+import {
   initializeReview,
-  submitReview,
-  setRating,
-  setFeedback,
-  toggleTag,
-  setWouldRecommend,
   resetReviewState,
-  selectRatingMessage,
+  ServiceCategory,
   selectIsReviewValid,
+  selectRatingMessage,
   selectReviewCompleteness,
   selectSelectedTags,
-  ServiceCategory,
-  RATING_MESSAGES,
+  setFeedback,
+  setRating,
+  setWouldRecommend,
+  submitReview,
+  toggleTag,
 } from './ratingSlice';
-import { RootState, AppDispatch } from '../../../../store/store';
-import { formatInstant } from '../../../../utils/date/localDate';
-
-const { width, height } = Dimensions.get('window');
-
-// Service type configurations - matching ServiceStatusScreen
-const SERVICE_CONFIG: Record<
-  ServiceCategory,
-  {
-    gradient: [string, string];
-    lightGradient: [string, string];
-    accentColor: string;
-    icon: keyof typeof Ionicons.glyphMap;
-  }
-> = {
-  electricians: {
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-    icon: 'flash',
-  },
-  plumbers: {
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-    icon: 'water',
-  },
-  'ac-repairers': {
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-    icon: 'snow',
-  },
-};
 
 type ReviewRouteParams = {
-  bookingId: string;
+  bookingId?: string;
   category?: ServiceCategory;
-  serviceData?: {
-    provider: string;
-    providerImage: string;
-    service: string;
-    serviceCost: number;
-    description: string;
-    duration: string;
-    completedAt: string;
-  };
 };
 
 export default function ReviewRatingScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: ReviewRouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
+  const bottomPad = useBottomBarPadding(GUTTER);
+  const reducedMotion = useReducedMotion();
 
   const { bookingId = 'default', category = 'ac-repairers' } = route.params || {};
+  const accent = categoryAccent(category);
 
-  // Redux state
   const provider = useSelector((state: RootState) => state.reviewRating?.provider);
   const serviceDetails = useSelector((state: RootState) => state.reviewRating?.serviceDetails);
   const review = useSelector((state: RootState) => state.reviewRating?.review);
@@ -115,33 +99,17 @@ export default function ReviewRatingScreen() {
     [serviceDetails?.completedAt]
   );
 
-  // Local state
-  const [isReady, setIsReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState('');
+  const [showDiscardSheet, setShowDiscardSheet] = useState(false);
 
-  // Post-submit navigation timer, cancelled on unmount (see runThankYouAnimation).
+  // Post-submit navigation timer, cancelled on unmount.
   const thankYouTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Animation refs.
-  // fadeAnim starts at 1: entrance motion is an enhancement, never the thing
-  // that makes content visible. Starting at 0 meant any path where the
-  // entrance effect did not run left a fully-rendered but invisible screen.
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  // The one animation left on this screen.
   const starAnimations = useRef([1, 2, 3, 4, 5].map(() => new Animated.Value(1))).current;
-  const thankYouScale = useRef(new Animated.Value(0)).current;
-  const thankYouOpacity = useRef(new Animated.Value(0)).current;
-  const confettiAnim = useRef(new Animated.Value(0)).current;
 
-  const serviceConfig = SERVICE_CONFIG[category] || SERVICE_CONFIG['ac-repairers'];
-
-  // Initialize review data
   useFocusEffect(
     useCallback(() => {
-      setIsReady(false);
-      slideAnim.setValue(30);
-      scaleAnim.setValue(0.95);
       setLocalFeedback('');
 
       // Wipe the previous review before loading this one. initializeReview only
@@ -149,13 +117,7 @@ export default function ReviewRatingScreen() {
       // survives, so without this a half-filled rating from the last booking
       // showed up pre-populated on the next one.
       dispatch(resetReviewState());
-
-      dispatch(
-        initializeReview({
-          bookingId,
-          category,
-        })
-      );
+      dispatch(initializeReview({ bookingId, category }));
 
       return () => {
         // Any pending post-submit navigation belongs to the screen being left,
@@ -165,116 +127,39 @@ export default function ReviewRatingScreen() {
           thankYouTimer.current = null;
         }
       };
-    }, [bookingId, category, dispatch, slideAnim, scaleAnim])
+    }, [bookingId, category, dispatch])
   );
 
-  // Run entrance animations when data is loaded
+  // Leave the confirmation on screen briefly, then go home. The handle is kept
+  // so unmount can cancel it: left dangling, this fired 3.5s later against
+  // whatever screen existed by then.
   useEffect(() => {
-    if (!isLoading && provider && !isReady) {
-      setIsReady(true);
-      runEntranceAnimations();
-    }
-  }, [isLoading, provider, isReady]);
-
-  // Handle submission completion
-  useEffect(() => {
-    if (submissionStatus === 'submitted') {
-      runThankYouAnimation();
-    }
-  }, [submissionStatus]);
-
-  const runEntranceAnimations = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 80,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim, scaleAnim]);
-
-  const runThankYouAnimation = useCallback(() => {
-    Animated.parallel([
-      Animated.spring(thankYouScale, {
-        toValue: 1,
-        tension: 60,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(thankYouOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(confettiAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Navigate to home after delay.
-    //
-    // The handle is kept so unmount can cancel it. Left dangling, this fired
-    // 3.5s later against whatever screen existed by then — rate one service,
-    // immediately open another, and this timer wiped the second screen's state
-    // and yanked the user to Home mid-review.
+    if (submissionStatus !== 'submitted') return;
     thankYouTimer.current = setTimeout(() => {
       dispatch(resetReviewState());
-      // @ts-ignore
       navigation.navigate('Home');
-    }, 3500);
-  }, [thankYouScale, thankYouOpacity, confettiAnim, dispatch, navigation]);
+    }, 2500);
+  }, [submissionStatus, dispatch, navigation]);
 
   const handleBackPress = useCallback(() => {
-    if (isSubmitting) {
-      Alert.alert('Please Wait', 'Your review is being submitted.');
+    if (isSubmitting) return;
+    if (review?.rating > 0 || review?.feedback) {
+      setShowDiscardSheet(true);
       return;
     }
-
-    if (review?.rating > 0 || review?.feedback) {
-      Alert.alert(
-        'Discard Review?',
-        'You have unsaved changes. Are you sure you want to leave?',
-        [
-          { text: 'Stay', style: 'cancel' },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => {
-              dispatch(resetReviewState());
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    } else {
-      dispatch(resetReviewState());
-      navigation.goBack();
-    }
+    dispatch(resetReviewState());
+    navigation.goBack();
   }, [dispatch, navigation, isSubmitting, review]);
 
   const handleRatingSelect = useCallback(
     (selectedRating: number) => {
       dispatch(setRating(selectedRating));
+      if (reducedMotion) return;
 
-      // Animate the selected star
       Animated.sequence([
         Animated.timing(starAnimations[selectedRating - 1], {
-          toValue: 1.4,
-          duration: 150,
+          toValue: 1.35,
+          duration: 130,
           useNativeDriver: true,
         }),
         Animated.spring(starAnimations[selectedRating - 1], {
@@ -285,43 +170,13 @@ export default function ReviewRatingScreen() {
         }),
       ]).start();
     },
-    [dispatch, starAnimations]
-  );
-
-  const handleFeedbackChange = useCallback(
-    (text: string) => {
-      setLocalFeedback(text);
-      dispatch(setFeedback(text));
-    },
-    [dispatch]
-  );
-
-  const handleTagToggle = useCallback(
-    (tag: string) => {
-      dispatch(toggleTag(tag));
-    },
-    [dispatch]
-  );
-
-  const handleRecommendToggle = useCallback(
-    (value: boolean) => {
-      dispatch(setWouldRecommend(value));
-    },
-    [dispatch]
+    [dispatch, starAnimations, reducedMotion]
   );
 
   const handleSubmit = useCallback(() => {
-    if (!isReviewValid) {
-      Alert.alert('Rating Required', 'Please select a rating before submitting.');
-      return;
-    }
-
+    if (!isReviewValid) return;
     dispatch(
-      submitReview({
-        bookingId,
-        providerId: provider?.id || '',
-        review: review!,
-      })
+      submitReview({ bookingId, providerId: provider?.id || '', review: review! })
     );
   }, [isReviewValid, dispatch, bookingId, provider, review]);
 
@@ -330,1066 +185,484 @@ export default function ReviewRatingScreen() {
   // spinner and span there forever with no way out and nothing explaining why.
   if (error && !provider) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingContainer}>
-          <View style={styles.errorIcon}>
-            <Ionicons name="cloud-offline-outline" size={32} color="#94A3B8" />
-          </View>
-          <Text style={styles.errorTitle}>Couldn't load this review</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: serviceConfig.accentColor }]}
-            onPress={() => dispatch(initializeReview({ bookingId, category }))}
-          >
-            <Ionicons name="refresh" size={16} color="#FFFFFF" />
-            <Text style={styles.retryButtonText}>Try again</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
-            <Text style={{ color: '#64748B', fontWeight: '600' }}>Go back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <AppBar title="Rate service" onBack={() => navigation.goBack()} />
+        <ErrorState
+          title="We couldn't load this review"
+          message={error}
+          onRetry={() => dispatch(initializeReview({ bookingId, category }))}
+        />
+      </Screen>
     );
   }
 
-  // Loading state
   if (isLoading || !provider) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingContainer}>
-          <LinearGradient colors={serviceConfig.gradient} style={styles.loadingIcon}>
-            <Ionicons name="star-outline" size={32} color="#FFFFFF" />
-          </LinearGradient>
-          <Text style={styles.loadingText}>Loading review...</Text>
+      <Screen>
+        <AppBar title="Rate service" onBack={() => navigation.goBack()} />
+        <View style={styles.loading} accessibilityLabel="Loading review">
+          <Skeleton width="100%" height={120} radius={R.card} />
+          <Skeleton width="50%" height={16} style={styles.loadingGap} />
+          <Skeleton width="100%" height={90} radius={R.card} style={styles.loadingGapSm} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
-  // Thank you state
   if (submissionStatus === 'submitted') {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <Animated.View
-          style={[
-            styles.thankYouContainer,
-            {
-              opacity: thankYouOpacity,
-              transform: [{ scale: thankYouScale }],
-            },
-          ]}
-        >
-          <View style={styles.thankYouContent}>
-            {/* Confetti Effect */}
-            <Animated.View
-              style={[
-                styles.confettiContainer,
-                {
-                  opacity: confettiAnim,
-                  transform: [
-                    {
-                      translateY: confettiAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-50, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {['🎉', '⭐', '🎊', '✨', '💫'].map((emoji, index) => (
-                <Text
-                  key={index}
-                  style={[
-                    styles.confettiEmoji,
-                    { left: `${15 + index * 18}%` },
-                  ]}
-                >
-                  {emoji}
-                </Text>
-              ))}
-            </Animated.View>
-
-            <LinearGradient
-              colors={['#D1FAE5', '#A7F3D0']}
-              style={styles.thankYouIconBg}
-            >
-              <Ionicons name="heart" size={56} color="#10B981" />
-            </LinearGradient>
-
-            <Text style={styles.thankYouTitle}>Thank You! 🎉</Text>
-            <Text style={styles.thankYouText}>
-              Your feedback helps us improve our services and helps other users make better choices.
-            </Text>
-
-            {submissionResult?.rewardPoints && (
-              <View style={styles.rewardBadge}>
-                <Ionicons name="gift-outline" size={18} color="#F59E0B" />
-                <Text style={styles.rewardText}>
-                  +{submissionResult.rewardPoints} points earned!
-                </Text>
-              </View>
-            )}
-
-            <Text style={styles.redirectText}>Redirecting to home...</Text>
-          </View>
-        </Animated.View>
-      </SafeAreaView>
+      <Screen>
+        <AppBar title="Rate service" hideBack />
+        <EmptyState
+          icon="checkmark-circle-outline"
+          title="Review submitted"
+          message={
+            submissionResult?.rewardPoints
+              ? `Thanks — that's ${submissionResult.rewardPoints} points added to your account.`
+              : 'Thanks. It helps the next person choose.'
+          }
+        />
+      </Screen>
     );
   }
 
-  const renderHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.headerGradient}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBackPress}
-            activeOpacity={0.8}
-            disabled={isSubmitting}
-          >
-            <Ionicons name="chevron-back" size={22} color="#1E293B" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Rate Service</Text>
-
-          <View style={[styles.completeBadge, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.completeText}>Complete</Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderProviderCard = () => (
-    <Animated.View
-      style={[
-        styles.providerCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={serviceConfig.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.cardAccent}
-      />
-
-      <View style={styles.providerContent}>
-        <View style={styles.providerImageWrapper}>
-          <LinearGradient colors={serviceConfig.lightGradient} style={styles.imageRing}>
-            <Image source={{ uri: provider.image }} style={styles.providerImage} />
-          </LinearGradient>
-          <View
-            style={[styles.serviceIconBadge, { backgroundColor: serviceConfig.accentColor }]}
-          >
-            <Ionicons name={serviceConfig.icon} size={12} color="#FFFFFF" />
-          </View>
-        </View>
-
-        <Text style={styles.providerName}>{provider.name}</Text>
-        <Text style={styles.providerService}>{provider.service}</Text>
-
-        {/* The review endpoint sends `completedAt` as a raw ISO instant, which
-            this rendered verbatim — "Completed 2026-09-03T18:22:41.507Z". */}
-        {!!completedAtLabel && (
-          <View style={styles.completionInfo}>
-            <Ionicons name="checkmark-done" size={14} color="#10B981" />
-            <Text style={styles.completionText}>Completed {completedAtLabel}</Text>
-          </View>
-        )}
-      </View>
-    </Animated.View>
-  );
-
-  const renderRatingSection = () => (
-    <Animated.View
-      style={[
-        styles.sectionCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-          <Ionicons name="star-outline" size={18} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>How was your experience?</Text>
-      </View>
-
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => {
-          const isSelected = star <= (review?.rating || 0);
-          return (
-            <TouchableOpacity
-              key={star}
-              style={styles.starButton}
-              onPress={() => handleRatingSelect(star)}
-              activeOpacity={0.7}
-            >
-              <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
-                <Ionicons
-                  name={isSelected ? 'star' : 'star-outline'}
-                  size={40}
-                  color={isSelected ? '#FBBF24' : '#CBD5E1'}
-                />
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {ratingMessage && (
-        <Animated.View style={[styles.ratingFeedback, { opacity: fadeAnim }]}>
-          <Text style={styles.ratingEmoji}>{ratingMessage.emoji}</Text>
-          <Text style={styles.ratingTitle}>{ratingMessage.title}</Text>
-          <Text style={styles.ratingSubtitle}>{ratingMessage.subtitle}</Text>
-        </Animated.View>
-      )}
-    </Animated.View>
-  );
-
-  const renderTagsSection = () => (
-    <Animated.View
-      style={[
-        styles.sectionCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-          <Ionicons name="pricetags-outline" size={18} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <View>
-          <Text style={styles.sectionTitle}>What stood out?</Text>
-          <Text style={styles.sectionSubtitle}>Select all that apply</Text>
-        </View>
-      </View>
-
-      <View style={styles.tagsContainer}>
-        {availableTags.map((tag) => {
-          const isSelected = selectedTags.includes(tag);
-          return (
-            <TouchableOpacity
-              key={tag}
-              style={[
-                styles.tagChip,
-                isSelected && {
-                  backgroundColor: `${serviceConfig.accentColor}15`,
-                  borderColor: serviceConfig.accentColor,
-                },
-              ]}
-              onPress={() => handleTagToggle(tag)}
-              activeOpacity={0.7}
-            >
-              {isSelected && (
-                <Ionicons name="checkmark" size={14} color={serviceConfig.accentColor} />
-              )}
-              <Text
-                style={[
-                  styles.tagText,
-                  isSelected && { color: serviceConfig.accentColor, fontWeight: '600' },
-                ]}
-              >
-                {tag}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </Animated.View>
-  );
-
-  const renderFeedbackSection = () => (
-    <Animated.View
-      style={[
-        styles.sectionCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-          <Ionicons name="chatbubble-outline" size={18} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <View>
-          <Text style={styles.sectionTitle}>Write a review</Text>
-          <Text style={styles.sectionSubtitle}>Share your experience (optional)</Text>
-        </View>
-      </View>
-
-      <View style={styles.feedbackInputContainer}>
-        <TextInput
-          style={styles.feedbackInput}
-          placeholder="Tell us about your experience with this service provider..."
-          placeholderTextColor="#94A3B8"
-          value={localFeedback}
-          onChangeText={handleFeedbackChange}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          maxLength={500}
-        />
-        <Text style={styles.charCount}>{localFeedback.length}/500</Text>
-      </View>
-    </Animated.View>
-  );
-
-  const renderRecommendSection = () => (
-    <Animated.View
-      style={[
-        styles.sectionCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-          <Ionicons name="people-outline" size={18} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Would you recommend?</Text>
-      </View>
-
-      <View style={styles.recommendOptions}>
-        <TouchableOpacity
-          style={[
-            styles.recommendButton,
-            review?.wouldRecommend === true && {
-              backgroundColor: '#10B98115',
-              borderColor: '#10B981',
-            },
-          ]}
-          onPress={() => handleRecommendToggle(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={review?.wouldRecommend === true ? 'thumbs-up' : 'thumbs-up-outline'}
-            size={24}
-            color={review?.wouldRecommend === true ? '#10B981' : '#64748B'}
-          />
-          <Text
-            style={[
-              styles.recommendText,
-              review?.wouldRecommend === true && { color: '#10B981', fontWeight: '600' },
-            ]}
-          >
-            Yes
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.recommendButton,
-            review?.wouldRecommend === false && {
-              backgroundColor: '#FEE2E2',
-              borderColor: '#EF4444',
-            },
-          ]}
-          onPress={() => handleRecommendToggle(false)}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={review?.wouldRecommend === false ? 'thumbs-down' : 'thumbs-down-outline'}
-            size={24}
-            color={review?.wouldRecommend === false ? '#EF4444' : '#64748B'}
-          />
-          <Text
-            style={[
-              styles.recommendText,
-              review?.wouldRecommend === false && { color: '#EF4444', fontWeight: '600' },
-            ]}
-          >
-            No
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-
-  const renderServiceSummary = () => (
-    <Animated.View
-      style={[
-        styles.summaryCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.summaryHeader}>
-        <Text style={styles.summaryTitle}>Service Summary</Text>
-        <View style={[styles.paidBadge, { backgroundColor: '#10B98115' }]}>
-          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-          <Text style={styles.paidText}>
-            {serviceDetails?.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.descriptionBox}>
-        <Text style={styles.descriptionText}>{serviceDetails?.description}</Text>
-      </View>
-
-      <View style={styles.summaryRows}>
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="construct-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Service</Text>
-          </View>
-          <Text style={styles.rowValue}>{provider.service}</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="person-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Provider</Text>
-          </View>
-          <Text style={styles.rowValue}>{provider.name}</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="time-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Duration</Text>
-          </View>
-          <Text style={styles.rowValue}>{serviceDetails?.duration}</Text>
-        </View>
-
-        <View style={styles.totalRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="cash-outline" size={16} color="#64748B" />
-            <Text style={styles.totalLabel}>Total Amount</Text>
-          </View>
-          <Text style={[styles.totalValue, { color: serviceConfig.accentColor }]}>
-            {/* The optional chain stopped one level short: a present
-                serviceDetails with a missing totalAmount threw and blanked
-                the screen. */}
-            Rs {serviceDetails?.totalAmount?.toLocaleString() ?? '—'}
-          </Text>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderSubmitButton = () => (
-    <Animated.View
-      style={[
-        styles.submitContainer,
-        {
-          opacity: fadeAnim,
-        },
-      ]}
-    >
-      {/* Completeness indicator */}
-      <View style={styles.completenessContainer}>
-        <View style={styles.completenessBar}>
-          <View
-            style={[
-              styles.completenessProgress,
-              {
-                width: `${reviewCompleteness}%`,
-                backgroundColor: serviceConfig.accentColor,
-              },
-            ]}
-          />
-        </View>
-        <Text style={styles.completenessText}>{reviewCompleteness}% complete</Text>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.submitButton, !isReviewValid && styles.submitButtonDisabled]}
-        onPress={handleSubmit}
-        activeOpacity={0.9}
-        disabled={!isReviewValid || isSubmitting}
-      >
-        <LinearGradient
-          colors={
-            isReviewValid && !isSubmitting
-              ? serviceConfig.gradient
-              : ['#CBD5E1', '#94A3B8']
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.submitButtonGradient}
-        >
-          {isSubmitting ? (
-            <>
-              <MaterialCommunityIcons name="loading" size={20} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Submitting...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="send" size={20} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Submit Review</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            </>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {renderHeader()}
+    <Screen>
+      <AppBar title="Rate service" onBack={handleBackPress} />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {renderProviderCard()}
-          {renderRatingSection()}
-          {renderTagsSection()}
-          {renderFeedbackSection()}
-          {renderRecommendSection()}
-          {renderServiceSummary()}
-          <View style={{ height: 140 }} />
+          <Card accentRule={accent.tint}>
+            <View style={styles.providerRow}>
+              <Avatar
+                uri={provider.image}
+                name={provider.name}
+                size={48}
+                tint={accent.tintSoft}
+                color={accent.tint}
+              />
+              <View style={styles.providerInfo}>
+                <Text style={styles.providerName} numberOfLines={1}>
+                  {provider.name}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {provider.service}
+                </Text>
+                {/* The review endpoint sends `completedAt` as a raw ISO
+                    instant, which this rendered verbatim. */}
+                {!!completedAtLabel && (
+                  <Text style={styles.metaFaint}>Completed {completedAtLabel}</Text>
+                )}
+              </View>
+            </View>
+          </Card>
+
+          <View style={styles.section}>
+            <SectionHeader title="How was it?" />
+            <View style={styles.stars}>
+              {[1, 2, 3, 4, 5].map((star) => {
+                const isSelected = star <= (review?.rating || 0);
+                return (
+                  <TouchableOpacity
+                    key={star}
+                    style={styles.starButton}
+                    onPress={() => handleRatingSelect(star)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${star} ${star === 1 ? 'star' : 'stars'}`}
+                    accessibilityState={{ selected: isSelected }}
+                  >
+                    <Animated.View style={{ transform: [{ scale: starAnimations[star - 1] }] }}>
+                      <Ionicons
+                        name={isSelected ? 'star' : 'star-outline'}
+                        size={38}
+                        color={isSelected ? C.star : C.disabled}
+                      />
+                    </Animated.View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {!!ratingMessage && <Text style={styles.ratingLabel}>{ratingMessage.title}</Text>}
+          </View>
+
+          {availableTags.length > 0 && (
+            <View style={styles.section}>
+              <SectionHeader title="What stood out?" subtitle="Optional, pick any" />
+              <View style={styles.tags}>
+                {availableTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[styles.tag, isSelected && styles.tagSelected]}
+                      onPress={() => dispatch(toggleTag(tag))}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={13}
+                          color={HS.accentDeep}
+                          style={styles.tagCheck}
+                        />
+                      )}
+                      <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <SectionHeader title="Write a review" subtitle="Optional" />
+            <TextInput
+              style={styles.feedback}
+              placeholder="What went well, what didn't — whatever would help the next person."
+              placeholderTextColor={C.inkFaint}
+              value={localFeedback}
+              onChangeText={(text) => {
+                setLocalFeedback(text);
+                dispatch(setFeedback(text));
+              }}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              maxLength={500}
+            />
+            <Text style={styles.charCount}>{localFeedback.length}/500</Text>
+          </View>
+
+          <View style={styles.section}>
+            <SectionHeader title="Would you book them again?" />
+            <View style={styles.recommendRow}>
+              <TouchableOpacity
+                style={[styles.recommend, review?.wouldRecommend === true && styles.recommendYes]}
+                onPress={() => dispatch(setWouldRecommend(true))}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: review?.wouldRecommend === true }}
+              >
+                <Ionicons
+                  name={review?.wouldRecommend === true ? 'thumbs-up' : 'thumbs-up-outline'}
+                  size={20}
+                  color={review?.wouldRecommend === true ? C.success : C.inkMuted}
+                />
+                <Text
+                  style={[
+                    styles.recommendText,
+                    review?.wouldRecommend === true && { color: C.success, fontWeight: '600' },
+                  ]}
+                >
+                  Yes
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.recommend, review?.wouldRecommend === false && styles.recommendNo]}
+                onPress={() => dispatch(setWouldRecommend(false))}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: review?.wouldRecommend === false }}
+              >
+                <Ionicons
+                  name={review?.wouldRecommend === false ? 'thumbs-down' : 'thumbs-down-outline'}
+                  size={20}
+                  color={review?.wouldRecommend === false ? C.error : C.inkMuted}
+                />
+                <Text
+                  style={[
+                    styles.recommendText,
+                    review?.wouldRecommend === false && { color: C.error, fontWeight: '600' },
+                  ]}
+                >
+                  No
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <SectionHeader title="The job" />
+            <Card style={styles.summaryCard}>
+              {!!serviceDetails?.description && (
+                <Text style={styles.description}>{serviceDetails.description}</Text>
+              )}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryKey}>Service</Text>
+                <Text style={styles.summaryValue}>{provider.service}</Text>
+              </View>
+              {!!serviceDetails?.duration && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryKey}>Duration</Text>
+                  <Text style={styles.summaryValue}>{serviceDetails.duration}</Text>
+                </View>
+              )}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryKey}>Payment</Text>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    { color: serviceDetails?.paymentStatus === 'paid' ? C.success : C.warning },
+                  ]}
+                >
+                  {serviceDetails?.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.summaryTotal]}>
+                <Text style={styles.summaryKey}>Total</Text>
+                {/* The optional chain stopped one level short: a present
+                    serviceDetails with a missing totalAmount threw and blanked
+                    the screen. */}
+                <Text style={styles.summaryValue}>
+                  {typeof serviceDetails?.totalAmount === 'number'
+                    ? formatAmount(serviceDetails.totalAmount)
+                    : '—'}
+                </Text>
+              </View>
+            </Card>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {renderSubmitButton()}
-    </SafeAreaView>
+      <View style={[styles.footer, { paddingBottom: bottomPad }]}>
+        <View style={styles.track}>
+          <View style={[styles.fill, { width: `${reviewCompleteness}%` }]} />
+        </View>
+        <Button
+          label="Submit review"
+          onPress={handleSubmit}
+          disabled={!isReviewValid}
+          loading={!!isSubmitting}
+        />
+        {!isReviewValid && <Text style={styles.footerHint}>Pick a star rating to submit.</Text>}
+      </View>
+
+      <ActionSheet
+        visible={showDiscardSheet}
+        title="Discard this review?"
+        message="What you've written so far won't be saved."
+        cancelLabel="Keep writing"
+        onClose={() => setShowDiscardSheet(false)}
+        options={[
+          {
+            label: 'Discard',
+            icon: 'trash-outline',
+            tone: 'destructive',
+            onPress: () => {
+              dispatch(resetReviewState());
+              navigation.goBack();
+            },
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  flex: { flex: 1 },
+  content: {
+    padding: GUTTER,
+    paddingBottom: S.huge,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  loading: {
+    padding: GUTTER,
   },
-  loadingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748B',
-  },
-  errorIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
+  loadingGap: { marginTop: SECTION },
+  loadingGapSm: { marginTop: S.md },
+
+  providerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
   },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  header: {
-    zIndex: 10,
-  },
-  headerGradient: {
-    // The SafeAreaView already supplies the top inset — see its import.
-    paddingTop: 12,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  completeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  completeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-  scrollView: {
+  providerInfo: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  providerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cardAccent: {
-    height: 4,
-  },
-  providerContent: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  providerImageWrapper: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  imageRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    padding: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  providerImage: {
-    width: 74,
-    height: 74,
-    borderRadius: 21,
-    backgroundColor: '#F1F5F9',
-  },
-  serviceIconBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 26,
-    height: 26,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    marginLeft: S.md,
   },
   providerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
+    ...T.subhead,
+    color: C.ink,
   },
-  providerService: {
-    fontSize: 14,
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  completionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  completionText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '500',
-  },
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+  meta: {
+    ...T.caption,
+    color: C.inkMuted,
     marginTop: 2,
   },
-  starsContainer: {
+  metaFaint: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 2,
+  },
+
+  section: {
+    marginTop: SECTION,
+  },
+
+  stars: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    marginTop: S.lg,
   },
   starButton: {
-    padding: 4,
+    paddingHorizontal: S.sm,
   },
-  ratingFeedback: {
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 16,
-  },
-  ratingEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  ratingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  ratingSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+  ratingLabel: {
+    ...T.subhead,
+    color: C.ink,
     textAlign: 'center',
+    marginTop: S.md,
   },
-  tagsContainer: {
+
+  tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginTop: S.md,
   },
-  tagChip: {
+  tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 4,
+    paddingHorizontal: S.md,
+    paddingVertical: 7,
+    borderRadius: R.chip,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+    marginRight: S.sm,
+    marginBottom: S.sm,
+  },
+  tagSelected: {
+    backgroundColor: HS.accentSoft,
+    borderColor: HS.accentLine,
+  },
+  tagCheck: {
+    marginRight: 4,
   },
   tagText: {
-    fontSize: 13,
-    color: '#64748B',
+    ...T.label,
+    color: C.inkMuted,
   },
-  feedbackInputContainer: {
-    position: 'relative',
+  tagTextSelected: {
+    color: HS.accentDeep,
+    fontWeight: '600',
   },
-  feedbackInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    color: '#1E293B',
-    minHeight: 100,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+
+  feedback: {
+    marginTop: S.md,
+    minHeight: 108,
+    padding: S.md,
+    borderRadius: R.control,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    ...T.body,
+    color: C.ink,
   },
   charCount: {
-    position: 'absolute',
-    bottom: 10,
-    right: 14,
-    fontSize: 11,
-    color: '#94A3B8',
+    ...T.caption,
+    color: C.inkFaint,
+    textAlign: 'right',
+    marginTop: S.xs,
   },
-  recommendOptions: {
+
+  recommendRow: {
     flexDirection: 'row',
-    gap: 12,
+    marginTop: S.md,
   },
-  recommendButton: {
+  recommend: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
+    height: 48,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+    marginHorizontal: S.xs,
+  },
+  recommendYes: {
+    backgroundColor: C.successSoft,
+    borderColor: C.success,
+  },
+  recommendNo: {
+    backgroundColor: C.errorSoft,
+    borderColor: C.error,
   },
   recommendText: {
-    fontSize: 15,
-    color: '#64748B',
+    ...T.body,
+    color: C.inkMuted,
+    marginLeft: S.sm,
   },
+
   summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    marginTop: S.md,
   },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  paidBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 4,
-  },
-  paidText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#10B981',
-  },
-  descriptionBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  descriptionText: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  summaryRows: {
-    gap: 14,
+  description: {
+    ...T.body,
+    color: C.inkMuted,
+    marginBottom: S.md,
+    maxWidth: PROSE_WIDTH,
   },
   summaryRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 6,
   },
-  rowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  summaryTotal: {
+    marginTop: S.sm,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
-  rowLabel: {
-    fontSize: 13,
-    color: '#64748B',
+  summaryKey: {
+    ...T.body,
+    color: C.inkMuted,
   },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
+  summaryValue: {
+    ...T.bodyStrong,
+    color: C.ink,
+    marginLeft: S.lg,
+    flexShrink: 1,
+    textAlign: 'right',
   },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    marginTop: 4,
+
+  footer: {
+    paddingHorizontal: GUTTER,
+    paddingTop: S.md,
+    backgroundColor: C.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.line,
   },
-  totalLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  totalValue: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  submitContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  completenessContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
-  completenessBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#E2E8F0',
+  track: {
+    height: 3,
     borderRadius: 2,
+    backgroundColor: C.surfaceSunken,
+    marginBottom: S.md,
     overflow: 'hidden',
   },
-  completenessProgress: {
+  fill: {
     height: '100%',
     borderRadius: 2,
+    backgroundColor: HS.accent,
   },
-  completenessText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  submitButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 10,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  thankYouContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  thankYouContent: {
-    alignItems: 'center',
-  },
-  confettiContainer: {
-    position: 'absolute',
-    top: -80,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  confettiEmoji: {
-    fontSize: 28,
-    position: 'absolute',
-  },
-  thankYouIconBg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  thankYouTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 12,
-  },
-  thankYouText: {
-    fontSize: 15,
-    color: '#64748B',
+  footerHint: {
+    ...T.caption,
+    color: C.inkMuted,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  rewardBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-    marginBottom: 20,
-  },
-  rewardText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  redirectText: {
-    fontSize: 13,
-    color: '#94A3B8',
+    marginTop: S.sm,
   },
 });

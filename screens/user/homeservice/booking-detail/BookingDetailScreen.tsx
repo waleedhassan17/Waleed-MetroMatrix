@@ -1,44 +1,59 @@
-// ============================================
-// Booking detail (HS8) — status timeline from statusHistory, price/payment
-// breakdown, and the contextual actions (cancel / chat / track / pay /
-// review / raise dispute). The bookings tab finally has somewhere to go.
-// ============================================
+// ============================================================================
+// Booking detail — status timeline from statusHistory, price/payment
+// breakdown, and the contextual actions (cancel / chat / track / pay / review /
+// raise dispute).
+//
+// This screen used a third palette (indigo #4F46E5) that appears nowhere else
+// in home services, seven differently-coloured action chips, raw
+// SCREAMING_SNAKE statuses ("EN_ROUTE"), a literal "★ 0" beside every unrated
+// provider, and `toLocaleString()` timestamps. All of that is now tokens,
+// `bookingStatus()` labels and the shared formatters.
+// ============================================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Image,
-  Alert,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Card,
+  ErrorState,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  StatusPill,
+} from '../../../../components/ui';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
 import { fetchBookingDetail } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 import { cancelBooking } from '../../../../networks/serviceProviders/bookingNetwork';
 import { isCallingSupported } from '../../../../services/call/usePeerConnection';
+import {
+  formatAmount,
+  formatBookingWhen,
+  formatInstant,
+  formatRating,
+} from '../../../../utils/homeservice/format';
 
 type Params = { bookingId: string };
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#F59E0B',
-  ACCEPTED: '#3B82F6',
-  EN_ROUTE: '#8B5CF6',
-  ARRIVED: '#06B6D4',
-  IN_PROGRESS: '#F97316',
-  COMPLETED: '#10B981',
-  CANCELLED: '#EF4444',
-  REJECTED: '#EF4444',
-};
-
 const CANCELLABLE = ['PENDING', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED'];
 const TRACKABLE = ['EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'];
+const CONTACTABLE_EXCLUDED = ['PENDING', 'REJECTED', 'CANCELLED'];
+
+// The detail endpoint speaks SCREAMING_SNAKE; `bookingStatus()` speaks the
+// booking vocabulary the rest of the module uses. One place to bridge them.
+const toStatusKey = (status?: string) => (status || '').toLowerCase();
+
+const humaniseStatus = (status?: string) =>
+  (status || '')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
 
 export default function BookingDetailScreen() {
   const navigation = useNavigation<any>();
@@ -48,6 +63,8 @@ export default function BookingDetailScreen() {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCancelSheet, setShowCancelSheet] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,290 +79,367 @@ export default function BookingDetailScreen() {
     load();
   }, [load]);
 
-  const doCancel = () => {
-    Alert.alert('Cancel booking', 'Are you sure you want to cancel this booking?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, cancel',
-        style: 'destructive',
-        onPress: async () => {
-          const res = await cancelBooking(bookingId, 'Cancelled from booking detail');
-          if (res.success) load();
-          else Alert.alert('Error', res.message || 'Could not cancel');
-        },
-      },
-    ]);
-  };
+  const doCancel = useCallback(async () => {
+    setCancelError(null);
+    const res = await cancelBooking(bookingId, 'Cancelled from booking detail');
+    if (res.success) load();
+    else setCancelError(res.message || "We couldn't cancel this booking. Try again.");
+  }, [bookingId, load]);
 
   const status = data?.canonicalStatus as string | undefined;
   const paid = data?.payment?.status === 'paid';
   // Cached after the first call — a native module cannot appear at runtime.
   const callingSupported = isCallingSupported();
+  const contactable = !!status && !CONTACTABLE_EXCLUDED.includes(status);
+
+  const actions = data
+    ? [
+        TRACKABLE.includes(status || '') && {
+          icon: 'navigate-outline',
+          label: 'Track',
+          onPress: () => navigation.navigate('liveTracking', { bookingId }),
+        },
+        contactable && {
+          icon: 'chatbubble-outline',
+          label: 'Message',
+          onPress: () =>
+            navigation.navigate('ProviderChatScreen', { bookingId, provider: data.provider }),
+        },
+        // Same gate as Message: only once the booking is live, since that is
+        // the room the realtime service authorizes both parties against. Also
+        // hidden outright where react-native-webrtc is not linked, so the call
+        // would ring and die.
+        callingSupported &&
+          contactable && {
+            icon: 'call-outline',
+            label: 'Call',
+            onPress: () =>
+              navigation.navigate('CallScreen', {
+                bookingId,
+                provider: data.provider,
+                counterpartName: data.provider?.name,
+              }),
+          },
+        status === 'COMPLETED' &&
+          !paid && {
+            icon: 'wallet-outline',
+            label: 'Pay',
+            onPress: () => navigation.navigate('PaymentScreen', { bookingId }),
+          },
+        status === 'COMPLETED' &&
+          paid &&
+          !data.review && {
+            icon: 'star-outline',
+            label: 'Review',
+            onPress: () => navigation.navigate('ReviewRating', { bookingId }),
+          },
+        status === 'COMPLETED' && {
+          icon: 'alert-circle-outline',
+          label: 'Dispute',
+          onPress: () => navigation.navigate('RaiseDispute', { bookingId }),
+        },
+        CANCELLABLE.includes(status || '') && {
+          icon: 'close-circle-outline',
+          label: 'Cancel',
+          destructive: true,
+          onPress: () => setShowCancelSheet(true),
+        },
+      ].filter(Boolean as any as (v: any) => v is { icon: string; label: string; destructive?: boolean; onPress: () => void })
+    : [];
+
+  const rating = formatRating(data?.provider?.rating);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Booking Detail</Text>
-        <View style={styles.headerBtn} />
-      </View>
+    <Screen>
+      <AppBar title="Booking" onBack={() => navigation.goBack()} />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.stateText}>Loading booking…</Text>
+        <View style={styles.loading} accessibilityLabel="Loading booking">
+          <Skeleton width="100%" height={120} radius={R.card} />
+          <Skeleton width="40%" height={16} style={styles.loadingGap} />
+          <Skeleton width="100%" height={160} radius={R.card} style={styles.loadingGapSm} />
         </View>
       ) : error || !data ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color="#9CA3AF" />
-          <Text style={styles.stateText}>{error || 'Booking not found'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title="We couldn't load this booking"
+          message={error || 'It may have been removed.'}
+          onRetry={load}
+        />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          {/* Provider card */}
-          <View style={styles.card}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Image source={{ uri: data.provider?.image }} style={styles.avatar} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.providerName}>{data.provider?.name}</Text>
-                <Text style={styles.providerSub}>
-                  {data.bookingDetails?.service} · ★ {data.provider?.rating}
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Card>
+            <View style={styles.providerRow}>
+              <Avatar uri={data.provider?.image} name={data.provider?.name} size={48} />
+              <View style={styles.providerInfo}>
+                <Text style={styles.providerName} numberOfLines={1}>
+                  {data.provider?.name}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {/* "★ 0" used to appear for every provider without reviews. */}
+                  {[data.bookingDetails?.service, rating ? `${rating} rating` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.statusChip,
-                  { backgroundColor: `${STATUS_COLORS[status || 'PENDING']}20` },
-                ]}
-              >
-                <Text
-                  style={[styles.statusChipText, { color: STATUS_COLORS[status || 'PENDING'] }]}
-                >
-                  {status}
-                </Text>
-              </View>
+              <StatusPill status={toStatusKey(status)} size="sm" />
             </View>
-            <View style={styles.divider} />
-            <Row icon="calendar-outline" text={`${data.bookingDetails?.selectedDate} · ${data.bookingDetails?.selectedTime}`} />
-            <Row icon="location-outline" text={data.bookingDetails?.selectedAddress?.address || '—'} />
-            {!!data.bookingDetails?.instructions && (
-              <Row icon="document-text-outline" text={data.bookingDetails.instructions} />
-            )}
-          </View>
 
-          {/* Status timeline */}
-          <Text style={styles.sectionTitle}>Status timeline</Text>
-          <View style={styles.card}>
-            {(data.statusHistory || []).map((h: any, i: number) => (
-              <View key={`${h.status}-${i}`} style={styles.timelineRow}>
-                <View style={styles.timelineLeft}>
-                  <View
-                    style={[styles.timelineDot, { backgroundColor: STATUS_COLORS[h.status] || '#9CA3AF' }]}
-                  />
-                  {i < data.statusHistory.length - 1 && <View style={styles.timelineLine} />}
-                </View>
-                <View style={{ flex: 1, paddingBottom: 14 }}>
-                  <Text style={styles.timelineStatus}>{h.status}</Text>
-                  <Text style={styles.timelineMeta}>
-                    {h.changedAt ? new Date(h.changedAt).toLocaleString() : ''} · {h.role}
-                  </Text>
-                  {!!h.note && <Text style={styles.timelineNote}>{h.note}</Text>}
-                </View>
+            <View style={styles.details}>
+              <View style={styles.detailRow}>
+                <Ionicons name="calendar-outline" size={15} color={C.inkFaint} />
+                <Text style={styles.detailText}>
+                  {formatBookingWhen(
+                    data.bookingDetails?.selectedDate,
+                    data.bookingDetails?.selectedTime
+                  )}
+                </Text>
               </View>
-            ))}
-          </View>
+              <View style={styles.detailRow}>
+                <Ionicons name="location-outline" size={15} color={C.inkFaint} />
+                <Text style={styles.detailText}>
+                  {data.bookingDetails?.selectedAddress?.address || 'No address on file'}
+                </Text>
+              </View>
+              {!!data.bookingDetails?.instructions && (
+                <View style={styles.detailRow}>
+                  <Ionicons name="document-text-outline" size={15} color={C.inkFaint} />
+                  <Text style={styles.detailText}>{data.bookingDetails.instructions}</Text>
+                </View>
+              )}
+            </View>
+          </Card>
 
-          {/* Payment */}
-          <Text style={styles.sectionTitle}>Payment</Text>
-          <View style={styles.card}>
+          {actions.length > 0 && (
+            <View style={styles.actions}>
+              {actions.map((action) => (
+                <TouchableOpacity
+                  key={action.label}
+                  style={styles.action}
+                  onPress={action.onPress}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.actionIcon, action.destructive && styles.actionIconDanger]}>
+                    <Ionicons
+                      name={action.icon as any}
+                      size={19}
+                      color={action.destructive ? C.error : C.ink}
+                    />
+                  </View>
+                  <Text style={[styles.actionLabel, action.destructive && styles.actionLabelDanger]}>
+                    {action.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {!!cancelError && <Text style={styles.error}>{cancelError}</Text>}
+
+          <SectionHeader title="Progress" style={styles.sectionHeader} />
+          <Card>
+            {(data.statusHistory || []).map((h: any, i: number) => {
+              const last = i === (data.statusHistory?.length ?? 0) - 1;
+              const when = formatInstant(h.changedAt);
+              return (
+                <View key={`${h.status}-${i}`} style={styles.timelineRow}>
+                  <View style={styles.timelineRail}>
+                    <View style={[styles.timelineDot, last && styles.timelineDotCurrent]} />
+                    {!last && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.timelineBody}>
+                    <Text style={styles.timelineStatus}>{humaniseStatus(h.status)}</Text>
+                    <Text style={styles.meta}>
+                      {[when, h.role].filter(Boolean).join(' · ')}
+                    </Text>
+                    {!!h.note && <Text style={styles.timelineNote}>{h.note}</Text>}
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+
+          <SectionHeader title="Payment" style={styles.sectionHeader} />
+          <Card>
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Amount</Text>
-              <Text style={styles.payValue}>Rs. {data.payment?.amount?.toLocaleString?.() || data.payment?.amount}</Text>
+              <Text style={styles.payValue}>{formatAmount(data.payment?.amount)}</Text>
             </View>
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Status</Text>
-              <Text style={[styles.payValue, { color: paid ? '#10B981' : '#F59E0B' }]}>
-                {data.payment?.status}
+              <Text style={[styles.payValue, { color: paid ? C.success : C.warning }]}>
+                {humaniseStatus(data.payment?.status) || 'Not settled'}
               </Text>
             </View>
             {!!data.payment?.method && (
               <View style={styles.payRow}>
                 <Text style={styles.payLabel}>Method</Text>
-                <Text style={styles.payValue}>{data.payment.method}</Text>
+                <Text style={styles.payValue}>{humaniseStatus(data.payment.method)}</Text>
               </View>
             )}
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            {TRACKABLE.includes(status || '') && (
-              <ActionBtn
-                icon="navigate"
-                label="Track"
-                color="#8B5CF6"
-                onPress={() => navigation.navigate('liveTracking', { bookingId })}
-              />
-            )}
-            {status && !['PENDING', 'REJECTED', 'CANCELLED'].includes(status) && (
-              <ActionBtn
-                icon="chatbubbles"
-                label="Chat"
-                color="#3B82F6"
-                onPress={() =>
-                  navigation.navigate('ProviderChatScreen', {
-                    bookingId,
-                    provider: data.provider,
-                  })
-                }
-              />
-            )}
-            {/* Voice call the provider. Same gate as Chat: only once the
-                booking is live, since that is the room the realtime service
-                authorizes both parties against. The provider's number is
-                resolved by the call screen from the chat endpoint.
-                Also hidden outright in builds where react-native-webrtc is not
-                linked, where the call would ring and die. */}
-            {callingSupported && status && !['PENDING', 'REJECTED', 'CANCELLED'].includes(status) && (
-              <ActionBtn
-                icon="call"
-                label="Call"
-                color="#10B981"
-                onPress={() =>
-                  navigation.navigate('CallScreen', {
-                    bookingId,
-                    provider: data.provider,
-                    counterpartName: data.provider?.name,
-                  })
-                }
-              />
-            )}
-            {status === 'COMPLETED' && !paid && (
-              <ActionBtn
-                icon="wallet"
-                label="Pay"
-                color="#10B981"
-                onPress={() => navigation.navigate('PaymentScreen', { bookingId })}
-              />
-            )}
-            {status === 'COMPLETED' && paid && !data.review && (
-              <ActionBtn
-                icon="star"
-                label="Review"
-                color="#F59E0B"
-                onPress={() => navigation.navigate('ReviewRating', { bookingId })}
-              />
-            )}
-            {CANCELLABLE.includes(status || '') && (
-              <ActionBtn icon="close-circle" label="Cancel" color="#EF4444" onPress={doCancel} />
-            )}
-            {status === 'COMPLETED' && (
-              <ActionBtn
-                icon="alert-circle"
-                label="Dispute"
-                color="#F97316"
-                onPress={() => navigation.navigate('RaiseDispute', { bookingId })}
-              />
-            )}
-          </View>
+          </Card>
         </ScrollView>
       )}
-    </SafeAreaView>
-  );
-}
 
-function Row({ icon, text }: { icon: any; text: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Ionicons name={icon} size={16} color="#6B7280" />
-      <Text style={styles.infoText}>{text}</Text>
-    </View>
-  );
-}
-
-function ActionBtn({
-  icon,
-  label,
-  color,
-  onPress,
-}: {
-  icon: any;
-  label: string;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: `${color}15` }]} onPress={onPress}>
-      <Ionicons name={icon} size={20} color={color} />
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
-    </TouchableOpacity>
+      <ActionSheet
+        visible={showCancelSheet}
+        title="Cancel this booking?"
+        message="The provider will be told, and you'll need to book again if you change your mind."
+        cancelLabel="Keep booking"
+        onClose={() => setShowCancelSheet(false)}
+        options={[
+          {
+            label: 'Cancel booking',
+            icon: 'close-circle-outline',
+            tone: 'destructive',
+            onPress: doCancel,
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
+  content: {
+    padding: GUTTER,
+    paddingBottom: S.huge,
+  },
+  loading: {
+    padding: GUTTER,
+  },
+  loadingGap: { marginTop: SECTION },
+  loadingGapSm: { marginTop: S.md },
+
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  providerInfo: {
+    flex: 1,
+    marginHorizontal: S.md,
+  },
+  providerName: {
+    ...T.subhead,
+    color: C.ink,
+  },
+  meta: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 2,
+  },
+
+  details: {
+    marginTop: S.lg,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: S.sm,
+  },
+  detailText: {
+    ...T.body,
+    color: C.inkMuted,
+    marginLeft: S.sm,
+    flex: 1,
+  },
+
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: S.lg,
+  },
+  action: {
+    alignItems: 'center',
+    width: '25%',
+    marginBottom: S.md,
+  },
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: R.control,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionIconDanger: {
+    backgroundColor: C.errorSoft,
+    borderColor: 'transparent',
+  },
+  actionLabel: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 5,
+  },
+  actionLabelDanger: {
+    color: C.error,
+  },
+  error: {
+    ...T.caption,
+    color: C.error,
+    marginTop: S.sm,
+  },
+
+  sectionHeader: {
+    marginTop: SECTION,
+    marginBottom: S.md,
+  },
+
+  timelineRow: {
+    flexDirection: 'row',
+  },
+  timelineRail: {
+    alignItems: 'center',
+    width: 18,
+  },
+  timelineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+    backgroundColor: C.disabled,
+  },
+  timelineDotCurrent: {
+    backgroundColor: HS.accent,
+  },
+  timelineLine: {
+    flex: 1,
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: C.line,
+    marginVertical: 3,
+  },
+  timelineBody: {
+    flex: 1,
+    paddingBottom: S.lg,
+    marginLeft: S.md,
+  },
+  timelineStatus: {
+    ...T.bodyStrong,
+    color: C.ink,
+  },
+  timelineNote: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: S.xs,
+  },
+
+  payRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : 14,
+    paddingVertical: 6,
   },
-  headerBtn: { width: 36, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 14,
+  payLabel: {
+    ...T.body,
+    color: C.inkMuted,
   },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#E5E7EB' },
-  providerName: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  providerSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  statusChip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  statusChipText: { fontSize: 11, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  infoText: { color: '#374151', fontSize: 13, marginLeft: 8, flex: 1, lineHeight: 18 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  timelineRow: { flexDirection: 'row' },
-  timelineLeft: { alignItems: 'center', width: 24 },
-  timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  timelineLine: { width: 2, flex: 1, backgroundColor: '#E5E7EB', marginTop: 2 },
-  timelineStatus: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  timelineMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  timelineNote: { fontSize: 12, color: '#6B7280', marginTop: 2, fontStyle: 'italic' },
-  payRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  payLabel: { color: '#6B7280', fontSize: 13 },
-  payValue: { color: '#111827', fontSize: 13, fontWeight: '700' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap' },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginRight: 10,
-    marginBottom: 10,
+  payValue: {
+    ...T.bodyStrong,
+    color: C.ink,
   },
-  actionLabel: { fontWeight: '700', fontSize: 13, marginLeft: 6 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: '#4F46E5',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
 });

@@ -15,8 +15,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
-import { startWork, completeWork } from './jobInProgressSlice';
+import { startWorkAsync, completeWorkAsync } from './jobInProgressSlice';
 import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
   AwaitingApproval: undefined;
@@ -29,6 +32,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const JobInProgressScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  // These screens rendered a bare View as their root, so on Android their
+  // headers sat under the status bar and on notched iPhones under the
+  // notch. Real insets, not StatusBar.currentHeight.
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use jobInProgress slice
@@ -51,25 +58,9 @@ const JobInProgressScreen: React.FC = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Pulse animation for status indicator
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
+  // The status indicator used to pulse forever. An animation that never
+  // resolves is decoration, not feedback — `pulseAnim` stays at 1, so the
+  // transform below is now the identity.
 
   // Timer for elapsed time
   useEffect(() => {
@@ -104,6 +95,11 @@ const JobInProgressScreen: React.FC = () => {
       .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Both of these used to dispatch a SYNC reducer, so the booking never moved
+  // server-side: the provider's clock started and the job "completed" purely in
+  // local Redux. The booking only ever reached COMPLETED because the customer
+  // could confirm it from their own app. These now go through the real
+  // ARRIVED → IN_PROGRESS → COMPLETED transitions.
   const handleStartWork = () => {
     Alert.alert(
       'Start Work',
@@ -112,7 +108,15 @@ const JobInProgressScreen: React.FC = () => {
         { text: 'Not Yet', style: 'cancel' },
         {
           text: 'Start Now',
-          onPress: () => dispatch(startWork()),
+          onPress: async () => {
+            const result = await dispatch(startWorkAsync(jobId) as any);
+            if (result?.meta?.requestStatus === 'rejected') {
+              Alert.alert(
+                'Could not start work',
+                (result.payload as string) || 'Please check your connection and try again.'
+              );
+            }
+          },
         },
       ]
     );
@@ -127,15 +131,24 @@ const JobInProgressScreen: React.FC = () => {
         {
           text: 'Yes, Complete',
           style: 'default',
-          onPress: () => {
-            dispatch(completeWork());
-            
-            // Calculate actual duration
-            const actualDuration = startTime
-              ? Math.round((Date.now() - new Date(startTime).getTime()) / 60000)
-              : null;
-            
-            // Set data for awaiting approval slice
+          onPress: async () => {
+            const result = await dispatch(completeWorkAsync(jobId) as any);
+            if (result?.meta?.requestStatus === 'rejected') {
+              Alert.alert(
+                'Could not complete job',
+                (result.payload as string) || 'Please check your connection and try again.'
+              );
+              return; // stay on the job — it is still in progress on the server
+            }
+
+            // Prefer the server's duration over a locally-derived one, so the
+            // provider and the customer are quoted the same number.
+            const actualDuration =
+              result.payload?.duration ??
+              (startTime
+                ? Math.round((Date.now() - new Date(startTime).getTime()) / 60000)
+                : null);
+
             dispatch(setAwaitingApprovalData({
               jobId,
               serviceType,
@@ -144,7 +157,7 @@ const JobInProgressScreen: React.FC = () => {
               actualDuration,
               estimatedPrice,
             }));
-            
+
             navigation.navigate('AwaitingApproval');
           },
         },
@@ -201,7 +214,7 @@ const JobInProgressScreen: React.FC = () => {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -224,7 +237,7 @@ const JobInProgressScreen: React.FC = () => {
               style={[
                 styles.statusIndicator,
                 {
-                  backgroundColor: workStarted ? '#10B981' : '#F59E0B',
+                  backgroundColor: workStarted ? HS.accent : C.warning,
                   transform: [{ scale: pulseAnim }],
                 },
               ]}
@@ -236,7 +249,7 @@ const JobInProgressScreen: React.FC = () => {
 
           {/* Timer */}
           <View style={styles.timerContainer}>
-            <Icon name="clock-outline" size={24} color="#6B7280" />
+            <Icon name="clock-outline" size={24} color={C.inkMuted} />
             <Text style={styles.timerText}>
               {workStarted ? formatTime(elapsedTime) : '00:00:00'}
             </Text>
@@ -288,8 +301,8 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Job Details</Text>
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconBg, { backgroundColor: '#ECFDF5' }]}>
-                <Icon name="wrench" size={18} color="#10B981" />
+              <View style={[styles.detailIconBg, { backgroundColor: HS.accentSoft }]}>
+                <Icon name="wrench" size={18} color={HS.accent} />
               </View>
               <View style={styles.detailInfo}>
                 <Text style={styles.detailTitle}>{serviceType}</Text>
@@ -329,7 +342,7 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Location</Text>
           <View style={styles.locationCard}>
             <View style={styles.locationIconBg}>
-              <Icon name="map-marker" size={18} color="#F59E0B" />
+              <Icon name="map-marker" size={18} color={C.warning} />
             </View>
             <View style={styles.locationInfo}>
               <Text style={styles.locationAddress}>{address}</Text>
@@ -343,7 +356,7 @@ const JobInProgressScreen: React.FC = () => {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionLabel}>Special Instructions</Text>
             <View style={styles.instructionsCard}>
-              <Icon name="information-outline" size={18} color="#F59E0B" />
+              <Icon name="information-outline" size={18} color={C.warning} />
               <Text style={styles.instructionsText}>
                 {specialInstructions}
               </Text>
@@ -356,20 +369,20 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Quick Actions</Text>
           <View style={styles.quickActionsRow}>
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleCallCustomer}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#ECFDF5' }]}>
-                <Icon name="phone" size={20} color="#10B981" />
+              <View style={[styles.quickActionIcon, { backgroundColor: HS.accentSoft }]}>
+                <Icon name="phone" size={20} color={HS.accent} />
               </View>
               <Text style={styles.quickActionLabel}>Call</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleMessageCustomer}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Icon name="message-text-outline" size={20} color="#3B82F6" />
+              <View style={[styles.quickActionIcon, { backgroundColor: C.infoSoft }]}>
+                <Icon name="message-text-outline" size={20} color={C.info} />
               </View>
               <Text style={styles.quickActionLabel}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionBtn} onPress={openDirections}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Icon name="navigation-variant" size={20} color="#F59E0B" />
+              <View style={[styles.quickActionIcon, { backgroundColor: C.warningSoft }]}>
+                <Icon name="navigation-variant" size={20} color={C.warning} />
               </View>
               <Text style={styles.quickActionLabel}>Directions</Text>
             </TouchableOpacity>
@@ -408,7 +421,7 @@ const JobInProgressScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -417,7 +430,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: C.inkMuted,
     fontFamily: 'Inter-Medium',
   },
   header: {
@@ -439,12 +452,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    color: C.ink,
   },
   headerSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 4,
   },
   content: {
@@ -478,25 +491,25 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   timerContainer: {
     alignItems: 'center',
     paddingVertical: 20,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: C.lineSoft,
   },
   timerText: {
     fontSize: 40,
     fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    color: C.ink,
     marginTop: 8,
   },
   timerLabel: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 4,
   },
   progressContainer: {
@@ -504,13 +517,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     borderRadius: 2,
     marginBottom: 16,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     borderRadius: 2,
   },
   progressSteps: {
@@ -530,21 +543,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   stepCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
   },
   stepActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
   },
   stepPending: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
   },
   stepLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#9CA3AF',
+    color: C.inkFaint,
   },
   stepLabelActive: {
-    color: '#10B981',
+    color: HS.accent,
   },
   sectionContainer: {
     marginBottom: 16,
@@ -552,7 +565,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontFamily: 'Inter-SemiBold',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginBottom: 10,
     marginLeft: 2,
   },
@@ -588,16 +601,16 @@ const styles = StyleSheet.create({
   detailTitle: {
     fontSize: 15,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   detailSubtitle: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 2,
   },
   priceTag: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -605,7 +618,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#10B981',
+    color: HS.accent,
   },
   customerCard: {
     flexDirection: 'row',
@@ -626,14 +639,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   customerInitial: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#10B981',
+    color: HS.accent,
   },
   customerInfo: {
     flex: 1,
@@ -642,12 +655,12 @@ const styles = StyleSheet.create({
   customerNameText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   customerPhoneText: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 2,
   },
   locationCard: {
@@ -666,7 +679,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: C.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -677,18 +690,18 @@ const styles = StyleSheet.create({
   locationAddress: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   locationCity: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 2,
   },
   instructionsCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: C.warningSoft,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
@@ -730,7 +743,7 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    color: C.inkMuted,
   },
   bottomContainer: {
     position: 'absolute',
@@ -742,7 +755,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: C.lineSoft,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
@@ -753,10 +766,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F59E0B',
+    backgroundColor: C.warning,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#F59E0B',
+    shadowColor: C.warning,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -772,10 +785,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

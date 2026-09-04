@@ -199,24 +199,12 @@ const paymentRequestSlice = createAppSlice({
       }
     ),
 
-    requestPayment: create.reducer((state) => {
-      state.paymentRequested = true;
-      state.isProcessing = true;
-    }),
-
-    receiveOnlinePayment: create.reducer((state, action: PayloadAction<string>) => {
-      state.paymentReceived = true;
-      state.paymentMethod = 'online';
-      state.transactionId = action.payload;
-      state.isProcessing = false;
-    }),
-
-    receiveCashPayment: create.reducer((state) => {
-      state.paymentReceived = true;
-      state.paymentMethod = 'cash';
-      state.transactionId = `CASH-${Date.now()}`;
-      state.isProcessing = false;
-    }),
+    // The `requestPayment` / `receiveOnlinePayment` / `receiveCashPayment`
+    // sync reducers that used to sit here are gone. They marked a payment
+    // received without asking the server, and `receiveCashPayment` minted its
+    // own `CASH-${Date.now()}` transaction id, so the provider's screen and the
+    // provider's earnings disagreed. The *Async thunks above do the same jobs
+    // against the real endpoints and carry the server's transaction id.
 
     setProcessing: create.reducer((state, action: PayloadAction<boolean>) => {
       state.isProcessing = action.payload;
@@ -257,9 +245,6 @@ export const {
   receiveCashPaymentAsync,
   setPaymentRequestData,
   updateCharges,
-  requestPayment,
-  receiveOnlinePayment,
-  receiveCashPayment,
   setProcessing,
   setError,
   clearError,

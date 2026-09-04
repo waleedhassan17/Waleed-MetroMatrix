@@ -31,18 +31,10 @@ import { ArrowLeft, Check } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../store/store';
 import { updateProfile, fetchProfile } from '../profile-screen/profileSlice';
+// Values come from the shared tokens via the provider bridge — see
+// screens/providers/homeservice/providerTheme.ts.
+import { flatTheme as theme } from '../providerTheme';
 
-const theme = {
-  primary: '#059669',
-  primaryDark: '#047857',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-  border: '#E5E7EB',
-  error: '#EF4444',
-};
 
 type FieldKey = 'name' | 'phone' | 'bio' | 'location';
 

@@ -44,8 +44,6 @@ import liveTrackingReducer from "../screens/user/homeservice/live-tracking/liveT
 import serviceStatusReducer from "../screens/user/homeservice/service-status/serviceSlice";
 import paymentReducer from "../screens/user/homeservice/payment-screen/paymentSlice";
 import reviewRatingReducer from "../screens/user/homeservice/rating-screen/ratingSlice";
-import quickSearchReducer from "../screens/user/homeservice/quick-search/quicksearchSlice";
-import searchProvidersReducer from "../screens/user/homeservice/search-providers/searchProvidersSlice";
 
 // Provider HomeService slices
 import providerDashboardReducer from "../screens/providers/homeservice/tabs/dashboard/dashboardSlice";
@@ -244,8 +242,6 @@ const appReducer = combineReducers({
   serviceStatus: serviceStatusReducer,
   payment: paymentReducer,
   reviewRating: reviewRatingReducer,
-  quickSearchForm: quickSearchReducer,
-  searchingProviders: searchProvidersReducer,
   dashboard: providerDashboardReducer,
   jobs: providerJobsReducer,
   earnings: providerEarningsReducer,

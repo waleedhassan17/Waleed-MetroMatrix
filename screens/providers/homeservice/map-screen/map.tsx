@@ -24,11 +24,14 @@ import {
   updateCurrentLocation,
   updateRouteInfo,
   setNearDestination,
-  arriveAtLocation,
+  markArrivedAsync,
 } from './mapSlice';
 import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
 import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
@@ -44,6 +47,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const NavigationMapScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  // These screens rendered a bare View as their root, so on Android their
+  // headers sat under the status bar and on notched iPhones under the
+  // notch. Real insets, not StatusBar.currentHeight.
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use navigationMap slice
@@ -69,26 +76,9 @@ const NavigationMapScreen: React.FC = () => {
 
   const destinationCoords = destination || { latitude: 31.5204, longitude: 74.3587 };
 
-  useEffect(() => {
-    // Pulse animation for destination marker
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-
-    return () => pulse.stop();
-  }, []);
+  // The destination marker used to pulse forever. On a moving map that is
+  // motion competing with motion, so the loop is gone; `pulseAnim` stays at 1
+  // and the transform it drives is now the identity.
 
   // HS7: share position with the customer ONLY while the job is EN_ROUTE or
   // ARRIVED (socket first, REST fallback), and stop entirely when the app is
@@ -228,9 +218,21 @@ const NavigationMapScreen: React.FC = () => {
         {
           text: "Yes, I've Arrived",
           style: 'default',
-          onPress: () => {
-            dispatch(arriveAtLocation());
-            
+          onPress: async () => {
+            // Was a sync reducer, so the booking never reached ARRIVED on the
+            // server and the customer's tracking screen never updated. The real
+            // transition also unblocks start-work, which requires ARRIVED.
+            if (job) {
+              const result = await dispatch(markArrivedAsync(job.id) as any);
+              if (result?.meta?.requestStatus === 'rejected') {
+                Alert.alert(
+                  'Could not confirm arrival',
+                  (result.payload as string) || 'Please check your connection and try again.'
+                );
+                return;
+              }
+            }
+
             // Set data for job in progress slice
             if (job) {
               dispatch(setJobInProgressData({
@@ -290,7 +292,7 @@ const NavigationMapScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Map */}
       <MapView
         ref={mapRef}
@@ -316,7 +318,7 @@ const NavigationMapScreen: React.FC = () => {
               ]}
             />
             <View style={styles.destinationMarker}>
-              <Icon name="map-marker" size={32} color="#10B981" />
+              <Icon name="map-marker" size={32} color={HS.accent} />
             </View>
           </View>
         </Marker>
@@ -328,7 +330,7 @@ const NavigationMapScreen: React.FC = () => {
             destination={destinationCoords}
             apikey={GOOGLE_MAPS_API_KEY}
             strokeWidth={5}
-            strokeColor="#10B981"
+            strokeColor={HS.accent}
             onReady={onDirectionsReady}
           />
         )}
@@ -340,11 +342,11 @@ const NavigationMapScreen: React.FC = () => {
           style={styles.controlButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="chevron-left" size={24} color="#1F2937" />
+          <Icon name="chevron-left" size={24} color={C.ink} />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.controlButton} onPress={centerOnRoute}>
-          <Icon name="crosshairs-gps" size={22} color="#1F2937" />
+          <Icon name="crosshairs-gps" size={22} color={C.ink} />
         </TouchableOpacity>
       </View>
 
@@ -352,12 +354,12 @@ const NavigationMapScreen: React.FC = () => {
       {distance && duration && (
         <View style={styles.etaBubble}>
           <View style={styles.etaItem}>
-            <Icon name="map-marker-distance" size={18} color="#10B981" />
+            <Icon name="map-marker-distance" size={18} color={HS.accent} />
             <Text style={styles.etaValue}>{distance}</Text>
           </View>
           <View style={styles.etaDivider} />
           <View style={styles.etaItem}>
-            <Icon name="clock-outline" size={18} color="#10B981" />
+            <Icon name="clock-outline" size={18} color={HS.accent} />
             <Text style={styles.etaValue}>{duration}</Text>
           </View>
         </View>
@@ -389,7 +391,7 @@ const NavigationMapScreen: React.FC = () => {
         {/* Location Card */}
         <View style={styles.locationCard}>
           <View style={styles.locationIconBg}>
-            <Icon name="map-marker" size={18} color="#F59E0B" />
+            <Icon name="map-marker" size={18} color={C.warning} />
           </View>
           <View style={styles.locationInfo}>
             <Text style={styles.locationAddress} numberOfLines={1}>
@@ -405,7 +407,7 @@ const NavigationMapScreen: React.FC = () => {
             style={styles.openMapsButton}
             onPress={handleOpenInMaps}
           >
-            <Icon name="google-maps" size={20} color="#10B981" />
+            <Icon name="google-maps" size={20} color={HS.accent} />
             <Text style={styles.openMapsText}>Open in Maps</Text>
           </TouchableOpacity>
 
@@ -426,7 +428,7 @@ const NavigationMapScreen: React.FC = () => {
         {/* Helper Text */}
         {!isNearDestination && (
           <Text style={styles.helperText}>
-            <Icon name="information-outline" size={14} color="#9CA3AF" />
+            <Icon name="information-outline" size={14} color={C.inkFaint} />
             {' '}Tap "I've Arrived" when you reach the location
           </Text>
         )}
@@ -438,7 +440,7 @@ const NavigationMapScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -447,7 +449,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: C.inkMuted,
     fontFamily: 'Inter-Medium',
   },
   map: {
@@ -499,12 +501,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 15,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   etaDivider: {
     width: 1,
     height: 20,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     marginHorizontal: 16,
   },
   destinationMarkerContainer: {
@@ -522,7 +524,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 6,
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -548,7 +550,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -568,14 +570,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   customerInitialSmall: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#10B981',
+    color: HS.accent,
   },
   customerDetails: {
     marginLeft: 12,
@@ -584,26 +586,26 @@ const styles = StyleSheet.create({
   customerNameText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   serviceTypeText: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 2,
   },
   callButton: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.bg,
     borderRadius: 14,
     padding: 12,
     marginBottom: 16,
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: C.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -623,12 +625,12 @@ const styles = StyleSheet.create({
   locationAddress: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#1F2937',
+    color: C.ink,
   },
   locationCity: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginTop: 2,
   },
   actionRow: {
@@ -640,34 +642,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     borderRadius: 14,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: HS.accentLine,
   },
   openMapsText: {
     marginLeft: 8,
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#10B981',
+    color: HS.accent,
   },
   arrivedButton: {
     flex: 0.55,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     borderRadius: 14,
     paddingVertical: 14,
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   arrivedButtonDisabled: {
-    backgroundColor: '#6EE7B7',
+    backgroundColor: HS.accentLine,
   },
   arrivedButtonText: {
     marginLeft: 8,
@@ -680,7 +682,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#9CA3AF',
+    color: C.inkFaint,
   },
 });
 

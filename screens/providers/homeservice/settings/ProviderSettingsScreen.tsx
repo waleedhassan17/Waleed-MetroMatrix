@@ -40,17 +40,10 @@ import type { RootState } from '../../../../store/store';
 import { updateAvailability, toggleNotifications } from '../profile-screen/profileSlice';
 import { performLogout } from '../../../../services/auth/logout';
 import { contactSupport } from '../../../../utils/support/contactSupport';
+// Values come from the shared tokens via the provider bridge — see
+// screens/providers/homeservice/providerTheme.ts.
+import { flatTheme as theme } from '../providerTheme';
 
-const theme = {
-  primary: '#059669',
-  primaryLight: '#D1FAE5',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  border: '#E5E7EB',
-  error: '#EF4444',
-};
 
 const PRIVACY_URL = 'https://metromatrix.com/privacy';
 const TERMS_URL = 'https://metromatrix.com/terms';

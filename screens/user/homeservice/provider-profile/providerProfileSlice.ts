@@ -32,7 +32,15 @@ const providerProfileSlice = createAppSlice({
   reducers: (create) => ({
     // Fetch provider by ID
     fetchProviderById: create.asyncThunk(
-      async ({ providerId, category }: { providerId: string; category: 'electricians' | 'plumbers' | 'ac-repairers' }, { rejectWithValue }) => {
+      // `category` is only carried for the caller's own routing context — the
+      // details endpoint resolves everything from the provider id — so it is
+      // optional. Requiring it forced screens to invent one, and the profile
+      // screen used to default a missing category to 'plumbers', which painted
+      // an electrician in a plumber's colour.
+      async (
+        { providerId }: { providerId: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' },
+        { rejectWithValue }
+      ) => {
         const response = await fetchProviderDetails(providerId);
         
         if (!response.success) {

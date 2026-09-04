@@ -1,62 +1,63 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Animated,
-  Platform,
-  StatusBar,
-  Dimensions,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+// ============================================================================
+// Provider dashboard
+//
+// The operator's home screen. It reads as the same product as the customer
+// side now — same tokens, same header, same card shape, same status pills —
+// because a super-app that changes design language between roles looks like two
+// apps stitched together.
+//
+// What changed: the gradient stat card is flat (numbers lead, not the ground
+// they sit on), the bell and speech-bubble emoji are real icons, the insight
+// carousel is a legible two-column grid, the accept/decline alerts are sheets,
+// and every control that used to render without an `onPress` either does
+// something now or is no longer a button.
+//
+// The activity feed also stops drawing a checkmark for every event type, and
+// the performance tiles stop drawing an up-arrow for a downward trend.
+// ============================================================================
+
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 import {
-  Home,
-  Briefcase,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  MapPin,
-  Phone,
-  MessageSquare,
-  Star,
-  TrendingUp,
-  ChevronRight,
-  Zap,
-  DollarSign,
-  Users,
-  Award,
-} from 'lucide-react-native';
+  ActionSheet,
+  Avatar,
+  Card,
+  Chip,
+  EmptyState,
+  Screen,
+  SectionHeader,
+  SkeletonCard,
+  StatusPill,
+} from '../../../../../components/ui';
+import { HS } from '../../../../../constants/HomeServiceTheme';
+import { C, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
+import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
+import { getSocket } from '../../../../../services/socket/socketClient';
+import type { RootState } from '../../../../../store/store';
+import { selectTotalUnread } from '../../../../../store/unreadSlice';
+import { formatPrice } from '../../../../../utils/homeservice/format';
+import { JobData, setJobDetail } from '../../jobdetail-screen/jobDetailSlice';
+import { fetchProfile } from '../../profile-screen/profileSlice';
 import {
+  acceptJob,
   fetchDashboardData,
   refreshDashboard,
-  acceptJob,
   rejectJob,
   setActiveTab,
 } from './dashboardSlice';
 import type {
-  DashboardProfile,
-  DashboardStats,
   DashboardInsight,
   DashboardJobLocal,
+  DashboardProfile,
+  DashboardStats,
   RecentActivity,
 } from './dashboardSlice';
-import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
-import type { RootState } from '../../../../../store/store';
-import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
-import { fetchProfile } from '../../profile-screen/profileSlice';
-import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
-import { selectTotalUnread } from '../../../../../store/unreadSlice';
-import { getSocket } from '../../../../../services/socket/socketClient';
 
 type RootStackParamList = {
   JobDetail: { job?: JobData };
@@ -64,131 +65,102 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const { width } = Dimensions.get('window');
-
-// Design System - Matching reference design
-const theme = {
-  colors: {
-    primary: '#059669',
-    primaryDark: '#047857',
-    primaryLight: '#D1FAE5',
-    background: '#F9FAFB',
-    surface: '#FFFFFF',
-    text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      tertiary: '#9CA3AF',
-      inverse: '#FFFFFF',
-    },
-    border: '#E5E7EB',
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-    info: '#3B82F6',
-    purple: '#8B5CF6',
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
-  },
-  borderRadius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    full: 9999,
-  },
-};
-
 const getGreeting = () => {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
 };
 
-const getInitials = (name?: string) => {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  const initials = parts.map((p) => p[0]?.toUpperCase() ?? '').join('');
-  return initials || 'P';
+// The feed used to draw a checkmark for every event, so a cancellation and a
+// completion looked identical at a glance.
+const ACTIVITY_ICONS: Record<string, string> = {
+  completed: 'checkmark-done-outline',
+  accepted: 'checkmark-circle-outline',
+  rejected: 'close-circle-outline',
+  cancelled: 'close-circle-outline',
+  payment: 'wallet-outline',
+  paid: 'wallet-outline',
+  review: 'star-outline',
+  rating: 'star-outline',
+  booking: 'calendar-outline',
+  created: 'calendar-outline',
+  message: 'chatbubble-outline',
+};
+
+const activityIcon = (type?: string) => {
+  const key = (type || '').toLowerCase();
+  const match = Object.keys(ACTIVITY_ICONS).find((k) => key.includes(k));
+  return match ? ACTIVITY_ICONS[match] : 'ellipse-outline';
 };
 
 // ---------------------------------------------------------------------------
 // Sections live at module scope on purpose. When they were declared inside
 // Dashboard, every render produced new component identities, so React
-// unmounted and remounted each subtree. Combined with the native-driver fade
-// below that left them stuck at opacity 0 — the "blank screen under the wallet
-// card" bug. Keep these out here.
+// unmounted and remounted each subtree — which, combined with the native-driver
+// fade that used to wrap them, left them stuck at opacity 0 (the "blank screen
+// under the wallet card" bug). The fade is gone now; keep these out here
+// anyway, because remounting a whole feed on every data change is wasteful.
 // ---------------------------------------------------------------------------
 
 const Header: React.FC<{
   profile: DashboardProfile;
   insetTop: number;
-  /** Passed in rather than taken from useNavigation here: this component is
-   *  deliberately module-scope (see the note at its call site about inline
-   *  components remounting and latching the fade at opacity 0), and a prop
-   *  keeps it that way. */
+  /** Passed in rather than taken from useNavigation here, so this component can
+   *  stay at module scope. */
   onOpenNotifications: () => void;
-}> = ({
-  profile,
-  insetTop,
-  onOpenNotifications,
-}) => {
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const showAvatar = !!profile.avatar && !avatarFailed;
+  onOpenProfile: () => void;
+}> = ({ profile, insetTop, onOpenNotifications, onOpenProfile }) => {
+  const credentials = [
+    profile.rating > 0 ? profile.rating.toFixed(1) : null,
+    profile.isPro ? 'Pro' : null,
+  ].filter(Boolean);
 
   return (
-    <View style={[styles.header, { paddingTop: Math.max(insetTop, theme.spacing.lg) }]}>
-      <View style={styles.headerLeft}>
-        <TouchableOpacity style={styles.avatarContainer}>
-          {showAvatar ? (
-            <Image
-              source={{ uri: profile.avatar as string }}
-              style={styles.avatar}
-              onError={() => setAvatarFailed(true)}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
-            </View>
-          )}
-          {profile.isOnline && <View style={styles.onlineDot} />}
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.userName} numberOfLines={1}>{profile.name || 'Provider'}</Text>
-          <View style={styles.badgeRow}>
-            {profile.rating > 0 && (
-              <View style={styles.ratingBadge}>
-                <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                <Text style={styles.ratingText}>{profile.rating.toFixed(1)}</Text>
-              </View>
-            )}
-            {profile.isPro && (
-              <View style={styles.proBadge}>
-                <Text style={styles.proText}>PRO</Text>
-              </View>
-            )}
+    <View style={[styles.header, { paddingTop: Math.max(insetTop, S.lg) }]}>
+      <TouchableOpacity
+        onPress={onOpenProfile}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Open your profile"
+      >
+        <Avatar
+          uri={profile.avatar}
+          name={profile.name}
+          size={46}
+          tint={HS.accentSoft}
+          color={HS.accentDeep}
+        />
+        {profile.isOnline && <View style={styles.onlineDot} />}
+      </TouchableOpacity>
+
+      <View style={styles.headerInfo}>
+        <Text style={styles.greeting}>{getGreeting()}</Text>
+        <Text style={styles.userName} numberOfLines={1}>
+          {profile.name || 'Provider'}
+        </Text>
+        {credentials.length > 0 && (
+          <View style={styles.credentials}>
+            {profile.rating > 0 && <Ionicons name="star" size={11} color={C.star} />}
+            <Text style={styles.credentialsText}>{credentials.join(' · ')}</Text>
           </View>
-        </View>
+        )}
       </View>
+
       {/* This bell had no onPress at all — it rendered, showed a badge, and did
           nothing when tapped. The badge was also the count of PENDING BOOKINGS
           under a notifications label, so it could never be cleared by reading
           anything; the server now returns a real unread count. */}
       <TouchableOpacity
-        style={styles.notificationBtn}
+        style={styles.bell}
         onPress={onOpenNotifications}
+        accessibilityRole="button"
         accessibilityLabel="Notifications"
       >
-        <Text style={styles.bellIcon}>🔔</Text>
+        <Ionicons name="notifications-outline" size={21} color={C.ink} />
         {(profile.unreadNotifications ?? 0) > 0 && (
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationBadgeText}>
+          <View style={styles.bellBadge}>
+            <Text style={styles.bellBadgeText}>
               {(profile.unreadNotifications ?? 0) > 9 ? '9+' : profile.unreadNotifications}
             </Text>
           </View>
@@ -199,40 +171,27 @@ const Header: React.FC<{
 };
 
 const StatsCard: React.FC<{ stats: DashboardStats }> = ({ stats }) => (
-  <View style={styles.statsCard}>
-    <LinearGradient
-      colors={[theme.colors.primary, theme.colors.primaryDark]}
-      style={styles.statsGradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <View style={styles.statIcon}>
-            <Briefcase size={20} color={theme.colors.text.inverse} />
-          </View>
-          <Text style={styles.statValue}>{stats.todayJobs}</Text>
-          <Text style={styles.statLabel}>Today's Jobs</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <View style={styles.statIcon}>
-            <Calendar size={20} color={theme.colors.text.inverse} />
-          </View>
-          <Text style={styles.statValue}>{stats.weekJobs}</Text>
-          <Text style={styles.statLabel}>This Week</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <View style={styles.statIcon}>
-            <CheckCircle2 size={20} color={theme.colors.text.inverse} />
-          </View>
-          <Text style={styles.statValue}>{stats.completionRate}%</Text>
-          <Text style={styles.statLabel}>Complete Rate</Text>
-        </View>
+  <Card style={styles.statsCard}>
+    <View style={styles.statsRow}>
+      <View style={styles.statItem}>
+        <Ionicons name="briefcase-outline" size={17} color={HS.accentDeep} />
+        <Text style={styles.statValue}>{stats.todayJobs}</Text>
+        <Text style={styles.statLabel}>Today</Text>
       </View>
-    </LinearGradient>
-  </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Ionicons name="calendar-outline" size={17} color={HS.accentDeep} />
+        <Text style={styles.statValue}>{stats.weekJobs}</Text>
+        <Text style={styles.statLabel}>This week</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Ionicons name="checkmark-done-outline" size={17} color={HS.accentDeep} />
+        <Text style={styles.statValue}>{stats.completionRate}%</Text>
+        <Text style={styles.statLabel}>Completed</Text>
+      </View>
+    </View>
+  </Card>
 );
 
 const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insights }) => {
@@ -240,49 +199,36 @@ const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insigh
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Performance</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAll}>View All</Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.insightScroll}
-      >
+      <SectionHeader title="Performance" />
+      <View style={styles.insightGrid}>
         {insights.map((insight) => {
-          // The API does not always send colours; falling back keeps
-          // `color + '20'` from producing the invalid colour "undefined20".
-          const accent = insight.color || theme.colors.primary;
+          const down = insight.trend === 'down';
           return (
-            <View
-              key={insight.id}
-              style={[
-                styles.insightCard,
-                { backgroundColor: insight.bgColor || theme.colors.surface },
-              ]}
-            >
-              <View style={styles.insightHeader}>
-                <View style={[styles.insightIcon, { backgroundColor: accent + '20' }]}>
-                  <TrendingUp size={18} color={accent} />
-                </View>
-                <View style={[styles.trendBadge, { backgroundColor: theme.colors.surface }]}>
-                  <TrendingUp
-                    size={12}
-                    color={insight.trend === 'down' ? theme.colors.error : theme.colors.success}
+            <View key={insight.id} style={styles.insightCell}>
+              <Card style={styles.insightCard}>
+                <Text style={styles.insightValue}>{insight.value}</Text>
+                <Text style={styles.insightTitle} numberOfLines={1}>
+                  {insight.title}
+                </Text>
+                <View style={styles.insightTrend}>
+                  {/* Both directions used to render TrendingUp, recoloured —
+                      so a falling metric showed a rising arrow. */}
+                  <Ionicons
+                    name={down ? 'trending-down' : 'trending-up'}
+                    size={13}
+                    color={down ? C.error : C.success}
                   />
+                  {!!insight.subtitle && (
+                    <Text style={styles.insightSubtitle} numberOfLines={1}>
+                      {insight.subtitle}
+                    </Text>
+                  )}
                 </View>
-              </View>
-              <Text style={styles.insightValue}>{insight.value}</Text>
-              <Text style={styles.insightTitle}>{insight.title}</Text>
-              {!!insight.subtitle && (
-                <Text style={styles.insightSubtitle}>{insight.subtitle}</Text>
-              )}
+              </Card>
             </View>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -291,9 +237,10 @@ interface JobsSectionProps {
   jobs: { today: DashboardJobLocal[]; available: DashboardJobLocal[] };
   activeTab: 'today' | 'available';
   onSelectTab: (tab: 'today' | 'available') => void;
-  onAccept: (jobId: string) => void;
-  onReject: (jobId: string) => void;
+  onAccept: (job: DashboardJobLocal) => void;
+  onReject: (job: DashboardJobLocal) => void;
   onNavigateToJob: (job: DashboardJobLocal) => void;
+  onMessage: (job: DashboardJobLocal) => void;
 }
 
 const JobsSection: React.FC<JobsSectionProps> = ({
@@ -303,186 +250,155 @@ const JobsSection: React.FC<JobsSectionProps> = ({
   onAccept,
   onReject,
   onNavigateToJob,
+  onMessage,
 }) => {
   const currentJobs = activeTab === 'today' ? jobs.today : jobs.available;
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Jobs</Text>
-      </View>
+      <SectionHeader title="Jobs" />
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'today' && styles.tabActive]}
+      <View style={styles.tabs}>
+        <Chip
+          label="Today"
+          count={jobs.today.length}
+          selected={activeTab === 'today'}
           onPress={() => onSelectTab('today')}
-        >
-          <Text style={[styles.tabText, activeTab === 'today' && styles.tabTextActive]}>
-            Today
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'available' && styles.tabActive]}
+          style={styles.tabChip}
+        />
+        <Chip
+          label="Available"
+          count={jobs.available.length}
+          selected={activeTab === 'available'}
           onPress={() => onSelectTab('available')}
-        >
-          <Text style={[styles.tabText, activeTab === 'available' && styles.tabTextActive]}>
-            Available ({jobs.available.length})
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
 
       {currentJobs.length > 0 ? (
         currentJobs.map((job) => (
-          <View key={job.id} style={styles.jobCard}>
-            <View
-              style={[
-                styles.jobStatusLine,
-                {
-                  backgroundColor:
-                    activeTab === 'today' ? theme.colors.primary : theme.colors.info,
-                },
-              ]}
-            />
-            <View style={styles.jobContent}>
-              <View style={styles.jobHeader}>
-                <View style={styles.jobHeaderText}>
-                  <Text style={styles.jobService}>{job.title}</Text>
-                  <Text style={styles.jobCustomer}>{job.customer}</Text>
-                </View>
-                {activeTab === 'available' && !!job.category && (
-                  <View style={styles.distanceBadge}>
-                    <MapPin size={12} color={theme.colors.primary} />
-                    <Text style={styles.distanceText}>{job.category}</Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.jobDetails}>
-                <View style={styles.jobDetailRow}>
-                  <Clock size={14} color={theme.colors.text.tertiary} />
-                  <Text style={styles.jobDetailText}>{job.time || 'Time to be confirmed'}</Text>
-                </View>
-                <View style={styles.jobDetailRow}>
-                  <MapPin size={14} color={theme.colors.text.tertiary} />
-                  <Text style={styles.jobDetailText} numberOfLines={1}>
-                    {(job.location || 'Location unavailable').split(',')[0]}
-                  </Text>
-                </View>
-                <View style={styles.jobDetailRow}>
-                  <Phone size={14} color={theme.colors.text.tertiary} />
-                  <Text style={styles.jobDetailText}>{job.phone || 'N/A'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.jobActions}>
-                {activeTab === 'today' ? (
-                  <>
-                    <TouchableOpacity style={styles.secondaryBtn}>
-                      <MessageSquare size={16} color={theme.colors.primary} />
-                      <Text style={styles.secondaryBtnText}>Message</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.primaryBtn}
-                      onPress={() => onNavigateToJob(job)}
-                    >
-                      <MapPin size={16} color={theme.colors.text.inverse} />
-                      <Text style={styles.primaryBtnText}>Navigate</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={styles.declineBtn}
-                      onPress={() => onReject(job.id)}
-                    >
-                      <Text style={styles.declineBtnText}>Decline</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.acceptBtn}
-                      onPress={() => onAccept(job.id)}
-                    >
-                      <Text style={styles.acceptBtnText}>Accept</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
+          // The same card shape the customer's booking list uses, so both
+          // sides of the marketplace read as one app.
+          <Card
+            key={job.id}
+            accentRule={activeTab === 'today' ? HS.accent : C.info}
+            style={styles.jobCard}
+          >
+            <View style={styles.jobTop}>
+              <Text style={styles.jobTitle} numberOfLines={1}>
+                {job.title}
+              </Text>
+              {!!job.price && <Text style={styles.jobPrice}>{formatPrice(job.price)}</Text>}
             </View>
-          </View>
+
+            <Text style={styles.jobCustomer} numberOfLines={1}>
+              {job.customer}
+            </Text>
+
+            <Text style={styles.jobMeta} numberOfLines={1}>
+              {[
+                job.time || 'Time to be confirmed',
+                (job.location || 'Location unavailable').split(',')[0],
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+
+            <View style={styles.jobActions}>
+              {activeTab === 'today' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.jobSecondary}
+                    onPress={() => onMessage(job)}
+                    accessibilityLabel={`Message ${job.customer}`}
+                  >
+                    <Ionicons name="chatbubble-outline" size={15} color={C.ink} />
+                    <Text style={styles.jobSecondaryText}>Message</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.jobPrimary}
+                    onPress={() => onNavigateToJob(job)}
+                    accessibilityLabel={`Open ${job.title}`}
+                  >
+                    <Ionicons name="navigate-outline" size={15} color={C.inkInverse} />
+                    <Text style={styles.jobPrimaryText}>Navigate</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.jobDecline}
+                    onPress={() => onReject(job)}
+                    accessibilityLabel={`Decline ${job.title}`}
+                  >
+                    <Text style={styles.jobDeclineText}>Decline</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.jobPrimary}
+                    onPress={() => onAccept(job)}
+                    accessibilityLabel={`Accept ${job.title}`}
+                  >
+                    <Text style={styles.jobPrimaryText}>Accept</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </Card>
         ))
       ) : (
-        <View style={styles.emptyJobs}>
-          <Briefcase size={40} color={theme.colors.text.tertiary} />
-          <Text style={styles.emptyTitle}>No {activeTab} jobs</Text>
-          <Text style={styles.emptyText}>
-            {activeTab === 'today'
-              ? 'Your schedule is clear for today'
-              : 'Check back later for new opportunities'}
-          </Text>
-        </View>
+        <EmptyState
+          icon="briefcase-outline"
+          title={activeTab === 'today' ? 'Nothing booked today' : 'No open jobs right now'}
+          message={
+            activeTab === 'today'
+              ? 'Your schedule is clear. New requests will show under Available.'
+              : 'Requests near you appear here as customers post them.'
+          }
+        />
       )}
     </View>
   );
 };
 
-const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({
-  recentActivity,
-}) => {
+const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({ recentActivity }) => {
   if (!recentActivity.length) return null;
 
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <TouchableOpacity>
-          <Text style={styles.seeAll}>See All</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader title="Recent activity" />
 
-      {recentActivity.map((activity) => {
-        // `mapDashboardData` only carries id/type/message/time across, so
-        // title/description/colour/status are frequently undefined here.
-        const accent = activity.color || theme.colors.primary;
-        const title = activity.title || activity.message || 'Activity';
-        const description = activity.title ? activity.description || activity.message : activity.description;
+      <Card>
+        {recentActivity.map((activity, index) => {
+          // `mapDashboardData` only carries id/type/message/time across, so
+          // title/description are frequently undefined here.
+          const title = activity.title || activity.message || 'Activity';
+          const description = activity.title
+            ? activity.description || activity.message
+            : activity.description;
 
-        return (
-          <View key={activity.id} style={styles.activityItem}>
-            <View style={[styles.activityIcon, { backgroundColor: accent + '15' }]}>
-              <CheckCircle2 size={20} color={accent} />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>{title}</Text>
-              {!!description && <Text style={styles.activityDesc}>{description}</Text>}
-              {!!activity.time && <Text style={styles.activityTime}>{activity.time}</Text>}
-            </View>
-            {!!activity.status && (
-              <View
-                style={[
-                  styles.activityStatus,
-                  {
-                    backgroundColor:
-                      activity.status === 'Completed' ? theme.colors.primaryLight : '#EFF6FF',
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.activityStatusText,
-                    {
-                      color:
-                        activity.status === 'Completed'
-                          ? theme.colors.primary
-                          : theme.colors.info,
-                    },
-                  ]}
-                >
-                  {activity.status}
-                </Text>
+          return (
+            <View
+              key={activity.id}
+              style={[styles.activityRow, index > 0 && styles.activityDivider]}
+            >
+              <View style={styles.activityIcon}>
+                <Ionicons name={activityIcon(activity.type) as any} size={17} color={C.inkMuted} />
               </View>
-            )}
-          </View>
-        );
-      })}
+              <View style={styles.activityBody}>
+                <Text style={styles.activityTitle} numberOfLines={1}>
+                  {title}
+                </Text>
+                {!!description && (
+                  <Text style={styles.activityDesc} numberOfLines={1}>
+                    {description}
+                  </Text>
+                )}
+                {!!activity.time && <Text style={styles.activityTime}>{activity.time}</Text>}
+              </View>
+              {!!activity.status && <StatusPill status={activity.status} size="sm" hideIcon />}
+            </View>
+          );
+        })}
+      </Card>
     </View>
   );
 };
@@ -492,25 +408,16 @@ export default function Dashboard() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const unreadTotal = useAppSelector(selectTotalUnread);
-  const {
-    profile,
-    stats,
-    insights,
-    jobs,
-    recentActivity,
-    activeTab,
-    loading,
-    error,
-  } = useAppSelector((state: RootState) => state.dashboard);
+  const { profile, stats, insights, jobs, recentActivity, activeTab, loading, error } =
+    useAppSelector((state: RootState) => state.dashboard);
 
   // ONE identity source for the provider shell.
   //
   // Home read `state.dashboard.profile` (GET /provider/dashboard) while the
   // Profile screen read `state.profile` (GET /provider/profile). Two payloads,
   // two fetch times, no shared reset — so whichever was stale showed the wrong
-  // provider, and the two screens disagreed about who was signed in.
-  // /provider/profile is canonical; the dashboard payload only fills in while
-  // it is still loading.
+  // provider. /provider/profile is canonical; the dashboard payload only fills
+  // in while it is still loading.
   const canonicalProfile = useAppSelector((state: RootState) => state.profile.provider);
 
   const identity = useMemo(
@@ -524,34 +431,20 @@ export default function Dashboard() {
   );
 
   const [refreshing, setRefreshing] = useState(false);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const [pendingJob, setPendingJob] = useState<{
+    job: DashboardJobLocal;
+    action: 'accept' | 'reject';
+  } | null>(null);
 
   useEffect(() => {
     dispatch(fetchDashboardData());
     // The provider shell's canonical identity. Fetched here too so Home never
-    // has to render someone else's name while waiting for the Profile tab to
-    // be opened.
+    // has to render someone else's name while waiting for the Profile tab.
     dispatch(fetchProfile());
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  }, [dispatch]);
 
   // LIVE NEW-JOB SIGNAL.
   //
-  // The bell reads `profile.unreadNotifications`, which is fetched on mount.
   // The durable HSNotification is created the moment a customer books, but a
   // provider sitting on this screen saw nothing until they navigated away and
   // back. The server addresses `booking_created` to the provider personally
@@ -597,93 +490,89 @@ export default function Dashboard() {
     setRefreshing(false);
   }, [dispatch]);
 
-  const handleAcceptJob = useCallback((jobId: string) => {
-    Alert.alert('Accept Job', 'Are you sure you want to accept this job?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Accept', onPress: () => dispatch(acceptJob(jobId)) },
-    ]);
-  }, [dispatch]);
-
-  const handleRejectJob = useCallback((jobId: string) => {
-    Alert.alert('Decline Job', 'Are you sure you want to decline this job?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Decline', style: 'destructive', onPress: () => dispatch(rejectJob(jobId)) },
-    ]);
-  }, [dispatch]);
-
-  const handleNavigateToJob = useCallback((job: any) => {
-    // Transform dashboard job to JobData format
+  const toJobData = (job: DashboardJobLocal): JobData => {
     const location = job.location || '';
-    const jobData: JobData = {
+    return {
       id: job.id,
       serviceType: job.title,
       category: job.category,
       customerName: job.customer,
       customerPhone: job.phone || 'N/A',
-      customerImage: job.customerAvatar,
+      // `customerAvatar` is nullable on the dashboard payload but optional on
+      // JobData; Avatar downstream treats both as "no photo".
+      customerImage: job.customerAvatar ?? undefined,
       address: location,
       city: location.split(',').pop()?.trim() || '',
       date: job.date,
       time: job.time,
       estimatedPrice: job.price,
       coordinates: {
-        latitude: 31.5204, // Default coordinates - should come from job data
+        latitude: 31.5204, // Default coordinates — should come from job data
         longitude: 74.3587,
       },
     };
-    
-    dispatch(setJobDetail(jobData));
-    navigation.navigate('JobDetail', { job: jobData });
-  }, [dispatch, navigation]);
+  };
 
-  const handleSelectTab = useCallback(
-    (tab: 'today' | 'available') => dispatch(setActiveTab(tab)),
-    [dispatch]
+  const handleNavigateToJob = useCallback(
+    (job: DashboardJobLocal) => {
+      const jobData = toJobData(job);
+      dispatch(setJobDetail(jobData));
+      navigation.navigate('JobDetail', { job: jobData });
+    },
+    [dispatch, navigation]
+  );
+
+  const handleMessage = useCallback(
+    (job: DashboardJobLocal) => {
+      // Previously this button had no onPress — it looked live and did nothing.
+      (navigation as any).navigate('ProviderChatScreen', {
+        bookingId: job.id,
+        counterpartName: job.customer,
+        counterpartImage: job.customerAvatar,
+      });
+    },
+    [navigation]
   );
 
   const showInitialLoader = loading && !identity.name;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} translucent={false} />
-
+    <Screen background={C.bg}>
       <Header
         profile={identity}
         insetTop={insets.top}
         onOpenNotifications={() => (navigation as any).navigate('ProviderNotifications')}
+        onOpenProfile={() => (navigation as any).navigate('Profile')}
       />
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
+            tintColor={HS.accent}
+            colors={[HS.accent]}
           />
         }
       >
-        {/* Wallet — one component, one data source, everywhere (W2 Part 4).
-            Resolved from THIS provider's own JWT — independent from every
-            other provider's balance. */}
+        {/* Wallet — one component, one data source, everywhere. Resolved from
+            THIS provider's own JWT. */}
         <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
         {/* The provider's inbox. Until this existed, chat was reachable only by
-            drilling into one specific job, so a provider had no screen that
-            would ever show them a customer had written — a message could sit
-            unread indefinitely with nothing to surface it. */}
+            drilling into one specific job, so a message could sit unread
+            indefinitely with nothing to surface it. */}
         <TouchableOpacity
-          style={styles.messagesRow}
+          style={styles.messages}
           onPress={() => (navigation as any).navigate('ProviderConversations')}
           activeOpacity={0.7}
         >
           <View style={styles.messagesIcon}>
-            <Text style={styles.messagesEmoji}>💬</Text>
+            <Ionicons name="chatbubbles-outline" size={19} color={C.ink} />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.messagesBody}>
             <Text style={styles.messagesTitle}>Messages</Text>
             <Text style={styles.messagesSub}>Chat and call your customers</Text>
           </View>
@@ -694,615 +583,416 @@ export default function Dashboard() {
               </Text>
             </View>
           )}
-          <Text style={styles.messagesChevron}>›</Text>
+          <Ionicons name="chevron-forward" size={17} color={C.inkFaint} />
         </TouchableOpacity>
 
-        {/* A single fade wrapper for the whole feed. Each section used to own
-            its own `opacity: fadeAnim` binding; because the sections remounted
-            on every data change they latched at opacity 0 and never appeared. */}
-        <Animated.View
-          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-        >
-          {!!error && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText} numberOfLines={3}>{error}</Text>
-              <TouchableOpacity
-                style={styles.retryBtn}
-                onPress={() => dispatch(fetchDashboardData())}
-              >
-                <Text style={styles.retryBtnText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText} numberOfLines={3}>
+              {error}
+            </Text>
+            <TouchableOpacity onPress={() => dispatch(fetchDashboardData())}>
+              <Text style={styles.errorRetry}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          {showInitialLoader ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Loading your dashboard…</Text>
+        {showInitialLoader ? (
+          <View style={styles.loading} accessibilityLabel="Loading your dashboard">
+            <SkeletonCard lines={2} />
+            <View style={styles.loadingGap}>
+              <SkeletonCard lines={3} />
             </View>
-          ) : (
-            <>
-              <StatsCard stats={stats} />
-              <PerformanceSection insights={insights} />
-              <JobsSection
-                jobs={jobs}
-                activeTab={activeTab}
-                onSelectTab={handleSelectTab}
-                onAccept={handleAcceptJob}
-                onReject={handleRejectJob}
-                onNavigateToJob={handleNavigateToJob}
-              />
-              <ActivitySection recentActivity={recentActivity} />
-            </>
-          )}
-        </Animated.View>
+          </View>
+        ) : (
+          <>
+            <StatsCard stats={stats} />
+            <PerformanceSection insights={insights} />
+            <JobsSection
+              jobs={jobs}
+              activeTab={activeTab}
+              onSelectTab={(tab) => dispatch(setActiveTab(tab))}
+              onAccept={(job) => setPendingJob({ job, action: 'accept' })}
+              onReject={(job) => setPendingJob({ job, action: 'reject' })}
+              onNavigateToJob={handleNavigateToJob}
+              onMessage={handleMessage}
+            />
+            <ActivitySection recentActivity={recentActivity} />
+          </>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
+
+      <ActionSheet
+        visible={!!pendingJob}
+        title={
+          pendingJob?.action === 'accept'
+            ? `Accept ${pendingJob?.job.title}?`
+            : `Decline ${pendingJob?.job.title}?`
+        }
+        message={
+          pendingJob?.action === 'accept'
+            ? `${pendingJob?.job.customer} will be told you're taking this job.`
+            : 'The job goes back to other providers nearby.'
+        }
+        cancelLabel="Not yet"
+        onClose={() => setPendingJob(null)}
+        options={[
+          {
+            label: pendingJob?.action === 'accept' ? 'Accept job' : 'Decline job',
+            icon:
+              pendingJob?.action === 'accept'
+                ? 'checkmark-circle-outline'
+                : 'close-circle-outline',
+            tone: pendingJob?.action === 'reject' ? 'destructive' : 'default',
+            onPress: () => {
+              if (!pendingJob) return;
+              if (pendingJob.action === 'accept') dispatch(acceptJob(pendingJob.job.id));
+              else dispatch(rejectJob(pendingJob.job.id));
+            },
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  messagesRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
-    marginHorizontal: theme.spacing.xl,
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    paddingHorizontal: GUTTER,
+    paddingBottom: S.md,
+    backgroundColor: C.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.line,
+  },
+  onlineDot: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: C.success,
+    borderWidth: 2,
+    borderColor: C.surface,
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: S.md,
+  },
+  greeting: {
+    ...T.caption,
+    color: C.inkMuted,
+  },
+  userName: {
+    ...T.subhead,
+    color: C.ink,
+  },
+  credentials: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  credentialsText: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginLeft: 3,
+  },
+  bell: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 3,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: C.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadgeText: {
+    color: C.inkInverse,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  content: {
+    padding: GUTTER,
+  },
+  bottomSpacer: {
+    height: 90,
+  },
+
+  messages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: S.lg,
+    padding: S.lg,
+    borderRadius: R.card,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
   },
   messagesIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: R.control,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.background,
   },
-  messagesEmoji: { fontSize: 19 },
-  messagesTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.text.primary },
-  messagesSub: { fontSize: 12, color: theme.colors.text.secondary, marginTop: 2 },
+  messagesBody: {
+    flex: 1,
+    marginHorizontal: S.md,
+  },
+  messagesTitle: {
+    ...T.subhead,
+    color: C.ink,
+  },
+  messagesSub: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 1,
+  },
   messagesBadge: {
     minWidth: 22,
-    height: 22,
-    borderRadius: 11,
     paddingHorizontal: 6,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
+    paddingVertical: 2,
+    borderRadius: R.pill,
+    backgroundColor: C.error,
+    marginRight: S.sm,
   },
-  messagesBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  messagesChevron: { fontSize: 24, color: theme.colors.text.tertiary },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: theme.spacing.md,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: theme.spacing.md,
-    flexShrink: 0,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    backgroundColor: theme.colors.success,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: theme.colors.surface,
-  },
-  headerInfo: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
-  },
-  greeting: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
-    marginBottom: 2,
-  },
-  userName: {
-    fontSize: 18,
+  messagesBadgeText: {
+    ...T.caption,
+    color: C.inkInverse,
     fontWeight: '700',
-    color: theme.colors.text.primary,
-    marginBottom: 6,
-    maxWidth: '100%',
+    textAlign: 'center',
   },
-  badgeRow: {
+
+  errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginTop: S.lg,
+    padding: S.md,
+    borderRadius: R.control,
+    backgroundColor: C.errorSoft,
   },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#D97706',
-  },
-  proBadge: {
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  proText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.primary,
-  },
-  notificationBtn: {
-    position: 'relative',
-    width: 46,
-    height: 46,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  bellIcon: {
-    fontSize: 20,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 20,
-    height: 20,
-    backgroundColor: theme.colors.error,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: theme.colors.surface,
-  },
-  notificationBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  scrollView: {
+  errorText: {
+    ...T.caption,
+    color: C.error,
     flex: 1,
+    marginRight: S.md,
   },
-  scrollContent: {
-    paddingTop: theme.spacing.xl,
+  errorRetry: {
+    ...T.label,
+    color: C.error,
+    fontWeight: '700',
   },
+
+  loading: {
+    marginTop: SECTION,
+  },
+  loadingGap: {
+    marginTop: S.md,
+  },
+
   statsCard: {
-    marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.xxl,
-    borderRadius: theme.borderRadius.xl,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  statsGradient: {
-    paddingVertical: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.lg,
+    marginTop: SECTION,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
   },
   statItem: {
-    alignItems: 'center',
     flex: 1,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.colors.text.inverse,
-    marginBottom: 2,
+    ...T.title,
+    color: C.ink,
+    marginTop: S.sm,
   },
   statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 1,
   },
   statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: C.line,
   },
+
   section: {
-    marginBottom: theme.spacing.xxl,
+    marginTop: SECTION,
   },
-  sectionHeader: {
+
+  insightGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
+    flexWrap: 'wrap',
+    marginTop: S.md,
+    marginHorizontal: -S.xs,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-  },
-  seeAll: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.primary,
-  },
-  insightScroll: {
-    paddingHorizontal: theme.spacing.xl,
-    gap: theme.spacing.md,
+  insightCell: {
+    width: '50%',
+    padding: S.xs,
   },
   insightCard: {
-    width: width * 0.6,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    marginRight: theme.spacing.md,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  insightIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trendBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    minHeight: 104,
   },
   insightValue: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-    marginBottom: 4,
+    ...T.heading,
+    color: C.ink,
   },
   insightTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text.secondary,
-    marginBottom: 2,
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: 2,
+  },
+  insightTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: S.sm,
   },
   insightSubtitle: {
-    fontSize: 12,
-    color: theme.colors.text.tertiary,
+    ...T.caption,
+    color: C.inkFaint,
+    marginLeft: 4,
+    flexShrink: 1,
   },
-  tabContainer: {
+
+  tabs: {
     flexDirection: 'row',
-    marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 4,
+    marginTop: S.md,
+    marginBottom: S.md,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
+  tabChip: {
+    marginRight: S.sm,
   },
-  tabActive: {
-    backgroundColor: theme.colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text.secondary,
-  },
-  tabTextActive: {
-    color: theme.colors.text.primary,
-    fontWeight: '600',
-  },
+
   jobCard: {
+    marginBottom: S.md,
+  },
+  jobTop: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  jobStatusLine: {
-    width: 4,
-  },
-  jobContent: {
-    flex: 1,
-    padding: theme.spacing.lg,
-  },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
+    justifyContent: 'space-between',
   },
-  jobService: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginBottom: 4,
+  jobTitle: {
+    ...T.subhead,
+    color: C.ink,
+    flex: 1,
+    marginRight: S.sm,
+  },
+  jobPrice: {
+    ...T.bodyStrong,
+    color: C.ink,
   },
   jobCustomer: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: 2,
   },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  distanceText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.primary,
-  },
-  jobDetails: {
-    marginBottom: theme.spacing.md,
-    gap: 6,
-  },
-  jobDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  jobDetailText: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
-    flex: 1,
+  jobMeta: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: S.sm,
   },
   jobActions: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    marginTop: S.lg,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
-  primaryBtn: {
+  jobSecondary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+    height: 40,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    marginRight: S.sm,
   },
-  primaryBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text.inverse,
+  jobSecondaryText: {
+    ...T.label,
+    color: C.ink,
+    marginLeft: 6,
   },
-  secondaryBtn: {
+  jobPrimary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+    height: 40,
+    borderRadius: R.control,
+    backgroundColor: HS.accent,
   },
-  secondaryBtnText: {
-    fontSize: 14,
+  jobPrimaryText: {
+    ...T.label,
+    color: C.inkInverse,
     fontWeight: '600',
-    color: theme.colors.primary,
+    marginLeft: 6,
   },
-  acceptBtn: {
+  jobDecline: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.success,
-    paddingVertical: 10,
-    borderRadius: 10,
+    height: 40,
+    borderRadius: R.control,
+    backgroundColor: C.errorSoft,
+    marginRight: S.sm,
   },
-  acceptBtnText: {
-    fontSize: 14,
+  jobDeclineText: {
+    ...T.label,
+    color: C.error,
     fontWeight: '600',
-    color: theme.colors.text.inverse,
   },
-  declineBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  declineBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.error,
-  },
-  emptyJobs: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    marginHorizontal: theme.spacing.xl,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-  },
-  activityItem: {
+
+  activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: S.md,
+  },
+  activityDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
   activityIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: R.control,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    justifyContent: 'center',
   },
-  activityContent: {
+  activityBody: {
     flex: 1,
+    marginHorizontal: S.md,
   },
   activityTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text.primary,
-    marginBottom: 2,
+    ...T.body,
+    color: C.ink,
   },
   activityDesc: {
-    fontSize: 13,
-    color: theme.colors.text.secondary,
-    marginBottom: 2,
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 1,
   },
   activityTime: {
-    fontSize: 12,
-    color: theme.colors.text.tertiary,
-  },
-  activityStatus: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  activityStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  bottomSpacer: {
-    height: 100,
-  },
-  avatarFallback: {
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text.inverse,
-  },
-  jobHeaderText: {
-    flex: 1,
-    marginRight: theme.spacing.sm,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    gap: theme.spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#B91C1C',
-  },
-  retryBtn: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.error,
-  },
-  retryBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.text.inverse,
-  },
-  loadingState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 64,
-    gap: theme.spacing.md,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 2,
   },
 });

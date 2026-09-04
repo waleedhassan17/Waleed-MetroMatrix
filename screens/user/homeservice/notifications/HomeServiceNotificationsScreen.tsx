@@ -1,41 +1,45 @@
-// ============================================
-// Home-service notifications (HS8) — booking lifecycle notifications derived
-// server-side from statusHistory (GET /user/notifications). Read state is
-// kept locally (AsyncStorage) — honest scope: no push infrastructure.
-// ============================================
+// ============================================================================
+// Home-service notifications — booking lifecycle events derived server-side
+// from statusHistory. Read state is kept locally (AsyncStorage) — honest
+// scope: there is no push infrastructure.
+//
+// Eight notification types used to carry eight different accent hues, which
+// made the feed read as a colour chart. The icon says what happened; unread is
+// carried by weight and one dot.
+// ============================================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import {
+  AppBar,
+  EmptyState,
+  ErrorState,
+  Screen,
+  Skeleton,
+} from '../../../../components/ui';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, R, S, T } from '../../../../constants/theme';
 import {
   fetchHSNotifications,
   HSNotification,
 } from '../../../../networks/serviceProviders/adminHomeServiceApi';
+import { relativeTime } from '../../../../utils/homeservice/format';
 
 const READ_KEY = 'hs_notifications_read';
 
-const TYPE_ICONS: Record<string, { icon: any; color: string }> = {
-  PENDING: { icon: 'time-outline', color: '#F59E0B' },
-  ACCEPTED: { icon: 'checkmark-circle-outline', color: '#3B82F6' },
-  REJECTED: { icon: 'close-circle-outline', color: '#EF4444' },
-  CANCELLED: { icon: 'close-circle-outline', color: '#EF4444' },
-  EN_ROUTE: { icon: 'navigate-outline', color: '#8B5CF6' },
-  ARRIVED: { icon: 'location-outline', color: '#06B6D4' },
-  IN_PROGRESS: { icon: 'construct-outline', color: '#F97316' },
-  COMPLETED: { icon: 'trophy-outline', color: '#10B981' },
+const TYPE_ICONS: Record<string, string> = {
+  PENDING: 'time-outline',
+  ACCEPTED: 'checkmark-circle-outline',
+  REJECTED: 'close-circle-outline',
+  CANCELLED: 'close-circle-outline',
+  EN_ROUTE: 'navigate-outline',
+  ARRIVED: 'location-outline',
+  IN_PROGRESS: 'construct-outline',
+  COMPLETED: 'checkmark-done-outline',
 };
 
 export default function HomeServiceNotificationsScreen() {
@@ -80,121 +84,147 @@ export default function HomeServiceNotificationsScreen() {
     navigation.navigate('BookingDetail', { bookingId: n.bookingId });
   };
 
+  const unreadCount = rows.filter((r) => !readIds.has(r.id)).length;
+
   const renderItem = ({ item }: { item: HSNotification }) => {
-    const meta = TYPE_ICONS[item.type] || { icon: 'notifications-outline', color: '#6B7280' };
+    const icon = TYPE_ICONS[item.type] || 'notifications-outline';
     const unread = !readIds.has(item.id);
     return (
       <TouchableOpacity
-        style={[styles.card, unread && styles.cardUnread]}
+        style={[styles.row, unread && styles.rowUnread]}
         onPress={() => openNotification(item)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
       >
-        <View style={[styles.iconWrap, { backgroundColor: `${meta.color}18` }]}>
-          <Ionicons name={meta.icon} size={20} color={meta.color} />
+        <View style={[styles.icon, unread && styles.iconUnread]}>
+          <Ionicons name={icon as any} size={18} color={unread ? HS.accentDeep : C.inkMuted} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, unread && styles.titleUnread]}>{item.title}</Text>
-          <Text style={styles.body} numberOfLines={1}>
+        <View style={styles.body}>
+          <Text style={[styles.title, unread && styles.titleUnread]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.message} numberOfLines={1}>
             {item.body}
           </Text>
-          <Text style={styles.time}>{new Date(item.at).toLocaleString()}</Text>
+          {/* `new Date(...).toLocaleString()` printed the full locale dump on
+              every row; a feed wants "3h ago". */}
+          <Text style={styles.time}>{relativeTime(item.at)}</Text>
         </View>
-        {unread && <View style={styles.unreadDot} />}
+        {unread && <View style={styles.dot} />}
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={markAllRead} style={styles.headerBtn}>
-          <Ionicons name="checkmark-done" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      <AppBar
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        rightIcon={unreadCount > 0 ? 'checkmark-done-outline' : undefined}
+        onRightPress={unreadCount > 0 ? markAllRead : undefined}
+      />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.stateText}>Loading notifications…</Text>
+        <View style={styles.loading} accessibilityLabel="Loading notifications">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width="100%" height={72} radius={R.card} style={styles.loadingGap} />
+          ))}
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color="#9CA3AF" />
-          <Text style={styles.stateText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title="We couldn't load your notifications"
+          message={error}
+          onRetry={() => load()}
+        />
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(n) => n.id}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+          contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={HS.accent}
+            />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="notifications-off-outline" size={44} color="#D1D5DB" />
-              <Text style={styles.stateText}>No notifications yet.</Text>
-            </View>
+            <EmptyState
+              icon="notifications-off-outline"
+              title="Nothing yet"
+              message="Updates about your bookings will land here."
+            />
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
+  list: {
+    padding: GUTTER,
+    flexGrow: 1,
+  },
+  loading: {
+    padding: GUTTER,
+  },
+  loadingGap: {
+    marginBottom: S.md,
+  },
+
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : 14,
+    padding: S.lg,
+    marginBottom: S.sm,
+    borderRadius: R.card,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
   },
-  headerBtn: { width: 36, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 12,
-    marginBottom: 10,
+  rowUnread: {
+    borderColor: HS.accentLine,
   },
-  cardUnread: { borderColor: '#C7D2FE', backgroundColor: '#F5F7FF' },
-  iconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: R.control,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  title: { fontSize: 14, color: '#374151', fontWeight: '600' },
-  titleUnread: { color: '#111827', fontWeight: '700' },
-  body: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  time: { fontSize: 11, color: '#9CA3AF', marginTop: 3 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4F46E5', marginLeft: 8 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: '#4F46E5',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+  iconUnread: {
+    backgroundColor: HS.accentSoft,
   },
-  retryText: { color: '#fff', fontWeight: '700' },
+  body: {
+    flex: 1,
+    marginLeft: S.md,
+  },
+  title: {
+    ...T.body,
+    color: C.ink,
+  },
+  titleUnread: {
+    ...T.bodyStrong,
+    color: C.ink,
+  },
+  message: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 1,
+  },
+  time: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 2,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: HS.accent,
+    marginLeft: S.sm,
+  },
 });

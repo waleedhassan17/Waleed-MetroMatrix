@@ -13,7 +13,6 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   User,
@@ -52,47 +51,14 @@ import { selectBalance, selectCurrency, fetchWallet } from '../../../../services
 import { performLogout } from '../../../../services/auth/logout';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 import { currencySymbol } from '../../../../constants/Currency';
+// Values come from the shared tokens via the provider bridge — see
+// screens/providers/homeservice/providerTheme.ts.
+import { theme } from '../providerTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
 // Design System - Consistent with reference images
-const theme = {
-  colors: {
-    primary: '#059669',
-    primaryDark: '#047857',
-    primaryLight: '#D1FAE5',
-    background: '#F9FAFB',
-    surface: '#FFFFFF',
-    text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      tertiary: '#9CA3AF',
-      inverse: '#FFFFFF',
-    },
-    border: '#E5E7EB',
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-    info: '#3B82F6',
-    purple: '#8B5CF6',
-    pink: '#EC4899',
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
-  },
-  borderRadius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    full: 9999,
-  },
-};
 
 const getInitials = (name?: string) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -102,6 +68,10 @@ const getInitials = (name?: string) => {
 
 export default function ProviderProfileScreen() {
   const navigation = useNavigation();
+  // These screens rendered a bare View as their root, so on Android their
+  // headers sat under the status bar and on notched iPhones under the
+  // notch. Real insets, not StatusBar.currentHeight.
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
 
   // NOTE: this slice declares `name: 'providerProfile'` but store.ts mounts it
@@ -267,7 +237,7 @@ export default function ProviderProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
       <ScrollView
@@ -275,11 +245,10 @@ export default function ProviderProfileScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Green Gradient Header - Matching Reference */}
-        <LinearGradient
-          colors={[theme.colors.primary, theme.colors.primaryDark]}
-          style={styles.header}
-        >
+        {/* Solid accent header. Home services spends its whole gradient
+            budget on one hero (the customer's booking-confirmed state); a
+            profile header is not that moment. */}
+        <View style={styles.header}>
           {/* Settings Button */}
           <TouchableOpacity
             style={styles.settingsButton}
@@ -363,7 +332,7 @@ export default function ProviderProfileScreen() {
               </View>
             )}
           </Animated.View>
-        </LinearGradient>
+        </View>
 
         {!!error && (
           <View style={styles.errorBanner}>
@@ -415,12 +384,7 @@ export default function ProviderProfileScreen() {
           activeOpacity={0.9}
           onPress={() => (navigation as any).navigate('WalletScreen')}
         >
-          <LinearGradient
-            colors={['#10B981', '#059669']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.walletGradient}
-          >
+          <View style={styles.walletGradient}>
             <View style={styles.walletLeft}>
               <View style={styles.walletIconContainer}>
                 <Wallet size={22} color="#FFFFFF" />
@@ -436,12 +400,12 @@ export default function ProviderProfileScreen() {
             <View style={styles.walletAction}>
               <ArrowUpRight size={18} color="rgba(255,255,255,0.9)" />
             </View>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
 
         {/* Account Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.menuCard}>
             {accountItems.map((item, index) => (
               <TouchableOpacity
@@ -470,7 +434,7 @@ export default function ProviderProfileScreen() {
 
         {/* Preferences Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>PREFERENCES</Text>
+          <Text style={styles.sectionTitle}>Preferences</Text>
           <View style={styles.menuCard}>
             {/* Available for Jobs */}
             <View style={[styles.menuItem, styles.menuItemBorder]}>
@@ -615,6 +579,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    backgroundColor: theme.colors.primary,
     paddingTop: Platform.OS === 'ios' ? 60 : 45,
     paddingBottom: 35,
     paddingHorizontal: theme.spacing.xl,
@@ -835,11 +800,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
+  // Was a hardcoded ['#10B981','#059669'] gradient that matched neither the
+  // theme nor the header above it. A solid accent panel says the same thing.
   walletGradient: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
     padding: 18,
+    backgroundColor: theme.colors.primary,
   },
   walletLeft: {
     flexDirection: 'row' as const,
@@ -880,11 +848,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxl,
     paddingHorizontal: theme.spacing.xl,
   },
+  // Was 12px ALL-CAPS with 1pt tracking — the eyebrow label the shared type
+  // scale deliberately has no role for.
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text.tertiary,
-    letterSpacing: 1,
+    ...theme.type.heading,
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.md,
     marginLeft: 4,
   },

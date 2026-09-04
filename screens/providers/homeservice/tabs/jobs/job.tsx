@@ -14,7 +14,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { getSocket } from '../../../../../services/socket/socketClient';
 import {
   Calendar,
   Clock,
@@ -39,46 +40,13 @@ import {
   JobStatus,
   Job,
 } from './jobSlice';
+// Values come from the shared tokens via the provider bridge — see
+// screens/providers/homeservice/providerTheme.ts.
+import { theme } from '../../providerTheme';
 
 const { width } = Dimensions.get('window');
 
 // Design System - Matching reference design
-const theme = {
-  colors: {
-    primary: '#059669',
-    primaryDark: '#047857',
-    primaryLight: '#D1FAE5',
-    background: '#F9FAFB',
-    surface: '#FFFFFF',
-    text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      tertiary: '#9CA3AF',
-      inverse: '#FFFFFF',
-    },
-    border: '#E5E7EB',
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-    info: '#3B82F6',
-    purple: '#8B5CF6',
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
-  },
-  borderRadius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    full: 9999,
-  },
-};
 
 // Status configurations matching reference colors
 const statusConfig: Record<string, { color: string; bg: string; label: string; icon: any }> = {
@@ -153,12 +121,54 @@ const JobsScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    dispatch(fetchJobs());
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
     }).start();
+  }, []);
+
+  // Refetch on every focus. This was a mount-only fetch, and because the tab
+  // navigator keeps the screen mounted, the list was loaded once per app
+  // session — a provider switching back to this tab saw whatever was true when
+  // they first opened it.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchJobs());
+    }, [dispatch])
+  );
+
+  // And live, while the tab is open. `booking_created` is addressed to the
+  // provider personally — they are not in the new booking's room yet — so this
+  // binds the raw socket rather than useRoomSocket. Same shape as the
+  // dashboard's listener: mounted guard, null-check, off-before-on so a
+  // reconnect cannot stack handlers, and rebind on 'connect'.
+  useEffect(() => {
+    let mounted = true;
+    let detach: (() => void) | undefined;
+
+    const onBookingCreated = () => {
+      if (!mounted) return;
+      dispatch(fetchJobs());
+    };
+
+    const bind = async () => {
+      const s = await getSocket();
+      if (!mounted || !s) return;
+      s.off('booking_created', onBookingCreated);
+      s.on('booking_created', onBookingCreated);
+      s.on('connect', bind);
+      detach = () => {
+        s.off('booking_created', onBookingCreated);
+        s.off('connect', bind);
+      };
+    };
+
+    bind();
+    return () => {
+      mounted = false;
+      detach?.();
+    };
   }, [dispatch]);
 
   const handleFilterPress = useCallback(
@@ -337,8 +347,12 @@ const JobsScreen: React.FC = () => {
       {/* Header - Matching reference */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>My Bookings</Text>
-          <Text style={styles.headerSubtitle}>Manage your service appointments</Text>
+          {/* These two strings were copied verbatim from the CUSTOMER
+              bookings screen. A provider does not have bookings — they have
+              jobs, and they are not "managing appointments", they are working
+              them. */}
+          <Text style={styles.headerTitle}>Jobs</Text>
+          <Text style={styles.headerSubtitle}>Today's work and new requests</Text>
         </View>
         <TouchableOpacity style={styles.filterButton}>
           <Sliders size={20} color={theme.colors.text.primary} />
@@ -392,10 +406,13 @@ const JobsScreen: React.FC = () => {
       {/* Jobs Count & Sort */}
       <View style={styles.resultsHeader}>
         <Text style={styles.resultsText}>
-          {filteredJobs.length} bookings found
+          {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
         </Text>
-        <TouchableOpacity style={styles.sortButton}>
-          <Filter size={16} color={theme.colors.text.secondary} />
+        {/* Sorting is not built. Dimmed and disabled rather than
+            tappable-but-inert, which is what the customer screen already
+            does with its own Sort control. */}
+        <TouchableOpacity style={[styles.sortButton, styles.controlDisabled]} disabled>
+          <Filter size={16} color={theme.colors.text.tertiary} />
           <Text style={styles.sortText}>Sort</Text>
         </TouchableOpacity>
       </View>
@@ -537,6 +554,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+  },
+  controlDisabled: {
+    opacity: 0.45,
   },
   sortButton: {
     flexDirection: 'row',

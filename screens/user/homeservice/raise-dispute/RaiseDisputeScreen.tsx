@@ -1,26 +1,30 @@
-// ============================================
-// Raise dispute (HS8) — file a dispute against a booking with reason,
-// description and photo evidence. Hits POST /bookings/:id/dispute (HS5).
-// ============================================
+// ============================================================================
+// Raise a dispute — reason, description and photo evidence against a booking.
+//
+// Someone reaching this screen has already had a bad experience, so the tone
+// matters more here than anywhere: plain, unhurried, no exclamation marks, and
+// a clear statement of what happens next. The four native alerts (permission,
+// missing reason, failure, success) become inline validation and a real
+// confirmation state.
+// ============================================================================
 
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
   Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+
+import { AppBar, Button, EmptyState, Screen, SectionHeader } from '../../../../components/ui';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { raiseDispute } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 
 type Params = { bookingId: string };
@@ -34,6 +38,8 @@ const REASONS = [
   'Other',
 ];
 
+const MAX_PHOTOS = 4;
+
 export default function RaiseDisputeScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
@@ -43,11 +49,13 @@ export default function RaiseDisputeScreen() {
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filed, setFiled] = useState(false);
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Photo library access is required to attach evidence.');
+      setError('We need access to your photos to attach evidence.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -55,194 +63,242 @@ export default function RaiseDisputeScreen() {
       quality: 0.6,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, 4));
+      setError(null);
+      setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, MAX_PHOTOS));
     }
   };
 
   const submit = async () => {
-    if (!reason) {
-      Alert.alert('Reason required', 'Please pick what went wrong.');
-      return;
-    }
+    if (!reason) return;
     setSubmitting(true);
+    setError(null);
     const res = await raiseDispute(bookingId, {
       reason,
       description: description.trim(),
       evidence: photos,
     });
     setSubmitting(false);
-    if (res.success) {
-      Alert.alert(
-        'Dispute filed',
-        'Our admin team will review your dispute and get back to you.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
-    } else {
-      Alert.alert('Error', res.message || 'Could not file the dispute');
-    }
+    if (res.success) setFiled(true);
+    else setError(res.message || "We couldn't file this dispute. Try again in a moment.");
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#F97316" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Raise a Dispute</Text>
-        <View style={styles.headerBtn} />
-      </View>
+  if (filed) {
+    return (
+      <Screen>
+        <AppBar title="Raise a dispute" hideBack />
+        <EmptyState
+          icon="checkmark-circle-outline"
+          title="Dispute filed"
+          message="Someone on the team will look into it and message you here with what they find. Nothing else is needed from you right now."
+          actionLabel="Done"
+          onAction={() => navigation.goBack()}
+        />
+      </Screen>
+    );
+  }
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <Text style={styles.sectionTitle}>What went wrong?</Text>
-        <View style={styles.reasonWrap}>
-          {REASONS.map((r) => (
-            <TouchableOpacity
-              key={r}
-              style={[styles.reasonChip, reason === r && styles.reasonChipActive]}
-              onPress={() => setReason(r)}
-            >
-              <Text style={[styles.reasonText, reason === r && styles.reasonTextActive]}>{r}</Text>
-            </TouchableOpacity>
-          ))}
+  return (
+    <Screen>
+      <AppBar title="Raise a dispute" onBack={() => navigation.goBack()} />
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SectionHeader title="What went wrong?" />
+        <View style={styles.reasons}>
+          {REASONS.map((r) => {
+            const selected = reason === r;
+            return (
+              <TouchableOpacity
+                key={r}
+                style={[styles.reason, selected && styles.reasonSelected]}
+                onPress={() => setReason(r)}
+                activeOpacity={0.75}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.reasonText, selected && styles.reasonTextSelected]}>{r}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <Text style={styles.sectionTitle}>Describe the issue</Text>
+        <SectionHeader title="What happened?" subtitle="Optional, but it helps" style={styles.section} />
         <TextInput
           style={styles.textArea}
-          placeholder="Tell us what happened in detail…"
-          placeholderTextColor="#9CA3AF"
+          placeholder="Dates, what was agreed, what was actually done."
+          placeholderTextColor={C.inkFaint}
           value={description}
           onChangeText={setDescription}
           multiline
           maxLength={2000}
+          textAlignVertical="top"
         />
 
-        <Text style={styles.sectionTitle}>Photo evidence (optional)</Text>
-        <View style={styles.photoRow}>
+        <SectionHeader
+          title="Photos"
+          subtitle={`Optional, up to ${MAX_PHOTOS}`}
+          style={styles.section}
+        />
+        <View style={styles.photos}>
           {photos.map((uri) => (
             <View key={uri} style={styles.photoWrap}>
               <Image source={{ uri }} style={styles.photo} />
               <TouchableOpacity
                 style={styles.photoRemove}
                 onPress={() => setPhotos((prev) => prev.filter((p) => p !== uri))}
+                accessibilityLabel="Remove photo"
               >
-                <Ionicons name="close" size={12} color="#fff" />
+                <Ionicons name="close" size={12} color={C.inkInverse} />
               </TouchableOpacity>
             </View>
           ))}
-          {photos.length < 4 && (
-            <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto}>
-              <Ionicons name="camera-outline" size={22} color="#9CA3AF" />
+          {photos.length < MAX_PHOTOS && (
+            <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto} activeOpacity={0.7}>
+              <Ionicons name="camera-outline" size={20} color={C.inkFaint} />
               <Text style={styles.photoAddText}>Add</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.noteBox}>
-          <Ionicons name="information-circle-outline" size={16} color="#92400E" />
+        <View style={styles.note}>
+          <Ionicons name="information-circle-outline" size={17} color={C.inkMuted} />
           <Text style={styles.noteText}>
-            Disputes are reviewed by the MetroMatrix admin team. Outcomes can include a
-            wallet refund or action against the provider.
+            A person on the MetroMatrix team reads every dispute. Outcomes range from a wallet
+            refund to action against the provider.
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.submitBtn, (!reason || submitting) && styles.submitDisabled]}
+        {!!error && <Text style={styles.error}>{error}</Text>}
+
+        <Button
+          label="Submit dispute"
           onPress={submit}
-          disabled={!reason || submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Submit dispute</Text>
-          )}
-        </TouchableOpacity>
+          disabled={!reason}
+          loading={submitting}
+          style={styles.submit}
+        />
+        {!reason && <Text style={styles.hint}>Pick a reason to submit.</Text>}
       </ScrollView>
-    </SafeAreaView>
+
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F97316',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : 14,
+  content: {
+    padding: GUTTER,
+    paddingBottom: S.huge,
   },
-  headerBtn: { width: 36, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 10, marginTop: 12 },
-  reasonWrap: { flexDirection: 'row', flexWrap: 'wrap' },
-  reasonChip: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#fff',
+  section: {
+    marginTop: SECTION,
   },
-  reasonChipActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
-  reasonText: { color: '#374151', fontSize: 13, fontWeight: '600' },
-  reasonTextActive: { color: '#fff' },
+
+  reasons: {
+    marginTop: S.md,
+  },
+  reason: {
+    paddingHorizontal: S.lg,
+    paddingVertical: S.md,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+    marginBottom: S.sm,
+  },
+  reasonSelected: {
+    borderColor: HS.accent,
+    backgroundColor: HS.accentSoft,
+  },
+  reasonText: {
+    ...T.body,
+    color: C.ink,
+  },
+  reasonTextSelected: {
+    ...T.bodyStrong,
+    color: HS.accentDeep,
+  },
+
   textArea: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 14,
-    minHeight: 110,
-    textAlignVertical: 'top',
-    fontSize: 14,
-    color: '#111827',
+    marginTop: S.md,
+    minHeight: 132,
+    padding: S.md,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+    ...T.body,
+    color: C.ink,
   },
-  photoRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  photoWrap: { marginRight: 10, marginBottom: 10 },
-  photo: { width: 70, height: 70, borderRadius: 10 },
+
+  photos: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: S.md,
+  },
+  photoWrap: {
+    width: 76,
+    height: 76,
+    marginRight: S.sm,
+    marginBottom: S.sm,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: R.chip,
+    backgroundColor: C.surfaceSunken,
+  },
   photoRemove: {
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: C.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoAdd: {
-    width: 70,
-    height: 70,
-    borderRadius: 10,
+    width: 76,
+    height: 76,
+    borderRadius: R.chip,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
     borderStyle: 'dashed',
+    borderColor: C.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoAddText: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  noteBox: {
+  photoAddText: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 3,
+  },
+
+  note: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FEF3C7',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
+    marginTop: SECTION,
+    padding: S.lg,
+    borderRadius: R.card,
+    backgroundColor: C.surfaceSunken,
   },
-  noteText: { color: '#92400E', fontSize: 12, marginLeft: 8, flex: 1, lineHeight: 17 },
-  submitBtn: {
-    backgroundColor: '#F97316',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 20,
+  noteText: {
+    ...T.caption,
+    color: C.inkMuted,
+    flex: 1,
+    marginLeft: S.sm,
+    maxWidth: PROSE_WIDTH,
   },
-  submitDisabled: { opacity: 0.5 },
-  submitText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  error: {
+    ...T.caption,
+    color: C.error,
+    marginTop: S.lg,
+  },
+  submit: {
+    marginTop: SECTION,
+  },
+  hint: {
+    ...T.caption,
+    color: C.inkMuted,
+    textAlign: 'center',
+    marginTop: S.sm,
+  },
 });

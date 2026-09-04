@@ -12,12 +12,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
-import { resetJobCompletion, incrementJobsDone } from './jobCompletionSlice';
+import { resetJobCompletion, incrementJobsDone, submitCompletionAsync } from './jobCompletionSlice';
 import { resetJobDetail } from '../jobdetail-screen/jobDetailSlice';
 import { resetNavigationMap } from '../map-screen/mapSlice';
 import { resetJobInProgress } from '../job-InProgress/jobInProgressSlice';
 import { resetAwaitingApproval } from '../awaiting-screen/awaitingScreenSlice';
 import { resetPaymentRequest } from '../payment-screen/paymentRequestSlice';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,64 +31,12 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Confetti particle component
-interface ConfettiProps {
-  delay: number;
-  color: string;
-  left: number;
-}
-
-const ConfettiParticle: React.FC<ConfettiProps> = ({ delay, color, left }) => {
-  const fallAnim = useRef(new Animated.Value(-50)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(fallAnim, {
-          toValue: height + 50,
-          duration: 3000 + Math.random() * 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotateAnim, {
-          toValue: 10,
-          duration: 3000 + Math.random() * 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 3000 + Math.random() * 2000,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, delay);
-
-    return () => clearTimeout(timeout);
-  }, []);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 10],
-    outputRange: ['0deg', '3600deg'],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.confetti,
-        {
-          left: left,
-          backgroundColor: color,
-          transform: [{ translateY: fallAnim }, { rotate: spin }],
-          opacity: opacityAnim,
-        },
-      ]}
-    />
-  );
-};
-
 const JobCompletionScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  // These screens rendered a bare View as their root, so on Android their
+  // headers sat under the status bar and on notched iPhones under the
+  // notch. Real insets, not StatusBar.currentHeight.
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use jobCompletion slice
@@ -100,7 +51,6 @@ const JobCompletionScreen: React.FC = () => {
     stats,
   } = useSelector((state: RootState) => state.jobCompletion);
 
-  const [showConfetti, setShowConfetti] = useState(true);
 
   const checkScaleAnim = useRef(new Animated.Value(0)).current;
   const ringScale1 = useRef(new Animated.Value(0)).current;
@@ -111,23 +61,15 @@ const JobCompletionScreen: React.FC = () => {
   const ringOpacity3 = useRef(new Animated.Value(0.2)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
 
-  // Confetti colors
-  const confettiColors = [
-    '#10B981', // Green
-    '#F59E0B', // Yellow
-    '#3B82F6', // Blue
-    '#EC4899', // Pink
-    '#8B5CF6', // Purple
-    '#EF4444', // Red
-  ];
-
-  // Generate confetti particles
-  const confettiParticles = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    delay: Math.random() * 500,
-    color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-    left: Math.random() * width,
-  }));
+  // Confirm with the server that this job really is complete before
+  // celebrating. `finalize` asserts the booking reached COMPLETED and changes
+  // nothing, so it is safe to call on mount — but if it fails, the provider is
+  // looking at a success screen for a job the server does not consider done,
+  // and they should be told rather than shown confetti.
+  useEffect(() => {
+    if (!jobId) return;
+    dispatch(submitCompletionAsync(jobId) as any);
+  }, [dispatch, jobId]);
 
   useEffect(() => {
     // Check animation
@@ -200,14 +142,8 @@ const JobCompletionScreen: React.FC = () => {
       handleGoHome();
     }, 8000);
 
-    // Hide confetti after 4 seconds
-    const confettiTimeout = setTimeout(() => {
-      setShowConfetti(false);
-    }, 4000);
-
     return () => {
       clearTimeout(timeout);
-      clearTimeout(confettiTimeout);
     };
   }, []);
 
@@ -264,18 +200,7 @@ const JobCompletionScreen: React.FC = () => {
   const earningsAmount = earnings || 0;
 
   return (
-    <View style={styles.container}>
-      {/* Confetti */}
-      {showConfetti &&
-        confettiParticles.map((particle) => (
-          <ConfettiParticle
-            key={particle.id}
-            delay={particle.delay}
-            color={particle.color}
-            left={particle.left}
-          />
-        ))}
-
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Green Gradient Background */}
       <View style={styles.gradientBg} />
 
@@ -335,7 +260,7 @@ const JobCompletionScreen: React.FC = () => {
         <Animated.View style={[styles.summaryCard, { opacity: contentFade }]}>
           {/* Service Icon */}
           <View style={styles.serviceIconBg}>
-            <Icon name="wrench-outline" size={28} color="#10B981" />
+            <Icon name="wrench-outline" size={28} color={HS.accent} />
           </View>
 
           {/* Service Name */}
@@ -345,7 +270,7 @@ const JobCompletionScreen: React.FC = () => {
 
           {/* Duration */}
           <View style={styles.durationRow}>
-            <Icon name="clock-outline" size={18} color="#6B7280" />
+            <Icon name="clock-outline" size={18} color={C.inkMuted} />
             <Text style={styles.durationText}>
               Duration: {formatDuration(actualDuration)}
             </Text>
@@ -372,7 +297,7 @@ const JobCompletionScreen: React.FC = () => {
             <Icon
               name={paymentMethod === 'cash' ? 'cash' : 'credit-card-outline'}
               size={16}
-              color={paymentMethod === 'cash' ? '#10B981' : '#3B82F6'}
+              color={paymentMethod === 'cash' ? HS.accent : C.info}
             />
             <Text
               style={[
@@ -390,8 +315,8 @@ const JobCompletionScreen: React.FC = () => {
         {/* Stats Row */}
         <Animated.View style={[styles.statsRow, { opacity: contentFade }]}>
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: '#FEF3C7' }]}>
-              <Icon name="star" size={20} color="#F59E0B" />
+            <View style={[styles.statIconBg, { backgroundColor: C.warningSoft }]}>
+              <Icon name="star" size={20} color={C.warning} />
             </View>
             <Text style={styles.statValue}>4.8</Text>
             <Text style={styles.statLabel}>Rating</Text>
@@ -400,8 +325,8 @@ const JobCompletionScreen: React.FC = () => {
           <View style={styles.statDivider} />
 
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: '#ECFDF5' }]}>
-              <Icon name="briefcase-check" size={20} color="#10B981" />
+            <View style={[styles.statIconBg, { backgroundColor: HS.accentSoft }]}>
+              <Icon name="briefcase-check" size={20} color={HS.accent} />
             </View>
             <Text style={styles.statValue}>+1</Text>
             <Text style={styles.statLabel}>Jobs Done</Text>
@@ -410,8 +335,8 @@ const JobCompletionScreen: React.FC = () => {
           <View style={styles.statDivider} />
 
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: '#EFF6FF' }]}>
-              <Icon name="trending-up" size={20} color="#3B82F6" />
+            <View style={[styles.statIconBg, { backgroundColor: C.infoSoft }]}>
+              <Icon name="trending-up" size={20} color={C.info} />
             </View>
             <Text style={styles.statValue}>85%</Text>
             <Text style={styles.statLabel}>Level Up</Text>
@@ -427,7 +352,7 @@ const JobCompletionScreen: React.FC = () => {
             onPress={handleViewJobs}
             activeOpacity={0.85}
           >
-            <Icon name="clipboard-list-outline" size={20} color="#10B981" />
+            <Icon name="clipboard-list-outline" size={20} color={HS.accent} />
             <Text style={styles.secondaryButtonText}>View All Jobs</Text>
           </TouchableOpacity>
 
@@ -452,7 +377,7 @@ const JobCompletionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.bg,
   },
   gradientBg: {
     position: 'absolute',
@@ -460,16 +385,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: height * 0.45,
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-  },
-  confetti: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    zIndex: 100,
   },
   content: {
     flex: 1,
@@ -496,10 +414,10 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#059669',
+    backgroundColor: HS.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#059669',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
@@ -540,7 +458,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -548,7 +466,7 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
     marginBottom: 8,
   },
   durationRow: {
@@ -560,12 +478,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
   },
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.lineSoft,
     marginBottom: 20,
   },
   earningsContainer: {
@@ -575,13 +493,13 @@ const styles = StyleSheet.create({
   earningsLabel: {
     fontSize: 13,
     fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    color: C.inkMuted,
     marginBottom: 4,
   },
   earningsValue: {
     fontSize: 32,
     fontFamily: 'Inter-Bold',
-    color: '#10B981',
+    color: HS.accent,
   },
   paymentBadge: {
     flexDirection: 'row',
@@ -591,10 +509,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   cashBadge: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
   },
   onlineBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: C.infoSoft,
   },
   paymentBadgeText: {
     marginLeft: 6,
@@ -602,10 +520,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
   },
   cashBadgeText: {
-    color: '#10B981',
+    color: HS.accent,
   },
   onlineBadgeText: {
-    color: '#3B82F6',
+    color: C.info,
   },
   statsRow: {
     flexDirection: 'row',
@@ -634,18 +552,18 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    color: C.ink,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
   },
   statDivider: {
     width: 1,
     height: '70%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     alignSelf: 'center',
   },
   bottomContainer: {
@@ -663,16 +581,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     borderRadius: 14,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: HS.accentLine,
   },
   secondaryButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#10B981',
+    color: HS.accent,
     marginLeft: 8,
   },
   primaryButton: {
@@ -680,10 +598,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -699,7 +617,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#9CA3AF',
+    color: C.inkFaint,
   },
 });
 

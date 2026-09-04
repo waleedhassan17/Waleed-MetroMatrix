@@ -228,24 +228,11 @@ const bookingSlice = createAppSlice({
       }
     ),
 
-    addNewAddress: create.asyncThunk(
-      async (address: Omit<SavedAddress, 'id'>, { rejectWithValue }) => {
-        // Simulate API call for adding address
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return {
-          ...address,
-          id: `addr-${Date.now()}`,
-        } as SavedAddress;
-      },
-      {
-        fulfilled: (state, action) => {
-          state.savedAddresses.push(action.payload);
-        },
-        rejected: (state, action) => {
-          state.error = action.payload as string;
-        },
-      }
-    ),
+    // `addNewAddress` used to live here. It never called the API — it slept
+    // 500ms and returned `addr-${Date.now()}`, an id the server has never seen,
+    // which `createBooking` would then post as `addressId` and get a 400 for.
+    // Nothing dispatched it: the booking screen sends people to
+    // AddressManagement, which uses the real `addUserAddress` endpoint.
 
     // Sync reducers
     setSelectedDate: create.reducer((state, action: PayloadAction<string>) => {
@@ -306,7 +293,6 @@ const bookingSlice = createAppSlice({
 export const {
   fetchBookingData,
   submitBooking,
-  addNewAddress,
   setSelectedDate,
   setSelectedTime,
   setSelectedAddress,

@@ -1,144 +1,118 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
-  SafeAreaView,
-  Platform,
-  FlatList,
-  Linking,
-  Share,
-  Alert,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+// ============================================================================
+// Provider profile
+//
+// This screen had 27 LinearGradients — a gradient header, a gradient hero
+// wash, a gradient hero top-rule, a gradient avatar ring, a gradient rating
+// badge, four differently-coloured gradient quick-action chips, a gradient
+// stats bar with three gradient icon tiles, five gradient section-icon chips, a
+// gradient reviewer avatar and a gradient Book bar. It is the single clearest
+// example of gradient having become the base surface.
+//
+// It is now flat. The category shows up as one hairline on the hero card and
+// the tint on the avatar fallback; the only gradient left is the scrim over
+// portfolio photographs, which exists so the caption is readable.
+// ============================================================================
 
-import { Colors } from '../../../../constants/Colors';
-import { Fonts } from '../../../../constants/Fonts';
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useState } from 'react';
 import {
-  fetchProviderById,
-  setSelectedTab,
-  Provider,
-  Review,
-  Service,
-  GalleryItem,
-} from './providerProfileSlice';
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+
+import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Screen,
+  SectionHeader,
+  Skeleton,
+} from '../../../../components/ui';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { RootState } from '../../../../store/store';
 import {
-  fetchFavorites,
+  formatInstant,
+  formatPrice,
+  formatRating,
+  formatReviewCount,
+} from '../../../../utils/homeservice/format';
+import {
   addFavorite,
+  fetchFavorites,
   removeFavorite,
   selectIsFavorite,
 } from '../favorites/favoritesSlice';
+import {
+  fetchProviderById,
+  GalleryItem,
+  Provider,
+  Review,
+  Service,
+  setSelectedTab,
+} from './providerProfileSlice';
 
-const { width, height } = Dimensions.get('window');
-const isAndroid = Platform.OS === 'android';
+type TabId = 'overview' | 'reviews' | 'gallery' | 'availability';
 
-// Service type configurations
-const SERVICE_CONFIG: Record<string, {
-  gradient: string[];
-  lightGradient: string[];
-  accentColor: string;
-  icon: string;
-}> = {
-  electricians: {
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-    icon: 'flash',
-  },
-  plumbers: {
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-    icon: 'water',
-  },
-  'ac-repairers': {
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-    icon: 'snow',
-  },
-};
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'reviews', label: 'Reviews' },
+  { id: 'gallery', label: 'Work' },
+  { id: 'availability', label: 'Schedule' },
+];
 
-type ProviderProfileScreenRouteParams = {
+type RouteParams = {
   id: string;
   category?: 'electricians' | 'plumbers' | 'ac-repairers';
 };
 
 export default function ProviderProfileScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: ProviderProfileScreenRouteParams }, 'params'>>();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch();
+  const bottomPad = useBottomBarPadding(GUTTER);
 
-  const { id, category = 'plumbers' } = route.params;
+  const { id, category } = route.params;
 
-  const provider = useSelector((state: RootState) => state.providerProfile?.provider) as Provider | null;
+  const provider = useSelector(
+    (state: RootState) => state.providerProfile?.provider
+  ) as Provider | null;
   const isLoading = useSelector((state: RootState) => state.providerProfile?.isLoading) as boolean;
-  const selectedTab = useSelector((state: RootState) => state.providerProfile?.selectedTab) as string;
+  const selectedTab = useSelector((state: RootState) => state.providerProfile?.selectedTab) as TabId;
   const isFavorite = useSelector(selectIsFavorite(provider?.id));
 
-  // Animation references - initialize to visible state for loading view
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const heroImageAnim = useRef(new Animated.Value(1)).current;
-
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
 
-  // All useCallback hooks MUST be before any conditional returns
-  const handleBookNow = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('BookingScreen', { providerId: provider?.id, category });
-  }, [navigation, provider?.id, category]);
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchProviderById({ providerId: id, category }) as any);
+      // So the heart shows the saved state the user left it in.
+      dispatch(fetchFavorites() as any);
+    }, [id, category, dispatch])
+  );
 
-  const handleBackPress = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
-
-  const handleCallPress = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('CallScreen', {
-      provider: provider ? {
-        id: provider.id,
-        name: provider.name,
-        specialty: provider.specialty,
-        rating: provider.rating,
-        reviews: provider.reviews,
-        image: provider.image,
-        phoneNumber: provider.phoneNumber,
-      } : undefined,
-      serviceType: category,
-    });
-  }, [navigation, provider, category]);
-
-  const handleChatPress = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('ProviderChatScreen', {
-      provider: provider ? {
-        id: provider.id,
-        name: provider.name,
-        specialty: provider.specialty,
-        rating: provider.rating,
-        reviews: provider.reviews,
-        image: provider.image,
-        distance: 'N/A',
-      } : undefined,
-      serviceType: category,
-    });
-  }, [navigation, provider, category]);
-
-  const handleTabChange = useCallback((tab: 'overview' | 'reviews' | 'gallery' | 'availability') => {
-    dispatch(setSelectedTab(tab));
-  }, [dispatch]);
+  const handleTabChange = useCallback(
+    (tab: TabId) => {
+      dispatch(setSelectedTab(tab));
+    },
+    [dispatch]
+  );
 
   // Open the provider's location in whatever map app the device has. Prefer
   // real coordinates; fall back to a text search on the address so the button
@@ -164,7 +138,7 @@ export default function ProviderProfileScreen() {
         default: `geo:0,0?q=${query}`,
       }) as string;
     } else {
-      Alert.alert('Location unavailable', "This provider hasn't shared a location yet.");
+      setShowLocationSheet(true);
       return;
     }
 
@@ -182,1625 +156,766 @@ export default function ProviderProfileScreen() {
           : encodeURIComponent([provider.address, provider.city].filter(Boolean).join(', '));
       await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${fallbackQuery}`);
     } catch {
-      Alert.alert('Location unavailable', "We couldn't open a map on this device.");
+      setShowLocationSheet(true);
     }
   }, [provider]);
 
-  // The Schedule button surfaces the availability tab this screen already has.
-  const handleSchedulePress = useCallback(() => {
-    handleTabChange('availability');
-  }, [handleTabChange]);
-
   // Optimistic heart: the icon flips immediately and the slice rolls back if
-  // the request fails. Reflecting saved state on mount comes from the
-  // fetchFavorites dispatch in the focus effect below.
+  // the request fails.
   const handleToggleWishlist = useCallback(() => {
     if (!provider?.id) return;
-    if (isFavorite) {
-      dispatch(removeFavorite(provider.id) as any);
-    } else {
-      dispatch(addFavorite(provider.id) as any);
-    }
+    dispatch((isFavorite ? removeFavorite(provider.id) : addFavorite(provider.id)) as any);
   }, [dispatch, provider?.id, isFavorite]);
 
   const handleSharePress = useCallback(async () => {
     if (!provider) return;
+    const rating = formatRating(provider.rating);
     try {
       await Share.share({
-        message: `Check out ${provider.name} on MetroMatrix — ${provider.specialty || 'home services'}, rated ${provider.rating}/5.`,
+        message: `Check out ${provider.name} on MetroMatrix — ${
+          provider.specialty || 'home services'
+        }${rating ? `, rated ${rating}/5` : ''}.`,
       });
     } catch {
       /* the user dismissed the sheet */
     }
   }, [provider]);
 
-  // Track animations ref for cleanup
-  const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  // Run animations and fetch data when screen gains focus
-  useFocusEffect(
-    useCallback(() => {
-      // Set initial animation values when screen gains focus
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      scaleAnim.setValue(0.98);
-      heroImageAnim.setValue(0);
-
-      // Fetch data on focus
-      dispatch(fetchProviderById({ providerId: id, category }) as any);
-      // So the heart shows the saved state the user left it in.
-      dispatch(fetchFavorites() as any);
-
-      // Start animations
-      animationsRef.current = Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.timing(heroImageAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]);
-      animationsRef.current.start();
-
-      // Cleanup: only stop animations, don't reset values
-      return () => {
-        if (animationsRef.current) {
-          animationsRef.current.stop();
-        }
-      };
-    }, [id, category, dispatch])
+  const appBar = (
+    <AppBar
+      title="Provider"
+      onBack={() => navigation.goBack()}
+      right={
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={handleSharePress}
+            style={styles.headerIcon}
+            accessibilityLabel="Share this provider"
+          >
+            <Ionicons name="share-outline" size={20} color={C.ink} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleToggleWishlist}
+            style={styles.headerIcon}
+            accessibilityLabel={isFavorite ? 'Remove from saved' : 'Save this provider'}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavorite ? C.error : C.ink}
+            />
+          </TouchableOpacity>
+        </View>
+      }
+    />
   );
 
-  // Early return AFTER all hooks
   if (!provider) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text>Loading...</Text>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        {appBar}
+        {isLoading ? (
+          <View style={styles.loading} accessibilityLabel="Loading profile">
+            <Skeleton width={72} height={72} radius={36} />
+            <Skeleton width="55%" height={18} style={styles.loadingGap} />
+            <Skeleton width="35%" height={12} style={styles.loadingGap} />
+            <Skeleton width="100%" height={96} radius={R.card} style={styles.loadingBlock} />
+            <Skeleton width="100%" height={140} radius={R.card} style={styles.loadingGap} />
+          </View>
+        ) : (
+          <EmptyState
+            icon="person-outline"
+            tone="error"
+            title="We couldn't load this provider"
+            message="They may no longer be listed. Try going back and picking another."
+            actionLabel="Go back"
+            onAction={() => navigation.goBack()}
+          />
+        )}
+      </Screen>
     );
   }
 
-  const serviceConfig = SERVICE_CONFIG[provider.category] || SERVICE_CONFIG['plumbers'];
+  const accent = categoryAccent(provider.category ?? category);
+  const rating = formatRating(provider.rating);
+  const reviews = formatReviewCount(provider.reviews);
 
-  const renderHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.headerGradient}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBackPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={22} color="#1E293B" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Provider Profile</Text>
-
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              activeOpacity={0.8}
-              onPress={handleSharePress}
-            >
-              <Ionicons name="share-outline" size={20} color="#64748B" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              activeOpacity={0.8}
-              onPress={handleToggleWishlist}
-              accessibilityLabel={
-                isFavorite ? 'Remove from favorites' : 'Save to favorites'
-              }
-            >
-              <Ionicons
-                name={isFavorite ? 'heart' : 'heart-outline'}
-                size={20}
-                color={isFavorite ? '#EF4444' : serviceConfig.accentColor}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderHeroSection = () => (
-    <Animated.View
-      style={[
-        styles.heroSection,
-        {
-          opacity: heroImageAnim,
-          transform: [
-            {
-              scale: heroImageAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.9, 1],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={[`${serviceConfig.accentColor}08`, 'transparent']}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.heroGradient}
-      />
-
-      <LinearGradient
-        colors={serviceConfig.gradient as [string, string]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.heroTopAccent}
-      />
-
-      <View style={styles.heroContent}>
-        <View style={styles.profileImageContainer}>
-          <LinearGradient
-            colors={serviceConfig.gradient as [string, string]}
-            style={styles.profileImageRing}
-          >
-            <View style={styles.profileImageInner}>
-              <Image source={{ uri: provider.image }} style={styles.heroProfileImage} />
-            </View>
-          </LinearGradient>
-
-          {provider.verified && (
-            <View style={[styles.verifiedBadge, { backgroundColor: serviceConfig.accentColor }]}>
-              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-            </View>
-          )}
-
-          {provider.isOnline && (
-            <View style={styles.onlineIndicator}>
-              <View style={styles.onlineDot} />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.heroInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.providerName}>{provider.name}</Text>
-            {provider.verified && (
-              <View style={styles.verifiedTextBadge}>
-                <Ionicons name="shield-checkmark" size={14} color={serviceConfig.accentColor} />
-              </View>
-            )}
-          </View>
-
-          <View style={[styles.experienceBadge, { backgroundColor: `${serviceConfig.accentColor}12` }]}>
-            <Feather name="award" size={14} color={serviceConfig.accentColor} />
-            <Text style={[styles.experienceText, { color: serviceConfig.accentColor }]}>
-              {provider.experience} Experience
-            </Text>
-          </View>
-
-          <View style={styles.ratingContainer}>
-            <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={styles.ratingGradient}>
-              <Ionicons name="star" size={14} color="#F59E0B" />
-              <Text style={styles.ratingText}>{provider.rating}</Text>
-            </LinearGradient>
-            <Text style={styles.reviewsText}>({provider.reviews} reviews)</Text>
-          </View>
-
-          <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={14} color="#94A3B8" />
-            <Text style={styles.locationText}>{provider.address}</Text>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderQuickActions = () => (
-    <Animated.View
-      style={[
-        styles.quickActions,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        onPress={handleCallPress}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#F0FDF4', '#DCFCE7']}
-          style={styles.quickActionIcon}
-        >
-          <Ionicons name="call" size={22} color="#10B981" />
-        </LinearGradient>
-        <Text style={styles.quickActionText}>Call</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        onPress={handleChatPress}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={serviceConfig.lightGradient as [string, string]}
-          style={styles.quickActionIcon}
-        >
-          <Ionicons name="chatbubble-outline" size={22} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.quickActionText}>Chat</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        activeOpacity={0.8}
-        onPress={handleLocationPress}
-      >
-        <LinearGradient
-          colors={['#FEF3C7', '#FDE68A']}
-          style={styles.quickActionIcon}
-        >
-          <Ionicons name="location" size={22} color="#D97706" />
-        </LinearGradient>
-        <Text style={styles.quickActionText}>Location</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.quickActionButton}
-        activeOpacity={0.8}
-        onPress={handleSchedulePress}
-      >
-        <LinearGradient
-          colors={['#FCE7F3', '#FBCFE8']}
-          style={styles.quickActionIcon}
-        >
-          <Ionicons name="calendar-outline" size={22} color="#EC4899" />
-        </LinearGradient>
-        <Text style={styles.quickActionText}>Schedule</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-
-  const renderStatsSection = () => (
-    <Animated.View
-      style={[
-        styles.statsSection,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={['#FFFFFF', '#FAFAFA']} style={styles.statsGradient}>
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={['#D1FAE5', '#A7F3D0']}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="checkmark-done" size={20} color="#10B981" />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{provider.jobSuccessRate}%</Text>
-          <Text style={styles.statLabel}>Success Rate</Text>
-        </View>
-
-        <View style={styles.statDivider}>
-          <View style={styles.statDividerLine} />
-        </View>
-
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={serviceConfig.lightGradient as [string, string]}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="time-outline" size={20} color={serviceConfig.accentColor} />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{provider.responseTime}</Text>
-          <Text style={styles.statLabel}>Response Time</Text>
-        </View>
-
-        <View style={styles.statDivider}>
-          <View style={styles.statDividerLine} />
-        </View>
-
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={['#FEF3C7', '#FDE68A']}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="briefcase-outline" size={20} color="#F59E0B" />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{provider.completedJobs}+</Text>
-          <Text style={styles.statLabel}>Jobs Done</Text>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderTabs = () => {
-    const tabs: Array<{ id: 'overview' | 'reviews' | 'gallery' | 'availability'; label: string; icon: string }> = [
-      { id: 'overview', label: 'Overview', icon: 'list' },
-      { id: 'reviews', label: 'Reviews', icon: 'star' },
-      { id: 'gallery', label: 'Gallery', icon: 'images' },
-      { id: 'availability', label: 'Schedule', icon: 'calendar' },
-    ];
-
-    return (
-      <Animated.View
-        style={[
-          styles.tabsContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
+  const quickActions: { label: string; icon: string; onPress: () => void }[] = [
+    {
+      label: 'Call',
+      icon: 'call-outline',
+      onPress: () =>
+        navigation.navigate('CallScreen', {
+          provider: {
+            id: provider.id,
+            name: provider.name,
+            specialty: provider.specialty,
+            rating: provider.rating,
+            reviews: provider.reviews,
+            image: provider.image,
+            phoneNumber: provider.phoneNumber,
           },
-        ]}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsScrollContent}
-        >
-          {tabs.map((tab) => {
-            const isSelected = selectedTab === tab.id;
-            return (
-              <TouchableOpacity
-                key={tab.id}
-                style={[
-                  styles.tab,
-                  isSelected && { backgroundColor: `${serviceConfig.accentColor}12` },
-                ]}
-                onPress={() => handleTabChange(tab.id)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={tab.icon as any}
-                  size={16}
-                  color={isSelected ? serviceConfig.accentColor : '#64748B'}
-                />
-                <Text
-                  style={[
-                    styles.tabText,
-                    isSelected && { color: serviceConfig.accentColor, fontFamily: Fonts.bold },
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                {isSelected && (
-                  <View style={[styles.tabIndicator, { backgroundColor: serviceConfig.accentColor }]} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
-    );
-  };
+          serviceType: category,
+        }),
+    },
+    {
+      label: 'Message',
+      icon: 'chatbubble-outline',
+      onPress: () =>
+        navigation.navigate('ProviderChatScreen', {
+          provider: {
+            id: provider.id,
+            name: provider.name,
+            specialty: provider.specialty,
+            rating: provider.rating,
+            reviews: provider.reviews,
+            image: provider.image,
+            distance: 'N/A',
+          },
+          serviceType: category,
+        }),
+    },
+    { label: 'Directions', icon: 'navigate-outline', onPress: handleLocationPress },
+    { label: 'Schedule', icon: 'calendar-outline', onPress: () => handleTabChange('availability') },
+  ];
 
-  const renderAboutSection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={serviceConfig.lightGradient as [string, string]}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="person-outline" size={20} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>About Me</Text>
+  const renderOverview = () => (
+    <>
+      <View style={styles.section}>
+        <SectionHeader title="About" />
+        {!!provider.bio && <Text style={styles.body}>{provider.bio}</Text>}
+        {provider.languages?.length > 0 && (
+          <Text style={styles.meta}>Speaks {provider.languages.join(', ')}</Text>
+        )}
       </View>
 
-      <Text style={styles.bioText}>{provider.bio}</Text>
-
-      <View style={styles.languagesContainer}>
-        <Text style={styles.languagesLabel}>Languages:</Text>
-        <View style={styles.languagesList}>
-          {provider.languages.map((language, index) => (
-            <View key={index} style={styles.languageTag}>
-              <Ionicons name="language" size={12} color={serviceConfig.accentColor} />
-              <Text style={[styles.languageText, { color: serviceConfig.accentColor }]}>{language}</Text>
+      {provider.certifications?.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title="Certifications" />
+          {provider.certifications.map((cert, index) => (
+            <View key={index} style={styles.bulletRow}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={C.success} />
+              <Text style={styles.bulletText}>{cert}</Text>
             </View>
           ))}
         </View>
-      </View>
-    </Animated.View>
-  );
+      )}
 
-  const renderCertificationsSection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={['#D1FAE5', '#A7F3D0']}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="ribbon-outline" size={20} color="#10B981" />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Certifications</Text>
-      </View>
-
-      <View style={styles.badgesContainer}>
-        {provider.certifications.map((cert, index) => {
-          const icons = ['shield-checkmark', 'medal-outline', 'checkmark-circle', 'star'];
-          const colors = ['#10B981', '#F59E0B', serviceConfig.accentColor, '#EC4899'];
-          return (
-            <View key={index} style={styles.certificationBadge}>
-              <Ionicons name={icons[index % icons.length] as any} size={16} color={colors[index % colors.length]} />
-              <Text style={styles.badgeText}>{cert}</Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <View style={[styles.dividerDot, { backgroundColor: serviceConfig.accentColor }]} />
-        <View style={styles.dividerLine} />
-      </View>
-
-      <Text style={styles.subSectionTitle}>Skills & Expertise</Text>
-      <View style={styles.skillsContainer}>
-        {provider.skills.map((skill, index) => (
-          <View key={index} style={[styles.skillTag, { backgroundColor: `${serviceConfig.accentColor}12`, borderColor: `${serviceConfig.accentColor}30` }]}>
-            <Text style={[styles.skillText, { color: serviceConfig.accentColor }]}>{skill}</Text>
-          </View>
-        ))}
-      </View>
-    </Animated.View>
-  );
-
-  const renderServicesSection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={['#FEF3C7', '#FDE68A']}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="construct-outline" size={20} color="#F59E0B" />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Services Offered</Text>
-      </View>
-
-      {provider.servicesOffered.map((service: Service, index: number) => (
-        <View key={service.id} style={styles.serviceCard}>
-          <View style={styles.serviceHeader}>
-            <View style={[styles.serviceIconBg, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-              <Ionicons name={service.icon as any} size={20} color={serviceConfig.accentColor} />
-            </View>
-            <View style={styles.serviceInfo}>
-              <Text style={styles.serviceName}>{service.name}</Text>
-              <Text style={styles.serviceDescription}>{service.description}</Text>
-            </View>
-          </View>
-
-          <View style={styles.serviceFooter}>
-            <View style={styles.serviceMeta}>
-              <Ionicons name="time-outline" size={14} color="#94A3B8" />
-              <Text style={styles.serviceMetaText}>{service.duration}</Text>
-            </View>
-            <View style={styles.priceContainer}>
-              <Text style={styles.servicePrice}>₨{service.price.toLocaleString()}</Text>
-            </View>
+      {provider.skills?.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title="Skills" />
+          <View style={styles.tagRow}>
+            {provider.skills.map((skill, index) => (
+              <View key={index} style={styles.tag}>
+                <Text style={styles.tagText}>{skill}</Text>
+              </View>
+            ))}
           </View>
         </View>
-      ))}
-    </Animated.View>
+      )}
+
+      {provider.servicesOffered?.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title="Services and prices" />
+          {provider.servicesOffered.map((service: Service) => (
+            <Card key={service.id} style={styles.rowCard}>
+              <View style={styles.serviceRow}>
+                <View style={styles.serviceText}>
+                  <Text style={styles.rowTitle}>{service.name}</Text>
+                  {!!service.description && (
+                    <Text style={styles.meta} numberOfLines={2}>
+                      {service.description}
+                    </Text>
+                  )}
+                  {!!service.duration && (
+                    <Text style={styles.metaFaint}>{service.duration}</Text>
+                  )}
+                </View>
+                <Text style={styles.servicePrice}>{formatPrice(service.price, 'On request')}</Text>
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+    </>
   );
 
-  const renderReviewsSection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={['#FEF3C7', '#FDE68A']}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="star" size={20} color="#F59E0B" />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Reviews ({provider.reviews})</Text>
-      </View>
+  const renderReviews = () => (
+    <View style={styles.section}>
+      <SectionHeader title="Reviews" subtitle={reviews ?? 'No reviews yet'} />
 
-      {provider.reviewsList.map((review: Review, index: number) => {
-        const isExpanded = expandedReview === review.id;
-        const shouldTruncate = review.comment.length > 120;
+      {provider.reviewsList?.length ? (
+        provider.reviewsList.map((review: Review) => {
+          const isExpanded = expandedReview === review.id;
+          const shouldTruncate = review.comment.length > 120;
+          const when = formatInstant(review.date);
 
-        return (
-          <View key={review.id} style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <View style={styles.reviewerInfo}>
-                <LinearGradient
-                  colors={[review.avatarColor, `${review.avatarColor}CC`]}
-                  style={styles.reviewerAvatar}
-                >
-                  <Text style={styles.reviewerInitial}>{review.reviewerInitial}</Text>
-                </LinearGradient>
-                <View>
-                  <Text style={styles.reviewerName}>{review.reviewerName}</Text>
-                  <Text style={styles.reviewDate}>{review.date}</Text>
+          return (
+            <Card key={review.id} style={styles.rowCard}>
+              <View style={styles.reviewHeader}>
+                <Avatar
+                  name={review.reviewerName}
+                  size={36}
+                  tint={accent.tintSoft}
+                  color={accent.tint}
+                />
+                <View style={styles.reviewWho}>
+                  <Text style={styles.rowTitle}>{review.reviewerName}</Text>
+                  {/* The serializer falls through to createdAt, which arrives
+                      as a raw ISO string — this used to print in full. */}
+                  {!!when && <Text style={styles.metaFaint}>{when}</Text>}
+                </View>
+                <View style={styles.stars}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Ionicons
+                      key={star}
+                      name={star <= review.rating ? 'star' : 'star-outline'}
+                      size={12}
+                      color={star <= review.rating ? C.star : C.disabled}
+                    />
+                  ))}
                 </View>
               </View>
-              <View style={styles.reviewRating}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Ionicons
-                    key={star}
-                    name={star <= review.rating ? 'star' : 'star-outline'}
-                    size={12}
-                    color={star <= review.rating ? '#F59E0B' : '#CBD5E1'}
-                  />
-                ))}
-              </View>
-            </View>
 
-            <Text
-              style={styles.reviewText}
-              numberOfLines={isExpanded || !shouldTruncate ? undefined : 3}
-            >
-              {review.comment}
-            </Text>
-
-            {shouldTruncate && (
-              <TouchableOpacity
-                onPress={() => setExpandedReview(isExpanded ? null : review.id)}
-                activeOpacity={0.7}
+              <Text
+                style={styles.reviewBody}
+                numberOfLines={isExpanded || !shouldTruncate ? undefined : 3}
               >
-                <Text style={[styles.readMoreText, { color: serviceConfig.accentColor }]}>
-                  {isExpanded ? 'Show less' : 'Read more'}
+                {review.comment}
+              </Text>
+
+              {shouldTruncate && (
+                <TouchableOpacity
+                  onPress={() => setExpandedReview(isExpanded ? null : review.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.link}>{isExpanded ? 'Show less' : 'Read more'}</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Marking a review helpful has no endpoint; shown as a read-only
+                  count rather than a button that does nothing. */}
+              {review.helpfulCount > 0 && (
+                <Text style={styles.metaFaint}>
+                  {review.helpfulCount} found this helpful
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.reviewFooter}>
-              {/* Marking a review helpful has no endpoint; shown as a
-                  read-only count rather than a button that does nothing. */}
-              <View style={styles.helpfulButton}>
-                <Ionicons name="thumbs-up-outline" size={14} color="#94A3B8" />
-                <Text style={styles.helpfulText}>Helpful ({review.helpfulCount})</Text>
-              </View>
-            </View>
-          </View>
-        );
-      })}
-    </Animated.View>
+              )}
+            </Card>
+          );
+        })
+      ) : (
+        <EmptyState
+          icon="chatbubble-ellipses-outline"
+          title="No reviews yet"
+          message="Be the first to review this provider after your booking."
+        />
+      )}
+    </View>
   );
 
-  const renderGallerySection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={serviceConfig.lightGradient as [string, string]}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="images-outline" size={20} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Work Portfolio</Text>
-      </View>
-
-      {/* Plain tiles: there is no lightbox or full-screen viewer to open, so
-          these are not rendered as tappable. */}
-      <View style={styles.galleryGrid}>
-        {provider.gallery.map((item: GalleryItem) => (
-          <View key={item.id} style={styles.galleryItem}>
-            <Image source={{ uri: item.image }} style={styles.galleryImage} />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.7)']}
-              style={styles.galleryOverlay}
-            >
-              <View style={styles.galleryCategoryBadge}>
-                <Text style={styles.galleryCategoryText}>{item.category}</Text>
-              </View>
-              <Text style={styles.galleryTitle}>{item.title}</Text>
-            </LinearGradient>
-          </View>
-        ))}
-      </View>
-    </Animated.View>
+  const renderGallery = () => (
+    <View style={styles.section}>
+      <SectionHeader title="Recent work" />
+      {provider.gallery?.length ? (
+        <View style={styles.galleryGrid}>
+          {/* Plain tiles: there is no lightbox to open, so these are not
+              rendered as tappable. */}
+          {provider.gallery.map((item: GalleryItem) => (
+            <View key={item.id} style={styles.galleryItem}>
+              <Image source={{ uri: item.image }} style={styles.galleryImage} />
+              <LinearGradient
+                colors={['transparent', 'rgba(28,25,23,0.7)']}
+                style={styles.galleryScrim}
+              >
+                <Text style={styles.galleryTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+              </LinearGradient>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <EmptyState
+          icon="images-outline"
+          title="No photos yet"
+          message="This provider hasn't added pictures of past jobs."
+        />
+      )}
+    </View>
   );
 
-  const renderAvailabilitySection = () => (
-    <Animated.View
-      style={[
-        styles.section,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={['#FCE7F3', '#FBCFE8']}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="calendar-outline" size={20} color="#EC4899" />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Weekly Schedule</Text>
-      </View>
-
-      {provider.availability.map((slot, index) => (
-        <View key={slot.id} style={styles.availabilityCard}>
-          <View style={styles.availabilityHeader}>
-            <Text style={styles.dayText}>{slot.day}</Text>
-            {slot.available ? (
-              <View style={styles.availableBadge}>
-                <View style={styles.availableDot} />
-                <Text style={styles.availableText}>Available</Text>
-              </View>
-            ) : (
-              <View style={styles.unavailableBadge}>
-                <Text style={styles.unavailableText}>Closed</Text>
-              </View>
-            )}
-          </View>
-
-          {slot.available && slot.timeSlots.length > 0 && (
-            <View style={styles.timeSlotsContainer}>
-              {slot.timeSlots.map((time, idx) => (
-                <View key={idx} style={[styles.timeSlot, { backgroundColor: `${serviceConfig.accentColor}12` }]}>
-                  <Ionicons name="time-outline" size={12} color={serviceConfig.accentColor} />
-                  <Text style={[styles.timeSlotText, { color: serviceConfig.accentColor }]}>{time}</Text>
-                </View>
-              ))}
-            </View>
+  const renderAvailability = () => (
+    <View style={styles.section}>
+      <SectionHeader title="Weekly schedule" />
+      {provider.availability?.map((slot) => (
+        <View key={slot.id} style={styles.dayRow}>
+          <Text style={styles.dayName}>{slot.day}</Text>
+          {slot.available && slot.timeSlots.length > 0 ? (
+            <Text style={styles.dayHours}>{slot.timeSlots.join(', ')}</Text>
+          ) : (
+            <Text style={styles.dayClosed}>Closed</Text>
           )}
         </View>
       ))}
-    </Animated.View>
+    </View>
   );
 
   const renderTabContent = () => {
     switch (selectedTab) {
-      case 'overview':
-        return (
-          <>
-            {renderAboutSection()}
-            {renderCertificationsSection()}
-            {renderServicesSection()}
-          </>
-        );
       case 'reviews':
-        return renderReviewsSection();
+        return renderReviews();
       case 'gallery':
-        return renderGallerySection();
+        return renderGallery();
       case 'availability':
-        return renderAvailabilitySection();
+        return renderAvailability();
+      case 'overview':
       default:
-        return renderAboutSection();
+        return renderOverview();
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
-        translucent={!isAndroid}
-      />
+    <Screen>
+      {appBar}
 
-      {renderHeader()}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Card elevation="raised" accentRule={accent.tint} style={styles.hero}>
+          <View style={styles.heroTop}>
+            <View>
+              <Avatar
+                uri={provider.image}
+                name={provider.name}
+                size={64}
+                tint={accent.tintSoft}
+                color={accent.tint}
+              />
+              {provider.verified && (
+                <View style={[styles.verified, { backgroundColor: accent.tint }]}>
+                  <Ionicons name="checkmark" size={11} color={C.inkInverse} />
+                </View>
+              )}
+            </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {renderHeroSection()}
-        {renderQuickActions()}
-        {renderStatsSection()}
-        {renderTabs()}
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroName} numberOfLines={2}>
+                {provider.name}
+              </Text>
+              <Text style={styles.meta}>
+                {[accent.label, provider.experience ? `${provider.experience} experience` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+
+              {/* No rating and no reviews means a new provider, not a bad one —
+                  the old hero printed "★ 0 (0 reviews)". */}
+              <View style={styles.heroRating}>
+                {rating ? (
+                  <>
+                    <Ionicons name="star" size={14} color={C.star} />
+                    <Text style={styles.ratingValue}>{rating}</Text>
+                    {!!reviews && <Text style={styles.meta}>· {reviews}</Text>}
+                  </>
+                ) : (
+                  <Text style={styles.meta}>New provider</Text>
+                )}
+                {provider.isOnline && (
+                  <>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.online}>Online</Text>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {!!provider.address && (
+            <View style={styles.heroAddress}>
+              <Ionicons name="location-outline" size={14} color={C.inkFaint} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {provider.address}
+              </Text>
+            </View>
+          )}
+        </Card>
+
+        <View style={styles.quickActions}>
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              style={styles.quickAction}
+              onPress={action.onPress}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <View style={styles.quickActionIcon}>
+                <Ionicons name={action.icon as any} size={20} color={C.ink} />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Card style={styles.stats}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{provider.jobSuccessRate}%</Text>
+              <Text style={styles.statLabel}>Success rate</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{provider.responseTime}</Text>
+              <Text style={styles.statLabel}>Replies in</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{provider.completedJobs}</Text>
+              <Text style={styles.statLabel}>Jobs done</Text>
+            </View>
+          </View>
+        </Card>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+        >
+          {TABS.map((tab) => (
+            <Chip
+              key={tab.id}
+              label={tab.label}
+              selected={selectedTab === tab.id}
+              onPress={() => handleTabChange(tab.id)}
+              style={styles.tabChip}
+            />
+          ))}
+        </ScrollView>
+
         {renderTabContent()}
       </ScrollView>
 
-      {/* Floating Book Button */}
-      <Animated.View
-        style={[
-          styles.floatingButton,
+      <View style={[styles.footer, { paddingBottom: bottomPad }]}>
+        <Button
+          label={`Book · ${formatPrice(provider.price, 'request a quote')}`}
+          onPress={() => navigation.navigate('BookingScreen', { providerId: provider.id, category })}
+          accessibilityLabel={`Book ${provider.name}`}
+        />
+      </View>
+
+      <ActionSheet
+        visible={showLocationSheet}
+        title="No map available"
+        message="This provider hasn't shared a location we can open on this device."
+        cancelLabel="Close"
+        onClose={() => setShowLocationSheet(false)}
+        options={[
           {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+            label: 'Ask them where they are',
+            icon: 'chatbubble-outline',
+            onPress: () =>
+              navigation.navigate('ProviderChatScreen', {
+                provider: { id: provider.id, name: provider.name, image: provider.image },
+                serviceType: category,
+              }),
           },
         ]}
-      >
-        <TouchableOpacity
-          style={styles.bookNowButton}
-          onPress={handleBookNow}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={serviceConfig.gradient as [string, string]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.bookNowGradient}
-          >
-            <Text style={styles.bookNowText}>Book Now - ₨{provider.price.toLocaleString()}</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Header
-  header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 20,
-    paddingBottom: 16,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.3,
+  content: {
+    padding: GUTTER,
+    paddingBottom: 120,
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 8,
   },
-  headerIconButton: {
-    width: 42,
-    height: 42,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    justifyContent: 'center',
+  headerIcon: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'center',
   },
 
-  // Content
-  content: {
-    flex: 1,
+  loading: {
+    padding: GUTTER,
   },
-  scrollContent: {
-    paddingBottom: 120,
-  },
+  loadingGap: { marginTop: S.md },
+  loadingBlock: { marginTop: S.xxl },
 
-  // Hero Section
-  heroSection: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 24,
-    padding: 20,
-    position: 'relative',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
+  hero: {
+    marginBottom: S.lg,
   },
-  heroGradient: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 200,
-    height: 200,
-    borderBottomLeftRadius: 100,
-  },
-  heroTopAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-  },
-  heroContent: {
+  heroTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    zIndex: 2,
   },
-  profileImageContainer: {
-    marginRight: 16,
-    position: 'relative',
-  },
-  profileImageRing: {
-    width: 90,
-    height: 90,
-    borderRadius: 26,
-    padding: 3,
-  },
-  profileImageInner: {
-    flex: 1,
-    borderRadius: 23,
-    overflow: 'hidden',
-    backgroundColor: '#F8FAFC',
-  },
-  heroProfileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  verifiedBadge: {
+  verified: {
     position: 'absolute',
-    bottom: -2,
     right: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  onlineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: C.surface,
   },
   heroInfo: {
     flex: 1,
+    marginLeft: S.lg,
   },
-  nameRow: {
+  heroName: {
+    ...T.heading,
+    color: C.ink,
+  },
+  heroRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: S.sm,
   },
-  providerName: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.4,
-    marginRight: 8,
+  ratingValue: {
+    ...T.bodyStrong,
+    color: C.ink,
+    marginLeft: 4,
+    marginRight: 4,
   },
-  verifiedTextBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#F0FDF4',
-    justifyContent: 'center',
-    alignItems: 'center',
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.success,
+    marginLeft: S.md,
   },
-  experienceBadge: {
+  online: {
+    ...T.caption,
+    color: C.success,
+    marginLeft: 5,
+  },
+  heroAddress: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 6,
-    marginBottom: 10,
-  },
-  experienceText: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  ratingGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontFamily: Fonts.bold,
-    color: '#92400E',
-  },
-  reviewsText: {
-    fontSize: 13,
-    fontFamily: Fonts.medium,
-    color: '#64748B',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#94A3B8',
-    flex: 1,
+    marginTop: S.lg,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
 
-  // Quick Actions
   quickActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    justifyContent: 'space-between',
   },
-  quickActionButton: {
+  quickAction: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
   },
   quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    justifyContent: 'center',
+    width: 46,
+    height: 46,
+    borderRadius: R.control,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    justifyContent: 'center',
   },
-  quickActionText: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    color: '#64748B',
+  quickActionLabel: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 6,
   },
 
-  // Stats Section
-  statsSection: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+  stats: {
+    marginTop: S.lg,
   },
-  statsGradient: {
+  statsRow: {
     flexDirection: 'row',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'space-around',
   },
   statItem: {
-    alignItems: 'center',
     flex: 1,
-  },
-  statIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  statNumber: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.3,
+  statValue: {
+    ...T.subhead,
+    color: C.ink,
   },
   statLabel: {
-    fontSize: 11,
-    fontFamily: Fonts.medium,
-    color: '#64748B',
+    ...T.caption,
+    color: C.inkMuted,
     marginTop: 2,
     textAlign: 'center',
   },
   statDivider: {
-    height: 60,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  statDividerLine: {
-    width: 1,
-    height: '100%',
-    backgroundColor: '#E2E8F0',
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: C.line,
   },
 
-  // Tabs
-  tabsContainer: {
-    marginTop: 16,
-    marginBottom: 8,
+  tabs: {
+    paddingVertical: SECTION,
   },
-  tabsScrollContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    position: 'relative',
-  },
-  tabText: {
-    fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    color: '#64748B',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
+  tabChip: {
+    marginRight: S.sm,
   },
 
-  // Section
   section: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    marginBottom: SECTION,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+  body: {
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: S.md,
+    maxWidth: PROSE_WIDTH,
   },
-  sectionIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  meta: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    letterSpacing: -0.3,
-    flex: 1,
+  metaFaint: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 2,
+  },
+  link: {
+    ...T.label,
+    color: HS.accentDeep,
+    marginTop: S.sm,
   },
 
-  // About Section
-  bioText: {
-    fontSize: 14,
-    fontFamily: Fonts.regular,
-    color: '#475569',
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  languagesContainer: {
+  bulletRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    marginTop: S.md,
   },
-  languagesLabel: {
-    fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    color: '#64748B',
+  bulletText: {
+    ...T.body,
+    color: C.ink,
+    marginLeft: S.sm,
   },
-  languagesList: {
+
+  tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    flex: 1,
+    marginTop: S.md,
   },
-  languageTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 10,
+  tag: {
+    paddingHorizontal: S.md,
     paddingVertical: 5,
-    borderRadius: 10,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderRadius: R.chip,
+    backgroundColor: C.surfaceSunken,
+    marginRight: S.sm,
+    marginBottom: S.sm,
   },
-  languageText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-  },
-
-  // Certifications
-  badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  certificationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    color: '#475569',
+  tagText: {
+    ...T.label,
+    color: C.inkMuted,
   },
 
-  // Divider
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
+  rowCard: {
+    marginTop: S.md,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#F1F5F9',
+  rowTitle: {
+    ...T.subhead,
+    color: C.ink,
   },
-  dividerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginHorizontal: 12,
-  },
-
-  // Skills
-  subSectionTitle: {
-    fontSize: 15,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  skillsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  skillTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  skillText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-  },
-
-  // Services
-  serviceCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  serviceHeader: {
+  serviceRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  serviceIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: 15,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
-    marginBottom: 4,
-  },
-  serviceDescription: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  serviceFooter: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  serviceMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  serviceMetaText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#94A3B8',
-  },
-  priceContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  serviceText: {
+    flex: 1,
+    marginRight: S.md,
   },
   servicePrice: {
-    fontSize: 16,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
+    ...T.bodyStrong,
+    color: C.ink,
   },
 
-  // Reviews
-  reviewCard: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 16,
-    marginBottom: 16,
-  },
   reviewHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  reviewerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  reviewerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  reviewerInitial: {
-    fontSize: 16,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+  reviewWho: {
+    flex: 1,
+    marginLeft: S.md,
   },
-  reviewerName: {
-    fontSize: 14,
-    fontFamily: Fonts.semiBold,
-    color: '#0F172A',
-  },
-  reviewDate: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#64748B',
-  },
-  reviewRating: {
+  stars: {
     flexDirection: 'row',
-    gap: 2,
   },
-  reviewText: {
-    fontSize: 14,
-    fontFamily: Fonts.regular,
-    color: '#475569',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  readMoreText: {
-    fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    marginBottom: 12,
-  },
-  reviewFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  helpfulButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  helpfulText: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#64748B',
+  reviewBody: {
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: S.md,
+    maxWidth: PROSE_WIDTH,
   },
 
-  // Gallery
   galleryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    marginTop: S.md,
+    marginHorizontal: -S.xs,
   },
   galleryItem: {
-    width: (width - 64) / 2,
-    height: 160,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
+    width: '50%',
+    aspectRatio: 1,
+    padding: S.xs,
   },
   galleryImage: {
     width: '100%',
     height: '100%',
+    borderRadius: R.card,
+    backgroundColor: C.surfaceSunken,
   },
-  galleryOverlay: {
+  galleryScrim: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-  },
-  galleryCategoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  galleryCategoryText: {
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+    left: S.xs,
+    right: S.xs,
+    bottom: S.xs,
+    height: '50%',
+    borderBottomLeftRadius: R.card,
+    borderBottomRightRadius: R.card,
+    justifyContent: 'flex-end',
+    padding: S.sm,
   },
   galleryTitle: {
-    fontSize: 12,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
+    ...T.label,
+    color: C.inkInverse,
   },
 
-  // Availability
-  availabilityCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  availabilityHeader: {
+  dayRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    paddingVertical: S.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.lineSoft,
   },
-  dayText: {
-    fontSize: 14,
-    fontFamily: Fonts.bold,
-    color: '#0F172A',
+  dayName: {
+    ...T.body,
+    color: C.ink,
   },
-  availableBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 6,
+  dayHours: {
+    ...T.caption,
+    color: C.inkMuted,
   },
-  availableDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  availableText: {
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-    color: '#059669',
-  },
-  unavailableBadge: {
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  unavailableText: {
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-    color: '#DC2626',
-  },
-  timeSlotsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  timeSlot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  timeSlotText: {
-    fontSize: 11,
-    fontFamily: Fonts.medium,
+  dayClosed: {
+    ...T.caption,
+    color: C.inkFaint,
   },
 
-  // Floating Button
-  floatingButton: {
+  footer: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  bookNowButton: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  bookNowGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 10,
-  },
-  bookNowText: {
-    fontSize: 16,
-    fontFamily: Fonts.bold,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: GUTTER,
+    paddingTop: S.md,
+    backgroundColor: C.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.line,
   },
 });

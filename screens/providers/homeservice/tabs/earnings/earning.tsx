@@ -49,46 +49,13 @@ import {
   selectEarningsLoading,
   selectEarningsError,
 } from './earningSlice';
+// Values come from the shared tokens via the provider bridge — see
+// screens/providers/homeservice/providerTheme.ts.
+import { theme } from '../../providerTheme';
 
 const { width } = Dimensions.get('window');
 
 // Design System - Matching reference design
-const theme = {
-  colors: {
-    primary: '#059669',
-    primaryDark: '#047857',
-    primaryLight: '#D1FAE5',
-    background: '#F9FAFB',
-    surface: '#FFFFFF',
-    text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      tertiary: '#9CA3AF',
-      inverse: '#FFFFFF',
-    },
-    border: '#E5E7EB',
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-    info: '#3B82F6',
-    purple: '#8B5CF6',
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
-  },
-  borderRadius: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    full: 9999,
-  },
-};
 
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (width - 40 - CARD_MARGIN) / 2;
@@ -283,8 +250,8 @@ export default function EarningsScreen() {
           <Text style={styles.metricLabel}>On-time</Text>
         </View>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: '#EDE9FE' }]}>
-            <Award size={18} color={theme.colors.purple} />
+          <View style={[styles.metricIcon, { backgroundColor: theme.colors.warningSoft }]}>
+            <Award size={18} color={theme.colors.warning} />
           </View>
           <Text style={styles.metricValue}>{performance.statusTier}</Text>
           <Text style={styles.metricLabel}>Tier</Text>
@@ -611,8 +578,8 @@ export default function EarningsScreen() {
             title="Completed"
             value={stats.completedJobsCount.toString()}
             icon={CheckCircle2}
-            color={theme.colors.purple}
-            bgColor="#EDE9FE"
+            color={theme.colors.success}
+            bgColor={theme.colors.successSoft}
           />
         </View>
 

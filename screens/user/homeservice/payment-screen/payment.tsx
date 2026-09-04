@@ -1,106 +1,83 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+// ============================================================================
+// Payment
+//
+// The one screen where a mistake costs real money, so it is the quietest one
+// in the module: a summary you can check, methods legible by shape and weight
+// rather than by colour alone, and one confident CTA that names the amount.
+//
+// What went: eight gradients, the staggered per-method entrance, the pulse on
+// the pay button, and six native Alerts — including the confirmation dialog,
+// which is now a sheet in the product's own voice, and the validation alerts,
+// which are inline because a disabled button with a reason beats an OS popup
+// after the fact.
+// ============================================================================
+
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
-  SafeAreaView,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  Screen,
+  SectionHeader,
+  Skeleton,
+} from '../../../../components/ui';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
+import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
+import { AppDispatch, RootState } from '../../../../store/store';
+import { formatAmount } from '../../../../utils/homeservice/format';
+import {
   initializePayment,
+  PaymentMethodType,
   processPayment,
-  setSelectedMethod,
-  setCustomAmount,
-  toggleCustomAmount,
   resetPaymentState,
-  selectPaymentAmount,
+  selectEnabledPaymentMethods,
   selectFormattedPaymentAmount,
   selectIsPaymentValid,
-  selectPaymentSummaryData,
-  selectEnabledPaymentMethods,
-  PaymentMethodType,
+  selectPaymentAmount,
   ServiceCategory,
+  setCustomAmount,
+  setSelectedMethod,
+  toggleCustomAmount,
 } from './paymentSlice';
-import { RootState, AppDispatch } from '../../../../store/store';
-import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
 
 // The wallet is the only method that debits a balance; cash is settled
 // in person. This used to list 'jazzcash' and 'easypaisa', which were the
 // same wallet under two other brands' names.
 const WALLET_BACKED_METHODS: PaymentMethodType[] = ['wallet'];
 
-const { width, height } = Dimensions.get('window');
-
-// Service type configurations - matching ServiceStatusScreen
-const SERVICE_CONFIG: Record<
-  ServiceCategory,
-  {
-    gradient: [string, string];
-    lightGradient: [string, string];
-    accentColor: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    successGradient: [string, string];
-  }
-> = {
-  electricians: {
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-    icon: 'flash',
-    successGradient: ['#FEF3C7', '#FDE68A'],
-  },
-  plumbers: {
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-    icon: 'water',
-    successGradient: ['#DBEAFE', '#BFDBFE'],
-  },
-  'ac-repairers': {
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-    icon: 'snow',
-    successGradient: ['#CFFAFE', '#A5F3FC'],
-  },
-};
-
-type PaymentRouteParams = {
-  bookingId: string;
+type RouteParams = {
+  bookingId?: string;
   category?: ServiceCategory;
-  paymentData?: {
-    providerName: string;
-    providerPhone: string;
-    service: string;
-    invoiceId: string;
-    description: string;
-    amount: number;
-    suggestedAmount: number;
-  };
+  paymentData?: { amount?: number; suggestedAmount?: number };
 };
 
 export default function PaymentScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: PaymentRouteParams }, 'params'>>();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
+  const bottomPad = useBottomBarPadding(GUTTER);
 
   const { bookingId = 'default', category = 'ac-repairers', paymentData } = route.params || {};
+  const accent = categoryAccent(category);
 
-  // Redux state
   const recipient = useSelector((state: RootState) => state.payment?.recipient);
   const paymentDetails = useSelector((state: RootState) => state.payment?.paymentDetails);
   const selectedMethod = useSelector((state: RootState) => state.payment?.selectedMethod);
@@ -121,61 +98,27 @@ export default function PaymentScreen() {
   const isWalletBacked = selectedMethod ? WALLET_BACKED_METHODS.includes(selectedMethod) : false;
   const insufficientBalance = isWalletBacked && walletBalance < paymentAmount;
 
+  const [manualAmount, setManualAmount] = useState('');
+  const [showConfirmSheet, setShowConfirmSheet] = useState(false);
+
   useEffect(() => {
     dispatch(fetchWallet());
   }, [dispatch]);
 
-  // Local state
-  const [manualAmount, setManualAmount] = useState('');
-  const [isReady, setIsReady] = useState(false);
-
-  // Animation refs
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const methodAnimations = useRef(
-    paymentMethods.map(() => new Animated.Value(0))
-  ).current;
-  const buttonPulse = useRef(new Animated.Value(1)).current;
-
-  const serviceConfig = SERVICE_CONFIG[category] || SERVICE_CONFIG['ac-repairers'];
-
-  // Initialize payment data
   useFocusEffect(
     useCallback(() => {
-      setIsReady(false);
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      scaleAnim.setValue(0.95);
-
-      const amount = paymentData?.amount || paymentData?.suggestedAmount;
-
       dispatch(
         initializePayment({
           bookingId,
           category,
-          amount,
+          amount: paymentData?.amount || paymentData?.suggestedAmount,
         })
       );
-
-      return () => {
-        // Cleanup if needed
-      };
     }, [bookingId, category, paymentData, dispatch])
   );
 
-  // Run entrance animations when data is loaded
-  useEffect(() => {
-    if (!isLoading && recipient && !isReady) {
-      setIsReady(true);
-      runEntranceAnimations();
-    }
-  }, [isLoading, recipient, isReady]);
-
-  // Handle payment status changes
   useEffect(() => {
     if (paymentStatus === 'completed') {
-      // @ts-ignore
       navigation.navigate('PaymentSuccess', {
         category,
         bookingId,
@@ -187,81 +130,13 @@ export default function PaymentScreen() {
     }
   }, [paymentStatus]);
 
-  // Show error alerts
-  useEffect(() => {
-    if (error) {
-      Alert.alert('Payment Error', error, [{ text: 'OK' }]);
-    }
-  }, [error]);
-
-  const runEntranceAnimations = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 80,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Staggered animation for payment methods
-    methodAnimations.forEach((anim, index) => {
-      Animated.sequence([
-        Animated.delay(index * 100),
-        Animated.spring(anim, {
-          toValue: 1,
-          tension: 80,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  }, [fadeAnim, slideAnim, scaleAnim, methodAnimations]);
-
   const handleBackPress = useCallback(() => {
-    if (isProcessing) {
-      Alert.alert(
-        'Payment in Progress',
-        'Please wait for the payment to complete.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
+    // A payment in flight must not be abandoned mid-request; the chevron is
+    // simply inert until it resolves.
+    if (isProcessing) return;
     dispatch(resetPaymentState());
     navigation.goBack();
   }, [dispatch, navigation, isProcessing]);
-
-  const handleMethodSelect = useCallback(
-    (methodId: PaymentMethodType) => {
-      dispatch(setSelectedMethod(methodId));
-
-      // Pulse animation on button
-      Animated.sequence([
-        Animated.timing(buttonPulse, {
-          toValue: 1.02,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonPulse, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    },
-    [dispatch, buttonPulse]
-  );
 
   const handleAmountChange = useCallback(
     (text: string) => {
@@ -272,998 +147,457 @@ export default function PaymentScreen() {
     [dispatch]
   );
 
-  const handleToggleCustomAmount = useCallback(() => {
-    dispatch(toggleCustomAmount());
-    if (useCustomAmount) {
-      setManualAmount('');
-    }
-  }, [dispatch, useCustomAmount]);
+  const confirmPayment = useCallback(() => {
+    dispatch(processPayment({ bookingId, amount: paymentAmount, method: selectedMethod }));
+  }, [dispatch, bookingId, paymentAmount, selectedMethod]);
 
-  const handleUseOriginalAmount = useCallback(() => {
-    if (paymentDetails?.originalAmount) {
-      const amount = paymentDetails.originalAmount.toString();
-      setManualAmount(amount);
-      dispatch(setCustomAmount(paymentDetails.originalAmount));
-    }
-  }, [dispatch, paymentDetails]);
-
-  const handlePayment = useCallback(() => {
-    if (!isPaymentValid) {
-      if (!selectedMethod) {
-        Alert.alert('Payment Method Required', 'Please select a payment method.');
-      } else if (paymentAmount <= 0) {
-        Alert.alert('Invalid Amount', 'Please enter a valid payment amount.');
-      }
-      return;
-    }
-    if (insufficientBalance) {
-      Alert.alert(
-        'Insufficient wallet balance',
-        `Your wallet has ${walletCurrency.toUpperCase()} ${walletBalance.toFixed(2)} but this payment is ${formattedAmount}.\n\nTop up your wallet or choose a different payment method.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Top Up', onPress: () => (navigation as any).navigate('WalletScreen') },
-        ]
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Confirm Payment',
-      `Pay ${formattedAmount} via ${
-        paymentMethods.find((m) => m.id === selectedMethod)?.name
-      }?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => {
-            dispatch(
-              processPayment({
-                bookingId,
-                amount: paymentAmount,
-                method: selectedMethod,
-              })
-            );
-          },
-        },
-      ]
-    );
-  }, [
-    isPaymentValid,
-    selectedMethod,
-    paymentAmount,
-    formattedAmount,
-    paymentMethods,
-    bookingId,
-    dispatch,
-    insufficientBalance,
-    walletBalance,
-    walletCurrency,
-    navigation,
-  ]);
-
-  // Loading state
   if (isLoading || !recipient) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingContainer}>
-          <LinearGradient colors={serviceConfig.gradient} style={styles.loadingIcon}>
-            <Ionicons name="card-outline" size={32} color="#FFFFFF" />
-          </LinearGradient>
-          <Text style={styles.loadingText}>Preparing payment...</Text>
-          <View style={styles.loadingDots}>
-            {[0, 1, 2].map((i) => (
-              <Animated.View
-                key={i}
-                style={[
-                  styles.loadingDot,
-                  { backgroundColor: serviceConfig.accentColor },
-                ]}
-              />
-            ))}
-          </View>
+      <Screen>
+        <AppBar title="Payment" onBack={() => navigation.goBack()} />
+        <View style={styles.loading} accessibilityLabel="Preparing payment">
+          <Skeleton width="100%" height={92} radius={R.card} />
+          <Skeleton width="100%" height={200} radius={R.card} style={styles.loadingGap} />
+          <Skeleton width="100%" height={140} radius={R.card} style={styles.loadingGapSm} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
-  const renderHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.headerGradient}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBackPress}
-            activeOpacity={0.8}
-            disabled={isProcessing}
-          >
-            <Ionicons name="chevron-back" size={22} color="#1E293B" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Payment</Text>
-
-          <View
-            style={[
-              styles.securityBadge,
-              { backgroundColor: `${serviceConfig.accentColor}15` },
-            ]}
-          >
-            <Ionicons name="shield-checkmark" size={16} color={serviceConfig.accentColor} />
-            <Text style={[styles.securityText, { color: serviceConfig.accentColor }]}>
-              Secure
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderRecipientCard = () => (
-    <Animated.View
-      style={[
-        styles.recipientCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={serviceConfig.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.cardAccent}
-      />
-
-      <View style={styles.recipientContent}>
-        <View style={styles.recipientHeader}>
-          <View style={styles.recipientImageContainer}>
-            <LinearGradient colors={serviceConfig.lightGradient} style={styles.imageRing}>
-              <Image source={{ uri: recipient.image }} style={styles.recipientImage} />
-            </LinearGradient>
-            <View
-              style={[styles.serviceIconBadge, { backgroundColor: serviceConfig.accentColor }]}
-            >
-              <Ionicons name={serviceConfig.icon} size={12} color="#FFFFFF" />
-            </View>
-          </View>
-
-          <View style={styles.recipientInfo}>
-            <Text style={styles.recipientName}>{recipient.name}</Text>
-            <Text style={styles.recipientService}>{recipient.service}</Text>
-            <View style={styles.phoneContainer}>
-              <Ionicons name="call-outline" size={12} color="#64748B" />
-              <Text style={styles.recipientPhone}>{recipient.phone}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.verifiedBadge, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderPaymentSummary = () => (
-    <Animated.View
-      style={[
-        styles.summaryCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.summaryHeader}>
-        <View style={styles.sectionTitleContainer}>
-          <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-            <Ionicons name="receipt-outline" size={18} color={serviceConfig.accentColor} />
-          </LinearGradient>
-          <Text style={styles.sectionTitle}>Payment Summary</Text>
-        </View>
-        <View style={[styles.invoiceBadge, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-          <Text style={[styles.invoiceText, { color: serviceConfig.accentColor }]}>
-            #{paymentDetails?.invoiceId}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.descriptionBox}>
-        <Text style={styles.descriptionText}>{paymentDetails?.description}</Text>
-      </View>
-
-      <View style={styles.summaryRows}>
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="person-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Recipient</Text>
-          </View>
-          <Text style={styles.rowValue}>{recipient.name}</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="construct-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Service</Text>
-          </View>
-          <Text style={styles.rowValue}>{recipient.service}</Text>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="calendar-outline" size={16} color="#64748B" />
-            <Text style={styles.rowLabel}>Due Date</Text>
-          </View>
-          <Text style={[styles.rowValue, { color: '#F59E0B' }]}>
-            {paymentDetails?.dueDate}
-          </Text>
-        </View>
-      </View>
-
-      {/* Amount Section */}
-      <View style={styles.amountSection}>
-        <View style={styles.amountHeader}>
-          <View style={styles.rowLeft}>
-            <Ionicons name="cash-outline" size={16} color={serviceConfig.accentColor} />
-            <Text style={[styles.rowLabel, { color: serviceConfig.accentColor, fontWeight: '600' }]}>
-              Payment Amount
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.customToggle, { borderColor: serviceConfig.accentColor }]}
-            onPress={handleToggleCustomAmount}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name={useCustomAmount ? 'checkmark-circle' : 'create-outline'}
-              size={14}
-              color={serviceConfig.accentColor}
-            />
-            <Text style={[styles.toggleText, { color: serviceConfig.accentColor }]}>
-              {useCustomAmount ? 'Custom' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {useCustomAmount ? (
-          <View style={styles.customAmountContainer}>
-            <View
-              style={[
-                styles.amountInputWrapper,
-                { borderColor: serviceConfig.accentColor },
-              ]}
-            >
-              <Text style={[styles.currencySymbol, { color: serviceConfig.accentColor }]}>
-                Rs
-              </Text>
-              <TextInput
-                style={styles.amountInput}
-                value={manualAmount}
-                onChangeText={handleAmountChange}
-                placeholder="Enter amount"
-                placeholderTextColor="#94A3B8"
-                keyboardType="number-pad"
-                autoFocus
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.useOriginalButton, { borderColor: serviceConfig.accentColor }]}
-              onPress={handleUseOriginalAmount}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh-outline" size={14} color={serviceConfig.accentColor} />
-              <Text style={[styles.useOriginalText, { color: serviceConfig.accentColor }]}>
-                Use original: Rs {paymentDetails?.originalAmount.toLocaleString()}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={styles.originalAmount}>
-            Rs {paymentDetails?.originalAmount.toLocaleString()}
-          </Text>
-        )}
-
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={[styles.totalValue, { color: serviceConfig.accentColor }]}>
-            {formattedAmount}
-          </Text>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderPaymentMethods = () => (
-    <Animated.View
-      style={[
-        styles.methodsSection,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.methodsHeader}>
-        <LinearGradient colors={serviceConfig.lightGradient} style={styles.sectionIconBg}>
-          <Ionicons name="wallet-outline" size={18} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <View>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <Text style={styles.sectionSubtitle}>Choose how you'd like to pay</Text>
-        </View>
-      </View>
-
-      <View style={styles.methodsList}>
-        {paymentMethods.map((method, index) => {
-          const isSelected = selectedMethod === method.id;
-          const animValue = methodAnimations[index] || new Animated.Value(1);
-
-          return (
-            <Animated.View
-              key={method.id}
-              style={{
-                opacity: animValue,
-                transform: [
-                  {
-                    translateY: animValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    }),
-                  },
-                ],
-              }}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.methodCard,
-                  {
-                    backgroundColor: isSelected ? method.bgColor : '#FFFFFF',
-                    borderColor: isSelected ? method.color : '#E2E8F0',
-                    borderWidth: isSelected ? 2 : 1,
-                  },
-                ]}
-                onPress={() => handleMethodSelect(method.id)}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.methodIcon,
-                    { backgroundColor: isSelected ? method.color : method.bgColor },
-                  ]}
-                >
-                  <Ionicons
-                    name={method.icon as keyof typeof Ionicons.glyphMap}
-                    size={22}
-                    color={isSelected ? '#FFFFFF' : method.color}
-                  />
-                </View>
-
-                <View style={styles.methodInfo}>
-                  <Text style={[styles.methodName, { color: isSelected ? method.color : '#1E293B' }]}>
-                    {method.name}
-                  </Text>
-                  <Text style={styles.methodSubtitle}>{method.subtitle}</Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.radioOuter,
-                    {
-                      borderColor: isSelected ? method.color : '#CBD5E1',
-                      backgroundColor: isSelected ? method.color : 'transparent',
-                    },
-                  ]}
-                >
-                  {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                </View>
-
-                {isSelected && (
-                  <View
-                    style={[styles.selectedIndicator, { backgroundColor: method.color }]}
-                  />
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          );
-        })}
-      </View>
-
-      {/* Insufficient balance — same treatment as healthcare/shopping
-          payment screens, same slice, same top-up link. */}
-      {isWalletBacked && (
-        <View style={styles.walletBalanceRow}>
-          <Ionicons
-            name="wallet-outline"
-            size={13}
-            color={insufficientBalance ? '#EF4444' : '#64748B'}
-          />
-          <Text style={[styles.walletBalanceText, insufficientBalance && { color: '#EF4444' }]}>
-            Wallet balance: {walletCurrency.toUpperCase()} {walletBalance.toLocaleString()}
-          </Text>
-        </View>
-      )}
-      {insufficientBalance && (
-        <TouchableOpacity
-          style={styles.insufficientBanner}
-          onPress={() => (navigation as any).navigate('WalletScreen')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="alert-circle" size={16} color="#EF4444" />
-          <Text style={styles.insufficientBannerText}>
-            Insufficient balance — top up {walletCurrency.toUpperCase()}{' '}
-            {(paymentAmount - walletBalance).toLocaleString()} more
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color="#EF4444" />
-        </TouchableOpacity>
-      )}
-    </Animated.View>
-  );
-
-  const renderPayButton = () => (
-    <Animated.View
-      style={[
-        styles.payButtonContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: buttonPulse }],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={[styles.payButton, (!isPaymentValid || insufficientBalance) && styles.payButtonDisabled]}
-        onPress={handlePayment}
-        activeOpacity={0.9}
-        disabled={!isPaymentValid || isProcessing || insufficientBalance}
-      >
-        <LinearGradient
-          colors={
-            isPaymentValid && !isProcessing && !insufficientBalance
-              ? serviceConfig.gradient
-              : ['#CBD5E1', '#94A3B8']
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.payButtonGradient}
-        >
-          {isProcessing ? (
-            <>
-              <Animated.View style={styles.processingIcon}>
-                <MaterialCommunityIcons name="loading" size={20} color="#FFFFFF" />
-              </Animated.View>
-              <Text style={styles.payButtonText}>Processing...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="card-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.payButtonText}>
-                Pay {formattedAmount}
-                {selectedMethod &&
-                  ` via ${paymentMethods.find((m) => m.id === selectedMethod)?.name}`}
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            </>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-
-      <View style={styles.securityNote}>
-        <Ionicons name="lock-closed" size={14} color="#94A3B8" />
-        <Text style={styles.securityNoteText}>
-          Secured with end-to-end encryption
-        </Text>
-      </View>
-    </Animated.View>
-  );
+  const selectedMethodName = paymentMethods.find((m) => m.id === selectedMethod)?.name;
+  const blocked = !isPaymentValid || insufficientBalance;
+  const blockedReason = insufficientBalance
+    ? 'Top up your wallet or pick another method.'
+    : !selectedMethod
+      ? 'Choose how you want to pay.'
+      : paymentAmount <= 0
+        ? 'Enter an amount above zero.'
+        : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {renderHeader()}
+    <Screen>
+      <AppBar title="Payment" onBack={handleBackPress} />
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {renderRecipientCard()}
-          {renderPaymentSummary()}
-          {renderPaymentMethods()}
-          <View style={{ height: 120 }} />
+          <Card accentRule={accent.tint}>
+            <View style={styles.recipientRow}>
+              <Avatar
+                uri={recipient.image}
+                name={recipient.name}
+                size={44}
+                tint={accent.tintSoft}
+                color={accent.tint}
+              />
+              <View style={styles.recipientInfo}>
+                <Text style={styles.recipientName} numberOfLines={1}>
+                  {recipient.name}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {[recipient.service, recipient.phone].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+            </View>
+          </Card>
+
+          <View style={styles.section}>
+            <SectionHeader
+              title="Summary"
+              subtitle={paymentDetails?.invoiceId ? `Invoice #${paymentDetails.invoiceId}` : undefined}
+            />
+            <Card style={styles.card}>
+              {!!paymentDetails?.description && (
+                <Text style={styles.description}>{paymentDetails.description}</Text>
+              )}
+
+              <View style={styles.row}>
+                <Text style={styles.rowKey}>Service</Text>
+                <Text style={styles.rowValue}>{recipient.service}</Text>
+              </View>
+              {!!paymentDetails?.dueDate && (
+                <View style={styles.row}>
+                  <Text style={styles.rowKey}>Due</Text>
+                  <Text style={styles.rowValue}>{paymentDetails.dueDate}</Text>
+                </View>
+              )}
+
+              <View style={styles.amountBlock}>
+                <View style={styles.amountHeader}>
+                  <Text style={styles.rowKey}>Amount</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      dispatch(toggleCustomAmount());
+                      if (useCustomAmount) setManualAmount('');
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.link}>{useCustomAmount ? 'Use quoted' : 'Change'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {useCustomAmount ? (
+                  <>
+                    <View style={styles.amountField}>
+                      <Text style={styles.currency}>PKR</Text>
+                      <TextInput
+                        style={styles.amountInput}
+                        value={manualAmount}
+                        onChangeText={handleAmountChange}
+                        placeholder="0"
+                        placeholderTextColor={C.inkFaint}
+                        keyboardType="number-pad"
+                        autoFocus
+                        accessibilityLabel="Payment amount"
+                      />
+                    </View>
+                    {!!paymentDetails?.originalAmount && (
+                      <TouchableOpacity
+                        style={styles.restore}
+                        onPress={() => {
+                          const amount = paymentDetails.originalAmount;
+                          setManualAmount(String(amount));
+                          dispatch(setCustomAmount(amount));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.link}>
+                          Restore the quoted {formatAmount(paymentDetails.originalAmount)}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.quoted}>
+                    {formatAmount(paymentDetails?.originalAmount)}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.total}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalValue}>{formattedAmount}</Text>
+              </View>
+            </Card>
+          </View>
+
+          <View style={styles.section}>
+            <SectionHeader title="How would you like to pay?" />
+
+            {paymentMethods.map((method) => {
+              const isSelected = selectedMethod === method.id;
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  style={[styles.method, isSelected && styles.methodSelected]}
+                  onPress={() => dispatch(setSelectedMethod(method.id))}
+                  activeOpacity={0.8}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                >
+                  <View style={[styles.methodIcon, isSelected && styles.methodIconSelected]}>
+                    <Ionicons
+                      name={method.icon as keyof typeof Ionicons.glyphMap}
+                      size={20}
+                      color={isSelected ? HS.accentDeep : C.inkMuted}
+                    />
+                  </View>
+
+                  <View style={styles.methodInfo}>
+                    {/* Selection is carried by weight and the radio mark, not
+                        by colour alone. */}
+                    <Text style={[styles.methodName, isSelected && styles.methodNameSelected]}>
+                      {method.name}
+                    </Text>
+                    <Text style={styles.meta}>{method.subtitle}</Text>
+                  </View>
+
+                  <View style={[styles.radio, isSelected && styles.radioSelected]}>
+                    {isSelected && <Ionicons name="checkmark" size={13} color={C.inkInverse} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Insufficient balance — same treatment as healthcare/shopping
+                payment screens, same slice, same top-up link. */}
+            {isWalletBacked && !insufficientBalance && (
+              <Text style={styles.balance}>
+                Wallet balance {walletCurrency.toUpperCase()} {walletBalance.toLocaleString()}
+              </Text>
+            )}
+            {insufficientBalance && (
+              <TouchableOpacity
+                style={styles.banner}
+                onPress={() => navigation.navigate('WalletScreen')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="alert-circle-outline" size={17} color={C.error} />
+                <Text style={styles.bannerText}>
+                  Your wallet is {walletCurrency.toUpperCase()}{' '}
+                  {(paymentAmount - walletBalance).toLocaleString()} short. Top up
+                </Text>
+                <Ionicons name="chevron-forward" size={15} color={C.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {!!error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {renderPayButton()}
-    </SafeAreaView>
+      <View style={[styles.footer, { paddingBottom: bottomPad }]}>
+        <Button
+          label={isProcessing ? 'Paying' : `Pay ${formattedAmount}`}
+          onPress={() => setShowConfirmSheet(true)}
+          disabled={blocked}
+          loading={!!isProcessing}
+        />
+        <Text style={styles.footerNote}>
+          {blockedReason ?? 'Payments are encrypted end to end.'}
+        </Text>
+      </View>
+
+      <ActionSheet
+        visible={showConfirmSheet}
+        title={`Pay ${formattedAmount}?`}
+        message={
+          selectedMethodName
+            ? `This will be charged to ${selectedMethodName} and sent to ${recipient.name}.`
+            : undefined
+        }
+        cancelLabel="Not yet"
+        onClose={() => setShowConfirmSheet(false)}
+        options={[
+          {
+            label: `Pay ${formattedAmount}`,
+            icon: 'card-outline',
+            onPress: confirmPayment,
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  flex: { flex: 1 },
+  content: {
+    padding: GUTTER,
+    paddingBottom: S.huge,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  loading: {
+    padding: GUTTER,
   },
-  loadingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748B',
-    marginBottom: 16,
-  },
-  loadingDots: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    opacity: 0.6,
-  },
-  header: {
-    zIndex: 10,
-  },
-  headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 12,
-  },
-  headerContent: {
+  loadingGap: { marginTop: SECTION },
+  loadingGapSm: { marginTop: S.md },
+
+  recipientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  securityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  securityText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  recipientCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cardAccent: {
-    height: 4,
-  },
-  recipientContent: {
-    padding: 16,
-  },
-  recipientHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recipientImageContainer: {
-    position: 'relative',
-  },
-  imageRing: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    padding: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recipientImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
-  },
-  serviceIconBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   recipientInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: S.md,
   },
   recipientName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
+    ...T.subhead,
+    color: C.ink,
   },
-  recipientService: {
-    fontSize: 13,
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  recipientPhone: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  verifiedText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#10B981',
-  },
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+  meta: {
+    ...T.caption,
+    color: C.inkMuted,
     marginTop: 2,
   },
-  invoiceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+
+  section: {
+    marginTop: SECTION,
   },
-  invoiceText: {
-    fontSize: 11,
-    fontWeight: '600',
+  card: {
+    marginTop: S.md,
   },
-  descriptionBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+  description: {
+    ...T.body,
+    color: C.inkMuted,
+    marginBottom: S.md,
+    maxWidth: PROSE_WIDTH,
   },
-  descriptionText: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  summaryRows: {
-    gap: 14,
-  },
-  summaryRow: {
+  row: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 5,
   },
-  rowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rowLabel: {
-    fontSize: 13,
-    color: '#64748B',
+  rowKey: {
+    ...T.body,
+    color: C.inkMuted,
   },
   rowValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
+    ...T.bodyStrong,
+    color: C.ink,
+    marginLeft: S.lg,
+    flexShrink: 1,
+    textAlign: 'right',
   },
-  amountSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+  link: {
+    ...T.label,
+    color: HS.accentDeep,
+  },
+
+  amountBlock: {
+    marginTop: S.lg,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
   amountHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: S.sm,
   },
-  customToggle: {
+  quoted: {
+    ...T.heading,
+    color: C.ink,
+  },
+  amountField: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
+    height: 52,
+    paddingHorizontal: S.md,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: HS.accent,
+    backgroundColor: C.surface,
   },
-  toggleText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  customAmountContainer: {
-    marginBottom: 12,
-  },
-  amountInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 2,
-    marginBottom: 10,
-  },
-  currencySymbol: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 8,
+  currency: {
+    ...T.bodyStrong,
+    color: C.inkMuted,
+    marginRight: S.sm,
   },
   amountInput: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    paddingVertical: 12,
+    ...T.heading,
+    color: C.ink,
+    padding: 0,
   },
-  useOriginalButton: {
+  restore: {
+    alignSelf: 'flex-start',
+    marginTop: S.md,
+  },
+
+  total: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    gap: 6,
-  },
-  useOriginalText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  originalAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 12,
-  },
-  totalRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginTop: S.xl,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
   totalLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
+    ...T.subhead,
+    color: C.ink,
   },
   totalValue: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...T.title,
+    color: C.ink,
   },
-  methodsSection: {
-    marginBottom: 16,
-  },
-  methodsHeader: {
+
+  method: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: S.lg,
+    marginTop: S.md,
+    borderRadius: R.card,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
   },
-  methodsList: {
-    gap: 12,
-  },
-  walletBalanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 14,
-  },
-  walletBalanceText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  insufficientBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 12,
-    marginTop: 10,
-  },
-  insufficientBannerText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  methodCard: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
+  methodSelected: {
+    borderWidth: 1.5,
+    borderColor: HS.accent,
+    backgroundColor: HS.accentSoft,
   },
   methodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: R.control,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
-    marginRight: 14,
+    justifyContent: 'center',
+  },
+  methodIconSelected: {
+    backgroundColor: C.surface,
   },
   methodInfo: {
     flex: 1,
+    marginHorizontal: S.md,
   },
   methodName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
+    ...T.body,
+    color: C.ink,
   },
-  methodSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
+  methodNameSelected: {
+    ...T.bodyStrong,
+    color: C.ink,
   },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    justifyContent: 'center',
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: C.disabled,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  selectedIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 4,
-    height: '100%',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+  radioSelected: {
+    backgroundColor: HS.accent,
+    borderColor: HS.accent,
   },
-  payButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 8,
+
+  balance: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginTop: S.md,
   },
-  payButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  payButtonDisabled: {
-    opacity: 0.7,
-  },
-  payButtonGradient: {
+  banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 10,
+    marginTop: S.md,
+    padding: S.md,
+    borderRadius: R.control,
+    backgroundColor: C.errorSoft,
   },
-  payButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  bannerText: {
+    ...T.label,
+    color: C.error,
+    flex: 1,
+    marginHorizontal: S.sm,
   },
-  processingIcon: {
-    marginRight: 4,
+  error: {
+    ...T.body,
+    color: C.error,
+    marginTop: S.lg,
   },
-  securityNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+
+  footer: {
+    paddingHorizontal: GUTTER,
+    paddingTop: S.md,
+    backgroundColor: C.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.line,
   },
-  securityNoteText: {
-    fontSize: 12,
-    color: '#94A3B8',
+  footerNote: {
+    ...T.caption,
+    color: C.inkMuted,
+    textAlign: 'center',
+    marginTop: S.sm,
   },
 });

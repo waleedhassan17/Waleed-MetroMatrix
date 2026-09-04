@@ -1,149 +1,41 @@
-// Tab Navigation Layout - Professional MetroMatrix Style
-import React, { useCallback, useRef, useEffect } from 'react';
-import { 
-  View, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Platform, 
-  Animated,
-  Dimensions,
-  Text,
-} from 'react-native';
-import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Home, Calendar } from 'lucide-react-native';
-import { Colors, Shadows, Spacing, BorderRadius } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+// ============================================================================
+// Home services — tab shell
+//
+// Two tabs, so the bar's only job is to say which one you are on. Selection is
+// carried by the accent fill, the icon's filled/outline variant AND the label
+// weight — three signals, none of them motion. The spring-scale-on-focus and
+// press-scale animations are gone: a tab bar that bounces every time you switch
+// draws attention to the chrome rather than the content.
+// ============================================================================
+
+import { Ionicons } from '@expo/vector-icons';
+import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import React from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Import Screens
-import HomeScreen from './home-screen/index';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, R, S, T } from '../../../../constants/theme';
 import BookingsScreen from './booking-screen/booking';
+import HomeScreen from './home-screen/index';
 
 const Tab = createBottomTabNavigator();
-const { width } = Dimensions.get('window');
 
-// Custom Tab Bar Component
-interface TabBarIconProps {
-  focused: boolean;
-  color: string;
-  size: number;
-  route: string;
-}
-
-const TabBarIcon: React.FC<TabBarIconProps> = ({ focused, color, size, route }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.6)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: focused ? 1.1 : 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: focused ? 1 : 0.5,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [focused]);
-
-  const IconComponent = {
-    index: Home,
-    bookings: Calendar,
-  }[route] || Home;
-
-  return (
-    <Animated.View
-      style={[
-        styles.iconContainer,
-        {
-          transform: [{ scale: scaleAnim }],
-          opacity: opacityAnim,
-        },
-      ]}
-    >
-      <IconComponent
-        size={focused ? 24 : 22}
-        color={focused ? Colors.primary : Colors.text.tertiary}
-        strokeWidth={focused ? 2.5 : 2}
-      />
-    </Animated.View>
-  );
+const ICONS: Record<string, { on: string; off: string }> = {
+  index: { on: 'home', off: 'home-outline' },
+  bookings: { on: 'calendar', off: 'calendar-outline' },
 };
 
-// Custom Tab Bar Button
-interface CustomTabButtonProps {
-  children: React.ReactNode;
-  onPress: () => void;
-  accessibilityState?: { selected?: boolean };
-}
-
-const CustomTabButton: React.FC<CustomTabButtonProps> = ({
-  children,
-  onPress,
-  accessibilityState,
-}) => {
-  const isSelected = accessibilityState?.selected ?? false;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.95,
-      tension: 300,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  const handlePressOut = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      tension: 300,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
-      style={styles.tabButtonWrapper}
-    >
-      <Animated.View
-        style={[
-          styles.tabButton,
-          isSelected && styles.tabButtonActive,
-          { transform: [{ scale: scaleAnim }] },
-        ]}
-      >
-        {children}
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
-// Custom Tab Bar
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
 
   return (
-    <View 
-      style={[
-        styles.tabBarContainer, 
-        { 
-          paddingBottom: Math.max(insets.bottom, 8),
-        }
-      ]}
-    >
-      {state.routes.map((route: any, index: number) => {
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, S.sm) }]}>
+      {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+        const focused = state.index === index;
+        const glyph = ICONS[route.name] ?? ICONS.index;
+        const color = focused ? HS.accentDeep : C.inkFaint;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -151,115 +43,85 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
             target: route.key,
             canPreventDefault: true,
           });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
+          if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
         };
 
         return (
-          <CustomTabButton
+          <TouchableOpacity
             key={route.key}
             onPress={onPress}
-            accessibilityState={{ selected: isFocused }}
+            activeOpacity={0.8}
+            style={styles.slot}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: focused }}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
           >
-            <TabBarIcon
-              focused={isFocused}
-              color={isFocused ? Colors.primary : Colors.text.tertiary}
-              size={24}
-              route={route.name}
-            />
-            <Text
-              style={[
-                styles.tabLabel,
-                isFocused && styles.tabLabelActive,
-              ]}
-            >
+            <View style={[styles.pill, focused && styles.pillActive]}>
+              <Ionicons name={(focused ? glyph.on : glyph.off) as any} size={22} color={color} />
+            </View>
+            <Text style={[styles.label, { color }, focused && styles.labelActive]}>
               {options.title || route.name}
             </Text>
-          </CustomTabButton>
+          </TouchableOpacity>
         );
       })}
     </View>
   );
 };
 
-// Main Tab Layout Component
-const TabLayout: React.FC = () => {
-  return (
-    <Tab.Navigator
-      tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-      }}
-    >
-      <Tab.Screen
-        name="index"
-        component={HomeScreen}
-        options={{
-          title: 'Home',
-          tabBarAccessibilityLabel: 'Navigate to Home',
-        }}
-      />
-      <Tab.Screen
-        name="bookings"
-        component={BookingsScreen}
-        options={{
-          title: 'Bookings',
-          tabBarAccessibilityLabel: 'Navigate to Bookings',
-        }}
-      />
-    </Tab.Navigator>
-  );
-};
+const TabLayout: React.FC = () => (
+  <Tab.Navigator
+    tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
+    screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+  >
+    <Tab.Screen
+      name="index"
+      component={HomeScreen}
+      options={{ title: 'Home', tabBarAccessibilityLabel: 'Home' }}
+    />
+    <Tab.Screen
+      name="bookings"
+      component={BookingsScreen}
+      options={{ title: 'Bookings', tabBarAccessibilityLabel: 'Bookings' }}
+    />
+  </Tab.Navigator>
+);
 
 const styles = StyleSheet.create({
-  tabBarContainer: {
+  bar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 12,
-    paddingHorizontal: 0,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.08)',
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    // Elevation for Android
-    elevation: 8,
+    backgroundColor: C.surface,
+    paddingTop: S.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.line,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1C1917',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: { elevation: 8 },
+    }),
   },
-  tabButtonWrapper: {
+  slot: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  tabButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    minWidth: 64,
+  pill: {
+    paddingHorizontal: S.lg,
+    paddingVertical: 5,
+    borderRadius: R.pill,
   },
-  tabButtonActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  pillActive: {
+    backgroundColor: HS.accentSoft,
   },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
+  label: {
+    ...T.caption,
+    marginTop: 3,
   },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: Colors.text.tertiary,
-    letterSpacing: 0.2,
-  },
-  tabLabelActive: {
+  labelActive: {
     fontWeight: '600',
-    color: Colors.primary,
   },
 });
 

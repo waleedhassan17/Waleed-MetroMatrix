@@ -90,33 +90,21 @@ const initialState: ReviewRatingState = {
   ],
 };
 
-// Rating feedback messages
-export const RATING_MESSAGES: Record<number, { title: string; subtitle: string; emoji: string }> = {
-  1: {
-    title: 'Poor Experience',
-    subtitle: "We're sorry to hear that. Your feedback helps us improve.",
-    emoji: '😞',
-  },
-  2: {
-    title: 'Below Average',
-    subtitle: "We'll work to improve. Thank you for your feedback.",
-    emoji: '😕',
-  },
-  3: {
-    title: 'Average Experience',
-    subtitle: 'Thank you for sharing your experience with us.',
-    emoji: '😐',
-  },
-  4: {
-    title: 'Good Experience',
-    subtitle: "Great! We're glad you had a positive experience.",
-    emoji: '😊',
-  },
-  5: {
-    title: 'Excellent Experience',
-    subtitle: 'Amazing! Thank you for the wonderful review!',
-    emoji: '🤩',
-  },
+/**
+ * The label under the stars.
+ *
+ * These used to be a face emoji plus a line of copy that reacted to the score
+ * — "Amazing! Thank you for the wonderful review!" at five stars, an apology at
+ * one. Answering someone's rating with enthusiasm or contrition before they
+ * have finished writing it reads as auto-generated, and it nudges the score.
+ * The rating now gets a plain, neutral name and nothing else.
+ */
+export const RATING_MESSAGES: Record<number, { title: string }> = {
+  1: { title: 'Poor' },
+  2: { title: 'Below average' },
+  3: { title: 'Okay' },
+  4: { title: 'Good' },
+  5: { title: 'Excellent' },
 };
 
 // Helper to map API review data to local format

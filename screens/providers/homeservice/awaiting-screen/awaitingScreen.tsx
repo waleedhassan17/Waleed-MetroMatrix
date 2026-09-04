@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
-import { approveJob } from './awaitingScreenSlice';
+import { approveJob, checkApprovalStatusAsync } from './awaitingScreenSlice';
 import { setPaymentRequestData } from '../payment-screen/paymentRequestSlice';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
   PaymentRequest: undefined;
@@ -23,6 +27,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const AwaitingApprovalScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  // These screens rendered a bare View as their root, so on Android their
+  // headers sat under the status bar and on notched iPhones under the
+  // notch. Real insets, not StatusBar.currentHeight.
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use awaitingApproval slice
@@ -57,25 +65,9 @@ const AwaitingApprovalScreen: React.FC = () => {
     return () => rotate.stop();
   }, []);
 
-  // Pulse animation
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
+  // The status indicator used to pulse forever. An animation that never
+  // resolves is decoration, not feedback — `pulseAnim` stays at 1, so the
+  // transform below is now the identity.
 
   // Waiting timer
   useEffect(() => {
@@ -85,13 +77,50 @@ const AwaitingApprovalScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Simulate customer approval after random time (5-10 seconds for demo)
-  useEffect(() => {
-    const timeout = setTimeout(() => {
+  // ---------------------------------------------------------------------
+  // WAITING ON A REAL CUSTOMER.
+  //
+  // This screen used to arm `setTimeout(Math.random()*5000 + 5000)` on mount,
+  // unconditionally — so it "approved" itself 5–10 seconds after the provider
+  // arrived, whether or not a customer existed. It now asks the server.
+  //
+  // `isApproved` is true once the customer has either confirmed completion
+  // themselves or paid; both are deliberate customer actions. Polled, because
+  // the customer's confirmation is a plain REST call with no room event of its
+  // own, and backed up by the room's status event for immediacy.
+  // ---------------------------------------------------------------------
+  const { roomStatus } = useRoomSocket(jobId || undefined, 'homeservice');
+  const [checkFailed, setCheckFailed] = useState(false);
+  const approvedRef = useRef(false);
+
+  const checkApproval = useCallback(async () => {
+    if (!jobId || approvedRef.current) return;
+    const result = await dispatch(checkApprovalStatusAsync(jobId) as any);
+    if (result?.meta?.requestStatus === 'rejected') {
+      setCheckFailed(true); // shown as "still trying", never treated as approval
+      return;
+    }
+    setCheckFailed(false);
+    if (result.payload?.isApproved) {
+      approvedRef.current = true;
       handleApproval();
-    }, Math.random() * 5000 + 5000);
-    return () => clearTimeout(timeout);
-  }, []);
+    }
+    // handleApproval is stable for the life of the screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId, dispatch]);
+
+  useEffect(() => {
+    if (!jobId) return;
+    const id = setInterval(checkApproval, 6000);
+    checkApproval();
+    return () => clearInterval(id); // never outlive the screen
+  }, [jobId, checkApproval]);
+
+  // A booking status change is a good moment to re-ask rather than wait out
+  // the next poll tick.
+  useEffect(() => {
+    if (roomStatus) checkApproval();
+  }, [roomStatus, checkApproval]);
 
   const handleApproval = () => {
     setApproved(true);
@@ -148,7 +177,7 @@ const AwaitingApprovalScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Gradient Background Top */}
       <View style={styles.gradientTop} />
 
@@ -171,7 +200,7 @@ const AwaitingApprovalScreen: React.FC = () => {
                 ]}
               />
               <View style={styles.innerCircle}>
-                <Icon name="clock-outline" size={48} color="#10B981" />
+                <Icon name="clock-outline" size={48} color={HS.accent} />
               </View>
             </>
           ) : (
@@ -199,7 +228,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Waiting Timer */}
         {!approved && (
           <View style={styles.waitingTimer}>
-            <Icon name="timer-sand" size={18} color="#6B7280" />
+            <Icon name="timer-sand" size={18} color={C.inkMuted} />
             <Text style={styles.waitingTimeText}>
               Waiting: {formatWaitingTime(waitingTime)}
             </Text>
@@ -209,7 +238,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Job Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <Icon name="clipboard-check-outline" size={20} color="#10B981" />
+            <Icon name="clipboard-check-outline" size={20} color={HS.accent} />
             <Text style={styles.summaryTitle}>Job Summary</Text>
           </View>
 
@@ -292,7 +321,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Info Note */}
         {!approved && (
           <View style={styles.infoNote}>
-            <Icon name="information-outline" size={18} color="#6B7280" />
+            <Icon name="information-outline" size={18} color={C.inkMuted} />
             <Text style={styles.infoText}>
               The customer has been notified and will approve your work shortly.
             </Text>
@@ -300,16 +329,19 @@ const AwaitingApprovalScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Manual Approval Button (for demo) */}
+      {/* Check now. This slot used to hold "Simulate Customer Approval", which
+          advanced the provider past a customer who had done nothing. The screen
+          polls on its own; this is for the impatient, and for showing that the
+          last check failed rather than silently looking like nobody replied. */}
       {!approved && (
         <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.manualApproveBtn}
-            onPress={handleApproval}
-          >
-            <Text style={styles.manualApproveBtnText}>
-              Simulate Customer Approval
+          {checkFailed && (
+            <Text style={styles.checkFailedText}>
+              Couldn't reach the server — still trying.
             </Text>
+          )}
+          <TouchableOpacity style={styles.manualApproveBtn} onPress={checkApproval}>
+            <Text style={styles.manualApproveBtnText}>Check now</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -320,7 +352,7 @@ const AwaitingApprovalScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -329,7 +361,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: C.inkMuted,
     fontFamily: 'Inter-Medium',
   },
   gradientTop: {
@@ -338,7 +370,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: HS.accentSoft,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
@@ -362,8 +394,8 @@ const styles = StyleSheet.create({
     borderRadius: 80,
     borderWidth: 4,
     borderColor: 'transparent',
-    borderTopColor: '#10B981',
-    borderRightColor: '#10B981',
+    borderTopColor: HS.accent,
+    borderRightColor: HS.accent,
   },
   middleRing: {
     position: 'absolute',
@@ -379,7 +411,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -389,10 +421,10 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#10B981',
+    shadowColor: HS.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
@@ -401,14 +433,14 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 22,
     fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    color: C.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   statusSubtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -430,7 +462,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    color: C.inkMuted,
   },
   summaryCard: {
     width: '100%',
@@ -453,7 +485,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -464,18 +496,18 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
   },
   summaryValue: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: C.ink,
     maxWidth: '60%',
     textAlign: 'right',
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.lineSoft,
   },
   progressIndicators: {
     flexDirection: 'row',
@@ -496,13 +528,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   progressCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
   },
   progressActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: C.warning,
   },
   progressPending: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
   },
   progressPulse: {
     width: 12,
@@ -513,26 +545,26 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 11,
     fontFamily: 'Inter-Medium',
-    color: '#9CA3AF',
+    color: C.inkFaint,
   },
   progressLabelActive: {
-    color: '#F59E0B',
+    color: C.warning,
   },
   progressLine: {
     width: 30,
     height: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     marginHorizontal: 4,
     marginBottom: 20,
     borderRadius: 2,
   },
   progressLinePending: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
   },
   infoNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.lineSoft,
     borderRadius: 14,
     padding: 14,
     width: '100%',
@@ -542,7 +574,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    color: C.inkMuted,
     lineHeight: 18,
   },
   bottomContainer: {
@@ -551,7 +583,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   manualApproveBtn: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -559,7 +591,14 @@ const styles = StyleSheet.create({
   manualApproveBtnText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    color: C.inkMuted,
+  },
+  checkFailedText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: C.error,
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });
 

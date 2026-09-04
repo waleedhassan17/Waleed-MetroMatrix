@@ -34,27 +34,29 @@ import {
 } from '../../../../networks/serviceProviders/notificationsNetwork';
 import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
 
-const ACCENT = '#059669';
-const ACCENT_SOFT = '#D1FAE5';
+const ACCENT = HS.accent;
+const ACCENT_SOFT = HS.accentSoft;
 
 /** Icon and tint per event, so the list is scannable without reading it. */
 const LOOK: Record<string, { icon: any; color: string; bg: string }> = {
   booking_created: { icon: 'add-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
   booking_accepted: { icon: 'checkmark-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
-  booking_rejected: { icon: 'close-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
-  booking_cancelled: { icon: 'close-circle-outline', color: '#DC2626', bg: '#FEE2E2' },
-  booking_en_route: { icon: 'navigate-outline', color: '#2563EB', bg: '#DBEAFE' },
-  booking_arrived: { icon: 'location-outline', color: '#2563EB', bg: '#DBEAFE' },
-  booking_in_progress: { icon: 'construct-outline', color: '#D97706', bg: '#FEF3C7' },
+  booking_rejected: { icon: 'close-circle-outline', color: C.error, bg: C.errorSoft },
+  booking_cancelled: { icon: 'close-circle-outline', color: C.error, bg: C.errorSoft },
+  booking_en_route: { icon: 'navigate-outline', color: C.info, bg: C.infoSoft },
+  booking_arrived: { icon: 'location-outline', color: C.info, bg: C.infoSoft },
+  booking_in_progress: { icon: 'construct-outline', color: C.warning, bg: C.warningSoft },
   booking_completed: { icon: 'checkmark-done-outline', color: ACCENT, bg: ACCENT_SOFT },
-  message: { icon: 'chatbubble-outline', color: '#2563EB', bg: '#DBEAFE' },
-  missed_call: { icon: 'call-outline', color: '#DC2626', bg: '#FEE2E2' },
-  payment_requested: { icon: 'cash-outline', color: '#D97706', bg: '#FEF3C7' },
+  message: { icon: 'chatbubble-outline', color: C.info, bg: C.infoSoft },
+  missed_call: { icon: 'call-outline', color: C.error, bg: C.errorSoft },
+  payment_requested: { icon: 'cash-outline', color: C.warning, bg: C.warningSoft },
   payment_received: { icon: 'cash-outline', color: ACCENT, bg: ACCENT_SOFT },
 };
 
-const FALLBACK_LOOK = { icon: 'notifications-outline' as any, color: '#6B7280', bg: '#F3F4F6' };
+const FALLBACK_LOOK = { icon: 'notifications-outline' as any, color: C.inkMuted, bg: C.lineSoft };
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -187,7 +189,7 @@ export default function ProviderNotificationsScreen() {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color="#9CA3AF" />
+          <Ionicons name="cloud-offline-outline" size={44} color={C.inkFaint} />
           <Text style={styles.stateText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
             <Text style={styles.retryText}>Try again</Text>
@@ -204,7 +206,7 @@ export default function ProviderNotificationsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.center}>
-              <Ionicons name="notifications-off-outline" size={48} color="#9CA3AF" />
+              <Ionicons name="notifications-off-outline" size={48} color={C.inkFaint} />
               <Text style={styles.emptyTitle}>You're all caught up</Text>
               <Text style={styles.stateText}>
                 New bookings, messages and job updates will appear here.
@@ -218,7 +220,7 @@ export default function ProviderNotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,18 +241,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: C.line,
   },
-  rowUnread: { backgroundColor: '#F0FDF4' },
+  rowUnread: { backgroundColor: HS.accentSoft },
   iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  title: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
+  title: { fontSize: 15, fontWeight: '600', color: C.ink, flex: 1 },
   titleUnread: { fontWeight: '800' },
-  time: { fontSize: 12, color: '#9CA3AF' },
-  message: { fontSize: 13, color: '#6B7280', marginTop: 3, lineHeight: 18 },
+  time: { fontSize: 12, color: C.inkFaint },
+  message: { fontSize: 13, color: C.inkMuted, marginTop: 3, lineHeight: 18 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginTop: 14 },
-  stateText: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: C.ink, marginTop: 14 },
+  stateText: { fontSize: 14, color: C.inkMuted, textAlign: 'center', marginTop: 8, lineHeight: 20 },
   retryBtn: {
     marginTop: 18,
     paddingHorizontal: 26,

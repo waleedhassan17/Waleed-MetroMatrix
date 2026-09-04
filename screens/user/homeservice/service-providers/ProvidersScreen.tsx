@@ -1,442 +1,213 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  StatusBar,
-  SafeAreaView,
-  Platform,
-  TextInput,
-  Image,
-  Modal,
-} from 'react-native';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+// ============================================================================
+// Providers for a category
+//
+// The old version spent its whole design budget before the customer reached a
+// single provider: a gradient header, a gradient search chip, a gradient
+// "Quick Search" button, a gradient stats bar with three gradient icon tiles,
+// and then cards with a background gradient, a top-accent gradient, an avatar
+// ring gradient, a rating-badge gradient and a gradient Book button — nineteen
+// in all. Everything shouted, so nothing led.
+//
+// Now: one accent (the Book button), a category hairline per card, and the
+// provider's name, rating and price doing the work.
+// ============================================================================
 
-import { Colors } from '../../../../constants/Colors';
-import { Fonts } from '../../../../constants/Fonts';
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+
+import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Screen,
+  SkeletonCard,
+} from '../../../../components/ui';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { Provider } from '../../../../models/serviceProviders';
+import { RootState } from '../../../../store/store';
+import { formatPrice, formatRating, formatReviewCount } from '../../../../utils/homeservice/format';
+import {
+  fetchACRepairers,
+  fetchElectricians,
+  fetchPlumbers,
   selectFilteredProviders,
   selectIsLoading,
   selectSearchQuery,
   selectSelectedSort,
   setSearchQuery,
   setSelectedSort,
-  fetchElectricians,
-  fetchPlumbers,
-  fetchACRepairers,
   SortOption,
 } from './providersSlice';
-import { Provider } from '../../../../models/serviceProviders';
-import { RootState } from '../../../../store/store';
 
-const { width, height } = Dimensions.get('window');
-const isAndroid = Platform.OS === 'android';
-
-// Service type configurations with gradient colors
-const SERVICE_CONFIG: Record<string, { 
-  title: string; 
-  subtitle: string; 
-  specialty: string;
-  gradient: string[];
-  lightGradient: string[];
-  accentColor: string;
-  icon: string;
-}> = {
-  electricians: {
-    title: 'Electricians',
-    subtitle: 'expert electricians available',
-    specialty: '⚡ Wiring • Installation • Repairs',
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-    icon: 'flash',
-  },
-  plumbers: {
-    title: 'Plumbers',
-    subtitle: 'expert plumbers available',
-    specialty: '🔧 Pipe Fitting • Leak Repairs • Installation',
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-    icon: 'water',
-  },
-  'ac-repairers': {
-    title: 'AC Repairers',
-    subtitle: 'expert AC repairers available',
-    specialty: '❄️ AC Installation • Cooling Issues • Gas Refilling',
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-    icon: 'snow',
-  },
-};
-
-// Sort options for filter modal
 const SORT_OPTIONS: { label: string; value: SortOption; icon: string }[] = [
-  { label: 'Top Rated', value: 'rating', icon: 'star' },
-  { label: 'Most Reviews', value: 'reviews', icon: 'chatbubbles' },
-  { label: 'Experience', value: 'experience', icon: 'ribbon' },
-  { label: 'Lowest Price', value: 'price', icon: 'pricetag' },
+  { label: 'Top rated', value: 'rating', icon: 'star-outline' },
+  { label: 'Most reviews', value: 'reviews', icon: 'chatbubbles-outline' },
+  { label: 'Most experienced', value: 'experience', icon: 'ribbon-outline' },
+  { label: 'Lowest price', value: 'price', icon: 'pricetag-outline' },
 ];
 
-// Enhanced Provider Card Component
+// ── Provider card ───────────────────────────────────────────────────────────
+
 interface ProviderCardProps {
   item: Provider;
-  index: number;
-  serviceConfig: typeof SERVICE_CONFIG[string];
+  tint: string;
+  tintSoft: string;
   onPress: (id: string) => void;
   onBookNow: (id: string) => void;
   onChat: (provider: Provider) => void;
   onCall: (provider: Provider) => void;
-  isFavorite?: boolean;
-  onToggleFavorite?: (id: string) => void;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
 }
 
 const ProviderCard: React.FC<ProviderCardProps> = ({
   item,
-  index,
-  serviceConfig,
+  tint,
+  tintSoft,
   onPress,
   onBookNow,
   onChat,
   onCall,
-  isFavorite = false,
+  isFavorite,
   onToggleFavorite,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    slideAnim.setValue(60);
-    opacityAnim.setValue(0);
-
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        delay: index * 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 500,
-        delay: index * 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [item.id]);
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      tension: 300,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      tension: 300,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-  };
+  const rating = formatRating(item.rating);
+  const reviews = formatReviewCount(item.reviews);
 
   return (
-    <Animated.View
-      style={[
-        styles.providerCard,
-        {
-          opacity: opacityAnim,
-          transform: [{ scale: scaleAnim }, { translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.cardTouchable}>
-        <LinearGradient
-          colors={[`${serviceConfig.accentColor}08`, 'transparent']}
-          start={{ x: 1, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.cardBackgroundGradient}
-        />
+    <Card accentRule={tint} style={styles.providerCard}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => onPress(item.id)}
+        style={styles.providerTop}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${item.name}'s profile`}
+      >
+        <View>
+          <Avatar uri={item.image} name={item.name} size={52} tint={tintSoft} color={tint} />
+          {item.verified && (
+            <View style={[styles.verified, { backgroundColor: tint }]}>
+              <Ionicons name="checkmark" size={10} color={C.inkInverse} />
+            </View>
+          )}
+        </View>
 
-        <LinearGradient
-          colors={serviceConfig.gradient as [string, string]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.cardTopAccent}
-        />
+        <View style={styles.providerInfo}>
+          <Text style={styles.providerName} numberOfLines={1}>
+            {item.name}
+          </Text>
 
-        <View style={styles.cardInner}>
-          {/* Favorite Button */}
+          {/* A rating of 0 is no rating. The old card printed "★ 0" beside
+              "(0 reviews)" for every new provider, which read as a bad one. */}
+          <View style={styles.metaRow}>
+            {rating ? (
+              <>
+                <Ionicons name="star" size={13} color={C.star} />
+                <Text style={styles.ratingText}>{rating}</Text>
+                {!!reviews && <Text style={styles.metaText}>· {reviews}</Text>}
+              </>
+            ) : (
+              <Text style={styles.metaText}>New provider</Text>
+            )}
+          </View>
+
+          {!!item.experience && (
+            <Text style={styles.metaText} numberOfLines={1}>
+              {item.experience} experience
+            </Text>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={() => onToggleFavorite(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={isFavorite ? `Remove ${item.name} from favourites` : `Save ${item.name}`}
+        >
+          <Ionicons
+            name={isFavorite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavorite ? C.error : C.inkFaint}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      <View style={styles.availabilityRow}>
+        <View
+          style={[
+            styles.dot,
+            { backgroundColor: item.available ? C.success : C.inkFaint },
+          ]}
+        />
+        <Text style={styles.metaText}>
+          {item.available ? 'Available now' : 'Busy'}
+          {item.responseTime ? ` · Replies in ${item.responseTime}` : ''}
+        </Text>
+      </View>
+
+      <View style={styles.providerFooter}>
+        <View>
+          <Text style={styles.priceLabel}>From</Text>
+          <Text style={styles.price}>{formatPrice(item.price, 'On request')}</Text>
+        </View>
+
+        <View style={styles.providerActions}>
           <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={() => onToggleFavorite?.(item.id)}
-            activeOpacity={0.7}
+            style={styles.iconButton}
+            onPress={() => onChat(item)}
+            accessibilityLabel={`Message ${item.name}`}
           >
-            <Ionicons
-              name={isFavorite ? 'heart' : 'heart-outline'}
-              size={20}
-              color={isFavorite ? serviceConfig.accentColor : '#94A3B8'}
-            />
+            <Ionicons name="chatbubble-outline" size={17} color={C.inkMuted} />
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.profileSection}
-            onPress={() => onPress(item.id)}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            activeOpacity={0.9}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => onCall(item)}
+            accessibilityLabel={`Call ${item.name}`}
           >
-            <View style={styles.profileImageWrapper}>
-              <LinearGradient
-                colors={serviceConfig.gradient as [string, string]}
-                style={styles.profileImageRing}
-              >
-                <View style={styles.profileImageInner}>
-                  <Image source={{ uri: item.image }} style={styles.profileImage} />
-                </View>
-              </LinearGradient>
-              
-              {item.verified && (
-                <View style={[styles.verifiedBadge, { backgroundColor: serviceConfig.accentColor }]}>
-                  <Ionicons name="checkmark" size={10} color="#ffffff" />
-                </View>
-              )}
-              
-              <View style={styles.onlineStatus}>
-                <View style={[styles.onlineDot, { backgroundColor: item.available ? '#10B981' : '#94A3B8' }]} />
-              </View>
-            </View>
-
-            <View style={styles.providerInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.providerName}>{item.name}</Text>
-                {item.verified && (
-                  <View style={styles.verifiedTextBadge}>
-                    <Ionicons name="shield-checkmark" size={12} color={serviceConfig.accentColor} />
-                  </View>
-                )}
-              </View>
-
-              <View style={[styles.experienceBadge, { backgroundColor: `${serviceConfig.accentColor}12` }]}>
-                <Feather name="award" size={12} color={serviceConfig.accentColor} />
-                <Text style={[styles.experienceText, { color: serviceConfig.accentColor }]}>
-                  {item.experience} Experience
-                </Text>
-              </View>
-
-              <View style={styles.ratingSection}>
-                <View style={styles.ratingContainer}>
-                  <LinearGradient
-                    colors={['#FEF3C7', '#FDE68A']}
-                    style={styles.ratingGradient}
-                  >
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{item.rating}</Text>
-                  </LinearGradient>
-                  <Text style={styles.reviewsText}>({item.reviews} reviews)</Text>
-                </View>
-              </View>
-
-              <Text style={styles.specialtyText}>{serviceConfig.specialty}</Text>
-            </View>
+            <Ionicons name="call-outline" size={17} color={C.inkMuted} />
           </TouchableOpacity>
-
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <View style={[styles.dividerDot, { backgroundColor: serviceConfig.accentColor }]} />
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.bottomSection}>
-            <View style={styles.priceSection}>
-              <Text style={styles.priceLabel}>Starting from</Text>
-              <View style={styles.priceRow}>
-                <Text style={styles.priceCurrency}>₨</Text>
-                <Text style={styles.priceValue}>{item.price.toLocaleString()}</Text>
-              </View>
-            </View>
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={[styles.iconButton, styles.chatButton]}
-                activeOpacity={0.8}
-                onPress={() => onChat(item)}
-              >
-                <Ionicons name="chatbubble-outline" size={18} color={serviceConfig.accentColor} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.iconButton, styles.callButton]}
-                activeOpacity={0.8}
-                onPress={() => onCall(item)}
-              >
-                <Ionicons name="call-outline" size={18} color="#10B981" />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.bookButton}
-                activeOpacity={0.9}
-                onPress={() => onBookNow(item.id)}
-              >
-                <LinearGradient
-                  colors={serviceConfig.gradient as [string, string]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.bookButtonGradient}
-                >
-                  <Text style={styles.bookButtonText}>Book Now</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#ffffff" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <TouchableOpacity 
-            style={styles.statusFooter}
-            onPress={() => onPress(item.id)}
-            activeOpacity={0.9}
-          >
-            <View style={styles.statusLeft}>
-              <View style={styles.availableBadge}>
-                <View style={styles.pulsingDot}>
-                  <View style={[styles.pulsingDotInner, { backgroundColor: item.available ? '#10B981' : '#94A3B8' }]} />
-                </View>
-                <Text style={[styles.availableText, { color: item.available ? '#10B981' : '#94A3B8' }]}>
-                  {item.available ? 'Available Now' : 'Busy'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.responseContainer}>
-              <Feather name="zap" size={12} color="#94A3B8" />
-              <Text style={styles.responseText}>{item.responseTime} response</Text>
-            </View>
-          </TouchableOpacity>
+          <Button
+            label="Book"
+            size="sm"
+            fullWidth={false}
+            onPress={() => onBookNow(item.id)}
+            style={styles.bookButton}
+            accessibilityLabel={`Book ${item.name}`}
+          />
         </View>
       </View>
-    </Animated.View>
+    </Card>
   );
 };
 
-// Filter Modal Component
-interface FilterModalProps {
-  visible: boolean;
-  onClose: () => void;
-  selectedSort: SortOption;
-  onSelectSort: (sort: SortOption) => void;
-  accentColor: string;
-}
-
-const FilterModal: React.FC<FilterModalProps> = ({
-  visible,
-  onClose,
-  selectedSort,
-  onSelectSort,
-  accentColor,
-}) => {
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 65,
-        friction: 11,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: height,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible]);
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
-        onPress={onClose}
-      >
-        <Animated.View 
-          style={[
-            styles.filterModalContainer,
-            { transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <TouchableOpacity activeOpacity={1}>
-            <View style={styles.filterModalHandle} />
-            <Text style={styles.filterModalTitle}>Sort By</Text>
-            
-            {SORT_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.filterOption,
-                  selectedSort === option.value && { backgroundColor: `${accentColor}12` },
-                ]}
-                onPress={() => {
-                  onSelectSort(option.value);
-                  onClose();
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[
-                  styles.filterOptionIcon,
-                  { backgroundColor: selectedSort === option.value ? `${accentColor}20` : '#F1F5F9' },
-                ]}>
-                  <Ionicons 
-                    name={option.icon as any} 
-                    size={18} 
-                    color={selectedSort === option.value ? accentColor : '#64748B'} 
-                  />
-                </View>
-                <Text style={[
-                  styles.filterOptionText,
-                  selectedSort === option.value && { color: accentColor, fontWeight: '600' },
-                ]}>
-                  {option.label}
-                </Text>
-                {selectedSort === option.value && (
-                  <Ionicons name="checkmark-circle" size={22} color={accentColor} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </TouchableOpacity>
-        </Animated.View>
-      </TouchableOpacity>
-    </Modal>
-  );
-};
+// ── Screen ──────────────────────────────────────────────────────────────────
 
 type ProvidersScreenRouteParams = {
   serviceType?: 'electricians' | 'plumbers' | 'ac-repairers';
 };
 
 export default function ProvidersScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: ProvidersScreenRouteParams }, 'params'>>();
   const dispatch = useDispatch();
 
   const { serviceType = 'ac-repairers' } = route.params || {};
+  const category = categoryAccent(serviceType);
 
   const providers = useSelector((state: RootState) => selectFilteredProviders(state)) as Provider[];
   const isLoading = useSelector((state: RootState) => selectIsLoading(state)) as boolean;
@@ -444,28 +215,12 @@ export default function ProvidersScreen() {
   const selectedSort = useSelector((state: RootState) => selectSelectedSort(state)) as SortOption;
 
   const [searchFocused, setSearchFocused] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showSortSheet, setShowSortSheet] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const headerSlideAnim = useRef(new Animated.Value(0)).current;
-  const searchFocusAnim = useRef(new Animated.Value(0)).current;
-
-  const serviceConfig = useMemo(() => 
-    SERVICE_CONFIG[serviceType] || SERVICE_CONFIG['ac-repairers'], 
-    [serviceType]
-  );
-
-  const animationsRef = useRef<Animated.CompositeAnimation | null>(null);
-
   useFocusEffect(
     useCallback(() => {
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      headerSlideAnim.setValue(-50);
-
       switch (serviceType) {
         case 'electricians':
           dispatch(fetchElectricians() as any);
@@ -478,1025 +233,392 @@ export default function ProvidersScreen() {
           dispatch(fetchACRepairers() as any);
           break;
       }
-
-      animationsRef.current = Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }),
-        Animated.spring(headerSlideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }),
-      ]);
-      animationsRef.current.start();
-
-      return () => {
-        if (animationsRef.current) {
-          animationsRef.current.stop();
-        }
-      };
     }, [serviceType, dispatch])
   );
 
-  const handleBackPress = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+  const handleProviderPress = useCallback(
+    (providerId: string) => {
+      navigation.navigate('ProviderProfile', { id: providerId, category: serviceType });
+    },
+    [navigation, serviceType]
+  );
 
-  const handleProviderPress = useCallback((providerId: string) => {
-    // @ts-ignore
-    navigation.navigate('ProviderProfile', { 
-      id: providerId, 
-      category: serviceType as 'electricians' | 'plumbers' | 'ac-repairers'
-    });
-  }, [navigation, serviceType]);
+  const handleBookNow = useCallback(
+    (providerId: string) => {
+      navigation.navigate('BookingScreen', { providerId, category: serviceType });
+    },
+    [navigation, serviceType]
+  );
 
-  const handleBookNow = useCallback((providerId: string) => {
-    // @ts-ignore
-    navigation.navigate('BookingScreen', { 
-      providerId: providerId, 
-      category: serviceType as 'electricians' | 'plumbers' | 'ac-repairers'
-    });
-  }, [navigation, serviceType]);
+  const handleChatPress = useCallback(
+    (provider: Provider) => {
+      navigation.navigate('ProviderChatScreen', {
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          specialty: provider.specialty,
+          rating: provider.rating,
+          reviews: provider.reviews,
+          image: provider.image,
+          distance: 'N/A',
+        },
+        serviceType,
+      });
+    },
+    [navigation, serviceType]
+  );
 
-  const handleChatPress = useCallback((provider: Provider) => {
-    // @ts-ignore
-    navigation.navigate('ProviderChatScreen', {
-      provider: {
-        id: provider.id,
-        name: provider.name,
-        specialty: provider.specialty,
-        rating: provider.rating,
-        reviews: provider.reviews,
-        image: provider.image,
-        distance: 'N/A',
-      },
-      serviceType: serviceType as 'electricians' | 'plumbers' | 'ac-repairers',
-    });
-  }, [navigation, serviceType]);
-
-  const handleCallPress = useCallback((provider: Provider) => {
-    // @ts-ignore
-    navigation.navigate('CallScreen', {
-      provider: {
-        id: provider.id,
-        name: provider.name,
-        specialty: provider.specialty,
-        rating: provider.rating,
-        reviews: provider.reviews,
-        image: provider.image,
-        phoneNumber: provider.phoneNumber,
-      },
-      serviceType: serviceType as 'electricians' | 'plumbers' | 'ac-repairers',
-    });
-  }, [navigation, serviceType]);
-
-  const handleQuickSearch = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('QuickSearchScreen', {
-      serviceType: serviceType,
-    });
-  }, [navigation, serviceType]);
+  const handleCallPress = useCallback(
+    (provider: Provider) => {
+      navigation.navigate('CallScreen', {
+        provider: {
+          id: provider.id,
+          name: provider.name,
+          specialty: provider.specialty,
+          rating: provider.rating,
+          reviews: provider.reviews,
+          image: provider.image,
+          phoneNumber: provider.phoneNumber,
+        },
+        serviceType,
+      });
+    },
+    [navigation, serviceType]
+  );
 
   const handleToggleFavorite = useCallback((providerId: string) => {
-    setFavorites(prev => 
-      prev.includes(providerId) 
-        ? prev.filter(id => id !== providerId)
-        : [...prev, providerId]
+    setFavorites((prev) =>
+      prev.includes(providerId) ? prev.filter((id) => id !== providerId) : [...prev, providerId]
     );
   }, []);
 
-  const handleSearchFocus = () => {
-    setSearchFocused(true);
-    Animated.spring(searchFocusAnim, {
-      toValue: 1,
-      tension: 100,
-      friction: 8,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleSearchBlur = () => {
-    setSearchFocused(false);
-    Animated.spring(searchFocusAnim, {
-      toValue: 0,
-      tension: 100,
-      friction: 8,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleSearchChange = useCallback((text: string) => {
-    dispatch(setSearchQuery(text));
-  }, [dispatch]);
-
-  const handleSortChange = useCallback((sort: SortOption) => {
-    dispatch(setSelectedSort(sort));
-  }, [dispatch]);
-
-  // Filter providers based on favorites view
-  const displayedProviders = useMemo(() => {
-    if (showFavoritesOnly) {
-      return providers.filter(p => favorites.includes(p.id));
-    }
-    return providers;
-  }, [providers, favorites, showFavoritesOnly]);
+  const displayedProviders = useMemo(
+    () => (showFavoritesOnly ? providers.filter((p) => favorites.includes(p.id)) : providers),
+    [providers, favorites, showFavoritesOnly]
+  );
 
   const stats = useMemo(() => {
-    const total = providers.length;
-    const avgRating = providers.length > 0 
-      ? (providers.reduce((sum: number, p: Provider) => sum + p.rating, 0) / providers.length).toFixed(1)
-      : '0';
-    const verifiedPercent = providers.length > 0
-      ? Math.round((providers.filter((p: Provider) => p.verified).length / providers.length) * 100)
-      : 0;
-    return { total, avgRating, verifiedPercent };
+    const rated = providers.filter((p) => p.rating > 0);
+    return {
+      total: providers.length,
+      // Averaging in the unrated providers dragged the headline number toward
+      // zero and made a healthy category look poor.
+      avgRating: rated.length
+        ? (rated.reduce((sum, p) => sum + p.rating, 0) / rated.length).toFixed(1)
+        : null,
+      verifiedPercent: providers.length
+        ? Math.round((providers.filter((p) => p.verified).length / providers.length) * 100)
+        : 0,
+    };
   }, [providers]);
 
-  const renderHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: headerSlideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={['#FFFFFF', '#F8FAFC']}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackPress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chevron-back" size={22} color="#1E293B" />
-            </TouchableOpacity>
-
-            <View style={styles.titleContainer}>
-              <Text style={styles.headerTitle}>All {serviceConfig.title}</Text>
-            </View>
-          </View>
-
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.headerIconButton} 
-              activeOpacity={0.8}
-              onPress={() => setShowFilterModal(true)}
-            >
-              <Ionicons name="filter" size={20} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderSearchSection = () => (
-    <Animated.View
-      style={[
-        styles.searchSection,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.searchContainer,
-          {
-            borderColor: searchFocusAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['#E2E8F0', serviceConfig.accentColor],
-            }),
-            transform: [{
-              scale: searchFocusAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 1.01],
-              }),
-            }],
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={searchFocused ? serviceConfig.lightGradient as [string, string] : ['#F8FAFC', '#F1F5F9']}
-          style={styles.searchIconBg}
-        >
-          <Ionicons name="search" size={18} color={searchFocused ? serviceConfig.accentColor : '#94A3B8'} />
-        </LinearGradient>
-
-        <TextInput
-          style={styles.searchInput}
-          placeholder={`Search ${serviceConfig.title.toLowerCase()}...`}
-          placeholderTextColor="#94A3B8"
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          onFocus={handleSearchFocus}
-          onBlur={handleSearchBlur}
-        />
-
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => handleSearchChange('')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.clearButtonInner}>
-              <Ionicons name="close" size={14} color="#64748B" />
-            </View>
-          </TouchableOpacity>
-        )}
-      </Animated.View>
-    </Animated.View>
-  );
-
-  // Quick Search and Favorites Buttons
-  const renderActionButtons = () => (
-    <Animated.View
-      style={[
-        styles.actionButtonsContainer,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.quickSearchButton}
-        onPress={handleQuickSearch}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={serviceConfig.gradient as [string, string]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.quickSearchGradient}
-        >
-          <Ionicons name="flash" size={20} color="#FFFFFF" />
-          <Text style={styles.quickSearchText}>Quick Search</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[
-          styles.favoritesButton,
-          showFavoritesOnly && styles.favoritesButtonActive,
-          { shadowColor: serviceConfig.accentColor },
-        ]}
-        onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={showFavoritesOnly ? serviceConfig.gradient as [string, string] : (serviceConfig.lightGradient as [string, string])}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.favoritesGradient}
-        >
-          <Ionicons 
-            name={showFavoritesOnly ? 'heart' : 'heart-outline'} 
-            size={22} 
-            color={showFavoritesOnly ? '#FFFFFF' : serviceConfig.accentColor} 
-          />
-          {favorites.length > 0 && (
-            <View style={styles.favoritesBadge}>
-              <Text style={[styles.favoritesBadgeText, { color: serviceConfig.accentColor }]}>{favorites.length}</Text>
-            </View>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-
-  const renderStatsBar = () => (
-    <Animated.View
-      style={[
-        styles.statsBar,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <LinearGradient
-        colors={['#FFFFFF', '#FAFAFA']}
-        style={styles.statsGradient}
-      >
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={serviceConfig.lightGradient as [string, string]}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="people" size={18} color={serviceConfig.accentColor} />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>Total Experts</Text>
-        </View>
-
-        <View style={styles.statDivider}>
-          <View style={styles.statDividerLine} />
-        </View>
-
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={['#FEF3C7', '#FDE68A']}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="star" size={18} color="#F59E0B" />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{stats.avgRating}</Text>
-          <Text style={styles.statLabel}>Avg Rating</Text>
-        </View>
-
-        <View style={styles.statDivider}>
-          <View style={styles.statDividerLine} />
-        </View>
-
-        <View style={styles.statItem}>
-          <LinearGradient
-            colors={['#D1FAE5', '#A7F3D0']}
-            style={styles.statIconBg}
-          >
-            <Ionicons name="shield-checkmark" size={18} color="#10B981" />
-          </LinearGradient>
-          <Text style={styles.statNumber}>{stats.verifiedPercent}%</Text>
-          <Text style={styles.statLabel}>Verified</Text>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
+  const coldLoad = isLoading && providers.length === 0;
+  const title = category.labelPlural.charAt(0).toUpperCase() + category.labelPlural.slice(1);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
-        translucent={!isAndroid}
+    <Screen>
+      <AppBar
+        title={title}
+        subtitle={category.summary}
+        onBack={() => navigation.goBack()}
+        rightIcon="swap-vertical-outline"
+        onRightPress={() => setShowSortSheet(true)}
       />
 
-      {renderHeader()}
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {renderSearchSection()}
-        {renderActionButtons()}
-        {renderStatsBar()}
-
-        <View style={styles.listContainer}>
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>
-              {showFavoritesOnly ? 'Favorites' : 'Available Providers'}
-            </Text>
-            <Text style={styles.listCount}>{displayedProviders.length} found</Text>
-          </View>
-
-          {displayedProviders.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons 
-                name={showFavoritesOnly ? 'heart-outline' : 'search-outline'} 
-                size={48} 
-                color="#CBD5E1" 
-              />
-              <Text style={styles.emptyStateText}>
-                {showFavoritesOnly 
-                  ? 'No favorites yet. Tap the heart icon to add providers to your favorites.'
-                  : 'No providers found. Try a different search term.'}
-              </Text>
-            </View>
-          ) : (
-            displayedProviders.map((provider, index) => (
-              <ProviderCard
-                key={provider.id}
-                item={provider}
-                index={index}
-                serviceConfig={serviceConfig}
-                onPress={handleProviderPress}
-                onBookNow={handleBookNow}
-                onChat={handleChatPress}
-                onCall={handleCallPress}
-                isFavorite={favorites.includes(provider.id)}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={[styles.search, searchFocused && styles.searchFocused]}>
+          <Ionicons name="search" size={18} color={C.inkFaint} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={`Search ${category.labelPlural}`}
+            placeholderTextColor={C.inkFaint}
+            value={searchQuery}
+            onChangeText={(text) => dispatch(setSearchQuery(text))}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => dispatch(setSearchQuery(''))}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={C.inkFaint} />
+            </TouchableOpacity>
           )}
         </View>
+
+        <View style={styles.filterRow}>
+          <Chip
+            label="Saved"
+            icon={showFavoritesOnly ? 'heart' : 'heart-outline'}
+            count={favorites.length}
+            selected={showFavoritesOnly}
+            onPress={() => setShowFavoritesOnly((v) => !v)}
+            style={styles.filterChip}
+          />
+          <Chip
+            label={SORT_OPTIONS.find((o) => o.value === selectedSort)?.label ?? 'Sort'}
+            icon="swap-vertical-outline"
+            onPress={() => setShowSortSheet(true)}
+          />
+        </View>
+
+        {/* The "Describe the job instead" row used to live here, routing to
+            QuickSearchScreen → SearchingProvidersScreen. That flow showed a
+            list of providers "responding live" that were hardcoded in the
+            screen — names, ratings and prices of people who do not exist,
+            arriving on staged timers. There is no broadcast-request endpoint
+            behind it, so there was nothing real to show. Removed rather than
+            left reachable; the entry point comes back when the backend does. */}
+
+        {providers.length > 0 && (
+          <Card style={styles.stats}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats.total}</Text>
+                <Text style={styles.statLabel}>Available</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats.avgRating ?? '—'}</Text>
+                <Text style={styles.statLabel}>Avg rating</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats.verifiedPercent}%</Text>
+                <Text style={styles.statLabel}>Verified</Text>
+              </View>
+            </View>
+          </Card>
+        )}
+
+        <Text style={styles.listCount}>
+          {showFavoritesOnly ? 'Saved' : 'All providers'} · {displayedProviders.length}
+        </Text>
+
+        {coldLoad ? (
+          <>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.providerCard}>
+                <SkeletonCard lines={2} />
+              </View>
+            ))}
+          </>
+        ) : displayedProviders.length === 0 ? (
+          <EmptyState
+            icon={showFavoritesOnly ? 'heart-outline' : 'search-outline'}
+            title={showFavoritesOnly ? 'Nothing saved yet' : 'No providers match that search'}
+            message={
+              showFavoritesOnly
+                ? 'Tap the heart on a provider to keep them here for later.'
+                : 'Try a shorter search term, or clear it to see everyone.'
+            }
+            actionLabel={searchQuery ? 'Clear search' : undefined}
+            onAction={searchQuery ? () => dispatch(setSearchQuery('')) : undefined}
+          />
+        ) : (
+          displayedProviders.map((provider) => (
+            <ProviderCard
+              key={provider.id}
+              item={provider}
+              tint={category.tint}
+              tintSoft={category.tintSoft}
+              onPress={handleProviderPress}
+              onBookNow={handleBookNow}
+              onChat={handleChatPress}
+              onCall={handleCallPress}
+              isFavorite={favorites.includes(provider.id)}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          ))
+        )}
       </ScrollView>
 
-      <FilterModal
-        visible={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        selectedSort={selectedSort}
-        onSelectSort={handleSortChange}
-        accentColor={serviceConfig.accentColor}
+      <ActionSheet
+        visible={showSortSheet}
+        title="Sort providers"
+        onClose={() => setShowSortSheet(false)}
+        options={SORT_OPTIONS.map((option) => ({
+          label: option.label,
+          icon: option.icon,
+          description: option.value === selectedSort ? 'Currently applied' : undefined,
+          onPress: () => dispatch(setSelectedSort(option.value)),
+        }))}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
   content: {
-    flex: 1,
+    padding: GUTTER,
+    paddingBottom: S.huge,
   },
-  scrollContent: {
-    paddingBottom: 24,
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 12,
-  },
-  headerContent: {
+
+  search: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 46,
+    paddingHorizontal: S.md,
+    borderRadius: R.control,
+    backgroundColor: C.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  titleContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    letterSpacing: -0.3,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  titleIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  searchIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  searchFocused: {
+    borderColor: HS.accent,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
-    color: '#1E293B',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    marginLeft: S.sm,
+    ...T.body,
+    color: C.ink,
+    padding: 0,
   },
-  clearButton: {
-    padding: 8,
-  },
-  clearButtonInner: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonsContainer: {
+
+  filterRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
+    marginTop: S.md,
   },
-  quickSearchButton: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+  filterChip: {
+    marginRight: S.sm,
   },
-  quickSearchGradient: {
+
+  quickSearch: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 8,
+    marginTop: S.md,
+    padding: S.md,
+    borderRadius: R.control,
+    backgroundColor: HS.accentSoft,
   },
   quickSearchText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    ...T.label,
+    color: HS.accentDeep,
+    flex: 1,
+    marginHorizontal: S.sm,
   },
-  favoritesButton: {
-    width: 56,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#F97316',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+
+  stats: {
+    marginTop: S.lg,
   },
-  favoritesButtonActive: {
-    shadowColor: '#EF4444',
-  },
-  favoritesGradient: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    position: 'relative',
-  },
-  favoritesBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  favoritesBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#EF4444',
-  },
-  statsBar: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  statsGradient: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
   },
   statItem: {
-    alignItems: 'center',
     flex: 1,
-  },
-  statIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
   },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
+  statValue: {
+    ...T.heading,
+    color: C.ink,
   },
   statLabel: {
-    fontSize: 11,
-    color: '#64748B',
+    ...T.caption,
+    color: C.inkMuted,
     marginTop: 2,
   },
   statDivider: {
-    height: 40,
-    justifyContent: 'center',
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: C.line,
   },
-  statDividerLine: {
-    width: 1,
-    height: '100%',
-    backgroundColor: '#E2E8F0',
-  },
-  listContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  listTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
+
   listCount: {
-    fontSize: 14,
-    color: '#64748B',
+    ...T.label,
+    color: C.inkMuted,
+    marginTop: S.xxl,
+    marginBottom: S.md,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 16,
-    lineHeight: 22,
-  },
+
   providerCard: {
-    marginBottom: 16,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
-    overflow: 'hidden',
+    marginBottom: S.md,
   },
-  cardTouchable: {
-    position: 'relative',
-  },
-  cardBackgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  cardTopAccent: {
-    height: 4,
-    width: '100%',
-  },
-  cardInner: {
-    padding: 16,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  profileSection: {
+  providerTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  profileImageWrapper: {
-    position: 'relative',
-    marginRight: 14,
-  },
-  profileImageRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    padding: 3,
-  },
-  profileImageInner: {
-    flex: 1,
-    borderRadius: 33,
-    overflow: 'hidden',
-    backgroundColor: '#F1F5F9',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  verifiedBadge: {
+  verified: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  onlineStatus: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  onlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    borderColor: C.surface,
   },
   providerInfo: {
     flex: 1,
-    paddingRight: 32,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
+    marginHorizontal: S.md,
   },
   providerName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
+    ...T.subhead,
+    color: C.ink,
   },
-  verifiedTextBadge: {
-    marginLeft: 4,
-  },
-  experienceBadge: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-    marginBottom: 8,
-  },
-  experienceText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  ratingSection: {
-    marginBottom: 6,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    marginTop: 3,
   },
   ratingText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#92400E',
+    ...T.label,
+    color: C.ink,
+    marginLeft: 3,
   },
-  reviewsText: {
-    fontSize: 13,
-    color: '#64748B',
-    marginLeft: 6,
+  metaText: {
+    ...T.caption,
+    color: C.inkMuted,
+    marginLeft: 4,
   },
-  specialtyText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
-  dividerContainer: {
+
+  availabilityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
+    marginTop: S.md,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  dividerDot: {
+  dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginHorizontal: 12,
   },
-  bottomSection: {
+
+  providerFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-  },
-  priceSection: {
-    flex: 1,
+    marginTop: S.md,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
   priceLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginBottom: 2,
+    ...T.caption,
+    color: C.inkMuted,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+  price: {
+    ...T.subhead,
+    color: C.ink,
   },
-  priceCurrency: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-    marginRight: 2,
-  },
-  priceValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  actionButtons: {
+  providerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: R.chip,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  chatButton: {
-    backgroundColor: '#F1F5F9',
-  },
-  callButton: {
-    backgroundColor: '#ECFDF5',
+    marginRight: S.sm,
   },
   bookButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  bookButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  bookButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  statusFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  statusLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  availableBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pulsingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulsingDotInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  availableText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  responseContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  responseText: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  // Filter Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  filterModalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  filterModalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  filterModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 16,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  filterOptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  filterOptionText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#334155',
+    paddingHorizontal: S.xl,
   },
 });

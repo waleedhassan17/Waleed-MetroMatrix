@@ -10,12 +10,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Platform,
   Switch,
   ActivityIndicator,
 } from 'react-native';
+// react-native's own SafeAreaView is iOS-only — on Android it is a plain View,
+// which is why this screen also hand-rolled a StatusBar.currentHeight pad on
+// its header. The context version applies real insets on both platforms.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -23,6 +26,8 @@ import {
   updateProviderOnlineStatus,
   updateProviderProfile,
 } from '../../../../networks/serviceProviders/providerNetwork';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C } from '../../../../constants/theme';
 
 const RADIUS_OPTIONS = [5, 10, 15, 20, 30];
 
@@ -88,8 +93,8 @@ export default function AvailabilityScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#10B981" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={HS.accent} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -100,7 +105,7 @@ export default function AvailabilityScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#10B981" />
+          <ActivityIndicator size="large" color={HS.accent} />
           <Text style={styles.stateText}>Loading availability…</Text>
         </View>
       ) : (
@@ -116,7 +121,7 @@ export default function AvailabilityScreen() {
           )}
           {savedMsg && (
             <View style={styles.savedBanner}>
-              <Ionicons name="checkmark-circle" size={16} color="#065F46" />
+              <Ionicons name="checkmark-circle" size={16} color={HS.accentDeep} />
               <Text style={styles.savedText}>{savedMsg}</Text>
             </View>
           )}
@@ -124,7 +129,7 @@ export default function AvailabilityScreen() {
           {/* Online toggle */}
           <View style={styles.card}>
             <View style={styles.cardRow}>
-              <View style={[styles.dot, { backgroundColor: isOnline ? '#10B981' : '#9CA3AF' }]} />
+              <View style={[styles.dot, { backgroundColor: isOnline ? HS.accent : C.inkFaint }]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>
                   {isOnline ? 'You are Online' : 'You are Offline'}
@@ -138,8 +143,8 @@ export default function AvailabilityScreen() {
               <Switch
                 value={isOnline}
                 onValueChange={toggleOnline}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={isOnline ? '#10B981' : '#F3F4F6'}
+                trackColor={{ false: C.disabled, true: HS.accentLine }}
+                thumbColor={isOnline ? HS.accent : C.lineSoft}
                 disabled={saving}
               />
             </View>
@@ -171,7 +176,7 @@ export default function AvailabilityScreen() {
           </View>
 
           <View style={styles.hintBox}>
-            <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
+            <Ionicons name="information-circle-outline" size={16} color={C.inkMuted} />
             <Text style={styles.hintText}>
               Being online adds an availability bonus to your matching score, so you
               appear higher when customers search.
@@ -184,15 +189,14 @@ export default function AvailabilityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#10B981',
+    backgroundColor: HS.accent,
     paddingHorizontal: 12,
     paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : 14,
   },
   headerBtn: { width: 36, alignItems: 'center' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
@@ -203,16 +207,16 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: C.line,
   },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  cardSub: { fontSize: 13, color: '#6B7280', marginTop: 4, lineHeight: 18 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: C.ink },
+  cardSub: { fontSize: 13, color: C.inkMuted, marginTop: 4, lineHeight: 18 },
   radiusRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
   radiusChip: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: C.disabled,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -220,15 +224,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: '#fff',
   },
-  radiusChipActive: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  radiusChipText: { color: '#374151', fontWeight: '600', fontSize: 13 },
+  radiusChipActive: { backgroundColor: HS.accent, borderColor: HS.accent },
+  radiusChipText: { color: C.inkMuted, fontWeight: '600', fontSize: 13 },
   radiusChipTextActive: { color: '#fff' },
   hintBox: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 4 },
-  hintText: { color: '#6B7280', fontSize: 12, marginLeft: 6, flex: 1, lineHeight: 17 },
+  hintText: { color: C.inkMuted, fontSize: 12, marginLeft: 6, flex: 1, lineHeight: 17 },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: C.errorSoft,
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
@@ -238,12 +242,12 @@ const styles = StyleSheet.create({
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D1FAE5',
+    backgroundColor: HS.accentSoft,
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
   },
-  savedText: { color: '#065F46', fontSize: 13, marginLeft: 6 },
+  savedText: { color: HS.accentDeep, fontSize: 13, marginLeft: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: '#6B7280', fontSize: 14 },
+  stateText: { marginTop: 10, color: C.inkMuted, fontSize: 14 },
 });

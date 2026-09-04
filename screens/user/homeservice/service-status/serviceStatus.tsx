@@ -1,99 +1,80 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  Animated,
-  StatusBar,
-  ScrollView,
-  Image,
-  TextInput,
-  Alert,
-  Dimensions,
-  KeyboardAvoidingView,
-  BackHandler,
-  RefreshControl,
-} from 'react-native';
-// `react-native`'s own SafeAreaView is iOS-only — on Android it is a plain
-// View, which is why these screens needed manual StatusBar.currentHeight
-// padding that then over-padded devices with a notch.
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+// ============================================================================
+// Service status — the live job
+//
+// The timeline is the hero here: it is the one thing a customer opens this
+// screen to read. Everything above and below it is quieter than it was.
+//
+// What went: 13 gradients, the avatar pulse loop, the entrance fade/slide, the
+// party-popper "Service Completed!" heading, and the "Need Assistance? Our
+// support team is available 24/7" card. The completion moment now reads
+// "Service completed" with the two things you can do next.
+//
+// The contact sheet was already a styled component (components/call/
+// ContactSheet) — the remaining native Alerts (leave-without-paying, a failed
+// completion, an invalid amount) are now an ActionSheet and inline errors.
+// ============================================================================
 
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+
+import ContactSheet from '../../../../components/call/ContactSheet';
+import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SectionHeader,
+  Skeleton,
+} from '../../../../components/ui';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
+import { AppDispatch, RootState } from '../../../../store/store';
+import { contactSupport } from '../../../../utils/support/contactSupport';
+import { formatAmount, formatInstant, formatRating } from '../../../../utils/homeservice/format';
+import {
+  clearServiceStatusState,
   fetchServiceStatus,
   markServiceCompleted,
-  setPaymentAmount,
-  setServiceStatus,
-  clearServiceStatusState,
-  selectIsPaymentReady,
   selectPaymentSummary,
   selectServiceProgress,
+  setPaymentAmount,
 } from './serviceSlice';
-import { RootState, AppDispatch } from '../../../../store/store';
-import { useRoomSocket } from '../../../../hooks/useRoomSocket';
-import { contactSupport } from '../../../../utils/support/contactSupport';
-import { formatInstant } from '../../../../utils/date/localDate';
-import ContactSheet from '../../../../components/call/ContactSheet';
 
-const { width } = Dimensions.get('window');
-
-// Service type configurations - matching BookingScreen
-const SERVICE_CONFIG: Record<string, {
-  gradient: string[];
-  lightGradient: string[];
-  accentColor: string;
-  icon: string;
-}> = {
-  electricians: {
-    gradient: ['#F59E0B', '#D97706'],
-    lightGradient: ['#FEF3C7', '#FDE68A'],
-    accentColor: '#F59E0B',
-    icon: 'flash',
-  },
-  plumbers: {
-    gradient: ['#3B82F6', '#2563EB'],
-    lightGradient: ['#DBEAFE', '#BFDBFE'],
-    accentColor: '#3B82F6',
-    icon: 'water',
-  },
-  'ac-repairers': {
-    gradient: ['#06B6D4', '#0891B2'],
-    lightGradient: ['#CFFAFE', '#A5F3FC'],
-    accentColor: '#06B6D4',
-    icon: 'snow',
-  },
-};
-
-type ServiceStatusRouteParams = {
-  bookingId: string;
+type RouteParams = {
   category?: 'electricians' | 'plumbers' | 'ac-repairers';
+  bookingId?: string;
 };
 
 export default function ServiceStatusScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<{ params: ServiceStatusRouteParams }, 'params'>>();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { bookingId, category = 'ac-repairers' } = route.params || {};
+  const { category = 'ac-repairers', bookingId } = route.params || {};
+  const validCategory = (['electricians', 'plumbers', 'ac-repairers'].includes(category)
+    ? category
+    : 'ac-repairers') as 'electricians' | 'plumbers' | 'ac-repairers';
+  const accent = categoryAccent(validCategory);
 
-  // Every fetch needs the category narrowed to one the API knows; it was being
-  // re-derived at each call site.
-  const validCategory: 'electricians' | 'plumbers' | 'ac-repairers' =
-    (['electricians', 'plumbers', 'ac-repairers'] as const).includes(category as any)
-      ? (category as 'electricians' | 'plumbers' | 'ac-repairers')
-      : 'ac-repairers';
-
-  // Live room events. This screen previously only refetched on focus, so a
-  // customer watching it saw nothing when the provider advanced the job or
-  // requested payment — they had to leave and come back. The realtime service
-  // now pushes both; refetch when either lands so the whole payload (provider,
-  // pricing, timeline) stays consistent rather than patching one field.
   // `counterpartPresence` is the server's word on whether the provider has a
   // live socket — the reachability half of the Call gate in the contact sheet.
   const {
@@ -102,7 +83,6 @@ export default function ServiceStatusScreen() {
     counterpartPresence,
   } = useRoomSocket(bookingId, 'homeservice');
 
-  // Redux state
   const provider = useSelector((state: RootState) => state.serviceStatus?.provider);
   const serviceDetails = useSelector((state: RootState) => state.serviceStatus?.serviceDetails);
   const payment = useSelector((state: RootState) => state.serviceStatus?.payment);
@@ -110,19 +90,22 @@ export default function ServiceStatusScreen() {
   const isLoading = useSelector((state: RootState) => state.serviceStatus?.isLoading);
   const isSubmitting = useSelector((state: RootState) => state.serviceStatus?.isSubmitting);
   const error = useSelector((state: RootState) => state.serviceStatus?.error);
-  const isPaymentReady = useSelector(selectIsPaymentReady);
   const paymentSummary = useSelector(selectPaymentSummary);
   const progressSteps = useSelector(selectServiceProgress);
 
   // The card used to print `provider.startTime` raw, so a customer saw
   // "Started 2026-09-03T18:22:41.507Z". Null when the job has not started.
   const startedAtLabel = useMemo(() => formatInstant(provider?.startTime), [provider?.startTime]);
+  const completedAtLabel = useMemo(
+    () => formatInstant(serviceDetails?.completedAt),
+    [serviceDetails?.completedAt]
+  );
 
-  // Local state
-  const [isReady, setIsReady] = useState(false);
   const [manualAmount, setManualAmount] = useState('');
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [showLeaveSheet, setShowLeaveSheet] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   // Pull-to-refresh. Live socket events already push most changes, but a
   // dropped socket used to leave this screen stale with no way to reload it
@@ -143,41 +126,18 @@ export default function ServiceStatusScreen() {
   // from this screen. Derived, it survives navigation and app restarts.
   const paymentDue = serviceStatus === 'completed' && payment?.status !== 'completed';
 
-  // Animation refs.
-  // fadeAnim starts at 1 so content is never gated behind an entrance effect
-  // that may not run — motion enhances, it does not reveal.
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const paymentSlideAnim = useRef(new Animated.Value(50)).current;
-  const loadingFadeAnim = useRef(new Animated.Value(1)).current;
+  const leaveScreen = useCallback(() => {
+    dispatch(clearServiceStatusState());
+    navigation.goBack();
+  }, [dispatch, navigation]);
 
-  const serviceConfig = SERVICE_CONFIG[category] || SERVICE_CONFIG['ac-repairers'];
-
-  // Callbacks
   const handleBackPress = useCallback(() => {
     if (paymentDue) {
-      Alert.alert(
-        'Leave without payment?',
-        'The service has been completed. Would you like to proceed to payment first?',
-        [
-          { text: 'Stay', style: 'cancel' },
-          {
-            text: 'Leave',
-            style: 'destructive',
-            onPress: () => {
-              dispatch(clearServiceStatusState());
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    } else {
-      dispatch(clearServiceStatusState());
-      navigation.goBack();
+      setShowLeaveSheet(true);
+      return;
     }
-  }, [dispatch, navigation, paymentDue]);
+    leaveScreen();
+  }, [paymentDue, leaveScreen]);
 
   // The header chevron ran the guard above; the phone's back button did not,
   // which was the actual route by which people left a completed job unpaid.
@@ -191,162 +151,12 @@ export default function ServiceStatusScreen() {
     }, [handleBackPress])
   );
 
-  const handleSupportPress = useCallback(() => {
-    contactSupport(bookingId ? `Booking ${bookingId}` : 'Service status');
-  }, [bookingId]);
-
-  const handleServiceCompleted = useCallback(async () => {
-    if (!bookingId) return;
-    try {
-      // unwrap() so a rejected transition throws here instead of being
-      // swallowed — this used to fire and forget, then reveal the payment card
-      // on a timer whether or not the server had agreed the job was done.
-      await dispatch(markServiceCompleted({ bookingId })).unwrap();
-    } catch (e: any) {
-      Alert.alert(
-        'Could not complete service',
-        typeof e === 'string' ? e : e?.message || 'Please check your connection and try again.'
-      );
-      return; // stay on the pre-completion UI
-    }
-
-    // Re-read the server so completedAt, pricing and the timeline all come from
-    // one consistent payload — same path the live-event effect below takes.
-    dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
-
-    Animated.spring(paymentSlideAnim, {
-      toValue: 0,
-      tension: 80,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
-  }, [dispatch, bookingId, validCategory, paymentSlideAnim]);
-
-  const handleAmountChange = useCallback((text: string) => {
-    const numericValue = text.replace(/[^0-9]/g, '');
-    setManualAmount(numericValue);
-    dispatch(setPaymentAmount(parseInt(numericValue) || 0));
-  }, [dispatch]);
-
-  const handleUseSuggestedAmount = useCallback(() => {
-    if (serviceDetails?.suggestedAmount) {
-      const amount = serviceDetails.suggestedAmount.toString();
-      setManualAmount(amount);
-      dispatch(setPaymentAmount(serviceDetails.suggestedAmount));
-    }
-  }, [dispatch, serviceDetails]);
-
-  const handleProceedToPayment = useCallback(() => {
-    if (!payment?.amount || payment.amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid payment amount');
-      return;
-    }
-
-    // @ts-ignore
-    navigation.navigate('PaymentScreen', {
-      category,
-      bookingId,
-      paymentData: paymentSummary,
-    });
-  }, [navigation, category, bookingId, payment, paymentSummary]);
-
-  const handleRateProvider = useCallback(() => {
-    // @ts-ignore
-    navigation.navigate('ReviewRating', { category, bookingId });
-  }, [navigation, category, bookingId]);
-
-  const handleContactProvider = useCallback(() => {
-    if (!bookingId) return;
-    setContactSheetOpen(true);
-  }, [bookingId]);
-
-  // Both of these used to pass a bare `{ bookingId }`, so the outgoing call
-  // screen had no name to show and rendered the literal string "Contact".
-  // Every other screen already passes the counterpart through; this one now
-  // matches them.
-  const handleCallProvider = useCallback(() => {
-    if (!bookingId) return;
-    // @ts-ignore — root-stack routes, not in this screen's local param list
-    navigation.navigate('CallScreen', {
-      bookingId,
-      counterpartName: provider?.name,
-      counterpartImage: provider?.image,
-    });
-  }, [navigation, bookingId, provider?.name, provider?.image]);
-
-  const handleMessageProvider = useCallback(() => {
-    if (!bookingId) return;
-    // @ts-ignore
-    navigation.navigate('ProviderChatScreen', {
-      bookingId,
-      counterpartName: provider?.name,
-    });
-  }, [navigation, bookingId, provider?.name]);
-
-  // Run entrance animations
-  const runEntranceAnimations = useCallback(() => {
-    // fadeAnim deliberately not reset to 0 — see its declaration.
-    slideAnim.setValue(30);
-    scaleAnim.setValue(0.95);
-
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 100,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Pulse animation
-    const pulseAnimation = () => {
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        if (serviceStatus === 'checking') {
-          pulseAnimation();
-        }
-      });
-    };
-    pulseAnimation();
-  }, [fadeAnim, slideAnim, scaleAnim, pulseAnim, serviceStatus]);
-
-  // Focus effect
   useFocusEffect(
     useCallback(() => {
-      // Reset all states and animations on focus
-      setIsReady(false);
-      loadingFadeAnim.setValue(1);
-      paymentSlideAnim.setValue(50);
-      // fadeAnim deliberately not reset to 0 — see its declaration.
-      slideAnim.setValue(30);
-      scaleAnim.setValue(0.95);
-
-      // Clear previous state to force re-fetch
       dispatch(clearServiceStatusState());
 
       // No id, no fetch — 'default' was never a booking, it was just a 404
-      // waiting to happen ("API Response error" on this screen).
+      // waiting to happen.
       if (!bookingId) {
         if (__DEV__) {
           console.warn('[serviceStatus] no bookingId in route params — skipping fetch.');
@@ -354,16 +164,12 @@ export default function ServiceStatusScreen() {
         return;
       }
 
-      // Small delay to ensure state is cleared before fetching
       const timer = setTimeout(() => {
         dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
       }, 50);
 
-      return () => {
-        clearTimeout(timer);
-        // Cleanup on blur - no need to reset animations here since we do it on focus
-      };
-    }, [bookingId, validCategory, dispatch, fadeAnim, slideAnim, scaleAnim, loadingFadeAnim, paymentSlideAnim])
+      return () => clearTimeout(timer);
+    }, [bookingId, validCategory, dispatch])
   );
 
   // A pushed status or payment event means the server-side truth moved on.
@@ -375,538 +181,301 @@ export default function ServiceStatusScreen() {
     dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
   }, [roomStatus, livePayment, bookingId, validCategory, dispatch]);
 
-  // Run animations when data is loaded
-  useEffect(() => {
-    if (!isLoading && provider && !isReady) {
-      const timer = setTimeout(() => {
-        setIsReady(true);
-        runEntranceAnimations();
-      }, 50);
-      return () => clearTimeout(timer);
+  const handleServiceCompleted = useCallback(async () => {
+    if (!bookingId) return;
+    setCompleteError(null);
+    try {
+      // unwrap() so a rejected transition throws here instead of being
+      // swallowed — this used to fire and forget, then reveal the payment card
+      // on a timer whether or not the server had agreed the job was done.
+      await dispatch(markServiceCompleted({ bookingId })).unwrap();
+    } catch (e: any) {
+      setCompleteError(
+        typeof e === 'string'
+          ? e
+          : e?.message || "We couldn't mark this complete. Check your connection and try again."
+      );
+      return; // stay on the pre-completion UI
     }
-  }, [isLoading, provider, isReady, runEntranceAnimations]);
+
+    // Re-read the server so completedAt, pricing and the timeline all come from
+    // one consistent payload.
+    dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
+  }, [dispatch, bookingId, validCategory]);
+
+  const handleAmountChange = useCallback(
+    (text: string) => {
+      const numericValue = text.replace(/[^0-9]/g, '');
+      setManualAmount(numericValue);
+      dispatch(setPaymentAmount(parseInt(numericValue) || 0));
+    },
+    [dispatch]
+  );
+
+  const amountEntered = !!payment?.amount && payment.amount > 0;
 
   // No booking means no status to show — don't spin forever.
   if (!bookingId) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="clipboard-outline" size={48} color="#94A3B8" />
-          <Text style={styles.loadingText}>No active booking</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
-            <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
-              Go back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <AppBar title="Service status" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="clipboard-outline"
+          title="No active booking"
+          message="Open a booking from your list to follow its progress."
+          actionLabel="Go back"
+          onAction={() => navigation.goBack()}
+        />
+      </Screen>
     );
   }
 
   // A failed fetch leaves `provider` null with `isLoading` false. Without this
-  // branch that fell into the loading state below and spun forever, with no
-  // way to retry short of leaving the screen.
+  // branch that fell into the loading state below and spun forever.
   if (!isLoading && !provider && error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Ionicons name="cloud-offline-outline" size={48} color="#94A3B8" />
-          <Text style={styles.loadingText}>Couldn't load service status</Text>
-          <Text style={[styles.loadingText, { fontSize: 13, marginTop: 4 }]}>{error}</Text>
-          <TouchableOpacity
-            onPress={onRefresh}
-            style={{ marginTop: 16 }}
-            activeOpacity={0.8}
-          >
-            <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
-              Try again
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <AppBar title="Service status" onBack={() => navigation.goBack()} />
+        <ErrorState
+          title="We couldn't load this job"
+          message={error}
+          onRetry={onRefresh}
+        />
+      </Screen>
     );
   }
 
-  // Loading state
   if (isLoading || !provider) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Animated.View style={{ opacity: loadingFadeAnim }}>
-            <LinearGradient
-              colors={serviceConfig.gradient as [string, string]}
-              style={styles.loadingIcon}
-            >
-              <Ionicons name={serviceConfig.icon as any} size={32} color="#FFFFFF" />
-            </LinearGradient>
-            <Text style={styles.loadingText}>Loading service status...</Text>
-          </Animated.View>
+      <Screen>
+        <AppBar title="Service status" onBack={() => navigation.goBack()} />
+        <View style={styles.loading} accessibilityLabel="Loading service status">
+          <Skeleton width="100%" height={104} radius={R.card} />
+          <Skeleton width="40%" height={16} style={styles.loadingGap} />
+          <Skeleton width="100%" height={180} radius={R.card} style={styles.loadingGapSm} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
-  const renderHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.headerGradient}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBackPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={22} color="#1E293B" />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Service Status</Text>
-
-          <TouchableOpacity
-            style={[styles.helpButton, { backgroundColor: `${serviceConfig.accentColor}15` }]}
-            onPress={handleContactProvider}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color={serviceConfig.accentColor} />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-
-  const renderProviderCard = () => (
-    <Animated.View
-      style={[
-        styles.providerCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={serviceConfig.gradient as [string, string]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.cardTopAccent}
-      />
-
-      <View style={styles.providerContent}>
-        <Animated.View
-          style={[
-            styles.providerImageContainer,
-            serviceStatus === 'checking' && { transform: [{ scale: pulseAnim }] },
-          ]}
-        >
-          <LinearGradient
-            colors={serviceConfig.gradient as [string, string]}
-            style={styles.providerImageRing}
-          >
-            <View style={styles.providerImageInner}>
-              <Image source={{ uri: provider.image }} style={styles.providerImage} />
-            </View>
-          </LinearGradient>
-          <View style={[styles.statusIndicator, { backgroundColor: '#10B981' }]}>
-            <Ionicons name="construct" size={12} color="#FFFFFF" />
-          </View>
-        </Animated.View>
-
-        <Text style={styles.providerName}>{provider.name}</Text>
-        {!!provider.specialty && (
-          <Text style={styles.providerSpecialty}>{provider.specialty}</Text>
-        )}
-
-        {/* Every badge is conditional: a provider with no ratings yet, no
-            recorded experience, or a job that has not started should show
-            fewer badges, never "★ 0" or an empty pill. */}
-        <View style={styles.providerBadges}>
-          {provider.reviews > 0 && (
-            <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={styles.badge}>
-              <Ionicons name="star" size={12} color="#F59E0B" />
-              <Text style={styles.badgeText}>
-                {provider.rating.toFixed(1)} ({provider.reviews})
-              </Text>
-            </LinearGradient>
-          )}
-          {!!provider.experience && (
-            <View style={[styles.badge, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-              <Feather name="award" size={12} color={serviceConfig.accentColor} />
-              <Text style={[styles.badgeText, { color: serviceConfig.accentColor }]}>
-                {provider.experience}
-              </Text>
-            </View>
-          )}
-          {!!startedAtLabel && (
-            <View style={[styles.badge, { backgroundColor: '#10B98115' }]}>
-              <Ionicons name="time-outline" size={12} color="#10B981" />
-              <Text style={[styles.badgeText, { color: '#10B981' }]}>
-                Started {startedAtLabel}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderProgressSection = () => (
-    <Animated.View
-      style={[
-        styles.progressSection,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.sectionHeader}>
-        <LinearGradient
-          colors={serviceConfig.lightGradient as [string, string]}
-          style={styles.sectionIconBg}
-        >
-          <Ionicons name="git-branch-outline" size={20} color={serviceConfig.accentColor} />
-        </LinearGradient>
-        <Text style={styles.sectionTitle}>Service Progress</Text>
-      </View>
-
-      <View style={styles.progressContainer}>
-        {progressSteps?.map((step, index) => (
-          <View key={step.key} style={styles.progressStep}>
-            <View style={styles.stepIndicatorContainer}>
-              <View
-                style={[
-                  styles.stepDot,
-                  step.completed
-                    ? { backgroundColor: serviceConfig.accentColor }
-                    : { backgroundColor: '#E2E8F0' },
-                ]}
-              >
-                {step.completed && (
-                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-                )}
-              </View>
-              {index < progressSteps.length - 1 && (
-                <View
-                  style={[
-                    styles.stepLine,
-                    step.completed
-                      ? { backgroundColor: serviceConfig.accentColor }
-                      : { backgroundColor: '#E2E8F0' },
-                  ]}
-                />
-              )}
-            </View>
-            <Text
-              style={[
-                styles.stepLabel,
-                step.completed && { color: '#1E293B', fontWeight: '600' },
-              ]}
-            >
-              {step.label}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </Animated.View>
-  );
-
-  const renderStatusCheck = () => {
-    if (serviceStatus !== 'checking') return null;
-
-    return (
-      <Animated.View
-        style={[
-          styles.statusCheckCard,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.statusCheckIconContainer,
-            { transform: [{ scale: pulseAnim }] },
-          ]}
-        >
-          <LinearGradient
-            colors={serviceConfig.lightGradient as [string, string]}
-            style={styles.statusCheckIcon}
-          >
-            <Ionicons name="checkmark-done-outline" size={32} color={serviceConfig.accentColor} />
-          </LinearGradient>
-        </Animated.View>
-
-        <Text style={styles.statusCheckTitle}>Service Status Check</Text>
-        <Text style={styles.statusCheckText}>
-          Has {provider.name} completed your {provider.service.toLowerCase()}?
-          Tap below when the work is finished.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.completedButton}
-          onPress={handleServiceCompleted}
-          activeOpacity={0.8}
-          disabled={isSubmitting}
-        >
-          <LinearGradient
-            colors={serviceConfig.gradient as [string, string]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.completedButtonGradient}
-          >
-            <View style={styles.completedButtonIcon}>
-              <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
-            </View>
-            <View style={styles.completedButtonTextContainer}>
-              <Text style={styles.completedButtonText}>
-                {isSubmitting ? 'Processing...' : 'Mark as Completed'}
-              </Text>
-              <Text style={styles.completedButtonSubtext}>Service finished successfully</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  const renderPaymentSection = () => {
-    if (!paymentDue) return null;
-
-    return (
-      <Animated.View
-        style={[
-          styles.paymentSection,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: paymentSlideAnim }],
-          },
-        ]}
-      >
-        {/* Success Header */}
-        <View style={styles.successHeader}>
-          <View style={styles.successIconContainer}>
-            <LinearGradient
-              colors={['#D1FAE5', '#A7F3D0']}
-              style={styles.successIcon}
-            >
-              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
-            </LinearGradient>
-          </View>
-          <Text style={styles.successTitle}>🎉 Service Completed!</Text>
-          <Text style={styles.successText}>
-            {provider.name} has successfully completed your {provider.service.toLowerCase()}.
-            You can now proceed with the payment.
-          </Text>
-        </View>
-
-        {/* Payment Summary Card */}
-        <View style={styles.paymentCard}>
-          <View style={styles.paymentCardHeader}>
-            <Text style={styles.paymentCardTitle}>Payment Summary</Text>
-            <View style={[styles.invoiceBadge, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-              <Text style={[styles.invoiceText, { color: serviceConfig.accentColor }]}>
-                #{serviceDetails?.invoiceId}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.serviceDescription}>
-            {serviceDetails?.description}
-          </Text>
-
-          <View style={styles.paymentDetails}>
-            <View style={styles.paymentRow}>
-              <View style={styles.paymentRowLeft}>
-                <Ionicons name="person-outline" size={16} color="#64748B" />
-                <Text style={styles.paymentLabel}>Recipient</Text>
-              </View>
-              <View style={styles.paymentRowRight}>
-                <Text style={styles.paymentValue}>{provider.name}</Text>
-                <Text style={styles.paymentSubvalue}>{provider.phone}</Text>
-              </View>
-            </View>
-
-            <View style={styles.paymentRow}>
-              <View style={styles.paymentRowLeft}>
-                <Ionicons name="construct-outline" size={16} color="#64748B" />
-                <Text style={styles.paymentLabel}>Service</Text>
-              </View>
-              <Text style={styles.paymentValue}>{provider.service}</Text>
-            </View>
-
-            <View style={styles.paymentRow}>
-              <View style={styles.paymentRowLeft}>
-                <Ionicons name="time-outline" size={16} color="#64748B" />
-                <Text style={styles.paymentLabel}>Duration</Text>
-              </View>
-              <Text style={styles.paymentValue}>{serviceDetails?.estimatedDuration}</Text>
-            </View>
-
-            <View style={styles.paymentRow}>
-              <View style={styles.paymentRowLeft}>
-                <Ionicons name="calendar-outline" size={16} color="#64748B" />
-                <Text style={styles.paymentLabel}>Completed</Text>
-              </View>
-              <Text style={[styles.paymentValue, { color: '#10B981' }]}>
-                {serviceDetails?.completedAt || 'Just now'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Amount Input */}
-          <View style={styles.amountSection}>
-            <View style={styles.amountHeader}>
-              <View style={styles.paymentRowLeft}>
-                <Ionicons name="cash-outline" size={16} color={serviceConfig.accentColor} />
-                <Text style={[styles.paymentLabel, { color: serviceConfig.accentColor, fontWeight: '600' }]}>
-                  Payment Amount
-                </Text>
-              </View>
-              <View style={[styles.requiredBadge, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={styles.requiredText}>Required</Text>
-              </View>
-            </View>
-
-            <View style={styles.amountInputContainer}>
-              <View style={styles.amountInputWrapper}>
-                <Text style={styles.currencySymbol}>Rs</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  value={manualAmount}
-                  onChangeText={handleAmountChange}
-                  placeholder="0"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="number-pad"
-                />
-              </View>
-              <Text style={styles.amountHint}>
-                Enter the final amount agreed with {provider.name}
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.suggestedButton, { borderColor: serviceConfig.accentColor }]}
-                onPress={handleUseSuggestedAmount}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="bulb-outline" size={16} color={serviceConfig.accentColor} />
-                <Text style={[styles.suggestedButtonText, { color: serviceConfig.accentColor }]}>
-                  Use suggested: Rs {serviceDetails?.suggestedAmount?.toLocaleString()}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Total */}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={[styles.totalValue, { color: serviceConfig.accentColor }]}>
-                Rs {(payment?.amount || 0).toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              (!payment?.amount || payment.amount <= 0) && styles.paymentButtonDisabled,
-            ]}
-            onPress={handleProceedToPayment}
-            activeOpacity={0.8}
-            disabled={!payment?.amount || payment.amount <= 0}
-          >
-            <LinearGradient
-              colors={
-                payment?.amount && payment.amount > 0
-                  ? (serviceConfig.gradient as [string, string])
-                  : ['#CBD5E1', '#94A3B8']
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.paymentButtonGradient}
-            >
-              <Ionicons name="card-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.paymentButtonText}>Proceed to Payment</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.rateButton, { backgroundColor: `${serviceConfig.accentColor}15` }]}
-            onPress={handleRateProvider}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="star-outline" size={18} color={serviceConfig.accentColor} />
-            <Text style={[styles.rateButtonText, { color: serviceConfig.accentColor }]}>
-              Rate Provider
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    );
-  };
-
-  const renderHelpSection = () => (
-    <Animated.View
-      style={[
-        styles.helpSection,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.helpCard}
-        activeOpacity={0.8}
-        onPress={handleSupportPress}
-      >
-        <View style={[styles.helpIconContainer, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-          <Ionicons name="help-circle-outline" size={22} color={serviceConfig.accentColor} />
-        </View>
-        <View style={styles.helpContent}>
-          <Text style={styles.helpTitle}>Need Assistance?</Text>
-          <Text style={styles.helpText}>
-            Our support team is available 24/7 to help with any questions.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-      </TouchableOpacity>
-    </Animated.View>
-  );
+  const rating = formatRating(provider.rating);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {renderHeader()}
-      
+    <Screen>
+      <AppBar
+        title="Service status"
+        onBack={handleBackPress}
+        rightIcon="chatbubble-outline"
+        onRightPress={() => setContactSheetOpen(true)}
+      />
+
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#10B981" />
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={HS.accent} />
           }
         >
-          {renderProviderCard()}
-          {renderProgressSection()}
-          {renderStatusCheck()}
-          {renderPaymentSection()}
-          {renderHelpSection()}
+          <Card accentRule={accent.tint}>
+            <View style={styles.providerRow}>
+              <Avatar
+                uri={provider.image}
+                name={provider.name}
+                size={48}
+                tint={accent.tintSoft}
+                color={accent.tint}
+              />
+              <View style={styles.providerInfo}>
+                <Text style={styles.providerName} numberOfLines={1}>
+                  {provider.name}
+                </Text>
+                {/* Everything here is conditional: a provider with no ratings
+                    yet, no recorded experience, or a job that has not started
+                    should show less, never "★ 0" or an empty pill. */}
+                <Text style={styles.meta} numberOfLines={1}>
+                  {[
+                    provider.specialty,
+                    rating && provider.reviews > 0 ? `${rating} (${provider.reviews})` : null,
+                    provider.experience,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+                {!!startedAtLabel && (
+                  <Text style={styles.metaFaint}>Started {startedAtLabel}</Text>
+                )}
+              </View>
+            </View>
+          </Card>
+
+          {/* The hero. Calm, legible, and the only thing on the screen with a
+              vertical rhythm of its own. */}
+          <View style={styles.section}>
+            <SectionHeader title="Progress" />
+            <Card style={styles.timelineCard}>
+              {progressSteps?.map((step, index) => {
+                const last = index === progressSteps.length - 1;
+                return (
+                  <View key={step.key} style={styles.step}>
+                    <View style={styles.stepRail}>
+                      <View style={[styles.stepDot, step.completed && styles.stepDotDone]}>
+                        {step.completed && (
+                          <Ionicons name="checkmark" size={11} color={C.inkInverse} />
+                        )}
+                      </View>
+                      {!last && <View style={[styles.stepLine, step.completed && styles.stepLineDone]} />}
+                    </View>
+                    <Text style={[styles.stepLabel, step.completed && styles.stepLabelDone]}>
+                      {step.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </Card>
+          </View>
+
+          {serviceStatus === 'checking' && (
+            <View style={styles.section}>
+              <Card>
+                <Text style={styles.cardTitle}>Is the work finished?</Text>
+                <Text style={styles.body}>
+                  Confirm once {provider.name} has finished, and we'll move on to payment.
+                </Text>
+                {!!completeError && <Text style={styles.error}>{completeError}</Text>}
+                <Button
+                  label="Mark complete"
+                  onPress={handleServiceCompleted}
+                  loading={!!isSubmitting}
+                  style={styles.cardButton}
+                />
+              </Card>
+            </View>
+          )}
+
+          {paymentDue && (
+            <View style={styles.section}>
+              <Card elevation="raised">
+                <View style={styles.completedRow}>
+                  <Ionicons name="checkmark-circle" size={22} color={C.success} />
+                  <Text style={styles.completedTitle}>Service completed</Text>
+                </View>
+                <Text style={styles.body}>
+                  {provider.name} finished the job
+                  {completedAtLabel ? ` ${completedAtLabel}` : ''}. Settle up to close it out.
+                </Text>
+              </Card>
+
+              <Card style={styles.paymentCard}>
+                <View style={styles.paymentHeader}>
+                  <Text style={styles.cardTitle}>Payment</Text>
+                  {!!serviceDetails?.invoiceId && (
+                    <Text style={styles.invoice}>#{serviceDetails.invoiceId}</Text>
+                  )}
+                </View>
+
+                {!!serviceDetails?.description && (
+                  <Text style={styles.body}>{serviceDetails.description}</Text>
+                )}
+
+                <View style={styles.rows}>
+                  <View style={styles.row}>
+                    <Text style={styles.rowKey}>Provider</Text>
+                    <Text style={styles.rowValue} numberOfLines={1}>
+                      {provider.name}
+                    </Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.rowKey}>Service</Text>
+                    <Text style={styles.rowValue}>{provider.service}</Text>
+                  </View>
+                  {!!serviceDetails?.estimatedDuration && (
+                    <View style={styles.row}>
+                      <Text style={styles.rowKey}>Duration</Text>
+                      <Text style={styles.rowValue}>{serviceDetails.estimatedDuration}</Text>
+                    </View>
+                  )}
+                  {!!completedAtLabel && (
+                    <View style={styles.row}>
+                      <Text style={styles.rowKey}>Completed</Text>
+                      <Text style={styles.rowValue}>{completedAtLabel}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.amountLabel}>Amount agreed with {provider.name}</Text>
+                <View style={styles.amountField}>
+                  <Text style={styles.currency}>PKR</Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    value={manualAmount}
+                    onChangeText={handleAmountChange}
+                    placeholder="0"
+                    placeholderTextColor={C.inkFaint}
+                    keyboardType="number-pad"
+                    accessibilityLabel="Payment amount"
+                  />
+                </View>
+
+                {!!serviceDetails?.suggestedAmount && (
+                  <TouchableOpacity
+                    style={styles.suggested}
+                    onPress={() => {
+                      const amount = serviceDetails.suggestedAmount!;
+                      setManualAmount(String(amount));
+                      dispatch(setPaymentAmount(amount));
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.suggestedText}>
+                      Use the quoted {formatAmount(serviceDetails.suggestedAmount)}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <View style={styles.total}>
+                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalValue}>{formatAmount(payment?.amount)}</Text>
+                </View>
+              </Card>
+
+              <Button
+                label="Continue to payment"
+                onPress={() =>
+                  navigation.navigate('PaymentScreen', {
+                    category,
+                    bookingId,
+                    paymentData: paymentSummary,
+                  })
+                }
+                disabled={!amountEntered}
+                style={styles.blockButton}
+              />
+              {!amountEntered && (
+                <Text style={styles.hint}>Enter the agreed amount to continue.</Text>
+              )}
+              <Button
+                label="Rate provider"
+                variant="secondary"
+                icon="star-outline"
+                onPress={() => navigation.navigate('ReviewRating', { category, bookingId })}
+                style={styles.stackedButton}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.support}
+            onPress={() => contactSupport(bookingId ? `Booking ${bookingId}` : 'Service status')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.supportText}>Something wrong with this job? Contact support</Text>
+            <Ionicons name="chevron-forward" size={15} color={C.inkFaint} />
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -917,536 +486,274 @@ export default function ServiceStatusScreen() {
         image={provider?.image}
         subtitle={provider?.specialty || serviceDetails?.description}
         presence={counterpartPresence?.status ?? null}
-        onCall={handleCallProvider}
-        onMessage={handleMessageProvider}
+        // Both of these used to pass a bare `{ bookingId }`, so the outgoing
+        // call screen had no name to show and rendered the literal "Contact".
+        onCall={() =>
+          navigation.navigate('CallScreen', {
+            bookingId,
+            counterpartName: provider?.name,
+            counterpartImage: provider?.image,
+          })
+        }
+        onMessage={() =>
+          navigation.navigate('ProviderChatScreen', {
+            bookingId,
+            counterpartName: provider?.name,
+          })
+        }
       />
-    </SafeAreaView>
+
+      <ActionSheet
+        visible={showLeaveSheet}
+        title="Leave without paying?"
+        message="The job is done. You can pay now, or come back to it from My bookings."
+        cancelLabel="Stay here"
+        onClose={() => setShowLeaveSheet(false)}
+        options={[
+          {
+            label: 'Pay now',
+            icon: 'card-outline',
+            onPress: () =>
+              navigation.navigate('PaymentScreen', {
+                category,
+                bookingId,
+                paymentData: paymentSummary,
+              }),
+          },
+          {
+            label: 'Leave for now',
+            icon: 'exit-outline',
+            tone: 'destructive',
+            onPress: leaveScreen,
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  flex: { flex: 1 },
+  content: {
+    padding: GUTTER,
+    paddingBottom: S.huge,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  loading: {
+    padding: GUTTER,
   },
-  loadingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    alignSelf: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  header: {
-    zIndex: 10,
-  },
-  headerGradient: {
-    // No StatusBar.currentHeight here: the safe-area-context SafeAreaView above
-    // already applies the top inset, and adding both double-padded the header.
-    paddingTop: 12,
-  },
-  headerContent: {
+  loadingGap: { marginTop: SECTION },
+  loadingGapSm: { marginTop: S.md },
+
+  providerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  helpButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
+  providerInfo: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  providerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  cardTopAccent: {
-    height: 4,
-  },
-  providerContent: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  providerImageContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  providerImageRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    padding: 3,
-  },
-  providerImageInner: {
-    flex: 1,
-    borderRadius: 41,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  providerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  statusIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    marginLeft: S.md,
   },
   providerName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
+    ...T.subhead,
+    color: C.ink,
   },
-  providerSpecialty: {
-    fontSize: 14,
-    color: '#64748B',
-    marginBottom: 12,
-  },
-  providerBadges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  progressSection: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginLeft: 12,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  progressStep: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  stepIndicatorContainer: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepLine: {
-    position: 'absolute',
-    top: 14,
-    left: 28,
-    width: width / 4 - 20,
-    height: 2,
-  },
-  stepLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  statusCheckCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 20,
-  },
-  statusCheckIconContainer: {
-    marginBottom: 16,
-  },
-  statusCheckIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusCheckTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  statusCheckText: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  completedButton: {
-    width: '100%',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  completedButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  completedButtonIcon: {
-    marginRight: 12,
-  },
-  completedButtonTextContainer: {
-    flex: 1,
-  },
-  completedButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  completedButtonSubtext: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+  meta: {
+    ...T.caption,
+    color: C.inkMuted,
     marginTop: 2,
   },
-  paymentSection: {
-    marginBottom: 20,
+  metaFaint: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginTop: 2,
   },
-  successHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
+
+  section: {
+    marginTop: SECTION,
   },
-  successIconContainer: {
-    marginBottom: 16,
+  timelineCard: {
+    marginTop: S.md,
   },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  successText: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 16,
-  },
-  paymentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  paymentCardHeader: {
+  step: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  paymentCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  invoiceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  invoiceText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  serviceDescription: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 20,
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  paymentDetails: {
-    gap: 12,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  paymentRowLeft: {
+  stepRail: {
+    alignItems: 'center',
+    width: 20,
+  },
+  stepDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: C.surfaceSunken,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotDone: {
+    backgroundColor: HS.accent,
+    borderColor: HS.accent,
+  },
+  stepLine: {
+    width: StyleSheet.hairlineWidth,
+    height: 26,
+    backgroundColor: C.line,
+  },
+  stepLineDone: {
+    backgroundColor: HS.accentLine,
+  },
+  stepLabel: {
+    ...T.body,
+    color: C.inkMuted,
+    marginLeft: S.md,
+    marginTop: -1,
+  },
+  stepLabelDone: {
+    color: C.ink,
+    fontWeight: '600',
+  },
+
+  cardTitle: {
+    ...T.subhead,
+    color: C.ink,
+  },
+  body: {
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: S.xs,
+    maxWidth: PROSE_WIDTH,
+  },
+  cardButton: {
+    marginTop: S.lg,
+  },
+  error: {
+    ...T.caption,
+    color: C.error,
+    marginTop: S.md,
+  },
+
+  completedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  paymentRowRight: {
-    alignItems: 'flex-end',
+  completedTitle: {
+    ...T.heading,
+    color: C.ink,
+    marginLeft: S.sm,
   },
-  paymentLabel: {
-    fontSize: 13,
-    color: '#64748B',
+
+  paymentCard: {
+    marginTop: S.md,
   },
-  paymentValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  paymentSubvalue: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  amountSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  amountHeader: {
+  paymentHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  requiredBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  invoice: {
+    ...T.caption,
+    color: C.inkFaint,
   },
-  requiredText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#EF4444',
+  rows: {
+    marginTop: S.lg,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
-  amountInputContainer: {
-    marginBottom: 16,
-  },
-  amountInputWrapper: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'space-between',
+    paddingVertical: 5,
   },
-  currencySymbol: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#64748B',
-    marginRight: 8,
+  rowKey: {
+    ...T.body,
+    color: C.inkMuted,
+  },
+  rowValue: {
+    ...T.bodyStrong,
+    color: C.ink,
+    marginLeft: S.lg,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  amountLabel: {
+    ...T.label,
+    color: C.inkMuted,
+    marginTop: S.xl,
+    marginBottom: S.sm,
+  },
+  amountField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    paddingHorizontal: S.md,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+  },
+  currency: {
+    ...T.bodyStrong,
+    color: C.inkMuted,
+    marginRight: S.sm,
   },
   amountInput: {
     flex: 1,
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1E293B',
-    paddingVertical: 12,
+    ...T.heading,
+    color: C.ink,
+    padding: 0,
   },
-  amountHint: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginBottom: 12,
+  suggested: {
+    alignSelf: 'flex-start',
+    marginTop: S.md,
   },
-  suggestedButton: {
+  suggestedText: {
+    ...T.label,
+    color: HS.accentDeep,
+  },
+  total: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    gap: 6,
-  },
-  suggestedButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  totalRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginTop: S.xl,
+    paddingTop: S.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.lineSoft,
   },
   totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
+    ...T.subhead,
+    color: C.ink,
   },
   totalValue: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...T.heading,
+    color: C.ink,
   },
-  actionButtons: {
-    gap: 12,
+
+  blockButton: {
+    marginTop: S.lg,
   },
-  paymentButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
+  stackedButton: {
+    marginTop: S.md,
   },
-  paymentButtonDisabled: {
-    opacity: 0.6,
+  hint: {
+    ...T.caption,
+    color: C.inkMuted,
+    textAlign: 'center',
+    marginTop: S.sm,
   },
-  paymentButtonGradient: {
+
+  support: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 10,
+    marginTop: SECTION,
   },
-  paymentButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  rateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 8,
-  },
-  rateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  helpSection: {
-    marginTop: 4,
-  },
-  helpCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  helpIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  helpContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  helpTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 18,
+  supportText: {
+    ...T.caption,
+    color: C.inkFaint,
+    marginRight: 4,
   },
 });

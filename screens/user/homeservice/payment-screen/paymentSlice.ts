@@ -61,17 +61,21 @@ export interface PaymentTransaction {
   method: PaymentMethodType;
   amount: number;
   timestamp: string | null;
-  receiptUrl: string | null;
 }
 
+/**
+ * A payment method as the screen renders it.
+ *
+ * The three colour literals that used to live here (color / bgColor /
+ * borderColor) are gone: presentation belongs in the screen, which reads it
+ * from the shared tokens. A slice deciding what shade of green a button is was
+ * how #059669 ended up defined in four unrelated places.
+ */
 export interface PaymentMethodOption {
   id: PaymentMethodType;
   name: string;
   subtitle: string;
   icon: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
   enabled: boolean;
 }
 
@@ -97,7 +101,6 @@ const initialState: PaymentState = {
     method: null,
     amount: 0,
     timestamp: null,
-    receiptUrl: null,
   },
   selectedMethod: null,
   useCustomAmount: false,
@@ -111,9 +114,6 @@ const initialState: PaymentState = {
       name: 'MetroMatrix Wallet',
       subtitle: 'Pay instantly from your wallet balance',
       icon: 'wallet-outline',
-      color: '#059669',
-      bgColor: '#ECFDF5',
-      borderColor: '#A7F3D0',
       enabled: true,
     },
     {
@@ -121,9 +121,6 @@ const initialState: PaymentState = {
       name: 'Cash',
       subtitle: 'Pay the provider in cash on completion',
       icon: 'cash-outline',
-      color: '#64748B',
-      bgColor: '#F8FAFC',
-      borderColor: '#CBD5E1',
       enabled: true,
     },
   ],
@@ -209,7 +206,6 @@ const paymentSlice = createAppSlice({
         return {
           transactionId: response.data.transactionId,
           timestamp: response.data.paidAt,
-          receiptUrl: '',
           status: 'completed' as const,
         };
       },
@@ -224,7 +220,6 @@ const paymentSlice = createAppSlice({
           state.paymentStatus = 'completed';
           state.transaction.transactionId = action.payload.transactionId;
           state.transaction.timestamp = action.payload.timestamp;
-          state.transaction.receiptUrl = action.payload.receiptUrl;
         },
         rejected: (state, action) => {
           state.isProcessing = false;
@@ -234,17 +229,11 @@ const paymentSlice = createAppSlice({
       }
     ),
 
-    verifyPayment: create.asyncThunk(
-      async (params: { transactionId: string }) => {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return { verified: true };
-      },
-      {
-        fulfilled: () => {
-          // Payment verified successfully
-        },
-      }
-    ),
+    // `verifyPayment` used to sit here: it slept 500ms and returned
+    // `{ verified: true }` without asking anything. Nothing dispatched it, and
+    // had anything done so it would have rubber-stamped a failed payment. The
+    // real verification is POST /payments/process itself, whose response is the
+    // server's word on whether the money moved.
 
     // Sync reducers
     setSelectedMethod: create.reducer((state, action: PayloadAction<PaymentMethodType>) => {
@@ -308,7 +297,6 @@ const paymentSlice = createAppSlice({
 export const {
   initializePayment,
   processPayment,
-  verifyPayment,
   setSelectedMethod,
   setCustomAmount,
   toggleCustomAmount,

@@ -1,27 +1,36 @@
-// ============================================
-// Address management (HS8) — list / add / edit / delete / set default.
-// addUserAddress() and deleteUserAddress() existed in userNetwork with no
-// screen; the Booking screen selects from these saved addresses.
-// ============================================
+// ============================================================================
+// Address management — list / add / edit / delete / set default.
+// The Booking screen selects from these saved addresses.
+// ============================================================================
 
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Platform,
   FlatList,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  Modal,
   KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  ActionSheet,
+  AppBar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Screen,
+  Skeleton,
+} from '../../../../components/ui';
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, GUTTER, R, S, T } from '../../../../constants/theme';
 import {
   addUserAddress,
   deleteUserAddress,
@@ -33,14 +42,16 @@ import {
 } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 
 const ICONS: Record<string, string> = {
-  home: 'home',
-  building: 'business',
-  briefcase: 'briefcase',
-  location: 'location',
+  home: 'home-outline',
+  building: 'business-outline',
+  briefcase: 'briefcase-outline',
+  location: 'location-outline',
 };
 
 export default function AddressManagementScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+
   const [rows, setRows] = useState<UserAddressFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +61,8 @@ export default function AddressManagementScreen() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<UserAddressFull | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +82,7 @@ export default function AddressManagementScreen() {
     setLabel('Home');
     setAddress('');
     setCity('');
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -77,15 +91,17 @@ export default function AddressManagementScreen() {
     setLabel(a.label);
     setAddress(a.address);
     setCity(a.city);
+    setFormError(null);
     setModalOpen(true);
   };
 
   const save = async () => {
     if (!address.trim()) {
-      Alert.alert('Missing address', 'Please enter the address line.');
+      setFormError('Add the address line before saving.');
       return;
     }
     setSaving(true);
+    setFormError(null);
     const res = editing
       ? await updateUserAddressApi(editing.id, { label, address, city })
       : await addUserAddress({ label, address, city, isDefault: rows.length === 0 });
@@ -94,24 +110,17 @@ export default function AddressManagementScreen() {
       setModalOpen(false);
       load();
     } else {
-      Alert.alert('Error', res.message || 'Could not save address');
+      setFormError(res.message || "We couldn't save that address. Try again.");
     }
   };
 
-  const remove = (a: UserAddressFull) => {
-    Alert.alert('Delete address', `Delete "${a.label}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const res = await deleteUserAddress(a.id);
-          if (res.success) load();
-          else Alert.alert('Error', res.message || 'Could not delete');
-        },
-      },
-    ]);
-  };
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    const res = await deleteUserAddress(pendingDelete.id);
+    setPendingDelete(null);
+    if (res.success) load();
+    else setError(res.message || "We couldn't delete that address.");
+  }, [pendingDelete, load]);
 
   const makeDefault = async (a: UserAddressFull) => {
     const res = await updateUserAddressApi(a.id, { isDefault: true });
@@ -119,246 +128,321 @@ export default function AddressManagementScreen() {
   };
 
   const renderItem = ({ item }: { item: UserAddressFull }) => (
-    <View style={styles.card}>
-      <View style={styles.cardIcon}>
-        <Ionicons name={(ICONS[item.icon || 'location'] || 'location') as any} size={20} color="#4F46E5" />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={styles.cardLabel}>{item.label}</Text>
-          {item.isDefault && (
-            <View style={styles.defaultChip}>
-              <Text style={styles.defaultChipText}>Default</Text>
-            </View>
+    <Card style={styles.card}>
+      <View style={styles.cardRow}>
+        <View style={styles.cardIcon}>
+          <Ionicons
+            name={(ICONS[item.icon || 'location'] || 'location-outline') as any}
+            size={19}
+            color={C.inkMuted}
+          />
+        </View>
+
+        <View style={styles.cardBody}>
+          <View style={styles.labelRow}>
+            <Text style={styles.cardLabel}>{item.label}</Text>
+            {item.isDefault && (
+              <View style={styles.defaultChip}>
+                <Text style={styles.defaultChipText}>Default</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.cardAddress} numberOfLines={2}>
+            {item.address}
+            {item.city ? `, ${item.city}` : ''}
+          </Text>
+          {!item.isDefault && (
+            <TouchableOpacity
+              onPress={() => makeDefault(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.link}>Set as default</Text>
+            </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.cardAddress} numberOfLines={2}>
-          {item.address}
-          {item.city ? `, ${item.city}` : ''}
-        </Text>
-        {!item.isDefault && (
-          <TouchableOpacity onPress={() => makeDefault(item)}>
-            <Text style={styles.makeDefault}>Set as default</Text>
-          </TouchableOpacity>
-        )}
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => openEdit(item)}
+          accessibilityLabel={`Edit ${item.label}`}
+        >
+          <Ionicons name="pencil-outline" size={17} color={C.inkMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => setPendingDelete(item)}
+          accessibilityLabel={`Delete ${item.label}`}
+        >
+          <Ionicons name="trash-outline" size={17} color={C.error} />
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.iconBtn} onPress={() => openEdit(item)}>
-        <Ionicons name="pencil" size={18} color="#6B7280" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.iconBtn} onPress={() => remove(item)}>
-        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-      </TouchableOpacity>
-    </View>
+    </Card>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Addresses</Text>
-        <TouchableOpacity onPress={openAdd} style={styles.headerBtn}>
-          <Ionicons name="add" size={26} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      <AppBar
+        title="Addresses"
+        onBack={() => navigation.goBack()}
+        rightIcon="add"
+        onRightPress={openAdd}
+      />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.stateText}>Loading addresses…</Text>
+        <View style={styles.loading} accessibilityLabel="Loading addresses">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} width="100%" height={92} radius={R.card} style={styles.loadingGap} />
+          ))}
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color="#9CA3AF" />
-          <Text style={styles.stateText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState title="We couldn't load your addresses" message={error} onRetry={load} />
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(a) => a.id}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+          contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="location-outline" size={44} color="#D1D5DB" />
-              <Text style={styles.stateText}>
-                No saved addresses yet. Add one to speed up booking.
-              </Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={openAdd}>
-                <Text style={styles.retryText}>Add address</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon="location-outline"
+              title="No saved addresses"
+              message="Save the places you book for and they'll be one tap away next time."
+              actionLabel="Add an address"
+              onAction={openAdd}
+            />
           }
         />
       )}
 
-      {/* Add/Edit modal */}
-      <Modal visible={modalOpen} transparent animationType="slide">
-        <KeyboardAvoidingView
-          style={styles.modalWrap}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{editing ? 'Edit address' : 'New address'}</Text>
-            <Text style={styles.fieldLabel}>Label</Text>
-            <View style={styles.labelRow}>
-              {['Home', 'Office', 'Other'].map((l) => (
-                <TouchableOpacity
-                  key={l}
-                  style={[styles.labelChip, label === l && styles.labelChipActive]}
-                  onPress={() => setLabel(l)}
-                >
-                  <Text style={[styles.labelChipText, label === l && styles.labelChipTextActive]}>
-                    {l}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+      <Modal visible={modalOpen} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
+        <View style={styles.scrim}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.sheetWrap}
+          >
+            <View style={[styles.sheet, { paddingBottom: insets.bottom + S.lg }]}>
+              <View style={styles.grabber} />
+              <Text style={styles.sheetTitle}>{editing ? 'Edit address' : 'New address'}</Text>
+
+              <Text style={styles.fieldLabel}>Label</Text>
+              <View style={styles.chipRow}>
+                {['Home', 'Office', 'Other'].map((l) => (
+                  <TouchableOpacity
+                    key={l}
+                    style={[styles.chip, label === l && styles.chipActive]}
+                    onPress={() => setLabel(l)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: label === l }}
+                  >
+                    <Text style={[styles.chipText, label === l && styles.chipTextActive]}>{l}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="House, street, area"
+                placeholderTextColor={C.inkFaint}
+                value={address}
+                onChangeText={setAddress}
+              />
+
+              <Text style={styles.fieldLabel}>City</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Lahore"
+                placeholderTextColor={C.inkFaint}
+                value={city}
+                onChangeText={setCity}
+              />
+
+              {!!formError && <Text style={styles.error}>{formError}</Text>}
+
+              <View style={styles.sheetActions}>
+                <Button
+                  label="Cancel"
+                  variant="secondary"
+                  onPress={() => setModalOpen(false)}
+                  style={styles.sheetButton}
+                />
+                <Button
+                  label={editing ? 'Save' : 'Add address'}
+                  onPress={save}
+                  loading={saving}
+                  style={styles.sheetButton}
+                />
+              </View>
             </View>
-            <Text style={styles.fieldLabel}>Address line</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="House, street, area"
-              placeholderTextColor="#9CA3AF"
-              value={address}
-              onChangeText={setAddress}
-            />
-            <Text style={styles.fieldLabel}>City</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Lahore"
-              placeholderTextColor="#9CA3AF"
-              value={city}
-              onChangeText={setCity}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveText}>{editing ? 'Save' : 'Add'}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
-    </SafeAreaView>
+
+      <ActionSheet
+        visible={!!pendingDelete}
+        title={`Delete "${pendingDelete?.label ?? ''}"?`}
+        message="You can add it again later, but it will disappear from the booking screen now."
+        cancelLabel="Keep it"
+        onClose={() => setPendingDelete(null)}
+        options={[
+          {
+            label: 'Delete address',
+            icon: 'trash-outline',
+            tone: 'destructive',
+            onPress: confirmDelete,
+          },
+        ]}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 14 : 14,
+  list: {
+    padding: GUTTER,
+    flexGrow: 1,
   },
-  headerBtn: { width: 36, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  loading: {
+    padding: GUTTER,
+  },
+  loadingGap: {
+    marginBottom: S.md,
+  },
+
   card: {
+    marginBottom: S.md,
+  },
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 12,
   },
   cardIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#EEF2FF',
+    width: 40,
+    height: 40,
+    borderRadius: R.control,
+    backgroundColor: C.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  cardLabel: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  defaultChip: {
-    backgroundColor: '#D1FAE5',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  defaultChipText: { color: '#065F46', fontSize: 10, fontWeight: '700' },
-  cardAddress: { color: '#6B7280', fontSize: 13, marginTop: 3, lineHeight: 18 },
-  makeDefault: { color: '#4F46E5', fontSize: 12, fontWeight: '600', marginTop: 6 },
-  iconBtn: { padding: 6, marginLeft: 4 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: '#4F46E5',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
-  modalWrap: {
+  cardBody: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    marginHorizontal: S.md,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardLabel: {
+    ...T.subhead,
+    color: C.ink,
+  },
+  defaultChip: {
+    marginLeft: S.sm,
+    paddingHorizontal: S.sm,
+    paddingVertical: 2,
+    borderRadius: R.chip,
+    backgroundColor: HS.accentSoft,
+  },
+  defaultChipText: {
+    ...T.caption,
+    color: HS.accentDeep,
+    fontWeight: '600',
+  },
+  cardAddress: {
+    ...T.body,
+    color: C.inkMuted,
+    marginTop: 2,
+  },
+  link: {
+    ...T.label,
+    color: HS.accentDeep,
+    marginTop: S.sm,
+  },
+  iconButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  scrim: {
+    flex: 1,
+    backgroundColor: C.scrim,
     justifyContent: 'flex-end',
   },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  sheetWrap: {
+    justifyContent: 'flex-end',
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 10, marginBottom: 6 },
-  labelRow: { flexDirection: 'row' },
-  labelChip: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    marginRight: 8,
+  sheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
+    paddingHorizontal: GUTTER,
+    paddingTop: S.md,
   },
-  labelChipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  labelChipText: { color: '#374151', fontSize: 13, fontWeight: '600' },
-  labelChipTextActive: { color: '#fff' },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.line,
+    marginBottom: S.lg,
+  },
+  sheetTitle: {
+    ...T.heading,
+    color: C.ink,
+    marginBottom: S.lg,
+  },
+  fieldLabel: {
+    ...T.label,
+    color: C.inkMuted,
+    marginBottom: S.sm,
+    marginTop: S.md,
+  },
+  chipRow: {
+    flexDirection: 'row',
+  },
+  chip: {
+    paddingHorizontal: S.lg,
+    paddingVertical: S.sm,
+    borderRadius: R.chip,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    marginRight: S.sm,
+  },
+  chipActive: {
+    backgroundColor: HS.accentSoft,
+    borderColor: HS.accentLine,
+  },
+  chipText: {
+    ...T.label,
+    color: C.inkMuted,
+  },
+  chipTextActive: {
+    color: HS.accentDeep,
+    fontWeight: '600',
+  },
   input: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
+    height: 46,
+    paddingHorizontal: S.md,
+    borderRadius: R.control,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.line,
+    backgroundColor: C.surface,
+    ...T.body,
+    color: C.ink,
   },
-  modalActions: { flexDirection: 'row', marginTop: 18 },
-  cancelBtn: {
+  error: {
+    ...T.caption,
+    color: C.error,
+    marginTop: S.md,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    marginTop: S.xl,
+  },
+  sheetButton: {
     flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginRight: 10,
+    marginHorizontal: S.xs,
   },
-  cancelText: { color: '#374151', fontWeight: '700' },
-  saveBtn: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#4F46E5',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  saveText: { color: '#fff', fontWeight: '700' },
 });

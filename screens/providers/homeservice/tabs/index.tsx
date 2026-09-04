@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Briefcase, TrendingUp, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HS } from '../../../../constants/HomeServiceTheme';
+import { C, R, S, T } from '../../../../constants/theme';
 import DashboardScreen from './dashboard/dashboard';
 import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
@@ -18,18 +20,6 @@ type TabParamList = {
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
-
-const Colors = {
-  primary: '#059669',
-  primaryLight: '#D1FAE5',
-  surface: '#FFFFFF',
-  border: '#E5E7EB',
-  text: { 
-    primary: '#111827',
-    secondary: '#6B7280',
-    tertiary: '#9CA3AF' 
-  },
-};
 
 // Custom Tab Icon Component
 const TabIcon = ({ 
@@ -48,7 +38,7 @@ const TabIcon = ({
     ]}>
       <Icon 
         size={size - 2} 
-        color={focused ? Colors.primary : Colors.text.tertiary}
+        color={focused ? HS.accentDeep : C.inkFaint}
         strokeWidth={focused ? 2.5 : 2}
       />
     </View>
@@ -68,8 +58,8 @@ const HomeServiceProviderLayout: React.FC = () => {
           height: 60 + Math.max(insets.bottom, 10),
           paddingBottom: Math.max(insets.bottom, 10),
         },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.text.tertiary,
+        tabBarActiveTintColor: HS.accentDeep,
+        tabBarInactiveTintColor: C.inkFaint,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
       }}
@@ -119,34 +109,40 @@ const HomeServiceProviderLayout: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  // Matches the customer tab bar exactly — same ground, same hairline, same
+  // pill on the active item — so the two roles read as one app.
   tabBar: {
-    backgroundColor: Colors.surface,
-    borderTopColor: Colors.border,
-    borderTopWidth: 1,
-    paddingTop: 8,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    backgroundColor: C.surface,
+    borderTopColor: C.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: S.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1C1917',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: { elevation: 8 },
+    }),
   },
   tabBarLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontWeight: '500',
     marginTop: 2,
   },
   tabBarItem: {
-    paddingTop: 4,
+    paddingTop: S.xs,
   },
   iconContainer: {
-    width: 40,
-    height: 32,
-    borderRadius: 10,
+    width: 44,
+    height: 30,
+    borderRadius: R.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconContainerActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: HS.accentSoft,
   },
 });
 

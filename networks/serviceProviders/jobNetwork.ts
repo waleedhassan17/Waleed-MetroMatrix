@@ -94,7 +94,17 @@ export async function fetchAwaitingApprovalData(jobId: string): Promise<ApiRespo
     return apiRequest<AwaitingApprovalData>(`/provider/jobs/${jobId}/awaiting-approval`);
 }
 
-export async function checkJobApprovalStatus(jobId: string): Promise<ApiResponse<{ isApproved: boolean; approvalTime?: string }>> {
+/**
+ * Has the customer signed off on this job?
+ *
+ * `isApproved` is true once the customer has either confirmed completion
+ * themselves or paid. `paid` separates the two, so a screen waiting
+ * specifically on money can tell them apart rather than treating a work
+ * sign-off as a payment.
+ */
+export async function checkJobApprovalStatus(
+  jobId: string
+): Promise<ApiResponse<{ isApproved: boolean; approvalTime?: string; paid?: boolean }>> {
     return apiRequest(`/provider/jobs/${jobId}/approval-status`);
 }
 

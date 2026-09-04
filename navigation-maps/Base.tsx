@@ -45,8 +45,6 @@ import LiveTrackingScreen from "../screens/user/homeservice/live-tracking/liveTr
 import ServiceStatusScreen from "../screens/user/homeservice/service-status/serviceStatus";
 import PaymentScreen from "../screens/user/homeservice/payment-screen/payment";
 import ReviewRatingScreen from "../screens/user/homeservice/rating-screen/rating";
-import QuickSearchScreen from "../screens/user/homeservice/quick-search/QuickSearchScreen";
-import SearchProvidersScreen from "../screens/user/homeservice/search-providers/searchProviders";
 // Chat and calling are ONE centralized feature (like the wallet): a single
 // Chat screen and a single Call screen serve home services and healthcare,
 // customer side and provider side. Every legacy route name below is registered
@@ -158,8 +156,6 @@ export const BaseRouteNames = {
   ServiceStatusScreen: "serviceStatus",
   PaymentScreen: "PaymentScreen",
   ReviewRatingScreen: "ReviewRating",
-  QuickSearchScreen: "QuickSearchScreen",
-  SearchingProvidersScreen: "SearchingProvidersScreen",
   // Centralized chat + call. Every alias below renders the SAME two screens.
   Chat: "Chat",
   Call: "Call",
@@ -283,8 +279,6 @@ export type RootStackParamList = {
   serviceStatus: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers' };
   PaymentScreen: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; paymentData?: any };
   ReviewRating: { bookingId?: string; category?: 'electricians' | 'plumbers' | 'ac-repairers'; serviceData?: any };
-  QuickSearchScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers' };
-  SearchingProvidersScreen: { serviceType?: 'electricians' | 'plumbers' | 'ac-repairers'; jobDescription?: string; location?: string };
   // bookingId is what makes chat/calling real — it identifies the room the
   // realtime service authorizes against. Without one there is no conversation
   // to join, only a pre-booking browse.
@@ -647,23 +641,6 @@ export const BaseRoutes: IRoute[] = [
   {
     component: ReviewRatingScreen,
     title: BaseRouteNames.ReviewRatingScreen,
-    options: {
-      headerShown: false,
-      animation: 'slide_from_right',
-    }
-  },
-  // Quick Search Flow Routes
-  {
-    component: QuickSearchScreen,
-    title: BaseRouteNames.QuickSearchScreen,
-    options: {
-      headerShown: false,
-      animation: 'slide_from_right',
-    }
-  },
-  {
-    component: SearchProvidersScreen,
-    title: BaseRouteNames.SearchingProvidersScreen,
     options: {
       headerShown: false,
       animation: 'slide_from_right',
