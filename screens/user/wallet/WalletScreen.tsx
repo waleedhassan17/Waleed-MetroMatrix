@@ -9,15 +9,15 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   Animated,
   ScrollView,
   Linking,
   Alert,
-  Platform,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { BackButton } from '../../../components/ui';
 import {
   RefreshCw,
   ArrowDownLeft,
@@ -69,7 +69,21 @@ import {
   STATUS_COLOR_KEY,
 } from '../../../utils/wallet_utils/transactionFormat';
 
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
+/**
+ * The balance card's ground, and the ink scale that reads on it.
+ *
+ * `CARD_INK` is MiniWalletCard's exact value. The two are the same object seen
+ * at two sizes — the mini card on a home screen, this one after you tap it —
+ * so they must not be two different blacks.
+ */
+const CARD_INK = '#0B0B0F';
+const ON_DARK = {
+  ink: '#0B0B0F',
+  soft: 'rgba(255,255,255,0.72)',
+  faint: 'rgba(255,255,255,0.5)',
+  fill: 'rgba(255,255,255,0.12)',
+  line: 'rgba(255,255,255,0.16)',
+};
 
 // The ledger is denominated in PKR (backend src/config/currency.js), and
 // /wallet/topup/checkout validates `amount` as PKR. These presets were left
@@ -129,6 +143,7 @@ const TransactionSkeleton: React.FC = () => (
 // ============================================================
 const WalletScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
 
   const wallet = useAppSelector(selectWallet) as WalletState;
@@ -400,15 +415,25 @@ const WalletScreen: React.FC = () => {
     (isCustom && !customAmountValid);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Top app bar */}
-      <View style={styles.topBar}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Light page, so dark icons. There was no StatusBar here at all, which
+          left the clock and battery in whatever style the previous screen had
+          set — unreadable coming from any accent-barred screen. */}
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+      {/* Top app bar. The back control is new: this screen is pushed from the
+          home screens, the profile and checkout, and had no way out but the
+          system gesture. */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <BackButton onPress={() => navigation.goBack()} style={styles.topBarBack} />
         <Text style={styles.topBarTitle}>Wallet</Text>
         <TouchableOpacity
           style={styles.iconBtn}
           onPress={handleRefresh}
           disabled={wallet.loading}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh wallet"
         >
           {wallet.loading ? (
             <ActivityIndicator size={16} color={Colors.text.primary} />
@@ -428,7 +453,13 @@ const WalletScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Balance hero — minimal, type-led, no gradient */}
+      {/* Balance hero.
+          It used to be bare type on the page background, which meant the dark
+          MiniWalletCard people tap to GET here opened a screen that looked
+          nothing like it. Same near-black card, same radius, so the card
+          carries through instead of dissolving. The two actions live inside
+          it: on a light page a near-black "Add money" button sitting under a
+          near-black card was the same weight twice. */}
       <View style={styles.balanceBlock}>
         <View style={styles.balanceLabelRow}>
           <Text style={styles.balanceLabel}>Available balance</Text>
@@ -437,8 +468,8 @@ const WalletScreen: React.FC = () => {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             {showBalance
-              ? <Eye size={15} color={Colors.text.tertiary} strokeWidth={1.75} />
-              : <EyeOff size={15} color={Colors.text.tertiary} strokeWidth={1.75} />}
+              ? <Eye size={16} color={ON_DARK.faint} strokeWidth={1.75} />
+              : <EyeOff size={16} color={ON_DARK.faint} strokeWidth={1.75} />}
           </TouchableOpacity>
         </View>
 
@@ -451,7 +482,7 @@ const WalletScreen: React.FC = () => {
             <Text style={styles.balanceCents}>.{balanceParts.cents}</Text>
             <Text style={styles.balanceCurrency}>{wallet.currency.toUpperCase()}</Text>
             {wallet.loading && (
-              <ActivityIndicator size="small" color={Colors.text.tertiary} style={{ marginLeft: 8 }} />
+              <ActivityIndicator size="small" color={ON_DARK.faint} style={{ marginLeft: 8 }} />
             )}
           </View>
         ) : (
@@ -465,27 +496,29 @@ const WalletScreen: React.FC = () => {
             {wallet.pagination.total} transaction{wallet.pagination.total === 1 ? '' : 's'} on file
           </Text>
         )}
-      </View>
 
-      {/* Action row — two equal pills, primary + secondary */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionPrimary}
-          onPress={() => setShowTopUpModal(true)}
-          activeOpacity={0.85}
-        >
-          <Plus size={16} color="#FFFFFF" strokeWidth={2.25} />
-          <Text style={styles.actionPrimaryText}>Add money</Text>
-        </TouchableOpacity>
+        {/* Action row — two equal pills, primary + secondary */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionPrimary}
+            onPress={() => setShowTopUpModal(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Plus size={16} color={ON_DARK.ink} strokeWidth={2.25} />
+            <Text style={styles.actionPrimaryText}>Add money</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionSecondary}
-          activeOpacity={0.7}
-          onPress={() => setShowTransferSheet(true)}
-        >
-          <Send size={15} color={Colors.text.primary} strokeWidth={2} />
-          <Text style={styles.actionSecondaryText}>Send</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionSecondary}
+            activeOpacity={0.7}
+            onPress={() => setShowTransferSheet(true)}
+            accessibilityRole="button"
+          >
+            <Send size={15} color="#FFFFFF" strokeWidth={2} />
+            <Text style={styles.actionSecondaryText}>Send</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Provider-only: pending vs available earnings, then Connect status
@@ -503,19 +536,21 @@ const WalletScreen: React.FC = () => {
         </>
       )}
 
-      {/* Activity */}
+      {/* Activity.
+          Title, link and the three-way filter were all on one row, which left
+          the segmented control squeezed against "See all" with no room to
+          breathe. The filter gets its own line and the full width it needs. */}
       <View style={styles.activityHeader}>
         <Text style={styles.activityTitle}>Activity</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('TransactionHistoryScreen')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.seeAllLink}>See all</Text>
-          </TouchableOpacity>
-          {renderFilterChips()}
-        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('TransactionHistoryScreen')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+        >
+          <Text style={styles.seeAllLink}>See all</Text>
+        </TouchableOpacity>
       </View>
+      <View style={styles.activityFilters}>{renderFilterChips()}</View>
 
       {isLoadingInitial ? (
         <View style={{ paddingHorizontal: 20 }}>
@@ -1001,14 +1036,18 @@ const styles = StyleSheet.create({
   // Top bar
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: STATUS_BAR_HEIGHT + 8,
+    // paddingTop is the real safe-area inset, applied inline. STATUS_BAR_HEIGHT
+    // is the Android-only formula the shared Screen component exists to replace.
+    paddingHorizontal: 12,
     paddingBottom: 4,
   },
+  topBarBack: {
+    marginRight: 2,
+  },
   topBarTitle: {
-    fontSize: 17,
+    flex: 1,
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.text.primary,
     letterSpacing: -0.2,
@@ -1040,9 +1079,14 @@ const styles = StyleSheet.create({
 
   // Balance hero
   balanceBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 20,
+    borderRadius: 18,
+    // MiniWalletCard's exact ground. Tapping that card to arrive here should
+    // land on the same object, not a different design.
+    backgroundColor: CARD_INK,
   },
   balanceLabelRow: {
     flexDirection: 'row',
@@ -1053,7 +1097,7 @@ const styles = StyleSheet.create({
   balanceLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.text.tertiary,
+    color: ON_DARK.faint,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -1064,14 +1108,14 @@ const styles = StyleSheet.create({
   balanceSymbol: {
     fontSize: 24,
     fontWeight: '500',
-    color: Colors.text.primary,
+    color: ON_DARK.soft,
     marginRight: 2,
     letterSpacing: -0.5,
   },
   balanceWhole: {
-    fontSize: 44,
+    fontSize: 40,
     fontWeight: '700',
-    color: Colors.text.primary,
+    color: '#FFFFFF',
     letterSpacing: -1.5,
     fontVariant: ['tabular-nums'],
     lineHeight: 50,
@@ -1079,7 +1123,7 @@ const styles = StyleSheet.create({
   balanceCents: {
     fontSize: 24,
     fontWeight: '500',
-    color: Colors.text.tertiary,
+    color: ON_DARK.soft,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.4,
     marginLeft: 1,
@@ -1087,36 +1131,37 @@ const styles = StyleSheet.create({
   balanceCurrency: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.text.tertiary,
+    color: ON_DARK.faint,
     marginLeft: 8,
     letterSpacing: 0.6,
   },
   balanceFootnote: {
     fontSize: 12,
-    color: Colors.text.tertiary,
+    color: ON_DARK.faint,
     marginTop: 8,
     fontWeight: '500',
   },
 
-  // Action row
+  // Action row — inside the balance card, so both pills are ON the dark ground.
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    marginTop: 20,
   },
+  // Inverted: white fill with dark ink is the strongest thing available on a
+  // near-black card, and it keeps one clear primary.
   actionPrimary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 12,
-    backgroundColor: Colors.text.primary,
+    backgroundColor: '#FFFFFF',
   },
   actionPrimaryText: {
-    color: '#FFFFFF',
+    color: ON_DARK.ink,
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: -0.1,
@@ -1127,14 +1172,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: ON_DARK.line,
+    backgroundColor: ON_DARK.fill,
   },
   actionSecondaryText: {
-    color: Colors.text.primary,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: -0.1,
@@ -1146,10 +1191,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  activityFilters: {
+    paddingHorizontal: 20,
     paddingBottom: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.borderLight,
   },
   seeAllLink: {
     fontSize: 13,
@@ -1164,14 +1211,17 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    alignSelf: 'stretch',
     gap: 4,
     backgroundColor: Colors.backgroundAlt,
     padding: 3,
     borderRadius: 8,
   },
   filterChip: {
+    flex: 1,
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 7,
     borderRadius: 6,
   },
   filterChipActive: {
