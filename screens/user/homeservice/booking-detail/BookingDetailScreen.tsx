@@ -22,6 +22,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchBookingDetail } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 import { cancelBooking } from '../../../../networks/serviceProviders/bookingNetwork';
+import { isCallingSupported } from '../../../../services/call/usePeerConnection';
 
 type Params = { bookingId: string };
 
@@ -78,6 +79,8 @@ export default function BookingDetailScreen() {
 
   const status = data?.canonicalStatus as string | undefined;
   const paid = data?.payment?.status === 'paid';
+  // Cached after the first call — a native module cannot appear at runtime.
+  const callingSupported = isCallingSupported();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -205,8 +208,10 @@ export default function BookingDetailScreen() {
             {/* Voice call the provider. Same gate as Chat: only once the
                 booking is live, since that is the room the realtime service
                 authorizes both parties against. The provider's number is
-                resolved by the call screen from the chat endpoint. */}
-            {status && !['PENDING', 'REJECTED', 'CANCELLED'].includes(status) && (
+                resolved by the call screen from the chat endpoint.
+                Also hidden outright in builds where react-native-webrtc is not
+                linked, where the call would ring and die. */}
+            {callingSupported && status && !['PENDING', 'REJECTED', 'CANCELLED'].includes(status) && (
               <ActionBtn
                 icon="call"
                 label="Call"

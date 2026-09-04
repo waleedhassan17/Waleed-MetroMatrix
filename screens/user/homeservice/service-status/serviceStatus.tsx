@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   Platform,
   Animated,
   StatusBar,
-  SafeAreaView,
   ScrollView,
   Image,
   TextInput,
   Alert,
   Dimensions,
   KeyboardAvoidingView,
+  BackHandler,
+  RefreshControl,
 } from 'react-native';
+// `react-native`'s own SafeAreaView is iOS-only — on Android it is a plain
+// View, which is why these screens needed manual StatusBar.currentHeight
+// padding that then over-padded devices with a notch.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,6 +38,8 @@ import {
 import { RootState, AppDispatch } from '../../../../store/store';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { contactSupport } from '../../../../utils/support/contactSupport';
+import { formatInstant } from '../../../../utils/date/localDate';
+import ContactSheet from '../../../../components/call/ContactSheet';
 
 const { width } = Dimensions.get('window');
 
@@ -75,12 +82,25 @@ export default function ServiceStatusScreen() {
 
   const { bookingId, category = 'ac-repairers' } = route.params || {};
 
+  // Every fetch needs the category narrowed to one the API knows; it was being
+  // re-derived at each call site.
+  const validCategory: 'electricians' | 'plumbers' | 'ac-repairers' =
+    (['electricians', 'plumbers', 'ac-repairers'] as const).includes(category as any)
+      ? (category as 'electricians' | 'plumbers' | 'ac-repairers')
+      : 'ac-repairers';
+
   // Live room events. This screen previously only refetched on focus, so a
   // customer watching it saw nothing when the provider advanced the job or
   // requested payment — they had to leave and come back. The realtime service
   // now pushes both; refetch when either lands so the whole payload (provider,
   // pricing, timeline) stays consistent rather than patching one field.
-  const { roomStatus, payment: livePayment } = useRoomSocket(bookingId, 'homeservice');
+  // `counterpartPresence` is the server's word on whether the provider has a
+  // live socket — the reachability half of the Call gate in the contact sheet.
+  const {
+    roomStatus,
+    payment: livePayment,
+    counterpartPresence,
+  } = useRoomSocket(bookingId, 'homeservice');
 
   // Redux state
   const provider = useSelector((state: RootState) => state.serviceStatus?.provider);
@@ -89,17 +109,44 @@ export default function ServiceStatusScreen() {
   const serviceStatus = useSelector((state: RootState) => state.serviceStatus?.serviceStatus);
   const isLoading = useSelector((state: RootState) => state.serviceStatus?.isLoading);
   const isSubmitting = useSelector((state: RootState) => state.serviceStatus?.isSubmitting);
+  const error = useSelector((state: RootState) => state.serviceStatus?.error);
   const isPaymentReady = useSelector(selectIsPaymentReady);
   const paymentSummary = useSelector(selectPaymentSummary);
   const progressSteps = useSelector(selectServiceProgress);
 
+  // The card used to print `provider.startTime` raw, so a customer saw
+  // "Started 2026-09-03T18:22:41.507Z". Null when the job has not started.
+  const startedAtLabel = useMemo(() => formatInstant(provider?.startTime), [provider?.startTime]);
+
   // Local state
   const [isReady, setIsReady] = useState(false);
   const [manualAmount, setManualAmount] = useState('');
-  const [showPaymentSection, setShowPaymentSection] = useState(false);
+  const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Animation refs
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Pull-to-refresh. Live socket events already push most changes, but a
+  // dropped socket used to leave this screen stale with no way to reload it
+  // short of navigating away and back.
+  const onRefresh = useCallback(async () => {
+    if (!bookingId) return;
+    setIsRefreshing(true);
+    try {
+      await dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [dispatch, bookingId, validCategory]);
+
+  // Whether payment is still owed is SERVER state, not screen state. This was a
+  // local flag reset on every focus, so completing a job and then leaving —
+  // even by the phone's back button — made the booking permanently unpayable
+  // from this screen. Derived, it survives navigation and app restarts.
+  const paymentDue = serviceStatus === 'completed' && payment?.status !== 'completed';
+
+  // Animation refs.
+  // fadeAnim starts at 1 so content is never gated behind an entrance effect
+  // that may not run — motion enhances, it does not reveal.
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -110,7 +157,7 @@ export default function ServiceStatusScreen() {
 
   // Callbacks
   const handleBackPress = useCallback(() => {
-    if (serviceStatus === 'completed' && !showPaymentSection) {
+    if (paymentDue) {
       Alert.alert(
         'Leave without payment?',
         'The service has been completed. Would you like to proceed to payment first?',
@@ -130,27 +177,50 @@ export default function ServiceStatusScreen() {
       dispatch(clearServiceStatusState());
       navigation.goBack();
     }
-  }, [dispatch, navigation, serviceStatus, showPaymentSection]);
+  }, [dispatch, navigation, paymentDue]);
+
+  // The header chevron ran the guard above; the phone's back button did not,
+  // which was the actual route by which people left a completed job unpaid.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleBackPress();
+        return true; // handled — we navigate ourselves, after the guard
+      });
+      return () => sub.remove();
+    }, [handleBackPress])
+  );
 
   const handleSupportPress = useCallback(() => {
     contactSupport(bookingId ? `Booking ${bookingId}` : 'Service status');
   }, [bookingId]);
 
-  const handleServiceCompleted = useCallback(() => {
+  const handleServiceCompleted = useCallback(async () => {
     if (!bookingId) return;
-    dispatch(markServiceCompleted({ bookingId }));
+    try {
+      // unwrap() so a rejected transition throws here instead of being
+      // swallowed — this used to fire and forget, then reveal the payment card
+      // on a timer whether or not the server had agreed the job was done.
+      await dispatch(markServiceCompleted({ bookingId })).unwrap();
+    } catch (e: any) {
+      Alert.alert(
+        'Could not complete service',
+        typeof e === 'string' ? e : e?.message || 'Please check your connection and try again.'
+      );
+      return; // stay on the pre-completion UI
+    }
 
-    // Animate payment section
-    setTimeout(() => {
-      setShowPaymentSection(true);
-      Animated.spring(paymentSlideAnim, {
-        toValue: 0,
-        tension: 80,
-        friction: 8,
-        useNativeDriver: true,
-      }).start();
-    }, 500);
-  }, [dispatch, bookingId, paymentSlideAnim]);
+    // Re-read the server so completedAt, pricing and the timeline all come from
+    // one consistent payload — same path the live-event effect below takes.
+    dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
+
+    Animated.spring(paymentSlideAnim, {
+      toValue: 0,
+      tension: 80,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  }, [dispatch, bookingId, validCategory, paymentSlideAnim]);
 
   const handleAmountChange = useCallback((text: string) => {
     const numericValue = text.replace(/[^0-9]/g, '');
@@ -187,28 +257,35 @@ export default function ServiceStatusScreen() {
 
   const handleContactProvider = useCallback(() => {
     if (!bookingId) return;
-    Alert.alert(
-      'Contact Provider',
-      'Choose how you want to contact the provider',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Call',
-          // @ts-ignore — root-stack routes, not in this screen's local param list
-          onPress: () => navigation.navigate('CallScreen', { bookingId }),
-        },
-        {
-          text: 'Message',
-          // @ts-ignore
-          onPress: () => navigation.navigate('ProviderChatScreen', { bookingId }),
-        },
-      ]
-    );
-  }, [navigation, bookingId]);
+    setContactSheetOpen(true);
+  }, [bookingId]);
+
+  // Both of these used to pass a bare `{ bookingId }`, so the outgoing call
+  // screen had no name to show and rendered the literal string "Contact".
+  // Every other screen already passes the counterpart through; this one now
+  // matches them.
+  const handleCallProvider = useCallback(() => {
+    if (!bookingId) return;
+    // @ts-ignore — root-stack routes, not in this screen's local param list
+    navigation.navigate('CallScreen', {
+      bookingId,
+      counterpartName: provider?.name,
+      counterpartImage: provider?.image,
+    });
+  }, [navigation, bookingId, provider?.name, provider?.image]);
+
+  const handleMessageProvider = useCallback(() => {
+    if (!bookingId) return;
+    // @ts-ignore
+    navigation.navigate('ProviderChatScreen', {
+      bookingId,
+      counterpartName: provider?.name,
+    });
+  }, [navigation, bookingId, provider?.name]);
 
   // Run entrance animations
   const runEntranceAnimations = useCallback(() => {
-    fadeAnim.setValue(0);
+    // fadeAnim deliberately not reset to 0 — see its declaration.
     slideAnim.setValue(30);
     scaleAnim.setValue(0.95);
 
@@ -259,19 +336,14 @@ export default function ServiceStatusScreen() {
     useCallback(() => {
       // Reset all states and animations on focus
       setIsReady(false);
-      setShowPaymentSection(false);
       loadingFadeAnim.setValue(1);
       paymentSlideAnim.setValue(50);
-      fadeAnim.setValue(0);
+      // fadeAnim deliberately not reset to 0 — see its declaration.
       slideAnim.setValue(30);
       scaleAnim.setValue(0.95);
 
       // Clear previous state to force re-fetch
       dispatch(clearServiceStatusState());
-
-      const validCategory = ['electricians', 'plumbers', 'ac-repairers'].includes(category)
-        ? category
-        : 'ac-repairers';
 
       // No id, no fetch — 'default' was never a booking, it was just a 404
       // waiting to happen ("API Response error" on this screen).
@@ -284,17 +356,14 @@ export default function ServiceStatusScreen() {
 
       // Small delay to ensure state is cleared before fetching
       const timer = setTimeout(() => {
-        dispatch(fetchServiceStatus({
-          bookingId,
-          category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
-        }));
+        dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
       }, 50);
 
       return () => {
         clearTimeout(timer);
         // Cleanup on blur - no need to reset animations here since we do it on focus
       };
-    }, [bookingId, category, dispatch, fadeAnim, slideAnim, scaleAnim, loadingFadeAnim, paymentSlideAnim])
+    }, [bookingId, validCategory, dispatch, fadeAnim, slideAnim, scaleAnim, loadingFadeAnim, paymentSlideAnim])
   );
 
   // A pushed status or payment event means the server-side truth moved on.
@@ -303,16 +372,8 @@ export default function ServiceStatusScreen() {
   useEffect(() => {
     if (!bookingId) return;
     if (!roomStatus && !livePayment) return;
-    const validCategory = ['electricians', 'plumbers', 'ac-repairers'].includes(category)
-      ? category
-      : 'ac-repairers';
-    dispatch(
-      fetchServiceStatus({
-        bookingId,
-        category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
-      })
-    );
-  }, [roomStatus, livePayment, bookingId, category, dispatch]);
+    dispatch(fetchServiceStatus({ bookingId, category: validCategory }));
+  }, [roomStatus, livePayment, bookingId, validCategory, dispatch]);
 
   // Run animations when data is loaded
   useEffect(() => {
@@ -335,6 +396,30 @@ export default function ServiceStatusScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
             <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
               Go back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // A failed fetch leaves `provider` null with `isLoading` false. Without this
+  // branch that fell into the loading state below and spun forever, with no
+  // way to retry short of leaving the screen.
+  if (!isLoading && !provider && error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color="#94A3B8" />
+          <Text style={styles.loadingText}>Couldn't load service status</Text>
+          <Text style={[styles.loadingText, { fontSize: 13, marginTop: 4 }]}>{error}</Text>
+          <TouchableOpacity
+            onPress={onRefresh}
+            style={{ marginTop: 16 }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: serviceConfig.accentColor, fontWeight: '600' }}>
+              Try again
             </Text>
           </TouchableOpacity>
         </View>
@@ -433,25 +518,38 @@ export default function ServiceStatusScreen() {
         </Animated.View>
 
         <Text style={styles.providerName}>{provider.name}</Text>
-        <Text style={styles.providerSpecialty}>{provider.specialty}</Text>
+        {!!provider.specialty && (
+          <Text style={styles.providerSpecialty}>{provider.specialty}</Text>
+        )}
 
+        {/* Every badge is conditional: a provider with no ratings yet, no
+            recorded experience, or a job that has not started should show
+            fewer badges, never "★ 0" or an empty pill. */}
         <View style={styles.providerBadges}>
-          <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={styles.badge}>
-            <Ionicons name="star" size={12} color="#F59E0B" />
-            <Text style={styles.badgeText}>{provider.rating}</Text>
-          </LinearGradient>
-          <View style={[styles.badge, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
-            <Feather name="award" size={12} color={serviceConfig.accentColor} />
-            <Text style={[styles.badgeText, { color: serviceConfig.accentColor }]}>
-              {provider.experience}
-            </Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="time-outline" size={12} color="#10B981" />
-            <Text style={[styles.badgeText, { color: '#10B981' }]}>
-              Started {provider.startTime}
-            </Text>
-          </View>
+          {provider.reviews > 0 && (
+            <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={styles.badge}>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Text style={styles.badgeText}>
+                {provider.rating.toFixed(1)} ({provider.reviews})
+              </Text>
+            </LinearGradient>
+          )}
+          {!!provider.experience && (
+            <View style={[styles.badge, { backgroundColor: `${serviceConfig.accentColor}15` }]}>
+              <Feather name="award" size={12} color={serviceConfig.accentColor} />
+              <Text style={[styles.badgeText, { color: serviceConfig.accentColor }]}>
+                {provider.experience}
+              </Text>
+            </View>
+          )}
+          {!!startedAtLabel && (
+            <View style={[styles.badge, { backgroundColor: '#10B98115' }]}>
+              <Ionicons name="time-outline" size={12} color="#10B981" />
+              <Text style={[styles.badgeText, { color: '#10B981' }]}>
+                Started {startedAtLabel}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </Animated.View>
@@ -580,7 +678,7 @@ export default function ServiceStatusScreen() {
   };
 
   const renderPaymentSection = () => {
-    if (!showPaymentSection || serviceStatus !== 'completed') return null;
+    if (!paymentDue) return null;
 
     return (
       <Animated.View
@@ -800,6 +898,9 @@ export default function ServiceStatusScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#10B981" />
+          }
         >
           {renderProviderCard()}
           {renderProgressSection()}
@@ -808,6 +909,17 @@ export default function ServiceStatusScreen() {
           {renderHelpSection()}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ContactSheet
+        visible={contactSheetOpen}
+        onClose={() => setContactSheetOpen(false)}
+        name={provider?.name || 'Provider'}
+        image={provider?.image}
+        subtitle={provider?.specialty || serviceDetails?.description}
+        presence={counterpartPresence?.status ?? null}
+        onCall={handleCallProvider}
+        onMessage={handleMessageProvider}
+      />
     </SafeAreaView>
   );
 }
@@ -840,7 +952,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 12,
+    // No StatusBar.currentHeight here: the safe-area-context SafeAreaView above
+    // already applies the top inset, and adding both double-padded the header.
+    paddingTop: 12,
   },
   headerContent: {
     flexDirection: 'row',

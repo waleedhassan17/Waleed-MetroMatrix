@@ -51,3 +51,27 @@ export function addLocalDays(iso: string, days: number): string {
   date.setDate(date.getDate() + days);
   return toLocalISODate(date);
 }
+
+/**
+ * A timestamp as a person would say it: `3:42 PM` for today, `16 Aug, 3:42 PM`
+ * otherwise. Unlike the calendar-date helpers above this one IS an instant, so
+ * it goes through the local clock on purpose.
+ *
+ * Returns `null` for a missing or unparseable value — callers must decide what
+ * an unknown time looks like, because rendering `Invalid Date` (or the raw ISO
+ * string, which is what the Service Status card used to do) is never right.
+ */
+export function formatInstant(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const time = date.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  if (toLocalISODate(date) === todayLocalISODate()) return time;
+
+  const day = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return `${day}, ${time}`;
+}

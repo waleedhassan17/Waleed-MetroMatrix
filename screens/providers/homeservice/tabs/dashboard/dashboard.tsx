@@ -56,6 +56,7 @@ import { setJobDetail, JobData } from '../../jobdetail-screen/jobDetailSlice';
 import { fetchProfile } from '../../profile-screen/profileSlice';
 import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectTotalUnread } from '../../../../../store/unreadSlice';
+import { getSocket } from '../../../../../services/socket/socketClient';
 
 type RootStackParamList = {
   JobDetail: { job?: JobData };
@@ -547,6 +548,48 @@ export default function Dashboard() {
       }),
     ]).start();
   }, []);
+
+  // LIVE NEW-JOB SIGNAL.
+  //
+  // The bell reads `profile.unreadNotifications`, which is fetched on mount.
+  // The durable HSNotification is created the moment a customer books, but a
+  // provider sitting on this screen saw nothing until they navigated away and
+  // back. The server addresses `booking_created` to the provider personally
+  // (they are not in the booking's room yet), so binding it here turns a new
+  // job into an immediate badge.
+  //
+  // Refetches rather than incrementing locally: the count is server state, and
+  // a local ++ would drift the moment anything else marked a notification read.
+  useEffect(() => {
+    let mounted = true;
+    let detach: (() => void) | undefined;
+
+    const onBookingCreated = () => {
+      if (!mounted) return;
+      dispatch(fetchDashboardData());
+      dispatch(fetchProfile());
+    };
+
+    const bind = async () => {
+      const s = await getSocket();
+      if (!mounted || !s) return;
+      // Idempotent across reconnects — off() before on() so a rebind cannot
+      // stack a second handler and double-fetch.
+      s.off('booking_created', onBookingCreated);
+      s.on('booking_created', onBookingCreated);
+      s.on('connect', bind);
+      detach = () => {
+        s.off('booking_created', onBookingCreated);
+        s.off('connect', bind);
+      };
+    };
+
+    bind();
+    return () => {
+      mounted = false;
+      detach?.();
+    };
+  }, [dispatch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

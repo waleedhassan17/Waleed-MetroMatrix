@@ -31,6 +31,7 @@ export interface Booking {
   time: string;
   address: string;
   price: number;
+  payment?: { status: 'unpaid' | 'requested' | 'paid' };
   rating?: number;
   review?: string;
   createdAt: string;
@@ -111,6 +112,7 @@ const mapApiBookingToLocal = (apiBooking: UserBooking): Booking => ({
   time: apiBooking.time,
   address: apiBooking.address,
   price: apiBooking.price,
+  payment: apiBooking.payment,
   rating: apiBooking.rating,
   review: apiBooking.review,
   createdAt: apiBooking.createdAt,

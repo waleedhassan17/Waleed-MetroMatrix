@@ -12,7 +12,7 @@
 // show it.
 // ============================================================================
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import {
 import { normalizeRoomParams, type RoomParams } from './roomParams';
 import { useAppSelector } from '../../../hooks/useReduxHooks';
 import { selectTotalUnread } from '../../../store/unreadSlice';
+import { emitEvent } from '../../../services/socket/socketClient';
+import { isCallingSupported } from '../../../services/call/usePeerConnection';
 
 /** Where tapping a row should land, per vertical and role. */
 const CHAT_ROUTE = {
@@ -44,6 +46,83 @@ const CALL_ROUTE = {
   homeservice: { user: 'CallScreen', provider: 'ProviderCallScreen' },
   healthcare: { user: 'HealthcareConsultCall', provider: 'HealthcareConsultCall' },
 } as const;
+
+/**
+ * Statuses meaning the job is over, so its room is no longer the one to open.
+ * Mirrors the backend's TERMINAL_STATUSES plus healthcare's vocabulary — the
+ * same set the realtime service uses to decide which empty rooms to drop.
+ */
+const FINISHED = new Set(['COMPLETED', 'REJECTED', 'CANCELLED', 'completed', 'cancelled']);
+
+/** A conversation row, plus the other rooms folded into it. */
+type ConversationRow = ConversationSummary & { rooms: ConversationSummary[] };
+
+/**
+ * Collapse a provider's home-service rooms so there is ONE row per person.
+ *
+ * A room is always exactly one booking, server-side — that is load-bearing for
+ * the chat cursor and the message indexes, so it stays that way. But a provider
+ * who has worked for the same customer four times does not think of them as
+ * four conversations; they saw the same name and face repeated down the list
+ * with no way to tell the rows apart, and unread counts split across them.
+ *
+ * Scoped deliberately narrow:
+ *   - provider rows only. A CUSTOMER's list is naturally one row per booking,
+ *     since each is a different provider, and folding it would hide jobs.
+ *   - home-service only. Healthcare rows keep per-appointment threads.
+ * Everything else passes through untouched, which is what keeps this safe in a
+ * screen shared by both roles and both verticals.
+ */
+function groupByCounterpart(list: ConversationSummary[]): ConversationRow[] {
+  const foldable = (c: ConversationSummary) => c.role === 'provider' && c.roomType === 'homeservice';
+  const newestFirst = (a: ConversationSummary, b: ConversationSummary) =>
+    new Date(b.activityAt).getTime() - new Date(a.activityAt).getTime();
+
+  const groups = new Map<string, ConversationSummary[]>();
+  const passthrough: ConversationRow[] = [];
+
+  for (const c of list) {
+    if (!foldable(c) || !c.counterpart?.id) {
+      passthrough.push({ ...c, rooms: [c] });
+      continue;
+    }
+    const bucket = groups.get(c.counterpart.id);
+    if (bucket) bucket.push(c);
+    else groups.set(c.counterpart.id, [c]);
+  }
+
+  const merged: ConversationRow[] = [];
+  for (const bucket of groups.values()) {
+    const rooms = [...bucket].sort(newestFirst);
+    const newest = rooms[0];
+
+    // Open the most recent room still live; if every job with this person is
+    // finished, their latest one is the right place to continue the thread.
+    const target = rooms.find((r) => !FINISHED.has(r.status)) || newest;
+
+    merged.push({
+      ...newest,
+      // The row IS the target room, so tapping needs no extra lookup.
+      roomId: target.roomId,
+      status: target.status,
+      // Which job this is about — the disambiguation the repeated names lacked.
+      subtitle:
+        rooms.length > 1
+          ? `${target.subtitle || 'Service'} · ${rooms.length} bookings`
+          : target.subtitle,
+      // Unread must be the total across their rooms, or the badge undercounts
+      // and messages sit unread in a room the provider cannot see separately.
+      unread: rooms.reduce((n, r) => n + (r.unread || 0), 0),
+      // Newest message across all their rooms — `newest` is already sorted by
+      // activity, so its lastMessage is the most recent thing either said.
+      lastMessage: newest.lastMessage,
+      activityAt: newest.activityAt,
+      rooms,
+    });
+  }
+
+  return [...merged, ...passthrough].sort(newestFirst);
+}
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -61,6 +140,9 @@ export default function ConversationsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const theme = normalizeRoomParams(route.params);
+
+  // Cached after the first call — a native module cannot appear at runtime.
+  const callingSupported = isCallingSupported();
 
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +187,26 @@ export default function ConversationsScreen() {
     }
   }, [liveUnread, load]);
 
-  const openChat = (c: ConversationSummary) => {
+  // One row per person for a provider's home-service jobs; every other row
+  // untouched. Recomputed only when the fetched list changes.
+  const displayRows = useMemo(() => groupByCounterpart(rows), [rows]);
+
+  const openChat = (c: ConversationRow) => {
+    // A grouped row's badge is the SUM across that person's rooms, but opening
+    // the chat only marks the target room read — and the folded rooms are no
+    // longer individually reachable from this list, so their unread would sit
+    // on the badge forever. Clear the whole group; the chat screen clears the
+    // target again on mount, which is harmless.
+    for (const room of c.rooms || []) {
+      if (room.roomId !== c.roomId && room.unread > 0) {
+        emitEvent('mark_read', {
+          roomId: room.roomId,
+          bookingId: room.roomId,
+          roomType: room.roomType,
+        });
+      }
+    }
+
     navigation.navigate(CHAT_ROUTE[c.roomType][c.role], {
       roomId: c.roomId,
       bookingId: c.roomId,
@@ -125,7 +226,7 @@ export default function ConversationsScreen() {
     });
   };
 
-  const renderRow = ({ item }: { item: ConversationSummary }) => (
+  const renderRow = ({ item }: { item: ConversationRow }) => (
     <TouchableOpacity style={styles.row} onPress={() => openChat(item)} activeOpacity={0.7}>
       <View>
         {item.counterpart.image ? (
@@ -165,16 +266,22 @@ export default function ConversationsScreen() {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.callBtn}
-        onPress={() => openCall(item)}
-        accessibilityLabel={`Call ${item.counterpart.name || 'contact'}`}
-        // The row itself is the tap target for chat, so give the call button
-        // room of its own rather than letting a near-miss open the thread.
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="call" size={19} color={theme.accent} />
-      </TouchableOpacity>
+      {/* Offered only when a call can actually be established: this build has
+          the native WebRTC module AND the server says they are online. A call
+          placed to an offline person rings once and dies, which is what made
+          calling feel fake. Chat, on the row itself, is always available. */}
+      {callingSupported && item.counterpart.presence === 'online' && (
+        <TouchableOpacity
+          style={styles.callBtn}
+          onPress={() => openCall(item)}
+          accessibilityLabel={`Call ${item.counterpart.name || 'contact'}`}
+          // The row itself is the tap target for chat, so give the call button
+          // room of its own rather than letting a near-miss open the thread.
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="call" size={19} color={theme.accent} />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 
@@ -205,10 +312,10 @@ export default function ConversationsScreen() {
         </View>
       ) : (
         <FlatList
-          data={rows}
+          data={displayRows}
           keyExtractor={(c) => c.roomId}
           renderItem={renderRow}
-          contentContainerStyle={rows.length ? styles.listContent : styles.listEmpty}
+          contentContainerStyle={displayRows.length ? styles.listContent : styles.listEmpty}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
           }

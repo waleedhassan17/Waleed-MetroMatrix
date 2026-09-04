@@ -54,6 +54,31 @@ function loadWebRTC(): any {
   return webrtcModule;
 }
 
+/** Cached across the app's lifetime — a native module cannot appear at runtime. */
+let webrtcLinked: boolean | null = null;
+
+/**
+ * Can this build place a call at all?
+ *
+ * Answers only the LOCAL half of that question: whether `react-native-webrtc`
+ * is linked into this binary. It is false in Expo Go and in any build made
+ * before the native module was added, where offering a Call button produces a
+ * call that rings and then dies — which is what made calling read as "dummy".
+ *
+ * The other half is whether the counterpart is reachable, which only the server
+ * knows (`counterpartPresence` from `useRoomSocket`). Gate on both.
+ */
+export function isCallingSupported(): boolean {
+  if (webrtcLinked !== null) return webrtcLinked;
+  try {
+    const rtc = loadWebRTC();
+    webrtcLinked = !!(rtc && rtc.RTCPeerConnection && rtc.mediaDevices);
+  } catch {
+    webrtcLinked = false;
+  }
+  return webrtcLinked;
+}
+
 export function usePeerConnection({
   callId,
   roomId,

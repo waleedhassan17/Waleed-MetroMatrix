@@ -332,16 +332,22 @@ export const selectReviewCompleteness = (state: { reviewRating?: ReviewRatingSta
   if (!reviewState) return 0;
 
   const { review } = reviewState;
-  let completeness = 0;
-  let totalItems = 5;
 
-  if (review.rating > 0) completeness += 1;
-  if (review.feedback.length > 0) completeness += 1;
-  if (review.tags.length > 0) completeness += 1;
-  if (review.wouldRecommend !== null) completeness += 1;
-  if (review.photos.length > 0) completeness += 1;
+  // Counted over the fields the SCREEN actually collects. Photos are part of
+  // the review model and still earn reward points on submit, but there is no
+  // photo picker in the UI — including them here made 80% the highest number
+  // anyone could ever see, which reads as a broken meter rather than as an
+  // invitation to add something the screen never offered. Add the photo field
+  // back here the day a picker ships.
+  const fields = [
+    review.rating > 0,
+    review.feedback.length > 0,
+    review.tags.length > 0,
+    review.wouldRecommend !== null,
+  ];
 
-  return Math.round((completeness / totalItems) * 100);
+  const completed = fields.filter(Boolean).length;
+  return Math.round((completed / fields.length) * 100);
 };
 
 export const selectReviewSummary = (state: { reviewRating?: ReviewRatingState }) => {

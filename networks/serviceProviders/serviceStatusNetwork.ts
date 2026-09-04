@@ -10,3 +10,15 @@ export async function fetchServiceStatus(
 ): Promise<ApiResponse<ServiceStatus>> {
     return apiRequest<ServiceStatus>(`/bookings/${bookingId}/service-status`);
 }
+
+/**
+ * The customer confirms the job is done. Idempotent server-side, so a retry
+ * after a dropped response is safe.
+ */
+export async function completeBookingByCustomer(
+  bookingId: string
+): Promise<ApiResponse<{ bookingId: string; status: string }>> {
+    return apiRequest(`/bookings/${bookingId}/complete`, {
+    method: 'POST',
+  });
+}

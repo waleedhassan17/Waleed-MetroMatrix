@@ -12,7 +12,6 @@ import {
   StatusBar,
   RefreshControl,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -32,6 +31,7 @@ import {
   Filter,
   SlidersHorizontal,
   Sparkles,
+  CreditCard,
 } from 'lucide-react-native';
 import { Colors, Gradients, Shadows, BorderRadius, Spacing } from '../../../../../constants/Colors';
 import { Typography } from '../../../../../constants/Fonts';
@@ -40,9 +40,11 @@ import {
   fetchBookings,
   selectHomeServiceBookings,
   selectBookingsLoading,
+  selectBookingsError,
   type Booking,
   type BookingStatus,
 } from './bookingSlice';
+import { isCallingSupported } from '../../../../../services/call/usePeerConnection';
 
 const { width } = Dimensions.get('window');
 
@@ -217,8 +219,37 @@ interface BookingCardProps {
   index: number;
 }
 
+/**
+ * Cold-fetch placeholder for the bookings list.
+ *
+ * A centred spinner told the customer nothing about what was coming and made
+ * the list jump when it arrived. These blocks sit where the real cards will,
+ * so the layout is already settled when the data lands. Deliberately static —
+ * a shimmer animation on a list that usually resolves in well under a second
+ * costs more in flicker than it buys.
+ */
+const BookingListSkeleton: React.FC = () => (
+  <View accessibilityLabel="Loading bookings">
+    {[0, 1, 2].map((i) => (
+      <View key={i} style={[styles.bookingCard, styles.skeletonCard]}>
+        <View style={styles.skeletonRow}>
+          <View style={styles.skeletonAvatar} />
+          <View style={styles.skeletonLines}>
+            <View style={[styles.skeletonLine, { width: '55%' }]} />
+            <View style={[styles.skeletonLine, { width: '35%', marginTop: 8 }]} />
+          </View>
+        </View>
+        <View style={[styles.skeletonLine, { width: '80%', marginTop: 18 }]} />
+        <View style={[styles.skeletonLine, { width: '45%', marginTop: 10 }]} />
+      </View>
+    ))}
+  </View>
+);
+
 const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
   const navigation = useNavigation<any>();
+  // Cached after the first call — a native module cannot appear at runtime.
+  const callingSupported = isCallingSupported();
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -227,6 +258,11 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
   // doesn't know about yet.
   const status = statusConfig[booking.status] || statusConfig.pending;
   const StatusIcon = status.icon;
+
+  // Only claim a booking is unpaid when the server actually said so. An older
+  // backend omits `payment` entirely; treating that absence as "unpaid" would
+  // replace every Rate button with a Pay button during a staged rollout.
+  const unpaid = !!booking.payment && booking.payment.status !== 'paid';
 
   useEffect(() => {
     Animated.parallel([
@@ -353,8 +389,12 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
 
             {/* Footer Row */}
             <View style={styles.bookingFooter}>
+              {/* A booking is priced on completion, so before then there is no
+                  number to show — "PKR 0" read as a free job. */}
               <Text style={styles.priceText}>
-                PKR {booking.price.toLocaleString()}
+                {booking.price > 0
+                  ? `PKR ${booking.price.toLocaleString()}`
+                  : 'Price on completion'}
               </Text>
 
               {/* Action Buttons */}
@@ -362,19 +402,27 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
                   room id the call/chat screens resolve against. */}
               {ACTIVE_STATUSES.includes(booking.status) && (
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() =>
-                      navigation.navigate('CallScreen', {
-                        bookingId: booking.id,
-                        counterpartName: booking.providerName,
-                        counterpartImage: booking.providerAvatar,
-                      })
-                    }
-                    accessibilityLabel={`Call ${booking.providerName}`}
-                  >
-                    <Phone size={16} color={Colors.primary} />
-                  </TouchableOpacity>
+                  {/* Call is hidden in builds that cannot place one at all
+                      (react-native-webrtc unlinked). This list has no live
+                      presence per card, so the per-person reachability check
+                      lives in the contact sheet on Service Status; here we can
+                      still avoid offering a call that provably cannot connect.
+                      Message is always offered — it is durable. */}
+                  {callingSupported && (
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() =>
+                        navigation.navigate('CallScreen', {
+                          bookingId: booking.id,
+                          counterpartName: booking.providerName,
+                          counterpartImage: booking.providerAvatar,
+                        })
+                      }
+                      accessibilityLabel={`Call ${booking.providerName}`}
+                    >
+                      <Phone size={16} color={Colors.primary} />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() =>
@@ -402,8 +450,38 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, index }) => {
           </View>
         </View>
 
+        {/* Pay Button for Completed-but-Unpaid.
+            This is the way back to payment for anyone who left the service
+            screen before paying — previously the payment card lived only in
+            that screen's local state, so leaving stranded the booking. Shown
+            ahead of rating for the same reason Booking Detail gates review on
+            payment: settle up first. */}
+        {booking.status === 'completed' && unpaid && (
+          <TouchableOpacity
+            style={styles.rateButton}
+            onPress={() =>
+              navigation.navigate('PaymentScreen', {
+                bookingId: booking.id,
+                category: booking.categoryType as any,
+              })
+            }
+            accessibilityLabel={`Pay for ${booking.serviceName}`}
+          >
+            <LinearGradient
+              colors={['#D1FAE5', '#A7F3D0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.rateButtonGradient}
+            >
+              <CreditCard size={14} color="#059669" />
+              <Text style={[styles.rateButtonText, { color: '#059669' }]}>Pay now</Text>
+              <ChevronRight size={14} color="#059669" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         {/* Rate Button for Completed */}
-        {booking.status === 'completed' && !booking.rating && (
+        {booking.status === 'completed' && !unpaid && !booking.rating && (
           <TouchableOpacity
             style={styles.rateButton}
             onPress={() =>
@@ -471,6 +549,7 @@ export default function BookingsScreen() {
   const dispatch = useAppDispatch();
   const bookings = useAppSelector(selectHomeServiceBookings);
   const loading = useAppSelector(selectBookingsLoading);
+  const errors = useAppSelector(selectBookingsError);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
 
@@ -600,11 +679,25 @@ export default function BookingsScreen() {
           </View>
         )}
 
-        {/* Bookings, loader, or Empty State. The loader only shows on a cold
-            fetch — a pull-to-refresh already has its own spinner. */}
+        {/* Bookings, loader, error, or Empty State. The loader only shows on a
+            cold fetch — a pull-to-refresh already has its own spinner. A failed
+            fetch used to fall through to "No bookings yet", which told the
+            customer their bookings were gone rather than that the request
+            failed; it now gets its own branch with a way out. */}
         {loading.fetch && bookings.length === 0 ? (
+          <BookingListSkeleton />
+        ) : errors.fetch && bookings.length === 0 ? (
           <View style={styles.listLoading}>
-            <ActivityIndicator size="large" color={Colors.primary} />
+            <AlertCircle size={40} color={Colors.text.tertiary} />
+            <Text style={styles.errorTitle}>Couldn't load your bookings</Text>
+            <Text style={styles.errorBody}>{errors.fetch}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => dispatch(fetchBookings(undefined))}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </TouchableOpacity>
           </View>
         ) : filteredBookings.length > 0 ? (
           filteredBookings.map((booking, index) => (
@@ -629,6 +722,54 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skeletonCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  skeletonAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+  },
+  skeletonLines: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#F1F5F9',
+  },
+  errorTitle: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  errorBody: {
+    marginTop: 4,
+    marginHorizontal: 32,
+    fontSize: 13,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  retryButtonText: {
+    color: Colors.text.inverse,
+    fontSize: 14,
+    fontWeight: '600',
   },
   container: {
     flex: 1,

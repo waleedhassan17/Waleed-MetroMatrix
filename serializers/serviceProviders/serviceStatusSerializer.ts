@@ -13,6 +13,11 @@ export function serviceStatusSerializer(payload: any): ServiceStatus {
       name: payload?.provider?.name || '',
       phone: payload?.provider?.phone || '',
       image: payload?.provider?.image || '',
+      rating: Number(payload?.provider?.rating) || 0,
+      reviews: Number(payload?.provider?.reviews) || 0,
+      experience: payload?.provider?.experience || '',
+      specialty: payload?.provider?.specialty || '',
+      verified: payload?.provider?.verified ?? false,
     },
     serviceDetails: {
       type: payload?.serviceDetails?.type || '',
@@ -26,6 +31,15 @@ export function serviceStatusSerializer(payload: any): ServiceStatus {
       label: step?.label || '',
       completed: step?.completed ?? false,
       time: step?.time,
+      timeAt: step?.timeAt,
     })),
+    payment: {
+      // 'unpaid' is the safe default: an absent payment block must never read
+      // as settled, or the screen would hide a payment the customer still owes.
+      status: payload?.payment?.status || 'unpaid',
+      method: payload?.payment?.method ?? null,
+      amount: payload?.payment?.amount || 0,
+      paidAt: payload?.payment?.paidAt ?? null,
+    },
   };
 }

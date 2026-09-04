@@ -1,8 +1,12 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
-import { fetchServiceStatus as fetchServiceStatusApi } from '../../../../networks/serviceProviders/serviceStatusNetwork';
+import {
+  fetchServiceStatus as fetchServiceStatusApi,
+  completeBookingByCustomer,
+} from '../../../../networks/serviceProviders/serviceStatusNetwork';
 import { processPayment } from '../../../../networks/serviceProviders/paymentNetwork';
 import { serviceStatusSerializer } from '../../../../serializers/serviceProviders/serviceStatusSerializer';
+import { formatInstant } from '../../../../utils/date/localDate';
 
 // Types
 export interface ServiceProviderInfo {
@@ -71,20 +75,49 @@ const initialState: ServiceStatusState = {
   error: null,
 };
 
+/**
+ * Server truth → this screen's vocabulary.
+ *
+ * The backend's canonical status maps to 'arrived'|'in_progress'|'completed';
+ * this screen additionally distinguishes paid from unpaid, which the backend
+ * carries as the parallel payment.status field rather than as a status.
+ *
+ * Payment wins when settled: a booking that is COMPLETED and paid is
+ * 'payment_completed', so the payment card and the leave-without-paying guard
+ * both switch off from server state alone.
+ */
+const mapApiStatusToLocal = (
+  apiStatus: ReturnType<typeof serviceStatusSerializer>['status'],
+  paymentStatus: ReturnType<typeof serviceStatusSerializer>['payment']['status']
+): ServiceStatusType => {
+  if (apiStatus === 'completed') {
+    return paymentStatus === 'paid' ? 'payment_completed' : 'completed';
+  }
+  if (apiStatus === 'in_progress') return 'in_progress';
+  return 'checking'; // 'arrived' — work has not started yet
+};
+
 // Helper to map API service status to local format
-const mapApiServiceStatusToLocal = (apiData: ReturnType<typeof serviceStatusSerializer>) => {
+const mapApiServiceStatusToLocal = (
+  apiData: ReturnType<typeof serviceStatusSerializer>,
+  category: ServiceProviderInfo['category']
+) => {
   const provider: ServiceProviderInfo = {
     id: apiData.provider.id,
     name: apiData.provider.name,
     phone: apiData.provider.phone,
     image: apiData.provider.image,
     service: apiData.serviceDetails.type,
-    specialty: '',
-    rating: 0,
-    reviews: 0,
-    experience: '',
-    verified: true,
-    category: 'electricians' as ServiceProviderInfo['category'],
+    // Straight from the API now. Empty/0 is meaningful — the card hides the
+    // corresponding badge rather than showing "★ 0" or a blank pill.
+    specialty: apiData.provider.specialty,
+    rating: apiData.provider.rating,
+    reviews: apiData.provider.reviews,
+    experience: apiData.provider.experience,
+    verified: apiData.provider.verified,
+    // Was hardcoded to 'electricians', so a plumbing or AC job rendered the
+    // electrician theme. The screen already knows which vertical it is.
+    category,
     startTime: apiData.serviceDetails.startedAt,
   };
 
@@ -96,10 +129,33 @@ const mapApiServiceStatusToLocal = (apiData: ReturnType<typeof serviceStatusSeri
     suggestedAmount: apiData.serviceDetails.suggestedAmount,
     serviceDate: apiData.serviceDetails.startedAt,
     startedAt: apiData.serviceDetails.startedAt,
-    completedAt: '',
+    // The backend stamps the completion time on the timeline step; reuse it
+    // rather than inventing a client-side clock value. Formatted here, from the
+    // instant, so it agrees with every other time on the screen — `time` is the
+    // server's Karachi-pinned string, kept as a fallback for an API that has
+    // not shipped `timeAt` yet.
+    completedAt: (() => {
+      const step = apiData.progressSteps.find((s) => s.label === 'Completed' && s.completed);
+      if (!step) return '';
+      return formatInstant(step.timeAt) || step.time || '';
+    })(),
   };
 
-  return { provider, serviceDetails };
+  const payment: PaymentInfo = {
+    // The server tracks an amount owed; a customer-entered amount is layered on
+    // top of it by setPaymentAmount, so seed from the server rather than 0.
+    amount: apiData.payment.amount || apiData.serviceDetails.suggestedAmount || 0,
+    method: null,
+    status: apiData.payment.status === 'paid' ? 'completed' : 'pending',
+    transactionId: null,
+  };
+
+  return {
+    provider,
+    serviceDetails,
+    payment,
+    serviceStatus: mapApiStatusToLocal(apiData.status, apiData.payment.status),
+  };
 };
 
 // Slice
@@ -118,7 +174,7 @@ const serviceStatusSlice = createAppSlice({
           return rejectWithValue(response.message || 'Failed to fetch service status');
         }
         const serialized = serviceStatusSerializer(response.data);
-        return mapApiServiceStatusToLocal(serialized);
+        return mapApiServiceStatusToLocal(serialized, params.category);
       },
       {
         pending: (state) => {
@@ -129,6 +185,18 @@ const serviceStatusSlice = createAppSlice({
           state.isLoading = false;
           state.provider = action.payload.provider;
           state.serviceDetails = action.payload.serviceDetails;
+          // Adopting the SERVER's status and payment here is the whole point of
+          // the fetch. This handler previously wrote only provider and
+          // serviceDetails, so serviceStatus stayed pinned at 'checking' no
+          // matter what the backend said — which is why a fake local thunk was
+          // the only thing that ever advanced this screen, and why a
+          // completed-but-unpaid booking looked unpaid-and-unfinished forever.
+          state.serviceStatus = action.payload.serviceStatus;
+          state.payment.status = action.payload.payment.status;
+          // Don't clobber an amount the customer is mid-way through typing.
+          if (!state.payment.amount) {
+            state.payment.amount = action.payload.payment.amount;
+          }
         },
         rejected: (state, action) => {
           state.isLoading = false;
@@ -137,32 +205,35 @@ const serviceStatusSlice = createAppSlice({
       }
     ),
 
+    // The customer confirms the job is done. This is a real transition on the
+    // server: review submission and payment both refuse a booking that is not
+    // COMPLETED, so faking it locally (as this thunk once did, with a 500ms
+    // setTimeout) left every downstream step 400-ing.
     markServiceCompleted: create.asyncThunk(
-      async (params: { bookingId: string }) => {
-        // Simulate API call for marking service complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return {
-          completedAt: new Date().toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          }),
-        };
+      async (params: { bookingId: string }, { rejectWithValue }) => {
+        const response = await completeBookingByCustomer(params.bookingId);
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Could not mark the service as completed');
+        }
+        return true;
       },
       {
         pending: (state) => {
           state.isSubmitting = true;
+          state.error = null;
         },
-        fulfilled: (state, action) => {
+        // Status advances ONLY here, on a confirmed server response. The caller
+        // refetches straight after, which fills in completedAt and payment from
+        // the server; this flip just avoids a frame of stale UI in between.
+        fulfilled: (state) => {
           state.isSubmitting = false;
           state.serviceStatus = 'completed';
-          if (state.serviceDetails) {
-            state.serviceDetails.completedAt = action.payload.completedAt;
-          }
         },
+        // Deliberately does NOT touch serviceStatus: a failed call must leave
+        // the screen where it was, showing an error, not a false 'completed'.
         rejected: (state, action) => {
           state.isSubmitting = false;
-          state.error = action.payload as string;
+          state.error = (action.payload as string) || 'Could not mark the service as completed';
         },
       }
     ),

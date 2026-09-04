@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Dimensions,
   Animated,
   StatusBar,
-  SafeAreaView,
   Platform,
   ScrollView,
   TextInput,
@@ -15,6 +14,9 @@ import {
   Image,
   KeyboardAvoidingView,
 } from 'react-native';
+// react-native's SafeAreaView is a no-op on Android; the context one applies
+// real insets on both platforms.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -36,6 +38,7 @@ import {
   RATING_MESSAGES,
 } from './ratingSlice';
 import { RootState, AppDispatch } from '../../../../store/store';
+import { formatInstant } from '../../../../utils/date/localDate';
 
 const { width, height } = Dimensions.get('window');
 
@@ -99,17 +102,31 @@ export default function ReviewRatingScreen() {
   const submissionStatus = useSelector((state: RootState) => state.reviewRating?.submissionStatus);
   const submissionResult = useSelector((state: RootState) => state.reviewRating?.submissionResult);
   const availableTags = useSelector((state: RootState) => state.reviewRating?.availableTags || []);
+  const error = useSelector((state: RootState) => state.reviewRating?.error);
   const ratingMessage = useSelector(selectRatingMessage);
   const isReviewValid = useSelector(selectIsReviewValid);
   const reviewCompleteness = useSelector(selectReviewCompleteness);
   const selectedTags = useSelector(selectSelectedTags);
 
+  // Null when the booking carries no completion instant, in which case the
+  // line is dropped rather than reading "Completed " with nothing after it.
+  const completedAtLabel = useMemo(
+    () => formatInstant(serviceDetails?.completedAt),
+    [serviceDetails?.completedAt]
+  );
+
   // Local state
   const [isReady, setIsReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState('');
 
-  // Animation refs
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Post-submit navigation timer, cancelled on unmount (see runThankYouAnimation).
+  const thankYouTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Animation refs.
+  // fadeAnim starts at 1: entrance motion is an enhancement, never the thing
+  // that makes content visible. Starting at 0 meant any path where the
+  // entrance effect did not run left a fully-rendered but invisible screen.
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const starAnimations = useRef([1, 2, 3, 4, 5].map(() => new Animated.Value(1))).current;
@@ -123,9 +140,15 @@ export default function ReviewRatingScreen() {
   useFocusEffect(
     useCallback(() => {
       setIsReady(false);
-      fadeAnim.setValue(0);
       slideAnim.setValue(30);
       scaleAnim.setValue(0.95);
+      setLocalFeedback('');
+
+      // Wipe the previous review before loading this one. initializeReview only
+      // replaces provider and serviceDetails — the `review` object itself
+      // survives, so without this a half-filled rating from the last booking
+      // showed up pre-populated on the next one.
+      dispatch(resetReviewState());
 
       dispatch(
         initializeReview({
@@ -135,9 +158,14 @@ export default function ReviewRatingScreen() {
       );
 
       return () => {
-        // Cleanup if needed
+        // Any pending post-submit navigation belongs to the screen being left,
+        // not to whatever comes next.
+        if (thankYouTimer.current) {
+          clearTimeout(thankYouTimer.current);
+          thankYouTimer.current = null;
+        }
       };
-    }, [bookingId, category, dispatch])
+    }, [bookingId, category, dispatch, slideAnim, scaleAnim])
   );
 
   // Run entrance animations when data is loaded
@@ -197,8 +225,13 @@ export default function ReviewRatingScreen() {
       }),
     ]).start();
 
-    // Navigate to home after delay
-    setTimeout(() => {
+    // Navigate to home after delay.
+    //
+    // The handle is kept so unmount can cancel it. Left dangling, this fired
+    // 3.5s later against whatever screen existed by then — rate one service,
+    // immediately open another, and this timer wiped the second screen's state
+    // and yanked the user to Home mid-review.
+    thankYouTimer.current = setTimeout(() => {
       dispatch(resetReviewState());
       // @ts-ignore
       navigation.navigate('Home');
@@ -291,6 +324,34 @@ export default function ReviewRatingScreen() {
       })
     );
   }, [isReviewValid, dispatch, bookingId, provider, review]);
+
+  // Failed to load. Must come BEFORE the loading branch: a rejection leaves
+  // provider null and isLoading false, which otherwise fell through to the
+  // spinner and span there forever with no way out and nothing explaining why.
+  if (error && !provider) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.loadingContainer}>
+          <View style={styles.errorIcon}>
+            <Ionicons name="cloud-offline-outline" size={32} color="#94A3B8" />
+          </View>
+          <Text style={styles.errorTitle}>Couldn't load this review</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: serviceConfig.accentColor }]}
+            onPress={() => dispatch(initializeReview({ bookingId, category }))}
+          >
+            <Ionicons name="refresh" size={16} color="#FFFFFF" />
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={{ color: '#64748B', fontWeight: '600' }}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Loading state
   if (isLoading || !provider) {
@@ -444,12 +505,14 @@ export default function ReviewRatingScreen() {
         <Text style={styles.providerName}>{provider.name}</Text>
         <Text style={styles.providerService}>{provider.service}</Text>
 
-        <View style={styles.completionInfo}>
-          <Ionicons name="checkmark-done" size={14} color="#10B981" />
-          <Text style={styles.completionText}>
-            Completed {serviceDetails?.completedAt}
-          </Text>
-        </View>
+        {/* The review endpoint sends `completedAt` as a raw ISO instant, which
+            this rendered verbatim — "Completed 2026-09-03T18:22:41.507Z". */}
+        {!!completedAtLabel && (
+          <View style={styles.completionInfo}>
+            <Ionicons name="checkmark-done" size={14} color="#10B981" />
+            <Text style={styles.completionText}>Completed {completedAtLabel}</Text>
+          </View>
+        )}
       </View>
     </Animated.View>
   );
@@ -722,7 +785,10 @@ export default function ReviewRatingScreen() {
             <Text style={styles.totalLabel}>Total Amount</Text>
           </View>
           <Text style={[styles.totalValue, { color: serviceConfig.accentColor }]}>
-            Rs {serviceDetails?.totalAmount.toLocaleString()}
+            {/* The optional chain stopped one level short: a present
+                serviceDetails with a missing totalAmount threw and blanked
+                the screen. */}
+            Rs {serviceDetails?.totalAmount?.toLocaleString() ?? '—'}
           </Text>
         </View>
       </View>
@@ -840,11 +906,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748B',
   },
+  errorIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   header: {
     zIndex: 10,
   },
   headerGradient: {
-    paddingTop: (StatusBar.currentHeight || 0) + 12,
+    // The SafeAreaView already supplies the top inset — see its import.
+    paddingTop: 12,
   },
   headerContent: {
     flexDirection: 'row',

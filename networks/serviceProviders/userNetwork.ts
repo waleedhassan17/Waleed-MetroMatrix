@@ -19,6 +19,9 @@ export interface UserBooking {
   time: string;
   address: string;
   price: number;
+  // Payment is parallel to status, not part of it: a booking can be completed
+  // and still unpaid. The list needs this to offer "Pay now".
+  payment?: { status: 'unpaid' | 'requested' | 'paid' };
   rating?: number;
   review?: string;
   createdAt: string;
