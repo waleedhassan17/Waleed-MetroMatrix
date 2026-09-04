@@ -159,7 +159,17 @@ export const T = {
   title: font(F.displayBold, 26, 32, -0.5),
   /** Section heading. */
   heading: font(F.displaySemibold, 20, 26, -0.3),
-  /** Card title, app-bar title, list-row primary line. */
+  /**
+   * The app bar's own title, and only that.
+   *
+   * It was `subhead` (16) until it was measured against the rest of the app:
+   * healthcare's screen headers are 18 and shopping's page title is 26, so
+   * home services — the one module actually built on this scale — was the only
+   * place whose header read a size smaller than everywhere else. A page header
+   * is not a card title and does not have to share a role with one.
+   */
+  barTitle: font(F.semibold, 18, 24),
+  /** Card title and list-row primary line. */
   subhead: font(F.semibold, 16, 22),
   /** Body copy and most values. */
   body: font(F.regular, 14, 20),

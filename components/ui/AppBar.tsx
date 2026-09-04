@@ -179,10 +179,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    ...T.subhead,
+    ...T.barTitle,
   },
+  // 13, matching the subtitle under healthcare's and shopping's headers. At
+  // `caption` (12) it sat a size below both.
   subtitle: {
-    ...T.caption,
+    ...T.label,
     marginTop: 1,
   },
   badge: {

@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
-import MiniWalletCard from '../../../../../components/MiniWalletCard/MiniWalletCard';
 import {
   AppBar,
   Card,
@@ -31,7 +30,7 @@ import {
   Skeleton,
 } from '../../../../../components/ui';
 import { categoryAccent, HS } from '../../../../../constants/HomeServiceTheme';
-import { C, GUTTER, S, SECTION, T } from '../../../../../constants/theme';
+import { C, GUTTER, S, T } from '../../../../../constants/theme';
 import { RootState } from '../../../../../store/store';
 import {
   fetchHomeData,
@@ -170,9 +169,11 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* One component, one data source, everywhere. */}
-        <MiniWalletCard onPress={() => navigation.navigate('WalletScreen')} />
-
+        {/* The wallet card used to open this screen. It is gone from here on
+            purpose: this is the category picker, and a balance is not what
+            someone opening Home services came to decide. The wallet is still
+            reached from Profile -> Payment Methods and from the account menu,
+            and the card still leads the shopping and healthcare homes. */}
         <SectionHeader
           title="Services"
           subtitle={showSkeletons ? 'Loading' : `${categories.length} available`}
@@ -215,11 +216,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: GUTTER,
     paddingTop: S.lg,
-    // Clears the floating tab bar.
-    paddingBottom: 120,
+    paddingBottom: S.xxxl,
   },
   sectionHeader: {
-    marginTop: SECTION,
     marginBottom: S.md,
   },
 
