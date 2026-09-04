@@ -33,7 +33,16 @@ import {
   selectFavoritesLoading,
 } from './favoritesSlice';
 
-export default function FavoritesScreen() {
+export interface FavoritesScreenProps {
+  /**
+   * True when this is the Saved tab rather than a pushed screen. A tab root has
+   * nothing to go back to, and a chevron that does nothing is worse than no
+   * chevron.
+   */
+  asTab?: boolean;
+}
+
+export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -110,7 +119,12 @@ export default function FavoritesScreen() {
 
   return (
     <Screen>
-      <AppBar title="Saved providers" onBack={() => navigation.goBack()} />
+      <AppBar
+        title="Saved"
+        subtitle={favorites.length ? `${favorites.length} provider${favorites.length === 1 ? '' : 's'}` : undefined}
+        hideBack={asTab}
+        onBack={() => navigation.goBack()}
+      />
 
       {loading && !loaded ? (
         <View style={styles.loading} accessibilityLabel="Loading saved providers">

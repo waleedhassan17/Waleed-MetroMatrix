@@ -35,6 +35,20 @@ export interface ModulePalette {
   accentLine: string;
   /** Text and icons painted ON `accent`. Never assume this is white. */
   onAccent: string;
+  /**
+   * How this module's app bar is painted.
+   *
+   *   'surface'  white ground, ink title — the app bar recedes and the content
+   *              leads. Right for a module whose screens are dense with their
+   *              own colour (a store full of product photography).
+   *   'accent'   the module's own colour, edge to edge. Right for a module that
+   *              wants to announce which part of the app you are in.
+   *
+   * A screen can still override it per instance, but the module's answer is the
+   * default so a header cannot drift screen by screen — which is exactly how
+   * this codebase ended up with seventeen different ones.
+   */
+  barTone: 'surface' | 'accent';
 }
 
 /**
@@ -48,6 +62,8 @@ const neutral: ModulePalette = {
   accentSoft: C.surfaceSunken,
   accentLine: C.line,
   onAccent: C.inkInverse,
+  // Nothing has claimed this part of the app yet, so the bar stays quiet.
+  barTone: 'surface',
 };
 
 /** Clinical blue. Already consolidated in constants/HealthcareTheme.ts. */
@@ -57,6 +73,7 @@ const healthcare: ModulePalette = {
   accentSoft: HC.primaryLight,
   accentLine: HC.accentLight,
   onAccent: HC.textInverse,
+  barTone: 'surface',
 };
 
 /** Service green. Deliberately not the healthcare blue. */
@@ -66,6 +83,9 @@ const homeservice: ModulePalette = {
   accentSoft: HS.accentSoft,
   accentLine: HS.accentLine,
   onAccent: C.inkInverse,
+  // Home services announces itself. The bar is painted in the module green —
+  // see AppBar for why it uses `accentDeep` rather than `accent`.
+  barTone: 'accent',
 };
 
 /** Shopping orange — the default a brand overrides. */
@@ -75,6 +95,10 @@ const shopping: ModulePalette = {
   accentSoft: B.primaryLight,
   accentLine: tint(B.primary, 0.24),
   onAccent: textOn(B.primary),
+  // The brand's own screens keep a white bar: a vendor picks the primary, and
+  // an arbitrary hex behind the page title is where legibility goes wrong.
+  // BrandHeader carries the brand as a stripe instead.
+  barTone: 'surface',
 };
 
 export const MODULE_PALETTES: Record<ModuleName, ModulePalette> = {
@@ -99,6 +123,7 @@ export const brandPalette = (
   primaryColor?: string | null,
   secondaryColor?: string | null,
   accentColor?: string | null,
+  barTone: ModulePalette['barTone'] = 'surface',
 ): ModulePalette | null => {
   if (!primaryColor) return null;
 
@@ -108,6 +133,7 @@ export const brandPalette = (
     accentSoft: tint(primaryColor, 0.1),
     accentLine: tint(primaryColor, 0.28),
     onAccent: textOn(primaryColor),
+    barTone,
     // `accentColor` stays out of the five slots on purpose — it is a highlight
     // (cart badge, sale flag), not a surface. Screens that want it read
     // `useTheme().brandAccent`.

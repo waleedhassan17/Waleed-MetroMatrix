@@ -240,7 +240,7 @@ export default function ProviderProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} />
 
       <ScrollView
         style={styles.scrollView}
@@ -581,7 +581,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: theme.colors.primary,
+    // primaryDark, not primary: this carries the provider's name and their
+    // stats in white. White measures 3.77:1 on HS.accent and fails AA; on
+    // accentDeep it measures 5.48:1. Same call AppBar makes.
+    backgroundColor: theme.colors.primaryDark,
     paddingTop: Platform.OS === 'ios' ? 60 : 45,
     paddingBottom: 35,
     paddingHorizontal: theme.spacing.xl,

@@ -26,6 +26,7 @@ import { setJobCompletionData } from '../job-completion/jobCompletionSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { checkJobApprovalStatus } from '../../../../networks/serviceProviders/jobNetwork';
 import { C, F, T } from '../../../../constants/theme';
+import { AppBar, Screen } from '../../../../components/ui';
 
 type RootStackParamList = {
   JobCompletion: undefined;
@@ -257,17 +258,20 @@ const PaymentRequestScreen: React.FC = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Payment Request</Text>
-        <Text style={styles.headerSubtitle}>
-          {isWaitingPayment ? 'Waiting for payment...' : 'Review and request payment'}
-        </Text>
-      </View>
+    <Screen>
+      <AppBar
+        title="Payment Request"
+        subtitle={isWaitingPayment ? 'Waiting for payment…' : 'Review and request payment'}
+        onBack={() => navigation.goBack()}
+      />
+
+      {/* The keyboard avoider sits INSIDE the screen now. It used to be the
+          root, which is why this screen had no safe-area handling at all and
+          its header sat under the notch. */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
 
       <ScrollView
         style={styles.content}
@@ -450,15 +454,13 @@ const PaymentRequestScreen: React.FC = () => {
           </View>
         )}
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.surfaceSunken,
-  },
+  flex: { flex: 1 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -468,27 +470,6 @@ const styles = StyleSheet.create({
     ...T.subhead,
     color: C.inkMuted,
     fontFamily: F.medium,
-  },
-  header: {
-    backgroundColor: C.surface,
-    paddingTop: 55,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: C.surfaceSunken,
-  },
-  headerTitle: {
-    ...T.heading,
-    fontFamily: F.bold,
-    color: C.ink,
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    ...T.body,
-    fontFamily: F.regular,
-    color: C.inkMuted,
-    textAlign: 'center',
-    marginTop: 4,
   },
   content: {
     flex: 1,

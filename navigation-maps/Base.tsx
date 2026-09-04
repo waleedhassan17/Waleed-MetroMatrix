@@ -1046,3 +1046,49 @@ export const BaseRoutes: IRoute[] = [
   },
 ];
 
+
+// ============================================================================
+// Which vertical a route belongs to.
+//
+// The routes above are a flat list — home services has no stack of its own the
+// way Healthcare and Shopping do — so there is no tree to hang a ThemeProvider
+// on. This map is that tree, expressed as data: BaseNavigator wraps each screen
+// in its module's theme, and a screen pushed from a tab (ProvidersScreen,
+// BookingScreen, JobDetail …) therefore resolves the same green header as the
+// tab it came from, instead of falling back to the neutral root.
+//
+// Only list a route once its screens actually read useTheme(). The
+// admin-side home-service screens (AdminHS*) are deliberately absent: they live
+// under screens/admin, have not been migrated, and would change appearance for
+// no one's benefit.
+// ============================================================================
+export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping'>> = {
+  // Customer
+  [BaseRouteNames.HomeServiceLayout]: 'homeservice',
+  [BaseRouteNames.ProvidersScreen]: 'homeservice',
+  [BaseRouteNames.ProviderProfileScreen]: 'homeservice',
+  [BaseRouteNames.BookingScreen]: 'homeservice',
+  [BaseRouteNames.BookConfirmationScreen]: 'homeservice',
+  [BaseRouteNames.LiveTrackingScreen]: 'homeservice',
+  [BaseRouteNames.ServiceStatusScreen]: 'homeservice',
+  [BaseRouteNames.PaymentScreen]: 'homeservice',
+  [BaseRouteNames.ReviewRatingScreen]: 'homeservice',
+  [BaseRouteNames.AddressManagement]: 'homeservice',
+  [BaseRouteNames.Favorites]: 'homeservice',
+  [BaseRouteNames.BookingDetail]: 'homeservice',
+  [BaseRouteNames.RaiseDispute]: 'homeservice',
+  [BaseRouteNames.HomeServiceNotifications]: 'homeservice',
+
+  // Provider
+  [BaseRouteNames.HomeServiceProviderDashboard]: 'homeservice',
+  [BaseRouteNames.ProviderNotifications]: 'homeservice',
+  [BaseRouteNames.JobDetail]: 'homeservice',
+  [BaseRouteNames.NavigationMap]: 'homeservice',
+  [BaseRouteNames.JobInProgress]: 'homeservice',
+  [BaseRouteNames.AwaitingApproval]: 'homeservice',
+  [BaseRouteNames.PaymentRequest]: 'homeservice',
+  [BaseRouteNames.JobCompletion]: 'homeservice',
+  [BaseRouteNames.ProviderAvailability]: 'homeservice',
+  [BaseRouteNames.ProviderEditProfile]: 'homeservice',
+  [BaseRouteNames.ProviderSettings]: 'homeservice',
+};

@@ -157,7 +157,7 @@ const Header: React.FC<{
         accessibilityRole="button"
         accessibilityLabel="Notifications"
       >
-        <Ionicons name="notifications-outline" size={21} color={C.ink} />
+        <Ionicons name="notifications-outline" size={21} color={C.inkInverse} />
         {(profile.unreadNotifications ?? 0) > 0 && (
           <View style={styles.bellBadge}>
             <Text style={styles.bellBadgeText}>
@@ -537,7 +537,7 @@ export default function Dashboard() {
   const showInitialLoader = loading && !identity.name;
 
   return (
-    <Screen background={C.bg}>
+    <Screen background={C.bg} barStyle="light-content">
       <Header
         profile={identity}
         insetTop={insets.top}
@@ -664,9 +664,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: GUTTER,
     paddingBottom: S.md,
-    backgroundColor: C.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.line,
+    // Painted in the module green like every AppBar in home services, so the
+    // dashboard does not read as a different app from the screens it opens.
+    // `accentDeep`, not `accent`: white measures 5.48:1 on it and 3.77:1 on
+    // the lighter one, and this carries a name at body size.
+    backgroundColor: HS.accentDeep,
   },
   onlineDot: {
     position: 'absolute',
@@ -675,9 +677,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: C.success,
+    // White on the green ground, not green-on-green: C.success and
+    // HS.accentDeep are the same hex, so the old dot vanished into the header
+    // and only its ring was visible.
+    backgroundColor: C.inkInverse,
     borderWidth: 2,
-    borderColor: C.surface,
+    borderColor: HS.accentDeep,
   },
   headerInfo: {
     flex: 1,
@@ -685,11 +690,11 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...T.caption,
-    color: C.inkMuted,
+    color: C.inkInverseSoft,
   },
   userName: {
     ...T.subhead,
-    color: C.ink,
+    color: C.inkInverse,
   },
   credentials: {
     flexDirection: 'row',
@@ -698,7 +703,7 @@ const styles = StyleSheet.create({
   },
   credentialsText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: C.inkInverseSoft,
     marginLeft: 3,
   },
   bell: {
@@ -716,6 +721,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 8,
     backgroundColor: C.error,
+    // Same ring AppBar gives its badge: red loses its edge against the green.
+    borderWidth: 2,
+    borderColor: HS.accentDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },

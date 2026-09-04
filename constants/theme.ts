@@ -38,6 +38,14 @@ export const C = {
   inkFaint: '#A8A29E',
   /** Text on a dark or accent ground. */
   inkInverse: '#FFFFFF',
+  /**
+   * Secondary text on an accent ground — a header subtitle, a greeting above a
+   * name. 90%, not the 70% that looks right: on the home-service bar
+   * (`#047857`) 90% measures 4.78:1 and passes AA, 80% measures 4.11 and does
+   * not. Do not dim it further without re-measuring against the darkest ground
+   * it will sit on.
+   */
+  inkInverseSoft: 'rgba(255, 255, 255, 0.9)',
 
   /** Hairline borders. */
   line: '#E7E5E4',

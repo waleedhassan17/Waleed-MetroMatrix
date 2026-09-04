@@ -24,6 +24,7 @@ import { setNavigationData } from '../map-screen/mapSlice';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppBar, Screen } from '../../../../components/ui';
 
 const { width } = Dimensions.get('window');
 
@@ -182,18 +183,12 @@ const JobDetailScreen: React.FC = () => {
 
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="chevron-left" size={28} color={C.ink} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Job Details</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <Screen>
+      <AppBar
+        title="Job Details"
+        subtitle={accent.label}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView 
         style={styles.content}
@@ -447,15 +442,11 @@ const JobDetailScreen: React.FC = () => {
           <Icon name="chevron-right" size={22} color={C.surface} />
         </TouchableOpacity>
       </View>
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.lineSoft,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -468,33 +459,6 @@ const styles = StyleSheet.create({
 
     color: C.inkMuted,
     fontFamily: F.medium,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: C.line,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.lineSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    ...T.subhead,
-    fontFamily: F.semibold,
-    color: C.ink,
-  },
-  headerRight: {
-    width: 44,
   },
   content: {
     flex: 1,

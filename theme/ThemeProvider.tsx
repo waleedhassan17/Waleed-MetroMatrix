@@ -120,7 +120,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, module, 
     const name = module ?? parent.module;
     const base = MODULE_PALETTES[name] ?? MODULE_PALETTES.neutral;
 
-    const branded = brandPalette(brand?.primaryColor, brand?.secondaryColor, brand?.accentColor);
+    // A brand overrides colours, not layout decisions: whether the app bar is
+    // painted at all stays the module's call, so a brand cannot accidentally
+    // put its own hex behind a page title.
+    const branded = brandPalette(
+      brand?.primaryColor,
+      brand?.secondaryColor,
+      brand?.accentColor,
+      base.barTone,
+    );
 
     // An inherited brand must survive a child provider that only names a
     // module, or dropping into a branded screen's sub-route would silently

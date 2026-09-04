@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   Platform,
+  StatusBar,
   StyleProp,
   StyleSheet,
   Text,
@@ -12,13 +13,31 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C, F, GUTTER, S, T } from '../../constants/theme';
+import { textOn, useTheme } from '../../theme';
 
 /**
  * The one page header.
  *
- * Solid surface with a hairline rule — no gradient. Seven home-service screens
- * used the identical white-to-slate gradient here, a gradient so slight it read
- * as a rendering artefact while still costing a native view.
+ * TWO TONES, CHOSEN BY THE MODULE — NOT BY THE SCREEN
+ * ---------------------------------------------------
+ * `surface` is a white ground with an ink title. `accent` paints the bar in the
+ * module's own colour. Which one a module uses lives in its palette
+ * (`barTone`), so every screen in a vertical agrees without being told; a
+ * screen may still override it, but the default is not its decision. Seventeen
+ * hand-rolled headers that each answered this differently is the thing this
+ * component exists to end.
+ *
+ * WHY `accentDeep` AND NOT `accent`
+ * ---------------------------------
+ * An accent is picked to read AS text on white. It is usually too light to sit
+ * BEHIND text. Home services is the worked example: white on the module accent
+ * `#059669` measures 3.77:1 and fails WCAG AA for body text; on `accentDeep`
+ * `#047857` it measures 5.48:1 and passes. The subtitle is white at 90% —
+ * 4.78:1, still AA — rather than the 70% that would look right and measure 3.1.
+ *
+ * Nothing here is hardcoded to green: it reads whatever the enclosing module or
+ * brand resolves to, and picks its ink with the same contrast helper the brand
+ * theme editor uses.
  */
 export interface AppBarProps {
   title?: string;
@@ -35,6 +54,11 @@ export interface AppBarProps {
   right?: React.ReactNode;
   /** Drop the bottom rule when the content below provides its own edge. */
   borderless?: boolean;
+  /**
+   * Override the module's bar tone for this screen. Use sparingly — a header
+   * that changes between two screens of the same flow reads as a bug.
+   */
+  tone?: 'surface' | 'accent';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -48,19 +72,36 @@ const AppBar: React.FC<AppBarProps> = ({
   rightBadge,
   right,
   borderless,
+  tone,
   style,
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+
+  const accented = (tone ?? colors.barTone) === 'accent';
+  const ground = accented ? colors.accentDeep : C.surface;
+  const ink = accented ? textOn(ground) : C.ink;
+  // Hierarchy by opacity is only safe here because the value was measured.
+  const inkSoft = accented ? C.inkInverseSoft : C.inkMuted;
 
   return (
     <View
       style={[
         styles.bar,
-        { paddingTop: insets.top + S.sm },
-        borderless && styles.borderless,
+        { paddingTop: insets.top + S.sm, backgroundColor: ground },
+        // A coloured bar is its own edge. A rule on top of it is a seam.
+        !accented && !borderless && styles.ruled,
         style,
       ]}
     >
+      {/* Mounted after <Screen>'s StatusBar, so this wins — the status icons
+          have to flip to light or they disappear into a dark bar. */}
+      <StatusBar
+        barStyle={accented ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
+
       <View style={styles.slot}>
         {!hideBack && (
           <TouchableOpacity
@@ -70,19 +111,19 @@ const AppBar: React.FC<AppBarProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={24} color={C.ink} />
+            <Ionicons name="chevron-back" size={24} color={ink} />
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.titles} pointerEvents="none">
         {!!title && (
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, { color: ink }]} numberOfLines={1}>
             {title}
           </Text>
         )}
         {!!subtitle && (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={[styles.subtitle, { color: inkSoft }]} numberOfLines={1}>
             {subtitle}
           </Text>
         )}
@@ -97,9 +138,13 @@ const AppBar: React.FC<AppBarProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
             >
-              <Ionicons name={rightIcon as any} size={22} color={C.ink} />
+              <Ionicons name={rightIcon as any} size={22} color={ink} />
               {!!rightBadge && rightBadge > 0 && (
-                <View style={styles.badge}>
+                // On a coloured bar the red badge loses its edge against the
+                // ground, so it gets a ring in the bar's own colour.
+                <View
+                  style={[styles.badge, accented && { borderWidth: 2, borderColor: ground }]}
+                >
                   <Text style={styles.badgeText}>{rightBadge > 9 ? '9+' : rightBadge}</Text>
                 </View>
               )}
@@ -116,12 +161,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: GUTTER - S.sm,
     paddingBottom: S.md,
-    backgroundColor: C.surface,
+  },
+  ruled: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.line,
-  },
-  borderless: {
-    borderBottomWidth: 0,
   },
   // Equal-width side slots keep the title optically centred whether or not
   // there is a trailing action.
@@ -144,11 +187,9 @@ const styles = StyleSheet.create({
   },
   title: {
     ...T.subhead,
-    color: C.ink,
   },
   subtitle: {
     ...T.caption,
-    color: C.inkMuted,
     marginTop: 1,
   },
   badge: {

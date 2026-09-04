@@ -1,7 +1,7 @@
 // ============================================================================
 // Home services — tab shell
 //
-// Two tabs, so the bar's only job is to say which one you are on. Selection is
+// Three tabs, so the bar's only job is to say which one you are on. Selection is
 // carried by the accent fill, the icon's filled/outline variant AND the label
 // weight — three signals, none of them motion. The spring-scale-on-focus and
 // press-scale animations are gone: a tab bar that bounces every time you switch
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, R, S, T } from '../../../../constants/theme';
 import { ThemeProvider } from '../../../../theme';
+import FavoritesScreen from '../favorites/FavoritesScreen';
 import BookingsScreen from './booking-screen/booking';
 import HomeScreen from './home-screen/index';
 
@@ -25,7 +26,18 @@ const Tab = createBottomTabNavigator();
 const ICONS: Record<string, { on: string; off: string }> = {
   index: { on: 'home', off: 'home-outline' },
   bookings: { on: 'calendar', off: 'calendar-outline' },
+  saved: { on: 'heart', off: 'heart-outline' },
 };
+
+/**
+ * Declared at module scope, not inline in Tab.Screen. An arrow function in the
+ * render body is a new component type every render, which makes React
+ * Navigation remount the screen and lose its scroll position and its data.
+ *
+ * Saved providers are also reachable from the account menu, where the screen IS
+ * pushed and does need a back chevron — hence the flag rather than two copies.
+ */
+const SavedTab: React.FC = () => <FavoritesScreen asTab />;
 
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -85,6 +97,11 @@ const TabLayout: React.FC = () => (
         name="bookings"
         component={BookingsScreen}
         options={{ title: 'Bookings', tabBarAccessibilityLabel: 'Bookings' }}
+      />
+      <Tab.Screen
+        name="saved"
+        component={SavedTab}
+        options={{ title: 'Saved', tabBarAccessibilityLabel: 'Saved providers' }}
       />
     </Tab.Navigator>
   </ThemeProvider>

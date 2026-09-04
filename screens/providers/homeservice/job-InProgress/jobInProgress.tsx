@@ -20,6 +20,7 @@ import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice'
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppBar, Screen } from '../../../../components/ui';
 
 type RootStackParamList = {
   AwaitingApproval: undefined;
@@ -214,16 +215,12 @@ const JobInProgressScreen: React.FC = () => {
   });
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            {workStarted ? 'Work In Progress' : 'Ready to Start'}
-          </Text>
-          <Text style={styles.headerSubtitle}>{serviceType}</Text>
-        </View>
-      </View>
+    <Screen>
+      <AppBar
+        title={workStarted ? 'Work In Progress' : 'Ready to Start'}
+        subtitle={serviceType}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={styles.content}
@@ -414,15 +411,11 @@ const JobInProgressScreen: React.FC = () => {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: C.bg,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -432,33 +425,6 @@ const styles = StyleSheet.create({
     ...T.subhead,
     color: C.inkMuted,
     fontFamily: F.medium,
-  },
-  header: {
-    backgroundColor: C.surface,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: C.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  headerContent: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    ...T.heading,
-    fontFamily: F.bold,
-    color: C.ink,
-  },
-  headerSubtitle: {
-    ...T.body,
-    fontFamily: F.regular,
-    color: C.inkMuted,
-    marginTop: 4,
   },
   content: {
     flex: 1,

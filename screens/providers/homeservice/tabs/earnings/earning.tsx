@@ -9,13 +9,11 @@ import {
   Animated,
   Dimensions,
   Platform,
-  StatusBar,
   Modal,
   TextInput,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   DollarSign,
   TrendingUp,
@@ -53,6 +51,7 @@ import {
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
 import { C, F, T } from '../../../../../constants/theme';
+import { AppBar, Screen } from '../../../../../components/ui';
 
 const { width } = Dimensions.get('window');
 
@@ -485,22 +484,19 @@ export default function EarningsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Earnings</Text>
-          <Text style={styles.headerSubtitle}>Financial overview</Text>
-        </View>
+    <Screen>
+      <AppBar
+        title="Earnings"
+        subtitle="Financial overview"
+        hideBack
+        right={
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => setShowPeriodFilter(true)}
             accessibilityLabel="Filter earnings by period"
           >
-            <Filter size={20} color={theme.colors.text.secondary} />
+            <Filter size={20} color={C.inkInverse} />
           </TouchableOpacity>
           {/* Export is not built yet. A disabled, dimmed control is honest;
               a tappable one that does nothing is the bug QA reported. */}
@@ -509,10 +505,11 @@ export default function EarningsScreen() {
             disabled
             accessibilityLabel="Download earnings report (coming soon)"
           >
-            <Download size={20} color={theme.colors.text.tertiary} />
+            <Download size={20} color={C.disabled} />
           </TouchableOpacity>
         </View>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -616,7 +613,7 @@ export default function EarningsScreen() {
 
       <PayoutModal />
       <PeriodFilterModal />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -685,29 +682,6 @@ const styles = StyleSheet.create({
   periodOptionTextActive: {
     color: theme.colors.primaryDark,
     fontFamily: F.semibold,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    ...T.title,
-    color: theme.colors.text.primary,
-    marginBottom: 4,
   },
   headerSubtitle: {
     ...T.body,

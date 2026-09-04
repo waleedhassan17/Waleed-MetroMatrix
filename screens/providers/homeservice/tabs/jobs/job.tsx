@@ -7,13 +7,11 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  StatusBar,
   RefreshControl,
   Platform,
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getSocket } from '../../../../../services/socket/socketClient';
 import {
@@ -44,6 +42,7 @@ import {
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
 import { C, F, T } from '../../../../../constants/theme';
+import { AppBar, Screen } from '../../../../../components/ui';
 
 const { width } = Dimensions.get('window');
 
@@ -344,23 +343,20 @@ const JobsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
-
-      {/* Header - Matching reference */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {/* These two strings were copied verbatim from the CUSTOMER
-              bookings screen. A provider does not have bookings — they have
-              jobs, and they are not "managing appointments", they are working
-              them. */}
-          <Text style={styles.headerTitle}>Jobs</Text>
-          <Text style={styles.headerSubtitle}>Today's work and new requests</Text>
-        </View>
-        <TouchableOpacity style={styles.filterButton}>
-          <Sliders size={20} color={theme.colors.text.primary} />
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      {/* These two strings were copied verbatim from the CUSTOMER bookings
+          screen. A provider does not have bookings — they have jobs, and they
+          are not "managing appointments", they are working them. */}
+      <AppBar
+        title="Jobs"
+        subtitle="Today's work and new requests"
+        hideBack
+        right={
+          <TouchableOpacity style={styles.filterButton} accessibilityRole="button">
+            <Sliders size={20} color={C.inkInverse} />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Filter Tabs - Matching reference design */}
       <View style={styles.filterContainer}>
@@ -455,32 +451,11 @@ const JobsScreen: React.FC = () => {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.background,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    ...T.title,
-    color: theme.colors.text.primary,
-    marginBottom: 4,
-  },
   headerSubtitle: {
     ...T.body,
 
