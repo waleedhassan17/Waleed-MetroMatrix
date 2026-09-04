@@ -8,6 +8,7 @@ import {
   RouteInfo,
   Coordinates,
 } from '../../models/serviceProviders';
+import { toServiceCategory } from './commonSerializer';
 
 export function trackingProviderSerializer(data: any): TrackingProvider {
   return {
@@ -21,7 +22,7 @@ export function trackingProviderSerializer(data: any): TrackingProvider {
     reviews: data?.reviews || 0,
     experience: data?.experience || '',
     verified: data?.verified ?? false,
-    category: data?.category || 'electricians',
+    category: toServiceCategory(data?.category),
   };
 }
 

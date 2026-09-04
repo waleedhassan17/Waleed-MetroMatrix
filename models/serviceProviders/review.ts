@@ -12,7 +12,9 @@ export interface ReviewProvider {
   id: string;
   name: string;
   image: string;
-  category: 'electricians' | 'plumbers' | 'ac-repairers';
+  /** Undefined when the server could not resolve the provider's trade.
+   *  Never guess a value here — see toServiceCategory(). */
+  category?: 'electricians' | 'plumbers' | 'ac-repairers';
 }
 
 export interface ReviewServiceDetails {

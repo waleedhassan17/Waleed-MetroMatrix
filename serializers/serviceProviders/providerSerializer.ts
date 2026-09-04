@@ -12,6 +12,7 @@ import {
   Coordinates,
 } from '../../models/serviceProviders';
 import { reviewSerializer } from './reviewSerializer';
+import { toServiceCategory } from './commonSerializer';
 
 export function providerSerializer(data: any): Provider {
   return {
@@ -32,7 +33,10 @@ export function providerSerializer(data: any): Provider {
     bio: data?.bio || data?.briefDescription || '',
     address: data?.address || '',
     city: data?.city || '',
-    category: data?.category || data?.providerType || 'electricians',
+    // `providerType` is 'home_service', never a category slug — the old
+    // fallback chain could therefore also yield a value that is not a
+    // category at all.
+    category: toServiceCategory(data?.category),
     skills: data?.skills || [],
     certifications: data?.certifications || [],
     languages: data?.languages || [],

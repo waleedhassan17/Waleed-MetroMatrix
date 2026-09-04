@@ -9,6 +9,7 @@ import {
   Booking,
   BookingConfirmation,
 } from '../../models/serviceProviders';
+import { toServiceCategory } from './commonSerializer';
 
 export function savedAddressSerializer(data: any): SavedAddress {
   return {
@@ -47,7 +48,7 @@ export function bookingProviderSerializer(data: any): BookingProvider {
     isOnline: data?.isOnline ?? false,
     responseTime: data?.responseTime || '',
     basePrice: data?.basePrice || data?.price || 0,
-    category: data?.category || 'electricians',
+    category: toServiceCategory(data?.category),
   };
 }
 

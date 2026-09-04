@@ -7,6 +7,7 @@ import {
 } from '../../../../networks/serviceProviders/providerNetwork';
 import { providerDetailsSerializer } from '../../../../serializers/serviceProviders';
 import type { ProviderDetails } from '../../../../models/serviceProviders';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
 
 export interface Provider {
   id: string;
@@ -69,7 +70,10 @@ const mapApiProviderToLocal = (apiData: ProviderDetails): Provider => ({
   id: apiData.id,
   name: apiData.name,
   email: apiData.email,
-  category: apiData.category,
+  // The label, not the slug: this renders as the provider's trade under their
+  // name, and 'ac-repairers' is not how anyone says it. An unresolved category
+  // yields the neutral 'Service' rather than someone else's trade.
+  category: categoryAccent(apiData.category).label,
   location: apiData.address,
   profileImage: apiData.image,
   jobsDone: apiData.completedJobs,

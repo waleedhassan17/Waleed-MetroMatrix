@@ -25,7 +25,9 @@ export interface Provider {
   bio: string;
   address: string;
   city: string;
-  category: 'electricians' | 'plumbers' | 'ac-repairers';
+  /** Undefined when the server could not resolve the provider's trade.
+   *  Never guess a value here — see toServiceCategory(). */
+  category?: 'electricians' | 'plumbers' | 'ac-repairers';
   skills: string[];
   certifications: string[];
   languages: string[];

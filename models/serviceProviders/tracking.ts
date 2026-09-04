@@ -15,7 +15,9 @@ export interface TrackingProvider {
   reviews: number;
   experience: string;
   verified: boolean;
-  category: 'electricians' | 'plumbers' | 'ac-repairers';
+  /** Undefined when the server could not resolve the provider's trade.
+   *  Never guess a value here — see toServiceCategory(). */
+  category?: 'electricians' | 'plumbers' | 'ac-repairers';
 }
 
 export interface TrackingStatus {

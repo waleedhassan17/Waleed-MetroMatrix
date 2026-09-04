@@ -7,6 +7,7 @@ import {
   ReviewData,
   SubmittedReview,
 } from '../../models/serviceProviders';
+import { toServiceCategory } from './commonSerializer';
 
 export function reviewSerializer(data: any): Review {
   return {
@@ -29,7 +30,7 @@ export function reviewDataSerializer(payload: any): ReviewData {
       id: payload?.provider?.id || '',
       name: payload?.provider?.name || '',
       image: payload?.provider?.image || '',
-      category: payload?.provider?.category || 'electricians',
+      category: toServiceCategory(payload?.provider?.category),
     },
     serviceDetails: {
       type: payload?.serviceDetails?.type || '',
