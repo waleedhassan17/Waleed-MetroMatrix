@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ShoppingBag, Star, ChevronRight, Heart, Check, ClipboardList } from 'lucide-react-native';
+import { ShoppingBag, Star, ChevronRight, Heart, Check, User } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
@@ -432,14 +432,23 @@ const BrandListScreen: React.FC = () => {
         // stranded here with no way out except the OS gesture.
         showBack
         rightContent={
-          // The per-brand tabs only show that brand's orders, so the full
-          // cross-brand history needs a way in from the brand chooser.
+          // The account, painted in shopping's own orange — the profile screen
+          // is registered once on the Base stack and takes its module from
+          // whoever opened it.
+          //
+          // This slot used to hold an orders shortcut, which was the only
+          // lasting way into the cross-brand history (the per-brand tabs show
+          // one store each). That entry did not disappear with it: it is now a
+          // My Orders row inside the profile, which is where an account-level
+          // list belongs anyway.
           <TouchableOpacity
             style={styles.headerBtn}
-            onPress={() => navigation.navigate(ShoppingRouteNames.MyOrders, { allBrands: true })}
+            onPress={() => navigation.navigate('UserProfileScreen', { module: 'shopping' })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Your profile"
           >
-            <ClipboardList size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
+            <User size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
           </TouchableOpacity>
         }
         showSearch={true}

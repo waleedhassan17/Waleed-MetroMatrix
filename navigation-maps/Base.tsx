@@ -296,7 +296,17 @@ export type RootStackParamList = {
   UserWalletScreen: undefined;
   TransactionHistoryScreen: undefined;
   ProviderWalletScreen: undefined;
-  UserProfileScreen: undefined;
+  // One screen, opened from three verticals. `module` is how the caller says
+  // which accent to wear — the screen is registered once here, so RouteModules
+  // cannot answer that. Omitting it inherits the enclosing module.
+  // This was `undefined` while SlideOutSidebar was already passing `{ tab }`.
+  UserProfileScreen:
+    | {
+        module?: 'neutral' | 'healthcare' | 'homeservice' | 'shopping';
+        asTab?: boolean;
+        tab?: 'overview' | 'addresses' | 'settings';
+      }
+    | undefined;
   
   // Verification
   VerifySuccess: {

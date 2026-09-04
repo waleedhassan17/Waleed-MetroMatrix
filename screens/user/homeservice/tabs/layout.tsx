@@ -1,7 +1,7 @@
 // ============================================================================
 // Home services — tab shell
 //
-// Three tabs, so the bar's only job is to say which one you are on. Selection is
+// Four tabs, so the bar's only job is to say which one you are on. Selection is
 // carried by the accent fill, the icon's filled/outline variant AND the label
 // weight — three signals, none of them motion. The spring-scale-on-focus and
 // press-scale animations are gone: a tab bar that bounces every time you switch
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, R, S, T } from '../../../../constants/theme';
 import { ThemeProvider } from '../../../../theme';
+import UserProfileScreen from '../../shared/profile/UserProfileScreen';
 import FavoritesScreen from '../favorites/FavoritesScreen';
 import BookingsScreen from './booking-screen/booking';
 import HomeScreen from './home-screen/index';
@@ -27,6 +28,7 @@ const ICONS: Record<string, { on: string; off: string }> = {
   index: { on: 'home', off: 'home-outline' },
   bookings: { on: 'calendar', off: 'calendar-outline' },
   saved: { on: 'heart', off: 'heart-outline' },
+  profile: { on: 'person', off: 'person-outline' },
 };
 
 /**
@@ -102,6 +104,15 @@ const TabLayout: React.FC = () => (
         name="saved"
         component={SavedTab}
         options={{ title: 'Saved', tabBarAccessibilityLabel: 'Saved providers' }}
+      />
+      {/* The shared account screen. `module` keeps it in the service green it
+          used to be hardcoded to, and `asTab` drops its back chevron — a tab
+          root has nothing to go back to. */}
+      <Tab.Screen
+        name="profile"
+        component={UserProfileScreen}
+        initialParams={{ module: 'homeservice', asTab: true } as any}
+        options={{ title: 'Profile', tabBarAccessibilityLabel: 'Your profile' }}
       />
     </Tab.Navigator>
   </ThemeProvider>

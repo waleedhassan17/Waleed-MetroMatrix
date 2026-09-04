@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import HealthcareHomeScreen from '../home/healthcareHome';
 import MyAppointmentsScreen from '../MyAppointments/MyAppointmentsScreen';
 import HealthRecordsScreen from '../health-records/healthRecords';
-import DoctorSearchScreen from '../doctor-search/doctorSearch';
+import UserProfileScreen from '../../shared/profile/UserProfileScreen';
 
 // ── Blue Healthcare Palette ─────────────────
 const COLORS = {
@@ -34,7 +34,7 @@ type TabParamList = {
   HealthHome: undefined;
   Appointments: undefined;
   Records: undefined;
-  FindDoctor: undefined;
+  Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -44,7 +44,10 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
   HealthHome:   { label: 'Home',         icon: 'home-outline',          iconFocused: 'home' },
   Appointments: { label: 'Appointments', icon: 'calendar-outline',      iconFocused: 'calendar' },
   Records:      { label: 'Records',      icon: 'document-text-outline', iconFocused: 'document-text' },
-  FindDoctor:   { label: 'Find Doctor',  icon: 'search-outline',        iconFocused: 'search' },
+  // Find Doctor gave up this slot: it is reached from the search control on the
+  // Home tab, from My Appointments and from the Symptom Checker, so it was the
+  // fourth way into one screen, while the account had none at all.
+  Profile:      { label: 'Profile',      icon: 'person-outline',        iconFocused: 'person' },
 };
 
 // ── Animated Tab Icon ───────────────────────
@@ -141,7 +144,14 @@ const HealthcareTabNavigator: React.FC = () => {
       <Tab.Screen name="HealthHome" component={HealthcareHomeScreen} initialParams={{ isTab: true } as any} />
       <Tab.Screen name="Appointments" component={MyAppointmentsScreen} initialParams={{ isTab: true } as any} />
       <Tab.Screen name="Records" component={HealthRecordsScreen} initialParams={{ isTab: true } as any} />
-      <Tab.Screen name="FindDoctor" component={DoctorSearchScreen} initialParams={{ isTab: true } as any} />
+      {/* The shared account screen. `module` is what paints it clinical blue
+          instead of the green it is hardcoded to nowhere any more, and `asTab`
+          drops its back chevron — a tab root has nothing to go back to. */}
+      <Tab.Screen
+        name="Profile"
+        component={UserProfileScreen}
+        initialParams={{ module: 'healthcare', asTab: true } as any}
+      />
     </Tab.Navigator>
   );
 };
