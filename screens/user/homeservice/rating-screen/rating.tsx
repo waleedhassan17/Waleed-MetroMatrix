@@ -130,14 +130,19 @@ export default function ReviewRatingScreen() {
     }, [bookingId, category, dispatch])
   );
 
-  // Leave the confirmation on screen briefly, then go home. The handle is kept
-  // so unmount can cancel it: left dangling, this fired 3.5s later against
-  // whatever screen existed by then.
+  // Leave the confirmation on screen briefly, then return to the home-service
+  // tabs. The handle is kept so unmount can cancel it: left dangling, this
+  // fired later against whatever screen existed by then.
+  //
+  // This used to navigate to 'Home', which is not a registered route — the
+  // route map has UserHome and HomeServiceLayout, no bare 'Home' — so
+  // finishing a review left the customer sitting on the confirmation with no
+  // way forward but the back button.
   useEffect(() => {
     if (submissionStatus !== 'submitted') return;
     thankYouTimer.current = setTimeout(() => {
       dispatch(resetReviewState());
-      navigation.navigate('Home');
+      navigation.navigate('HomeServiceLayout');
     }, 2500);
   }, [submissionStatus, dispatch, navigation]);
 

@@ -33,6 +33,7 @@ import {
   Avatar,
   Button,
   Card,
+  EmptyState,
   Screen,
   SectionHeader,
   Skeleton,
@@ -117,18 +118,11 @@ export default function PaymentScreen() {
     }, [bookingId, category, paymentData, dispatch])
   );
 
-  useEffect(() => {
-    if (paymentStatus === 'completed') {
-      navigation.navigate('PaymentSuccess', {
-        category,
-        bookingId,
-        amount: formattedAmount,
-        method: selectedMethod,
-        recipient: recipient?.name,
-        transactionId: 'TXN-' + Date.now(),
-      });
-    }
-  }, [paymentStatus]);
+  // A completed payment used to navigate to a PaymentSuccess route. No such
+  // screen exists anywhere in the app and it was never registered, so the one
+  // moment the customer most needs confirming — their money has moved — did
+  // nothing at all: the button stopped spinning and the screen sat there.
+  // The success state is rendered here instead, with the next step attached.
 
   const handleBackPress = useCallback(() => {
     // A payment in flight must not be abandoned mid-request; the chevron is
@@ -159,6 +153,30 @@ export default function PaymentScreen() {
           <Skeleton width="100%" height={92} radius={R.card} />
           <Skeleton width="100%" height={200} radius={R.card} style={styles.loadingGap} />
           <Skeleton width="100%" height={140} radius={R.card} style={styles.loadingGapSm} />
+        </View>
+      </Screen>
+    );
+  }
+
+  // Paid. This is the screen's terminal state — the back chevron is gone
+  // because there is nothing to go back and change.
+  if (paymentStatus === 'completed') {
+    return (
+      <Screen>
+        <AppBar title="Payment" hideBack />
+        <EmptyState
+          icon="checkmark-circle-outline"
+          title="Payment sent"
+          message={`${formattedAmount} is on its way to ${recipient.name}.`}
+          actionLabel="Rate this service"
+          onAction={() => navigation.navigate('ReviewRating', { bookingId, category })}
+        />
+        <View style={styles.secondaryAction}>
+          <Button
+            label="Back to bookings"
+            variant="ghost"
+            onPress={() => navigation.navigate('HomeServiceLayout')}
+          />
         </View>
       </Screen>
     );
@@ -587,6 +605,10 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
   },
 
+  secondaryAction: {
+    paddingHorizontal: GUTTER,
+    marginTop: -S.lg,
+  },
   footer: {
     paddingHorizontal: GUTTER,
     paddingTop: S.md,
