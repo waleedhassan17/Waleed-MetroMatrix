@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { bookingStatus } from '../../constants/HomeServiceTheme';
-import { R, S, T } from '../../constants/theme';
+import { F, R, S, T } from '../../constants/theme';
 
 /**
  * The ONE status indicator.
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: R.chip,
   },
   icon: { marginRight: 4 },
-  textSm: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  textSm: { fontFamily: F.semibold, fontSize: 11, lineHeight: 14 },
 });
 
 export default StatusPill;

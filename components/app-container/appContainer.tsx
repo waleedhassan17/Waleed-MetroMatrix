@@ -58,7 +58,16 @@ const NotificationRouter: React.FC = () => {
 /**
  * Main App Container Component
  */
-export const AppContainer: React.FC = () => {
+interface AppContainerProps {
+  /**
+   * Fired when the root view has laid out. App.tsx uses it to drop the native
+   * splash exactly as the first real frame paints, so there is no gap where a
+   * blank root is visible between the splash and the UI.
+   */
+  onLayout?: () => void;
+}
+
+export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   const dispatch = useAppDispatch();
   
   // Use selectors with proper root state access
@@ -133,10 +142,12 @@ export const AppContainer: React.FC = () => {
     registerForPushNotifications();
   }, [currentUser, currentProvider]);
 
-  // Show loading screen while app is initializing
+  // Show loading screen while app is initializing.
+  // `onLayout` fires here too: if init stalls, the native splash must still come
+  // down and show this spinner rather than leaving the app apparently frozen.
   if (!isAppReady || status === 'loading') {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.loadingContainer} onLayout={onLayout}>
         <ActivityIndicator size="large" color={White} />
       </View>
     );
@@ -252,7 +263,7 @@ export const AppContainer: React.FC = () => {
   };
 
   return (
-    <GestureHandlerRootView style={styles.gestureStyle}>
+    <GestureHandlerRootView style={styles.gestureStyle} onLayout={onLayout}>
       <SafeAreaProvider>
         <StatusBar style="light" />
         <NavigationContainer ref={navigationRef} linking={linking}>

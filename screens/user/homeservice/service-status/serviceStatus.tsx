@@ -45,7 +45,7 @@ import {
   Skeleton,
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';
 import { contactSupport } from '../../../../utils/support/contactSupport';
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   },
   stepLabelDone: {
     color: C.ink,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
 
   cardTitle: {

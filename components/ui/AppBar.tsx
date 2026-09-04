@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { C, GUTTER, S, T } from '../../constants/theme';
+import { C, F, GUTTER, S, T } from '../../constants/theme';
 
 /**
  * The one page header.
@@ -165,9 +165,9 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: C.inkInverse,
+    fontFamily: F.bold,
     fontSize: 10,
     lineHeight: Platform.OS === 'ios' ? 13 : 14,
-    fontWeight: '700',
   },
 });
 

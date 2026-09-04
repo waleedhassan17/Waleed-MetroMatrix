@@ -30,7 +30,7 @@ import {
   Skeleton,
 } from '../../../../components/ui';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
 import {
   addUserAddress,
   deleteUserAddress,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   defaultChipText: {
     ...T.caption,
     color: HS.accentDeep,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
   cardAddress: {
     ...T.body,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: HS.accentDeep,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
   input: {
     height: 46,

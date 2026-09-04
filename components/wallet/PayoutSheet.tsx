@@ -32,6 +32,7 @@ import {
 import type { WalletState } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { F } from '../../constants/theme';
 
 interface PayoutSheetProps {
   visible: boolean;
@@ -324,7 +325,7 @@ const SuccessRow: React.FC<{
     <Text
       style={[
         styles.successRowValue,
-        monospace && { fontFamily: 'monospace', fontSize: 11, color: Colors.text.secondary },
+        monospace && { fontFamily: F.mono, fontSize: 11, color: Colors.text.secondary },
         capitalize && { textTransform: 'capitalize' },
       ]}
       numberOfLines={1}

@@ -43,7 +43,7 @@ import {
   Skeleton,
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -368,7 +368,7 @@ export default function ReviewRatingScreen() {
                 <Text
                   style={[
                     styles.recommendText,
-                    review?.wouldRecommend === true && { color: C.success, fontWeight: '600' },
+                    review?.wouldRecommend === true && { color: C.success, fontFamily: F.semibold },
                   ]}
                 >
                   Yes
@@ -390,7 +390,7 @@ export default function ReviewRatingScreen() {
                 <Text
                   style={[
                     styles.recommendText,
-                    review?.wouldRecommend === false && { color: C.error, fontWeight: '600' },
+                    review?.wouldRecommend === false && { color: C.error, fontFamily: F.semibold },
                   ]}
                 >
                   No
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   },
   tagTextSelected: {
     color: HS.accentDeep,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
 
   feedback: {

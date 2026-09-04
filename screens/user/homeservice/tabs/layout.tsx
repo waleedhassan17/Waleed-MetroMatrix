@@ -15,7 +15,7 @@ import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, R, S, T } from '../../../../constants/theme';
+import { C, F, R, S, T } from '../../../../constants/theme';
 import BookingsScreen from './booking-screen/booking';
 import HomeScreen from './home-screen/index';
 
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   labelActive: {
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
 });
 

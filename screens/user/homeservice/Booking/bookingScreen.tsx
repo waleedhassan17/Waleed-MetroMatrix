@@ -37,7 +37,7 @@ import {
   Skeleton,
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { C, F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';
 import {
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   timeSlotTextSelected: {
     color: HS.accentDeep,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
   timeSlotTextDisabled: {
     color: C.disabled,

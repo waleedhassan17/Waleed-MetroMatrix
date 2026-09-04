@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Image, ImageStyle, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { C, R } from '../../constants/theme';
+import { C, F, R } from '../../constants/theme';
 import { initialsOf } from '../../utils/homeservice/format';
 
 /**
@@ -53,8 +53,8 @@ const Avatar: React.FC<AvatarProps> = ({ uri, name, size = 40, tint, color, styl
       {initials ? (
         <Text
           style={{
+            fontFamily: F.semibold,
             fontSize: Math.round(size * 0.36),
-            fontWeight: '600',
             color: color ?? C.inkMuted,
           }}
         >

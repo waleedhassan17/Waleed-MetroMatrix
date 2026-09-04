@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 import { HS } from '../../constants/HomeServiceTheme';
-import { C, R, S, T } from '../../constants/theme';
+import { C, F, R, S, T } from '../../constants/theme';
 
 /**
  * Filter / segmented-control chip.
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   icon: { marginRight: 6 },
-  selectedText: { fontWeight: '600' },
+  selectedText: { fontFamily: F.semibold },
   count: {
     marginLeft: 6,
     minWidth: 18,
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countSelected: { backgroundColor: C.surface },
-  countText: { fontSize: 11, fontWeight: '600' },
+  countText: { fontFamily: F.semibold, fontSize: 11 },
 });
 
 export default Chip;

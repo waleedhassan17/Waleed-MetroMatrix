@@ -93,6 +93,38 @@ export const R = {
   pill: 999,
 } as const;
 
+// ── Font families ───────────────────────────────────────────────────────────
+//
+// Inter carries the UI; Sora carries the large headings. Two families is the
+// most a product this size should have — Inter alone reads as unstyled default,
+// and a third face starts costing more than it says.
+//
+// The values are the exact names `useFonts` registers in App.tsx (the
+// @expo-google-fonts export identifiers). They are NOT CSS family names and
+// there is no synthesis: `Inter_700Bold` is a distinct loaded face, not Inter
+// plus a bold instruction.
+//
+// WHY NOTHING BELOW SETS `fontWeight`
+// -----------------------------------
+// With a named face, `fontWeight` is at best redundant and at worst harmful:
+// Android will synthesise a fake bold ON TOP of an already-bold file, giving a
+// smeared, too-heavy header that looks nothing like iOS. To change weight,
+// change the family — `fontFamily: F.semibold`, never `fontWeight: '600'`.
+
+export const F = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+
+  /** Display face. Headings only — it has no regular weight loaded. */
+  displaySemibold: 'Sora_600SemiBold',
+  displayBold: 'Sora_700Bold',
+
+  /** Reference codes, transaction ids — anything meant to be compared by eye. */
+  mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) as string,
+} as const;
+
 // ── Type scale ──────────────────────────────────────────────────────────────
 //
 // No `overline` / ALL-CAPS eyebrow role exists here on purpose: a stacked
@@ -100,33 +132,35 @@ export const R = {
 // was the loudest generated tell on the old screens. If a section needs a name,
 // it gets `heading`.
 //
-// The app loads no custom fonts (expo-font is not a dependency), so weight,
-// size and line-height do all the work. That means they have to be deliberate.
+// Sora is wider than Inter at the same size, so the display roles carry more
+// negative tracking than they did when both were the system face.
 
 const font = (
+  fontFamily: string,
   fontSize: number,
   lineHeight: number,
-  fontWeight: TextStyle['fontWeight'],
   letterSpacing = 0,
-): TextStyle => ({ fontSize, lineHeight, fontWeight, letterSpacing });
+): TextStyle => ({ fontFamily, fontSize, lineHeight, letterSpacing });
 
 export const T = {
   /** Screen-owning numbers: earnings totals, a paid amount. Rare. */
-  display: font(34, 40, '700', -0.6),
+  display: font(F.displayBold, 34, 40, -0.8),
   /** Page title inside content (not the app bar). */
-  title: font(26, 32, '700', -0.4),
+  title: font(F.displayBold, 26, 32, -0.5),
   /** Section heading. */
-  heading: font(20, 26, '600', -0.2),
+  heading: font(F.displaySemibold, 20, 26, -0.3),
   /** Card title, app-bar title, list-row primary line. */
-  subhead: font(16, 22, '600'),
+  subhead: font(F.semibold, 16, 22),
   /** Body copy and most values. */
-  body: font(14, 20, '400'),
+  body: font(F.regular, 14, 20),
   /** Body weight-shifted for emphasis — prices, selected values. */
-  bodyStrong: font(14, 20, '600'),
+  bodyStrong: font(F.semibold, 14, 20),
   /** Control labels, chips, buttons. */
-  label: font(13, 16, '500'),
+  label: font(F.medium, 13, 16),
   /** Metadata, timestamps, helper text. */
-  caption: font(12, 16, '400'),
+  caption: font(F.regular, 12, 16),
+  /** Codes and ids. Tabular by nature — never body copy. */
+  mono: font(F.mono, 13, 18),
 } as const;
 
 /**

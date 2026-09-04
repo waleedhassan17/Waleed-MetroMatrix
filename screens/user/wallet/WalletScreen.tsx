@@ -51,6 +51,7 @@ import {
 import type { WalletState } from '../../../services/wallet';
 import type { WalletTransaction, ConnectStatus } from '../../../models/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Colors';
+import { F } from '../../../constants/theme';
 import { KeyForStorage, retrieveData } from '../../../utils/storage_utils/storageUtils';
 import TransferSheet from '../../../components/wallet/TransferSheet';
 import PayoutSheet from '../../../components/wallet/PayoutSheet';
@@ -1557,7 +1558,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   detailRowValueMono: {
-    fontFamily: 'monospace',
+    // `'monospace'` is an Android-only family name; iOS silently fell back to
+    // the proportional face, so reference codes did not line up there.
+    fontFamily: F.mono,
     fontSize: 11,
     color: Colors.text.secondary,
   },

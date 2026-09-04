@@ -32,6 +32,7 @@ import {
 import type { WalletState, CounterpartyType } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { F } from '../../constants/theme';
 
 interface TransferSheetProps {
   visible: boolean;
@@ -364,7 +365,7 @@ const SuccessRow: React.FC<{ label: string; value: string; monospace?: boolean }
     <Text
       style={[
         styles.successRowValue,
-        monospace && { fontFamily: 'monospace', fontSize: 11, color: Colors.text.secondary },
+        monospace && { fontFamily: F.mono, fontSize: 11, color: Colors.text.secondary },
       ]}
       numberOfLines={1}
       ellipsizeMode="middle"
