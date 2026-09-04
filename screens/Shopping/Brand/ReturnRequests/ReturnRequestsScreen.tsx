@@ -22,9 +22,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 // Theme-parameterised for the same reason the stylesheet is: 'Picked Up' is
 // carried by the brand's own colour, and these maps live at module scope where
@@ -124,7 +122,7 @@ const ReturnRequestsScreen: React.FC = () => {
                     style={[styles.actionBtn, { backgroundColor: action.color }]}
                     onPress={() => handleTransition(request.requestId, action.status)}
                   >
-                    <Icon size={14} stroke="#FFF" strokeWidth={2} />
+                    <Icon size={14} stroke={C.surface} strokeWidth={2} />
                     <Text style={styles.actionText}>{action.label}</Text>
                   </TouchableOpacity>
                 );
@@ -209,15 +207,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: c.accentSoft,
   },
-  avatarText: { fontSize: 14, fontWeight: '800', color: c.accent },
-  customerName: { fontSize: 14, fontWeight: '700', color: B.text },
-  requestMeta: { fontSize: 11, color: B.textMuted, marginTop: 1 },
+  avatarText: { ...T.body, fontFamily: F.bold, color: c.accent },
+  customerName: { ...T.body, fontFamily: F.bold, color: B.text },
+  requestMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  statusText: { ...T.caption, fontFamily: F.bold, textTransform: 'capitalize' },
 
   // Reason
   reasonWrap: {
@@ -229,7 +227,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: B.bg,
   },
-  reason: { flex: 1, fontSize: 13, color: B.text, lineHeight: 18 },
+  reason: { flex: 1, ...T.label, fontFamily: F.regular, color: B.text, lineHeight: 18 },
 
   // Bottom
   cardBottom: {
@@ -243,8 +241,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  refundText: { fontSize: 16, fontWeight: '800', color: B.text },
-  refundLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted },
+  refundText: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  refundLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
   actions: { flexDirection: 'row', gap: 6 },
   actionBtn: {
     flexDirection: 'row',
@@ -254,10 +252,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
   },
-  actionText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  finalStateText: { fontSize: 12, color: B.textMuted, fontStyle: 'italic' },
+  actionText: { color: C.surface, ...T.caption, fontFamily: F.bold },
+  finalStateText: { ...T.caption, color: B.textMuted, fontStyle: 'italic' },
   retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: c.accent },
-  retryText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  retryText: { color: C.surface, ...T.label, fontFamily: F.bold },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
@@ -270,8 +268,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     marginBottom: 8,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: B.text },
-  emptyText: { fontSize: 13, color: B.textMuted, textAlign: 'center', maxWidth: 260 },
+  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  emptyText: { ...T.label, fontFamily: F.regular, color: B.textMuted, textAlign: 'center', maxWidth: 260 },
 });
 
 export default ReturnRequestsScreen;

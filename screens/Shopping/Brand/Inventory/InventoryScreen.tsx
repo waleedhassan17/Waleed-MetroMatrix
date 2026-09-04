@@ -18,6 +18,7 @@ import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
+import { F, T } from '../../../../constants/theme';
 
 
 
@@ -203,8 +204,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  statNum: { fontSize: 16, fontWeight: '800' },
-  statLabel: { fontSize: 12, fontWeight: '600' },
+  statNum: { ...T.subhead, fontFamily: F.bold },
+  statLabel: { ...T.caption, fontFamily: F.semibold },
 
   // Search
   searchWrap: {
@@ -219,7 +220,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.surface,
     ...Shadows.sm,
   },
-  searchInput: { flex: 1, fontSize: 14, color: B.text, padding: 0 },
+  searchInput: { flex: 1, ...T.body, color: B.text, padding: 0 },
 
   // List
   listContent: { padding: 16, paddingBottom: 40 },
@@ -236,8 +237,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
-  productName: { fontSize: 14, fontWeight: '700', color: B.text },
-  sku: { fontSize: 12, color: B.textMuted, marginTop: 2 },
+  productName: { ...T.body, fontFamily: F.bold, color: B.text },
+  sku: { ...T.caption, color: B.textMuted, marginTop: 2 },
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,7 +248,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
   },
   levelDot: { width: 6, height: 6, borderRadius: 3 },
-  levelText: { fontSize: 11, fontWeight: '700' },
+  levelText: { ...T.caption, fontFamily: F.bold },
   cardBottom: { flexDirection: 'row', justifyContent: 'flex-end' },
   qtySection: {
     flexDirection: 'row',
@@ -267,8 +268,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
   },
   qtyDisplay: { alignItems: 'center', minWidth: 42 },
-  qtyValue: { fontSize: 18, fontWeight: '800', color: B.text },
-  qtyLabel: { fontSize: 10, fontWeight: '600', color: B.textMuted },
+  qtyValue: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  qtyLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
 
   // Notice
   notice: {
@@ -280,11 +281,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: c.accentSoft,
   },
-  noticeText: { flex: 1, fontSize: 12, color: B.textSec },
+  noticeText: { flex: 1, ...T.caption, color: B.textSec },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: B.textMuted },
+  emptyTitle: { ...T.body, fontFamily: F.bold, color: B.textMuted },
 });
 
 export default InventoryScreen;

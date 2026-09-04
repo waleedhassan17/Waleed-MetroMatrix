@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: R.chip,
   },
   icon: { marginRight: 4 },
-  textSm: { fontFamily: F.semibold, fontSize: 11, lineHeight: 14 },
+  textSm: { ...T.micro },
 });
 
 export default StatusPill;

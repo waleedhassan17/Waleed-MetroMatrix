@@ -34,7 +34,7 @@ import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { B, statusTone, humanizeStatus, formatOrderNumber } from '../theme';
 import { ThemeColors, useTheme } from '../../../../theme';
-
+import { C, F, T } from '../../../../constants/theme';
 
 const BrandHomeScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -85,10 +85,10 @@ const BrandHomeScreen: React.FC = () => {
   const quickActions = [
     { label: 'Products', icon: Package, route: BrandRouteNames.BrandProducts, color: colors.accent },
     { label: 'Orders', icon: ClipboardList, route: BrandRouteNames.BrandOrders, color: B.info },
-    { label: 'Inventory', icon: Warehouse, route: BrandRouteNames.BrandInventory, color: '#8B5CF6' },
+    { label: 'Inventory', icon: Warehouse, route: BrandRouteNames.BrandInventory, color: C.info },
     { label: 'Analytics', icon: BarChart3, route: BrandRouteNames.BrandAnalytics, color: B.success },
-    { label: 'Deliveries', icon: Truck, route: BrandRouteNames.BrandDeliveries, color: '#F59E0B' },
-    { label: 'Add Product', icon: Plus, route: BrandRouteNames.AddProduct, color: '#EC4899' },
+    { label: 'Deliveries', icon: Truck, route: BrandRouteNames.BrandDeliveries, color: C.warning },
+    { label: 'Add Product', icon: Plus, route: BrandRouteNames.AddProduct, color: colors.accentDeep },
   ];
 
   return (
@@ -160,9 +160,9 @@ const BrandHomeScreen: React.FC = () => {
           {[
             { label: 'Revenue', value: `₨${(kpis.revenue / 1000).toFixed(0)}K`, icon: TrendingUp, color: colors.accent, bg: colors.accentSoft },
             { label: 'Income', value: `₨${(kpis.income / 1000).toFixed(0)}K`, icon: Wallet, color: B.success, bg: B.successLight },
-            { label: 'Orders', value: String(kpis.orders), icon: ShoppingBag, color: B.info, bg: '#EFF6FF' },
-            { label: 'Shipments', value: String(kpis.activeShipments), icon: Truck, color: '#F59E0B', bg: '#FFFBEB' },
-            { label: 'Delivery %', value: `${kpis.deliveryRate}%`, icon: Boxes, color: '#8B5CF6', bg: '#F5F3FF' },
+            { label: 'Orders', value: String(kpis.orders), icon: ShoppingBag, color: B.info, bg: C.infoSoft },
+            { label: 'Shipments', value: String(kpis.activeShipments), icon: Truck, color: C.warning, bg: C.warningSoft },
+            { label: 'Delivery %', value: `${kpis.deliveryRate}%`, icon: Boxes, color: C.info, bg: C.infoSoft },
             { label: 'Low Stock', value: String(kpis.lowStock), icon: TriangleAlert, color: kpis.lowStock > 0 ? B.error : B.success, bg: kpis.lowStock > 0 ? B.errorLight : B.successLight },
           ].map((item) => (
             <View key={item.label} style={styles.kpiCard}>
@@ -210,7 +210,7 @@ const BrandHomeScreen: React.FC = () => {
                       { height: barH, backgroundColor: isMax ? colors.accent : `${colors.accent}40` },
                     ]}
                   />
-                  <Text style={[styles.chartDay, isMax && { color: colors.accent, fontWeight: '700' }]}>
+                  <Text style={[styles.chartDay, isMax && { color: colors.accent, fontFamily: F.bold }]}>
                     {dayLabels[index]}
                   </Text>
                 </View>
@@ -307,7 +307,7 @@ const BrandHomeScreen: React.FC = () => {
         >
           <View style={styles.returnsCtaLeft}>
             <View style={styles.returnsCtaIcon}>
-              <TriangleAlert size={16} stroke="#D97706" strokeWidth={2} />
+              <TriangleAlert size={16} stroke={C.warning} strokeWidth={2} />
             </View>
             <View>
               <Text style={styles.returnsCtaTitle}>Return Requests</Text>
@@ -355,22 +355,22 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: `${c.accent}33`,
   },
   brandMarkText: {
-    fontSize: 18,
-    fontWeight: '800',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: c.accent,
   },
   headerText: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...T.heading,
+    fontFamily: F.bold,
     color: B.text,
     letterSpacing: -0.4,
   },
   brandLabel: {
-    fontSize: 12.5,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: B.textMuted,
     marginTop: 1,
   },
@@ -387,8 +387,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flexShrink: 0,
   },
   walletChipText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...T.label,
+    fontFamily: F.bold,
     color: c.accent,
   },
   scrollContent: {
@@ -418,13 +418,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 8,
   },
   kpiValue: {
-    fontSize: 18,
-    fontWeight: '800',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: B.text,
   },
   kpiLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: B.textMuted,
     marginTop: 2,
   },
@@ -453,8 +453,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 8,
   },
   actionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     color: B.textSec,
   },
 
@@ -473,8 +473,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 14,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: B.text,
   },
   viewAllBtn: {
@@ -483,8 +483,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 2,
   },
   viewAllText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     color: c.accent,
   },
   loaderWrap: { paddingVertical: Spacing.lg, alignItems: 'center' },
@@ -497,8 +497,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.errorLight,
     marginBottom: Spacing.md,
   },
-  dashboardErrorText: { flex: 1, fontSize: 12, color: B.error, fontWeight: '600' },
-  dashboardRetryText: { fontSize: 12, fontWeight: '700', color: B.error, marginLeft: Spacing.sm },
+  dashboardErrorText: { flex: 1, ...T.caption, fontFamily: F.semibold, color: B.error },
+  dashboardRetryText: { ...T.caption, fontFamily: F.bold, color: B.error, marginLeft: Spacing.sm },
 
   // Chart
   chartContainer: {
@@ -514,8 +514,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   chartValue: {
-    fontSize: 10,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     color: B.textMuted,
     marginBottom: 4,
   },
@@ -525,8 +525,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 6,
   },
   chartDay: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: B.textMuted,
   },
 
@@ -543,12 +543,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   orderLeft: { flex: 1 },
   orderCustomer: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...T.body,
+    fontFamily: F.bold,
     color: B.text,
   },
   orderMeta: {
-    fontSize: 12,
+    ...T.caption,
+
     color: B.textMuted,
     marginTop: 2,
   },
@@ -557,8 +558,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 4,
   },
   orderTotal: {
-    fontSize: 14,
-    fontWeight: '800',
+    ...T.body,
+    fontFamily: F.bold,
     color: B.text,
   },
   statusPill: {
@@ -567,15 +568,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 8,
   },
   statusText: {
-    fontSize: 10,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     textTransform: 'capitalize',
   },
 
   // Alert Card
   alertCard: {
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: C.errorSoft,
   },
   alertTitleRow: {
     flexDirection: 'row',
@@ -595,12 +596,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.error,
   },
   alertName: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...T.label,
+    fontFamily: F.bold,
     color: B.text,
   },
   alertSku: {
-    fontSize: 11,
+    ...T.caption,
+
     color: B.textMuted,
     marginTop: 1,
   },
@@ -611,8 +613,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.errorLight,
   },
   stockBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     color: B.error,
   },
 
@@ -624,9 +626,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginTop: 16,
     padding: 16,
     borderRadius: 14,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: C.warningSoft,
     borderWidth: 1,
-    borderColor: '#FEF3C7',
+    borderColor: C.warningSoft,
   },
   returnsCtaLeft: {
     flexDirection: 'row',
@@ -640,15 +642,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: C.warningSoft,
   },
   returnsCtaTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...T.body,
+    fontFamily: F.bold,
     color: B.text,
   },
   returnsCtaDesc: {
-    fontSize: 12,
+    ...T.caption,
+
     color: B.textMuted,
     marginTop: 1,
   },

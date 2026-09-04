@@ -53,6 +53,8 @@ export const C = {
   warningSoft: '#FEF6EC',
   error: '#B91C1C',
   errorSoft: '#FEF2F2',
+  /** Border on a destructive control, where `errorSoft` is too faint to read. */
+  errorLine: '#FECACA',
   info: '#1D4ED8',
   infoSoft: '#EFF6FF',
 
@@ -159,6 +161,12 @@ export const T = {
   label: font(F.medium, 13, 16),
   /** Metadata, timestamps, helper text. */
   caption: font(F.regular, 12, 16),
+  /**
+   * Counters and badges ONLY — a tab-bar label, a "3" on a cart, an unread
+   * count. Below `caption` on purpose and not a general small size: if body
+   * copy ends up here, the layout is wrong, not the type.
+   */
+  micro: font(F.semibold, 11, 14),
   /** Codes and ids. Tabular by nature — never body copy. */
   mono: font(F.mono, 13, 18),
 } as const;

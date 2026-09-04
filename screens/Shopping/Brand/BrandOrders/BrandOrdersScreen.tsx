@@ -28,9 +28,7 @@ import type { OrderStatus } from '../../../../types/shopping';
 import { B } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 const STATUS_MAP: Record<OrderStatus, { bg: string; text: string; icon: any; label: string }> = {
   pending: { bg: B.warningLight, text: B.warning, icon: Clock, label: 'Pending' },
@@ -188,7 +186,7 @@ const BrandOrdersScreen: React.FC = () => {
           <Text style={styles.emptyTitle}>Couldn't load orders</Text>
           <Text style={styles.emptyText}>{error}</Text>
           <TouchableOpacity style={styles.refreshBtn} onPress={() => dispatch(fetchBrandOrders())}>
-            <RefreshCw size={14} stroke="#FFF" strokeWidth={2} />
+            <RefreshCw size={14} stroke={C.surface} strokeWidth={2} />
             <Text style={styles.refreshText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -207,7 +205,7 @@ const BrandOrdersScreen: React.FC = () => {
               <Text style={styles.emptyTitle}>No orders found</Text>
               <Text style={styles.emptyText}>There are no orders matching this filter.</Text>
               <TouchableOpacity style={styles.refreshBtn} onPress={() => dispatch(setStatusFilter('all'))}>
-                <RefreshCw size={14} stroke="#FFF" strokeWidth={2} />
+                <RefreshCw size={14} stroke={C.surface} strokeWidth={2} />
                 <Text style={styles.refreshText}>Show All Orders</Text>
               </TouchableOpacity>
             </View>
@@ -245,8 +243,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accent,
     borderColor: c.accent,
   },
-  filterText: { fontSize: 12, fontWeight: '700', color: B.textSec },
-  filterTextActive: { color: '#FFF' },
+  filterText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterTextActive: { color: C.surface },
   filterCount: {
     minWidth: 20,
     height: 18,
@@ -257,8 +255,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 5,
   },
   filterCountActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
-  filterCountText: { fontSize: 10, fontWeight: '800', color: B.textSec },
-  filterCountTextActive: { color: '#FFF' },
+  filterCountText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterCountTextActive: { color: C.surface },
 
   // Content
   content: { padding: 16, paddingBottom: 40 },
@@ -283,13 +281,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
   },
   avatarText: {
-    fontSize: 14,
-    fontWeight: '800',
+    ...T.body,
+    fontFamily: F.bold,
     color: c.accent,
   },
   cardMid: { flex: 1 },
-  customerName: { fontSize: 14, fontWeight: '700', color: B.text },
-  orderId: { fontSize: 12, color: B.textMuted, marginTop: 1 },
+  customerName: { ...T.body, fontFamily: F.bold, color: B.text },
+  orderId: { ...T.caption, color: B.textMuted, marginTop: 1 },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,7 +296,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusText: { ...T.caption, fontFamily: F.bold },
   cardDivider: {
     height: 1,
     backgroundColor: B.border,
@@ -314,14 +312,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  detailLabel: { fontSize: 12, color: B.textMuted },
-  detailDot: { fontSize: 12, color: B.textMuted },
+  detailLabel: { ...T.caption, color: B.textMuted },
+  detailDot: { ...T.caption, color: B.textMuted },
   cardBottomRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  total: { fontSize: 15, fontWeight: '800', color: B.text },
+  total: { ...T.body, fontFamily: F.bold, color: B.text },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
@@ -334,8 +332,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     marginBottom: 8,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: B.text },
-  emptyText: { fontSize: 13, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
+  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  emptyText: { ...T.label, fontFamily: F.regular, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
   refreshBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -346,7 +344,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: c.accent,
   },
-  refreshText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  refreshText: { color: C.surface, ...T.body, fontFamily: F.bold },
 });
 
 export default BrandOrdersScreen;

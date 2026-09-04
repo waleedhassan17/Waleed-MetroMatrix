@@ -9,6 +9,7 @@ import BrandOrdersScreen from '../BrandOrders/BrandOrdersScreen';
 import BrandAnalyticsScreen from '../BrandAnalytics/BrandAnalyticsScreen';
 import BrandProfileScreen from '../BrandProfile/BrandProfileScreen';
 import { F, useTheme } from '../../../../theme';
+import { C, T } from '../../../../constants/theme';
 
 // The local `const COLORS` block that used to live here is gone. It hardcoded
 // `primary: '#E67E22'` — so a brand could set its colours and then look at the
@@ -62,14 +63,14 @@ const BrandTabsNavigator: React.FC = () => {
           borderTopWidth: 0,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          shadowColor: '#000',
+          shadowColor: C.ink,
           shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.08,
           shadowRadius: 12,
           elevation: 12,
         },
         tabBarLabel: TAB_CONFIG[route.name]?.label ?? route.name,
-        tabBarLabelStyle: { fontFamily: F.semibold, fontSize: 11 },
+        tabBarLabelStyle: { ...T.micro },
         tabBarIcon: ({ focused, color, size }) => {
           const config = TAB_CONFIG[route.name];
           return (

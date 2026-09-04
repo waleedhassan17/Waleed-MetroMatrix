@@ -37,9 +37,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string; bg: string; Icon: any }> = {
   pending_pickup: { label: 'Pending Pickup', color: B.amber, bg: B.amberLight, Icon: Clock },
@@ -47,7 +45,7 @@ const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string; bg: 
   out_for_delivery: { label: 'Out for Delivery', color: B.purple, bg: B.purpleLight, Icon: MapPin },
   delivered: { label: 'Delivered', color: B.success, bg: B.successLight, Icon: CheckCircle2 },
   failed: { label: 'Failed', color: B.error, bg: B.errorLight, Icon: XCircle },
-  returned: { label: 'Returned', color: B.textMuted, bg: '#F3F4F6', Icon: RotateCcw },
+  returned: { label: 'Returned', color: B.textMuted, bg: C.surfaceSunken, Icon: RotateCcw },
 };
 
 const FILTERS: { key: DeliveryFilter; label: string }[] = [
@@ -159,7 +157,7 @@ const BrandDeliveriesScreen: React.FC = () => {
           {item.status !== 'delivered' && (
             <View style={styles.shipRow}>
               <Text style={styles.shipFieldLabel}>ETA</Text>
-              <Text style={[styles.shipFieldValue, { color: colors.accent, fontWeight: '700' }]}>{item.estimatedDelivery}</Text>
+              <Text style={[styles.shipFieldValue, { color: colors.accent, fontFamily: F.bold }]}>{item.estimatedDelivery}</Text>
             </View>
           )}
         </View>
@@ -266,8 +264,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: B.border,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 14, color: B.text },
-  clearBtn: { fontSize: 12, fontWeight: '700', color: c.accent },
+  searchInput: { flex: 1, ...T.body, color: B.text },
+  clearBtn: { ...T.caption, fontFamily: F.bold, color: c.accent },
 
   // Filters
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginTop: 10, marginBottom: 4 },
@@ -280,8 +278,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: B.border,
   },
   filterChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-  filterText: { fontSize: 11, fontWeight: '700', color: B.textSec },
-  filterTextActive: { color: '#FFF' },
+  filterText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterTextActive: { color: C.surface },
 
   listContent: { padding: 16, paddingBottom: 40 },
 
@@ -294,13 +292,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: B.surface,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
-  kpiValue: { fontSize: 20, fontWeight: '800' },
-  kpiLabel: { fontSize: 10, fontWeight: '600', color: B.textMuted, marginTop: 2 },
+  kpiValue: { ...T.heading, fontFamily: F.bold },
+  kpiLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 2 },
 
   // Avg time
   avgTimeCard: {
@@ -312,8 +310,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
     marginBottom: 12,
   },
-  avgTimeLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: B.text },
-  avgTimeValue: { fontSize: 16, fontWeight: '800', color: c.accent },
+  avgTimeLabel: { flex: 1, ...T.label, fontFamily: F.semibold, color: B.text },
+  avgTimeValue: { ...T.subhead, fontFamily: F.bold, color: c.accent },
 
   // Courier
   courierCard: {
@@ -321,12 +319,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 14,
     backgroundColor: B.surface,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: B.text, marginBottom: 12 },
+  sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 12 },
   courierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   courierRowBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
   courierLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -338,10 +336,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  courierName: { fontSize: 13, fontWeight: '700', color: B.text },
-  courierMeta: { fontSize: 11, color: B.textMuted, marginTop: 1 },
+  courierName: { ...T.label, fontFamily: F.bold, color: B.text },
+  courierMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
   successBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  successText: { fontSize: 12, fontWeight: '800' },
+  successText: { ...T.caption, fontFamily: F.bold },
 
   // Shipment Card
   shipCard: {
@@ -350,7 +348,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.surface,
     overflow: 'hidden',
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
@@ -366,8 +364,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderBottomColor: B.border,
   },
   shipHeaderLeft: { gap: 1 },
-  shipOrderId: { fontSize: 13, fontWeight: '700', color: B.text },
-  shipId: { fontSize: 11, color: B.textMuted },
+  shipOrderId: { ...T.label, fontFamily: F.bold, color: B.text },
+  shipId: { ...T.caption, color: B.textMuted },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,16 +374,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusLabel: { fontSize: 11, fontWeight: '700' },
+  statusLabel: { ...T.caption, fontFamily: F.bold },
   shipBody: { padding: 14, gap: 6 },
   shipRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  shipFieldLabel: { fontSize: 12, fontWeight: '600', color: B.textMuted },
-  shipFieldValue: { fontSize: 12, fontWeight: '600', color: B.text, textAlign: 'right', flex: 1, marginLeft: 16 },
+  shipFieldLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
+  shipFieldValue: { ...T.caption, fontFamily: F.semibold, color: B.text, textAlign: 'right', flex: 1, marginLeft: 16 },
 
   // Empty
   empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: B.text, marginTop: 12 },
-  emptyDesc: { fontSize: 13, color: B.textMuted, marginTop: 4 },
+  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text, marginTop: 12 },
+  emptyDesc: { ...T.label, fontFamily: F.regular, color: B.textMuted, marginTop: 4 },
 });
 
 export default BrandDeliveriesScreen;

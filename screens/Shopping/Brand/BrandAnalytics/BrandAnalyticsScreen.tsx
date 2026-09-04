@@ -30,9 +30,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 const PERIODS: { key: AnalyticsPeriod; label: string }[] = [
   { key: '7d', label: '7 Days' },
@@ -194,7 +192,7 @@ const BrandAnalyticsScreen: React.FC = () => {
                       },
                     ]}
                   />
-                  <Text style={[styles.chartLabel, isMax && { color: colors.accent, fontWeight: '700' }]}>
+                  <Text style={[styles.chartLabel, isMax && { color: colors.accent, fontFamily: F.bold }]}>
                     {point.label}
                   </Text>
                   <Text style={styles.chartOrders}>{point.orders} orders</Text>
@@ -306,8 +304,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: B.border,
   },
   periodChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-  periodText: { fontSize: 12, fontWeight: '700', color: B.textSec },
-  periodTextActive: { color: '#FFF' },
+  periodText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  periodTextActive: { color: C.surface },
 
   // Financial Grid
   finGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -317,17 +315,17 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 14,
     backgroundColor: B.surface,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
   finCardWide: { width: '100%' as any, flexDirection: 'row', alignItems: 'center', gap: 12 },
   finIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  finLabel: { fontSize: 11, fontWeight: '600', color: B.textMuted, marginTop: 8 },
-  finValue: { fontSize: 18, fontWeight: '800', color: B.text, marginTop: 2 },
-  finValueLg: { fontSize: 22, fontWeight: '800', color: B.text, marginTop: 2 },
-  finSub: { fontSize: 10, fontWeight: '600', color: B.textMuted, marginTop: 2 },
+  finLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 8 },
+  finValue: { ...T.subhead, fontFamily: F.bold, color: B.text, marginTop: 2 },
+  finValueLg: { ...T.heading, fontFamily: F.bold, color: B.text, marginTop: 2 },
+  finSub: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 2 },
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,7 +334,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  trendText: { fontSize: 12, fontWeight: '700' },
+  trendText: { ...T.caption, fontFamily: F.bold },
 
   // Cards
   card: {
@@ -345,13 +343,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 16,
     backgroundColor: B.surface,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: B.text },
+  cardTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
 
   // Chart
   chartContainer: {
@@ -362,10 +360,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingTop: 10,
   },
   chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  chartValue: { fontSize: 9, fontWeight: '700', color: B.textMuted, marginBottom: 4 },
+  chartValue: { ...T.caption, fontFamily: F.bold, color: B.textMuted, marginBottom: 4 },
   chartBar: { width: 24, borderRadius: 6, marginBottom: 6 },
-  chartLabel: { fontSize: 11, fontWeight: '600', color: B.textMuted },
-  chartOrders: { fontSize: 9, color: B.textMuted, marginTop: 1 },
+  chartLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
+  chartOrders: { ...T.caption, color: B.textMuted, marginTop: 1 },
 
   // Category Breakdown
   catBarRow: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 14, gap: 2 },
@@ -374,10 +372,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   catRowBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
   catLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   catDot: { width: 10, height: 10, borderRadius: 5 },
-  catName: { fontSize: 13, fontWeight: '700', color: B.text },
+  catName: { ...T.label, fontFamily: F.bold, color: B.text },
   catRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  catRevenue: { fontSize: 13, fontWeight: '700', color: B.text },
-  catPct: { fontSize: 12, fontWeight: '600', color: B.textMuted, width: 36, textAlign: 'right' },
+  catRevenue: { ...T.label, fontFamily: F.bold, color: B.text },
+  catPct: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, width: 36, textAlign: 'right' },
 
   // Top Products
   prodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
@@ -389,11 +387,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  prodRankText: { fontSize: 12, fontWeight: '800', color: c.accent },
+  prodRankText: { ...T.caption, fontFamily: F.bold, color: c.accent },
   prodInfo: { flex: 1 },
-  prodName: { fontSize: 13, fontWeight: '700', color: B.text },
-  prodMeta: { fontSize: 11, color: B.textMuted, marginTop: 2 },
-  prodRevenue: { fontSize: 13, fontWeight: '800', color: B.text },
+  prodName: { ...T.label, fontFamily: F.bold, color: B.text },
+  prodMeta: { ...T.caption, color: B.textMuted, marginTop: 2 },
+  prodRevenue: { ...T.label, fontFamily: F.bold, color: B.text },
 
   // Metrics
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -404,8 +402,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     alignItems: 'center',
   },
-  metricValue: { fontSize: 20, fontWeight: '800' },
-  metricLabel: { fontSize: 11, fontWeight: '600', color: B.textMuted, marginTop: 4 },
+  metricValue: { ...T.heading, fontFamily: F.bold },
+  metricLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 4 },
 });
 
 export default BrandAnalyticsScreen;

@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countSelected: { backgroundColor: C.surface },
-  countText: { fontFamily: F.semibold, fontSize: 11 },
+  countText: { ...T.micro },
 });
 
 export default Chip;

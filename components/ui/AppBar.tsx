@@ -164,9 +164,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: {
-    color: C.inkInverse,
+    ...T.micro,
     fontFamily: F.bold,
-    fontSize: 10,
+    color: C.inkInverse,
     lineHeight: Platform.OS === 'ios' ? 13 : 14,
   },
 });

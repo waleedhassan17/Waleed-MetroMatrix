@@ -29,8 +29,7 @@ import { resetProcessOrder, selectProcessOrder, setCarrier, setNotes, setSaving,
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; label: string }> = {
   pending: { color: B.warning, bg: B.warningLight, icon: Clock, label: 'Pending' },
@@ -221,7 +220,7 @@ const ProcessOrderScreen: React.FC = () => {
                     disabled={saving}
                     onPress={() => handleUpdate(action.status)}
                   >
-                    <Icon size={16} stroke="#FFF" strokeWidth={2} />
+                    <Icon size={16} stroke={C.surface} strokeWidth={2} />
                     <Text style={styles.actionText}>{action.label}</Text>
                   </TouchableOpacity>
                 );
@@ -251,7 +250,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeText: { ...T.caption, fontFamily: F.bold },
   content: { padding: 16, paddingBottom: 40 },
 
   // Card
@@ -274,15 +273,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardLabel: { fontSize: 11, fontWeight: '600', color: B.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  cardValue: { fontSize: 14, fontWeight: '700', color: B.text, marginTop: 1 },
-  cardMeta: { fontSize: 12, color: B.textMuted, marginTop: 1 },
-  totalText: { fontSize: 16, fontWeight: '800', color: B.text },
+  cardLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  cardValue: { ...T.body, fontFamily: F.bold, color: B.text, marginTop: 1 },
+  cardMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
+  totalText: { ...T.subhead, fontFamily: F.bold, color: B.text },
   divider: { height: 1, backgroundColor: B.border, marginVertical: 12 },
 
   // Section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: B.text, marginBottom: 4 },
+  sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 4 },
 
   // Items
   itemRow: {
@@ -291,12 +290,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 10,
   },
   itemBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
-  itemName: { fontSize: 14, fontWeight: '700', color: B.text },
-  itemVariant: { fontSize: 12, color: B.textMuted, marginTop: 2 },
-  itemPrice: { fontSize: 14, fontWeight: '800', color: B.text },
+  itemName: { ...T.body, fontFamily: F.bold, color: B.text },
+  itemVariant: { ...T.caption, color: B.textMuted, marginTop: 2 },
+  itemPrice: { ...T.body, fontFamily: F.bold, color: B.text },
 
   // Inputs
-  inputLabel: { fontSize: 12, fontWeight: '700', color: B.textSec, marginBottom: 6, marginTop: 4 },
+  inputLabel: { ...T.caption, fontFamily: F.bold, color: B.textSec, marginBottom: 6, marginTop: 4 },
   input: {
     marginBottom: 10,
     paddingHorizontal: 14,
@@ -304,7 +303,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: B.bg,
     color: B.text,
-    fontSize: 14,
+    ...T.body,
+
   },
   multiline: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
 
@@ -330,11 +330,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
   },
-  actionText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  actionText: { color: C.surface, ...T.label, fontFamily: F.bold },
 
   // Empty
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  emptyText: { fontSize: 14, color: B.textMuted },
+  emptyText: { ...T.body, color: B.textMuted },
 });
 
 export default ProcessOrderScreen;

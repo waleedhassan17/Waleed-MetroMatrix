@@ -51,7 +51,7 @@ const FILL: Record<ButtonVariant, { bg: string; fg: string; border?: string }> =
   primary: { bg: HS.accent, fg: C.inkInverse },
   secondary: { bg: C.surface, fg: C.ink, border: C.line },
   ghost: { bg: 'transparent', fg: HS.accentDeep },
-  destructive: { bg: C.errorSoft, fg: C.error, border: '#FECACA' },
+  destructive: { bg: C.errorSoft, fg: C.error, border: C.errorLine },
 };
 
 const Button: React.FC<ButtonProps> = ({

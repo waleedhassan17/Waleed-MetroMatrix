@@ -20,7 +20,7 @@ import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import BrandThemeEditor from '../../../../components/Shopping/BrandThemeEditor';
 import { ThemeColors, useTheme } from '../../../../theme';
-
+import { C, F, T } from '../../../../constants/theme';
 
 type EditableField = 'name' | 'tagline' | 'description' | 'contactEmail' | 'contactPhone' | 'website';
 
@@ -116,7 +116,7 @@ const BrandProfileScreen: React.FC = () => {
             </View>
           </View>
           <Text style={styles.statusLine}>
-            Status: <Text style={{ fontWeight: '700', color: brand.isActive ? '#27AE60' : '#F59E0B' }}>
+            Status: <Text style={{ fontFamily: F.bold, color: brand.isActive ? C.success : C.warning }}>
               {brand.isActive ? 'Active' : 'Pending approval'}
             </Text>
           </Text>
@@ -152,7 +152,7 @@ const BrandProfileScreen: React.FC = () => {
           </View>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-            <Save size={18} stroke="#FFF" strokeWidth={2} />
+            <Save size={18} stroke={C.surface} strokeWidth={2} />
             <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save Profile'}</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -169,23 +169,23 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   emptyText: { color: Colors.text.secondary, textAlign: 'center', marginTop: Spacing.md },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
+  retryText: { color: C.surface, fontFamily: F.bold },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   bannerWrap: { marginBottom: 36 },
   banner: { width: '100%', height: 120, borderRadius: BorderRadius.lg },
   logoWrap: { position: 'absolute', bottom: -28, left: Spacing.lg },
   logo: { width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: Colors.surface },
   logoFallback: { backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  statusLine: { fontSize: 13, color: Colors.text.secondary, marginBottom: Spacing.md },
+  statusLine: { ...T.label, fontFamily: F.regular, color: Colors.text.secondary, marginBottom: Spacing.md },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.text.primary, marginBottom: 4 },
-  sectionHelp: { fontSize: 12, lineHeight: 17, color: Colors.text.secondary, marginBottom: Spacing.md },
+  sectionTitle: { ...T.body, fontFamily: F.bold, color: Colors.text.primary, marginBottom: 4 },
+  sectionHelp: { ...T.caption, lineHeight: 17, color: Colors.text.secondary, marginBottom: Spacing.md },
   field: { marginBottom: Spacing.md },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.text.primary },
+  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: Colors.text.secondary, marginBottom: 4 },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: Colors.text.primary },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
-  saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  saveText: { color: C.surface, ...T.body, fontFamily: F.bold },
 });
 
 export default BrandProfileScreen;

@@ -16,7 +16,8 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandCoupons, selectBrandCoupons, updateBrandCoupon } from './brandCouponsSlice';
 import { ShopColors } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
-import { ThemeColors, useTheme } from '../../../../theme';
+import { ThemeColors, tint, useTheme } from '../../../../theme';
+import { C, F, T } from '../../../../constants/theme';
 
 const CURRENCY = 'PKR';
 
@@ -70,8 +71,8 @@ const BrandCouponsScreen: React.FC = () => {
             <View key={coupon.couponCode} style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.code}>{coupon.couponCode}</Text>
-                <View style={[styles.stateChip, { backgroundColor: active ? '#27AE6020' : '#6B728020' }]}>
-                  <Text style={[styles.stateText, { color: active ? ShopColors.success : '#6B7280' }]}>
+                <View style={[styles.stateChip, { backgroundColor: active ? tint(C.success, 0.12) : tint(C.inkMuted, 0.12) }]}>
+                  <Text style={[styles.stateText, { color: active ? ShopColors.success : C.inkMuted }]}>
                     {expired ? 'Expired' : active ? 'Active' : 'Inactive'}
                   </Text>
                 </View>
@@ -127,18 +128,18 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
+  retryText: { color: C.surface, fontFamily: F.bold },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  code: { fontSize: 16, fontWeight: '800', color: c.accent, letterSpacing: 0.5 },
+  code: { ...T.subhead, fontFamily: F.bold, color: c.accent, letterSpacing: 0.5 },
   stateChip: { borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 3 },
-  stateText: { fontSize: 11, fontWeight: '700' },
-  desc: { fontSize: 13, fontWeight: '600', color: Colors.text.primary, marginTop: Spacing.xs },
-  meta: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2 },
+  stateText: { ...T.caption, fontFamily: F.bold },
+  desc: { ...T.label, fontFamily: F.semibold, color: Colors.text.primary, marginTop: Spacing.xs },
+  meta: { ...T.caption, color: Colors.text.tertiary, marginTop: 2 },
   actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
   actionBtn: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 14, paddingVertical: 7 },
-  actionText: { fontSize: 13, fontWeight: '600', color: c.accent },
+  actionText: { ...T.label, fontFamily: F.semibold, color: c.accent },
 });
 
 export default BrandCouponsScreen;

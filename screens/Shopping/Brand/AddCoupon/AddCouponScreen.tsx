@@ -21,7 +21,7 @@ import {
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
+import { C, F, T } from '../../../../constants/theme';
 
 const DAY_MS = 86400000;
 
@@ -147,7 +147,7 @@ const AddCouponScreen: React.FC = () => {
         </View>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-          <Save size={18} stroke="#FFF" strokeWidth={2} />
+          <Save size={18} stroke={C.surface} strokeWidth={2} />
           <Text style={styles.saveText}>{saving ? 'Saving…' : editing ? 'Update Coupon' : 'Create Coupon'}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -161,16 +161,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 4, marginTop: Spacing.sm },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.text.primary },
+  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: Colors.text.secondary, marginBottom: 4, marginTop: Spacing.sm },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: Colors.text.primary },
   inputDisabled: { backgroundColor: Colors.background, color: Colors.text.tertiary },
   typeRow: { flexDirection: 'row', gap: Spacing.sm },
   typeChip: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
   typeChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  typeText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
+  typeText: { ...T.label, fontFamily: F.semibold, color: Colors.text.secondary },
   typeTextOn: { color: c.accent },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
-  saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  saveText: { color: C.surface, ...T.body, fontFamily: F.bold },
 });
 
 export default AddCouponScreen;

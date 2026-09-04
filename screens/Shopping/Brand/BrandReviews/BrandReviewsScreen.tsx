@@ -23,7 +23,7 @@ import {
 import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
+import { C, F, T } from '../../../../constants/theme';
 
 const BrandReviewsScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -154,29 +154,29 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.full, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.surface },
   filterChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  filterText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
+  filterText: { ...T.label, fontFamily: F.semibold, color: Colors.text.secondary },
   filterTextOn: { color: c.accent },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
+  retryText: { color: C.surface, fontFamily: F.bold },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  reviewer: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
+  reviewer: { ...T.body, fontFamily: F.bold, color: Colors.text.primary },
   starsRow: { flexDirection: 'row', gap: 2 },
-  productName: { fontSize: 12, color: c.accent, fontWeight: '600', marginTop: 2 },
-  reviewTitle: { fontSize: 14, fontWeight: '700', color: Colors.text.primary, marginTop: Spacing.xs },
-  comment: { fontSize: 13, color: Colors.text.secondary, marginTop: 4, lineHeight: 19 },
-  date: { fontSize: 11, color: Colors.text.tertiary, marginTop: Spacing.xs },
+  productName: { ...T.caption, fontFamily: F.semibold, color: c.accent, marginTop: 2 },
+  reviewTitle: { ...T.body, fontFamily: F.bold, color: Colors.text.primary, marginTop: Spacing.xs },
+  comment: { ...T.label, fontFamily: F.regular, color: Colors.text.secondary, marginTop: 4, lineHeight: 19 },
+  date: { ...T.caption, color: Colors.text.tertiary, marginTop: Spacing.xs },
   responseBox: { backgroundColor: Colors.background, borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.sm },
-  responseLabel: { fontSize: 11, fontWeight: '700', color: c.accent, marginBottom: 2 },
-  responseText: { fontSize: 13, color: Colors.text.secondary },
+  responseLabel: { ...T.caption, fontFamily: F.bold, color: c.accent, marginBottom: 2 },
+  responseText: { ...T.label, fontFamily: F.regular, color: Colors.text.secondary },
   respondRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  respondInput: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: Colors.text.primary },
+  respondInput: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 8, ...T.label, fontFamily: F.regular, color: Colors.text.primary },
   respondBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 16, justifyContent: 'center' },
-  respondBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  respondBtnText: { color: C.surface, ...T.label, fontFamily: F.bold },
 });
 
 export default BrandReviewsScreen;

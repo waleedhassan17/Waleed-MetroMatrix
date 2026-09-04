@@ -39,8 +39,7 @@ import { upsertProduct } from '../BrandProducts/brandProductsSlice';
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-
-
+import { C, F, T } from '../../../../constants/theme';
 
 // `inStock` is intentionally absent: it is not server-editable (the API derives
 // it from variant stock), so a toggle for it looked active and did nothing.
@@ -135,7 +134,7 @@ const ProductFormScreen: React.FC = () => {
             disabled={saving}
             onPress={handleSave}
           >
-            <Save size={16} stroke="#FFF" strokeWidth={2} />
+            <Save size={16} stroke={C.surface} strokeWidth={2} />
           </TouchableOpacity>
         }
       />
@@ -250,7 +249,7 @@ const ProductFormScreen: React.FC = () => {
                   style={[styles.flagChip, active && styles.flagChipActive]}
                   onPress={() => dispatch(setField({ key: 'categoryId', value: cat.categoryId }))}
                 >
-                  {active && <Check size={14} stroke="#FFF" strokeWidth={2.5} />}
+                  {active && <Check size={14} stroke={C.surface} strokeWidth={2.5} />}
                   <Text style={[styles.flagText, active && styles.flagTextActive]}>{cat.name}</Text>
                 </TouchableOpacity>
               );
@@ -357,7 +356,7 @@ const ProductFormScreen: React.FC = () => {
                   style={[styles.flagChip, active && styles.flagChipActive]}
                   onPress={() => dispatch(toggleFlag(flag))}
                 >
-                  {active && <Check size={14} stroke="#FFF" strokeWidth={2.5} />}
+                  {active && <Check size={14} stroke={C.surface} strokeWidth={2.5} />}
                   <Text style={[styles.flagText, active && styles.flagTextActive]}>
                     {FLAG_LABELS[flag]}
                   </Text>
@@ -374,7 +373,7 @@ const ProductFormScreen: React.FC = () => {
           onPress={handleSave}
           activeOpacity={0.8}
         >
-          <Save size={18} stroke="#FFF" strokeWidth={2} />
+          <Save size={18} stroke={C.surface} strokeWidth={2} />
           <Text style={styles.saveBtnText}>{saving ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -385,7 +384,7 @@ const ProductFormScreen: React.FC = () => {
 // Built per render from the resolved theme so a brand's colours reach
 // rules that live at module scope. Layout, spacing and type are unchanged.
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  hintText: { fontSize: 12, color: B.textMuted, marginBottom: 10, lineHeight: 17 },
+  hintText: { ...T.caption, color: B.textMuted, marginBottom: 10, lineHeight: 17 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   inlineInput: { flex: 1, marginBottom: 0 },
   inlineBtn: {
@@ -393,12 +392,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accent,
   },
   inlineBtnDisabled: { opacity: 0.5 },
-  inlineBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  inlineBtnText: { color: C.surface, ...T.label, fontFamily: F.bold },
   variantHeaderRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   addVariantBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, padding: 6 },
-  addVariantText: { color: c.accent, fontWeight: '700', fontSize: 13 },
+  addVariantText: { color: c.accent, ...T.label, fontFamily: F.bold },
   variantCard: {
     borderWidth: 1, borderColor: B.border, borderRadius: 12,
     padding: 12, marginTop: 10, backgroundColor: B.surface,
@@ -440,7 +439,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.surface,
     marginBottom: 16,
   },
-  imagePlaceholderText: { fontSize: 13, fontWeight: '600', color: B.textMuted },
+  imagePlaceholderText: { ...T.label, fontFamily: F.semibold, color: B.textMuted },
 
   // Section
   section: {
@@ -451,10 +450,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     ...Shadows.sm,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: B.text, marginBottom: 4 },
+  sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 4 },
 
   // Form
-  label: { fontSize: 12, fontWeight: '700', color: B.textSec, marginBottom: 6, marginTop: 4 },
+  label: { ...T.caption, fontFamily: F.bold, color: B.textSec, marginBottom: 6, marginTop: 4 },
   input: {
     marginBottom: 10,
     paddingHorizontal: 14,
@@ -462,7 +461,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: B.bg,
     color: B.text,
-    fontSize: 14,
+    ...T.body,
+
   },
   multiline: { height: 100, textAlignVertical: 'top', paddingTop: 12 },
   row: { flexDirection: 'row', gap: 10 },
@@ -484,8 +484,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accent,
     borderColor: c.accent,
   },
-  flagText: { fontSize: 13, fontWeight: '700', color: B.textSec },
-  flagTextActive: { color: '#FFF' },
+  flagText: { ...T.label, fontFamily: F.bold, color: B.textSec },
+  flagTextActive: { color: C.surface },
 
   // Save
   saveBtn: {
@@ -498,7 +498,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 14,
     backgroundColor: c.accent,
   },
-  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  saveBtnText: { color: C.surface, ...T.subhead, fontFamily: F.bold },
 });
 
 export default ProductFormScreen;
