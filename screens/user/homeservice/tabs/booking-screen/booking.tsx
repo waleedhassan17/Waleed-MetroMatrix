@@ -338,6 +338,17 @@ export default function BookingsScreen() {
     }
   }, []);
 
+  // The Home tab, which is the category picker — Electrician, Plumber, AC
+  // technician. Naming the shell and the tab together works from either side
+  // of the nesting: the tab navigator has no `HomeServiceLayout` route, so the
+  // call bubbles to the stack that does, and `screen` selects the tab there.
+  // Pushing `ProvidersScreen` instead (what this used to do) opened an
+  // unfiltered provider list, one level past the choice being offered.
+  const goToServices = useCallback(
+    () => navigation.navigate('HomeServiceLayout', { screen: 'index' }),
+    [navigation]
+  );
+
   const coldLoad = loading.fetch && bookings.length === 0;
   const failed = !!errors.fetch && bookings.length === 0;
   const activeLabel = FILTERS.find((f) => f.key === activeFilter)?.label.toLowerCase();
@@ -375,7 +386,7 @@ export default function BookingsScreen() {
       title="No bookings yet"
       message="Book an electrician, plumber or AC technician and it will show up here."
       actionLabel="Browse services"
-      onAction={() => navigation.navigate('ProvidersScreen', {})}
+      onAction={goToServices}
     />
   ) : (
     <EmptyState

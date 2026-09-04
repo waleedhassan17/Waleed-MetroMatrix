@@ -117,6 +117,48 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
     [dispatch, navigation]
   );
 
+  // The Home tab, which is the category picker — Electrician, Plumber, AC
+  // technician. Naming the shell and the tab together is what makes this work
+  // from both places this screen renders: as the Saved tab the call bubbles up
+  // to the stack, and as a screen pushed from the account menu it pops back to
+  // the shell. Pushing `ProvidersScreen` instead (what this used to do) opened
+  // an unfiltered provider list, one level past the choice being offered.
+  const goToServices = useCallback(
+    () => navigation.navigate('HomeServiceLayout', { screen: 'index' }),
+    [navigation]
+  );
+
+  // Same three states, in the same order, as the Bookings tab: skeletons on a
+  // cold fetch only, the failure said out loud rather than dressed up as "you
+  // have nothing", and the empty state last. Keeping all three inside the list
+  // is what leaves pull-to-refresh working during an error — the old layout
+  // swapped the whole FlatList out for a bare ErrorState, so the one gesture
+  // that could recover from a failed fetch was gone exactly when it was needed.
+  const coldLoad = loading && !loaded;
+  const listEmpty = coldLoad ? (
+    <View accessibilityLabel="Loading saved providers">
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={styles.card}>
+          <SkeletonCard lines={1} />
+        </View>
+      ))}
+    </View>
+  ) : error ? (
+    <ErrorState
+      title="We couldn't load your saved providers"
+      message={error}
+      onRetry={() => dispatch(fetchFavorites())}
+    />
+  ) : (
+    <EmptyState
+      icon="heart-outline"
+      title="Nothing saved yet"
+      message="Tap the heart on a provider's profile and they'll wait for you here."
+      actionLabel="Browse providers"
+      onAction={goToServices}
+    />
+  );
+
   return (
     <Screen>
       <AppBar
@@ -126,56 +168,43 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
         onBack={() => navigation.goBack()}
       />
 
-      {loading && !loaded ? (
-        <View style={styles.loading} accessibilityLabel="Loading saved providers">
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.card}>
-              <SkeletonCard lines={1} />
-            </View>
-          ))}
-        </View>
-      ) : error && !favorites.length ? (
-        <ErrorState
-          title="We couldn't load your saved providers"
-          message={error}
-          onRetry={() => dispatch(fetchFavorites())}
-        />
-      ) : (
-        <FlatList
-          data={favorites}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={() => dispatch(fetchFavorites())}
-              colors={[HS.accent]}
-              tintColor={HS.accent}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon="heart-outline"
-              title="Nothing saved yet"
-              message="Tap the heart on a provider's profile and they'll wait for you here."
-              actionLabel="Browse providers"
-              onAction={() => navigation.navigate('ProvidersScreen', {})}
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={favorites}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        // Centred only for a real empty or error state. The cold-load skeletons
+        // stand in for rows, so they stay pinned to the top where the rows will
+        // be — centring them makes the list jump when the data lands.
+        contentContainerStyle={[
+          styles.list,
+          favorites.length === 0 && !coldLoad && styles.listCentered,
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && loaded}
+            onRefresh={() => dispatch(fetchFavorites())}
+            colors={[HS.accent]}
+            tintColor={HS.accent}
+          />
+        }
+        ListEmptyComponent={listEmpty}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  // Kept in step with the Bookings tab — the two are siblings in the same tab
+  // bar, so an empty Saved that hugs the top while an empty Bookings sits
+  // centred reads as one of them being broken.
   list: {
     padding: GUTTER,
-    flexGrow: 1,
+    paddingBottom: S.xxxl,
   },
-  loading: {
-    padding: GUTTER,
+  listCentered: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   card: {
     marginBottom: S.md,

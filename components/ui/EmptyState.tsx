@@ -104,6 +104,12 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: S.xl,
+    // `fullWidth={false}` gives Button `alignSelf: 'flex-start'`, which is right
+    // for a button hugging its label in a left-aligned row and wrong here — it
+    // overrides this wrapper's `alignItems: 'center'` and hangs the one action
+    // off the left edge under centred title and message. Everything else in
+    // this component is centred; the button has to be too.
+    alignSelf: 'center',
   },
 });
 
