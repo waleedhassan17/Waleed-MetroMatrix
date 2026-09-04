@@ -44,7 +44,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 // Route names are string literals here rather than `BaseRouteNames`: that lives
 // in navigation-maps/Base, which imports this screen, and importing it back
 // would close the cycle.
@@ -59,10 +59,6 @@ import {
   selectIsVerified,
   selectUserStats,
   saveUserProfile,
-  updateAvatar,
-  addAddress,
-  deleteAddress,
-  setDefaultAddress,
   toggleNotificationPreference,
   toggleDarkMode,
   setLanguage,
@@ -294,9 +290,26 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
     extrapolate: 'clamp',
   });
 
-  useEffect(() => {
-    dispatch(fetchUserProfile());
-  }, [dispatch]);
+  // On focus, not just on mount: the Addresses tab hands off to
+  // AddressManagement to do the actual editing, so coming back has to pick up
+  // what changed there or the list still shows the state from before the trip.
+  useFocusEffect(
+    React.useCallback(() => {
+      dispatch(fetchUserProfile());
+    }, [dispatch])
+  );
+
+  /** Two-letter monogram, for a profile with no picture set. */
+  const initials = useMemo(
+    () =>
+      (user?.name || '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || '?',
+    [user?.name]
+  );
 
   // The profile now arrives from the API after the first render, so the edit
   // fields have to pick it up when it lands — seeding them once from the
@@ -662,14 +675,47 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   );
 
   // Render Addresses Tab
+  /**
+   * Addresses, read-only, with one real action.
+   *
+   * WHY THIS TAB NO LONGER EDITS
+   * ----------------------------
+   * It looked like a full CRUD and was not one. "Add New Address" had no
+   * `onPress` at all, and Delete / Set as Default dispatched plain reducers
+   * that only touch `userProfileSlice` — no request is made, so the change was
+   * silently thrown away by the next `fetchUserProfile`. Deleting an address
+   * and watching it come back is worse than not offering the button.
+   *
+   * AddressManagementScreen is the real thing: it talks to the address
+   * endpoints, and it already has add, edit, delete, set-default, an empty
+   * state and an error state. So this tab shows what is saved and hands off to
+   * it, rather than keeping a second, broken copy of the same feature.
+   */
   const renderAddresses = () => (
     <View style={styles.addressesContainer}>
-      <TouchableOpacity style={styles.addAddressButton}>
-        <View style={[styles.addAddressIcon, accent.solid]}>
-          <Plus size={24} color={C.inkInverse} />
+      <TouchableOpacity
+        style={[styles.addAddressButton, accent.solid]}
+        onPress={() => navigation.navigate('AddressManagement')}
+        accessibilityRole="button"
+        accessibilityLabel="Manage your addresses"
+      >
+        <View style={styles.addAddressIcon}>
+          <Plus size={20} color={C.inkInverse} />
         </View>
-        <Text style={styles.addAddressText}>Add New Address</Text>
+        <Text style={styles.addAddressText}>Add or edit addresses</Text>
       </TouchableOpacity>
+
+      {addresses.length === 0 && (
+        <View style={styles.addressEmpty}>
+          <View style={[styles.addressEmptyIcon, { backgroundColor: colors.accentSoft }]}>
+            <MapPin size={22} color={colors.accentDeep} strokeWidth={2} />
+          </View>
+          <Text style={styles.addressEmptyTitle}>No saved addresses</Text>
+          <Text style={styles.addressEmptyBody}>
+            Save where you want work done and it will be ready at checkout.
+          </Text>
+        </View>
+      )}
 
       {addresses.map((address, index) => (
         <View key={address.id} style={styles.addressCard}>
@@ -700,22 +746,9 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
           </View>
           <Text style={styles.addressText}>{address.address}</Text>
           <Text style={styles.addressCity}>{address.city} {address.postalCode}</Text>
-          <View style={styles.addressActions}>
-            {!address.isDefault && (
-              <TouchableOpacity
-                style={styles.setDefaultButton}
-                onPress={() => dispatch(setDefaultAddress(address.id))}
-              >
-                <Text style={styles.setDefaultText}>Set as Default</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => dispatch(deleteAddress(address.id))}
-            >
-              <Trash2 size={16} color={C.error} />
-            </TouchableOpacity>
-          </View>
+          {/* Set as Default and Delete lived here and never reached the
+              server — see the note above renderAddresses. Editing happens on
+              the screen that can actually save it. */}
         </View>
       ))}
     </View>
@@ -798,9 +831,15 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
           {/* Profile Info */}
           <View style={styles.profileInfo}>
             <View style={styles.avatarContainer}>
-              <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarInitialsWrap]}>
+                  <Text style={styles.avatarInitials}>{initials}</Text>
+                </View>
+              )}
               <TouchableOpacity style={styles.cameraButton} onPress={handleAvatarPress}>
-                <Camera size={12} color={C.inkInverse} strokeWidth={2.5} />
+                <Camera size={13} color={colors.accentDeep} strokeWidth={2.5} />
               </TouchableOpacity>
               {isPremium && (
                 <View style={[styles.verifiedBadge, accent.solid]}>
@@ -1019,6 +1058,17 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
+  avatarInitialsWrap: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: C.inkInverse,
+    letterSpacing: 0.5,
+  },
   avatarContainer: {
     position: 'relative',
     marginBottom: 14,
@@ -1037,7 +1087,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: ROW_TINT.violet.fg,
+    backgroundColor: C.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5,
@@ -1310,6 +1360,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addressEmpty: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  addressEmptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  addressEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.ink,
+    textAlign: 'center',
+  },
+  addressEmptyBody: {
+    fontSize: 14,
+    color: C.inkMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 6,
   },
   addAddressText: {
     fontSize: 14,
