@@ -12,8 +12,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  FlatList,
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -78,9 +83,25 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
+// Five filters do not fit across a small phone, so the row scrolls — and a row
+// that scrolls with "Cancelled" sheared off at the edge reads as a broken
+// layout, not as more content. Two things make the scroll honest: a fade on
+// whichever edge still has chips behind it, and a chip that brings itself into
+// view when picked. `#FFFFFFxx` rather than a literal rgba() so the fade stays
+// tied to the surface token.
+const FADE_WIDTH = 28;
+const EDGE_EPSILON = 4;
+const FADE_START_COLORS = [C.surface, `${C.surface}00`] as const;
+const FADE_END_COLORS = [`${C.surface}00`, C.surface] as const;
+const FADE_FROM = { x: 0, y: 0 };
+const FADE_TO = { x: 1, y: 0 };
+
 // ── Card ────────────────────────────────────────────────────────────────────
 
-const BookingCard: React.FC<{ booking: Booking }> = ({ booking }) => {
+// Memoised: FlatList re-renders its rows whenever the screen re-renders (a
+// filter tap, a refresh flag), and every card here is a pure function of a
+// booking object the store hands back by reference.
+const BookingCard = React.memo(function BookingCard({ booking }: { booking: Booking }) {
   const navigation = useNavigation<any>();
   // Cached after the first call — a native module cannot appear at runtime.
   const callingSupported = isCallingSupported();
@@ -208,7 +229,7 @@ const BookingCard: React.FC<{ booking: Booking }> = ({ booking }) => {
       </View>
     </Card>
   );
-};
+});
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
@@ -254,9 +275,117 @@ export default function BookingsScreen() {
     }
   }, [dispatch]);
 
+  // ── Filter row: edge fades and reveal-on-select ───────────────────────────
+  //
+  // Widths and offset live in refs, not state: they are read inside handlers
+  // and never rendered, so keeping them out of state saves a re-render on
+  // every scroll frame. Only the two fade flags are state, and `syncFade`
+  // returns the previous object unchanged when neither flipped, which makes
+  // React bail out of the render entirely.
+  const filterScroll = useRef<ScrollView>(null);
+  const viewportWidth = useRef(0);
+  const contentWidth = useRef(0);
+  const scrollX = useRef(0);
+  const chipLayouts = useRef<Partial<Record<FilterType, { x: number; width: number }>>>({});
+  const [fade, setFade] = useState({ start: false, end: false });
+
+  const syncFade = useCallback(() => {
+    const start = scrollX.current > EDGE_EPSILON;
+    const end = contentWidth.current - viewportWidth.current - scrollX.current > EDGE_EPSILON;
+    setFade((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+
+  const onFilterScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollX.current = e.nativeEvent.contentOffset.x;
+      syncFade();
+    },
+    [syncFade]
+  );
+
+  const onFilterLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      viewportWidth.current = e.nativeEvent.layout.width;
+      syncFade();
+    },
+    [syncFade]
+  );
+
+  const onFilterContentSize = useCallback(
+    (width: number) => {
+      contentWidth.current = width;
+      syncFade();
+    },
+    [syncFade]
+  );
+
+  // Picking a chip that is half past the edge should bring it fully into view —
+  // otherwise the filter you just chose is the one you cannot read.
+  const selectFilter = useCallback((key: FilterType) => {
+    setActiveFilter(key);
+
+    const chip = chipLayouts.current[key];
+    if (!chip || !viewportWidth.current) return;
+    // `x` is measured inside the content container, so it already carries the
+    // row's leading gutter; backing it out again lands the chip flush on the
+    // screen edge instead of inset from it.
+    const start = chip.x - GUTTER;
+    const end = chip.x + chip.width + GUTTER;
+    if (start < scrollX.current) {
+      filterScroll.current?.scrollTo({ x: Math.max(start, 0), animated: true });
+    } else if (end > scrollX.current + viewportWidth.current) {
+      filterScroll.current?.scrollTo({ x: end - viewportWidth.current, animated: true });
+    }
+  }, []);
+
   const coldLoad = loading.fetch && bookings.length === 0;
   const failed = !!errors.fetch && bookings.length === 0;
   const activeLabel = FILTERS.find((f) => f.key === activeFilter)?.label.toLowerCase();
+
+  const renderBooking = useCallback(
+    ({ item }: { item: Booking }) => <BookingCard booking={item} />,
+    []
+  );
+
+  /* The loader only shows on a cold fetch — a pull-to-refresh already has its
+     own spinner. A failed fetch used to fall through to "No bookings yet",
+     which told the customer their bookings were gone rather than that the
+     request failed. */
+  const listEmpty = coldLoad ? (
+    <View accessibilityLabel="Loading bookings">
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={styles.card}>
+          <SkeletonCard lines={2} />
+        </View>
+      ))}
+    </View>
+  ) : failed ? (
+    <ErrorState
+      title="We couldn't load your bookings"
+      message={errors.fetch}
+      onRetry={() => dispatch(fetchBookings(undefined))}
+    />
+  ) : bookings.length === 0 ? (
+    // Keyed off the whole list, not off `activeFilter`: with no bookings at
+    // all there is nothing under any filter, so "try another filter" would be
+    // sending the customer around an empty screen instead of offering the one
+    // thing that helps.
+    <EmptyState
+      icon="calendar-outline"
+      title="No bookings yet"
+      message="Book an electrician, plumber or AC technician and it will show up here."
+      actionLabel="Browse services"
+      onAction={() => navigation.navigate('ProvidersScreen', {})}
+    />
+  ) : (
+    <EmptyState
+      icon="calendar-outline"
+      title={`No ${activeLabel} bookings`}
+      message="The rest of your bookings are under another filter."
+      actionLabel="Show all bookings"
+      onAction={() => selectFilter('all')}
+    />
+  );
 
   return (
     <Screen>
@@ -264,25 +393,67 @@ export default function BookingsScreen() {
 
       <View style={styles.filters}>
         <ScrollView
+          ref={filterScroll}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersContent}
+          onLayout={onFilterLayout}
+          onContentSizeChange={onFilterContentSize}
+          onScroll={onFilterScroll}
+          scrollEventThrottle={16}
         >
           {FILTERS.map((filter) => (
-            <Chip
+            <View
               key={filter.key}
-              label={filter.label}
-              count={counts[filter.key]}
-              selected={activeFilter === filter.key}
-              onPress={() => setActiveFilter(filter.key)}
-              style={styles.filterChip}
-            />
+              onLayout={(e) => {
+                const { x, width } = e.nativeEvent.layout;
+                chipLayouts.current[filter.key] = { x, width };
+              }}
+            >
+              <Chip
+                label={filter.label}
+                // A row of five zeroes is noise. The badge exists to point at
+                // where the bookings are, so it only appears where there are
+                // any — the chip itself still says the filter is available.
+                count={counts[filter.key] || undefined}
+                selected={activeFilter === filter.key}
+                onPress={() => selectFilter(filter.key)}
+              />
+            </View>
           ))}
         </ScrollView>
+
+        {fade.start && (
+          <LinearGradient
+            colors={FADE_START_COLORS}
+            start={FADE_FROM}
+            end={FADE_TO}
+            pointerEvents="none"
+            style={[styles.fade, styles.fadeStart]}
+          />
+        )}
+        {fade.end && (
+          <LinearGradient
+            colors={FADE_END_COLORS}
+            start={FADE_FROM}
+            end={FADE_TO}
+            pointerEvents="none"
+            style={[styles.fade, styles.fadeEnd]}
+          />
+        )}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.list}
+      <FlatList
+        data={filteredBookings}
+        keyExtractor={(item) => item.id}
+        renderItem={renderBooking}
+        // Centred only for a real empty or error state. The cold-load skeletons
+        // stand in for rows, so they stay pinned to the top where the rows will
+        // be — centring them makes the list jump when the data lands.
+        contentContainerStyle={[
+          styles.list,
+          filteredBookings.length === 0 && !coldLoad && styles.listCentered,
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -292,43 +463,8 @@ export default function BookingsScreen() {
             tintColor={HS.accent}
           />
         }
-      >
-        {/* The loader only shows on a cold fetch — a pull-to-refresh already
-            has its own spinner. A failed fetch used to fall through to "No
-            bookings yet", which told the customer their bookings were gone
-            rather than that the request failed. */}
-        {coldLoad ? (
-          <View accessibilityLabel="Loading bookings">
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={styles.card}>
-                <SkeletonCard lines={2} />
-              </View>
-            ))}
-          </View>
-        ) : failed ? (
-          <ErrorState
-            title="We couldn't load your bookings"
-            message={errors.fetch}
-            onRetry={() => dispatch(fetchBookings(undefined))}
-          />
-        ) : filteredBookings.length > 0 ? (
-          filteredBookings.map((booking) => <BookingCard key={booking.id} booking={booking} />)
-        ) : activeFilter === 'all' ? (
-          <EmptyState
-            icon="calendar-outline"
-            title="No bookings yet"
-            message="Book an electrician, plumber or AC technician and it will show up here."
-            actionLabel="Browse services"
-            onAction={() => navigation.navigate('ProvidersScreen', {})}
-          />
-        ) : (
-          <EmptyState
-            icon="calendar-outline"
-            title={`No ${activeLabel} bookings`}
-            message="Try another filter to see the rest of your bookings."
-          />
-        )}
-      </ScrollView>
+        ListEmptyComponent={listEmpty}
+      />
     </Screen>
   );
 }
@@ -342,15 +478,33 @@ const styles = StyleSheet.create({
   filtersContent: {
     paddingHorizontal: GUTTER,
     paddingVertical: S.md,
+    // `gap`, not a margin on every chip: a trailing margin on the last one
+    // stacks with the gutter and leaves the row ending short of the edge.
+    gap: S.sm,
   },
-  filterChip: {
-    marginRight: S.sm,
+  // Absolute children sit inside the border box, so `bottom: 0` already stops
+  // short of the row's bottom rule rather than painting over it.
+  fade: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: FADE_WIDTH,
   },
+  fadeStart: { left: 0 },
+  fadeEnd: { right: 0 },
 
   list: {
     padding: GUTTER,
-    // Clears the floating tab bar.
-    paddingBottom: 120,
+    // The tab bar is docked and lays out below this list, so it needs clearing
+    // by exactly nothing — the old 120 was for a floating bar this module does
+    // not have, and left a screen's worth of dead scroll under the last card.
+    paddingBottom: S.xxxl,
+  },
+  // Fills the viewport so an empty or error state sits in the middle of the
+  // space it owns instead of clinging to the top of it.
+  listCentered: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   card: {
     marginBottom: S.md,
