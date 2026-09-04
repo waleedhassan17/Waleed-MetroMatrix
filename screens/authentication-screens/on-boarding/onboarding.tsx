@@ -1,27 +1,34 @@
 // ============================================================================
 // Onboarding
 //
-// Four slides on the ink ground, each previewing one real part of the product.
-// The hero is a card showing a fragment of that module's actual UI — a booking
-// row, an appointment, an order — rather than an icon standing in for it. A
-// picture of the thing beats a symbol for the thing.
+// Four slides on the app's own warm paper ground, each previewing one real part
+// of the product. The hero is a card showing a fragment of that module's actual
+// UI — a booking row, an appointment, an order — rather than an icon standing
+// in for it. A picture of the thing beats a symbol for the thing.
+//
+// EACH SLIDE CARRIES A WHOLE ModulePalette, NOT A HEX
+// --------------------------------------------------
+// The five slots are not interchangeable and using the wrong one is how an
+// onboarding screen fails contrast:
+//
+//   accent      fills, dots, the page indicator      — never small text
+//   accentDeep  accent-coloured TEXT                 — the slot that is
+//                                                      guaranteed on white
+//   accentSoft  the ambient wash and chip grounds
+//   accentLine  hairline on a lifted stat pill
+//
+// Shopping orange (#E67E22) on paper is 2.7:1 — it fails even the large-text
+// bar. Its `accentDeep` (#D35400) passes. That is exactly why the slot exists,
+// and why no slide here holds a raw colour of its own.
 //
 // WHY THERE IS NO ENTRANCE ANIMATION
 // ----------------------------------
 // The only moving element is the page indicator, and it moves because the
 // user's finger moves. The previous version reset seven Animated.Values on
 // every index change and staggered them with four uncleaned setTimeouts —
-// including a -180deg spin — which meant a fast swipe left text mid-fade and
-// offscreen slides animated along with the visible one. Content that settles
-// reads as considered; content that performs reads as a template.
-//
-// WHY IT IS DARK
-// --------------
-// `C.ink` is the app's own near-black, and `MODULE_PALETTES.neutral` already
-// names ink as the colour of the app before any vertical claims it. Splash and
-// onboarding share it, so the one transition into the light product happens
-// once, on "Get started", rather than flickering mid-flow. Every value painted
-// on it is derived through `tint()` from an existing token — see D below.
+// including a -180deg spin — so a fast swipe left text mid-fade and offscreen
+// slides animated along with the visible one. Content that settles reads as
+// considered; content that performs reads as a template.
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -44,32 +51,21 @@ import {
   setSelectedRole,
 } from '../../../components/app-container/appContainerSlice';
 import Screen from '../../../components/ui/Screen';
-import { useAppDispatch } from '../../../hooks/useReduxHooks';
+import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
+import { resolveLandingRoute } from '../../../navigation-maps/landingRoute';
 import useReducedMotion from '../../../hooks/useReducedMotion';
-import { C, GUTTER, MODULE_PALETTES, PROSE_WIDTH, R, S, T, tint } from '../../../theme';
+import {
+  C,
+  E,
+  GUTTER,
+  MODULE_PALETTES,
+  ModulePalette,
+  PROSE_WIDTH,
+  R,
+  S,
+  T,
+} from '../../../theme';
 import { setOnboardingComplete } from '../../../utils/storage_utils/storageUtils';
-
-// ── The dark ground ─────────────────────────────────────────────────────────
-//
-// `tint` returns an 8-digit hex, so an ink screen needs no palette of its own:
-// every surface here is `C.inkInverse` or `C.ink` at an alpha. Text alphas are
-// floored at 0.56 (5.8:1 on ink, past AA body) — 0.40 is used for the inactive
-// dots, which carry no text.
-
-const D = {
-  cardFill: tint(C.inkInverse, 0.04),
-  wellFill: tint(C.inkInverse, 0.03),
-  hairline: tint(C.inkInverse, 0.08),
-  hairlineSoft: tint(C.inkInverse, 0.06),
-  textBody: tint(C.inkInverse, 0.72),
-  textMuted: tint(C.inkInverse, 0.56),
-  dotIdle: tint(C.inkInverse, 0.18),
-  badgeFill: tint(C.ink, 0.9),
-} as const;
-
-const HS = MODULE_PALETTES.homeservice.accent;
-const HC = MODULE_PALETTES.healthcare.accent;
-const SH = MODULE_PALETTES.shopping.accent;
 
 // ── Slide data ──────────────────────────────────────────────────────────────
 
@@ -90,8 +86,7 @@ interface CardRow {
 
 interface Slide {
   key: string;
-  /** Drives the eyebrow dot, the title's second line and the page indicator. */
-  accent: string;
+  palette: ModulePalette;
   eyebrow: string;
   title: string;
   titleAccent: string;
@@ -100,12 +95,16 @@ interface Slide {
   badges: [{ value: string; label: string }, { value: string; label: string }];
 }
 
+const HS = MODULE_PALETTES.homeservice;
+const HC = MODULE_PALETTES.healthcare;
+const SH = MODULE_PALETTES.shopping;
+
 const SLIDES: Slide[] = [
   {
     key: 'overview',
-    // Nothing has claimed the app yet, so the overview slide stays monochrome
-    // and the colour arrives with the verticals.
-    accent: C.inkInverse,
+    // Neutral is ink: nothing has claimed the app yet, so the overview slide
+    // stays monochrome and the colour arrives with the verticals.
+    palette: MODULE_PALETTES.neutral,
     eyebrow: 'MetroMatrix',
     title: 'Your city,',
     titleAccent: 'one app.',
@@ -115,9 +114,9 @@ const SLIDES: Slide[] = [
       title: 'Services',
       chip: 'All in one',
       rows: [
-        { dot: HS, primary: 'Home services', trailing: 'Book a pro' },
-        { dot: HC, primary: 'Healthcare', trailing: 'Consult a doctor' },
-        { dot: SH, primary: 'Shopping', trailing: 'Order essentials' },
+        { dot: HS.accent, primary: 'Home services', trailing: 'Book a pro' },
+        { dot: HC.accent, primary: 'Healthcare', trailing: 'Consult a doctor' },
+        { dot: SH.accent, primary: 'Shopping', trailing: 'Order essentials' },
       ],
     },
     badges: [
@@ -127,12 +126,11 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'homeservice',
-    accent: HS,
+    palette: HS,
     eyebrow: 'Home services',
     title: 'Verified pros,',
     titleAccent: 'booked in minutes.',
-    subtitle:
-      'Compare rated professionals, pick a slot, and follow them to your door.',
+    subtitle: 'Compare rated professionals, pick a slot, and follow them to your door.',
     card: {
       title: 'Booking',
       chip: 'Confirmed',
@@ -159,7 +157,7 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'healthcare',
-    accent: HC,
+    palette: HC,
     eyebrow: 'Healthcare',
     title: 'Care, without',
     titleAccent: 'the waiting room.',
@@ -191,7 +189,7 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'shopping',
-    accent: SH,
+    palette: SH,
     eyebrow: 'Shopping',
     title: 'Trusted brands,',
     titleAccent: 'secure checkout.',
@@ -220,8 +218,10 @@ const SLIDES: Slide[] = [
 // then scaled with everything else, so it cannot be corrected afterwards.
 
 const DOT = 8;
-const PITCH = 16;
 const WORM = 24;
+// Pitch has to clear the pill or the idle dots sit flush against it: the gap to
+// a neighbour is PITCH - WORM/2 - DOT/2, i.e. 4pt here.
+const PITCH = 20;
 const TRACK = WORM + PITCH * (SLIDES.length - 1);
 
 // ============================================================================
@@ -231,6 +231,13 @@ const Onboarding: React.FC = () => {
   const dispatch = useAppDispatch();
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
+
+  // The intro plays on every launch, so this screen — not AppContainer — is
+  // what stands between a returning session and its own home. `fetchMe` has
+  // already settled by the time the navigator mounted, so this state is final.
+  const currentUser = useAppSelector((state) => state.appContainer.currentUser);
+  const currentProvider = useAppSelector((state) => state.appContainer.currentProvider);
+  const userType = useAppSelector((state) => state.appContainer.userType);
 
   const [index, setIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -281,12 +288,25 @@ const Onboarding: React.FC = () => {
     [width],
   );
 
-  /** Persist first, then leave. Called by both "Get started" and Skip. */
+  /**
+   * Persist first, then leave. Called by both "Get started" and Skip.
+   *
+   * A visitor with no session lands on RoleSelection — the first screen that
+   * actually asks them something. A signed-in session goes straight back to
+   * its own home: replaying the intro is not a sign-out.
+   */
   const finish = useCallback(async () => {
     await setOnboardingComplete(true);
     dispatch(setOnboardingStatus(true));
-    navigation.replace('RoleSelection');
-  }, [dispatch, navigation]);
+    navigation.replace(
+      resolveLandingRoute({
+        userType,
+        hasUser: !!currentUser,
+        hasProvider: !!currentProvider,
+        providerType: currentProvider?.providerType,
+      })
+    );
+  }, [currentProvider, currentUser, dispatch, navigation, userType]);
 
   const onPrimary = useCallback(() => {
     if (isLast) {
@@ -297,9 +317,10 @@ const Onboarding: React.FC = () => {
   }, [finish, index, isLast, reduced]);
 
   // "I already have an account" is the customer path — providers reach their
-  // sign-in through RoleSelection. Setting the role here keeps the launch gate
-  // consistent: SignIn does not set it, so without this a returning user lands
-  // back on RoleSelection.
+  // sign-in through RoleSelection. The role still has to be set before leaving:
+  // it is what puts `userType` at 'user', which `fetchMe` reads to decide which
+  // account the credentials belong to. It no longer has anything to do with
+  // where the next launch starts — that is always the intro now.
   const onSignIn = useCallback(async () => {
     await setOnboardingComplete(true);
     dispatch(setOnboardingStatus(true));
@@ -310,27 +331,16 @@ const Onboarding: React.FC = () => {
   const renderSlide = useCallback(
     ({ item }: { item: Slide }) => (
       <View style={[s.slide, { width }]}>
-        {/* Ambient accent, well under the card. Two circles, not a gradient —
-            a gradient at this opacity bands on Android. */}
+        {/* Ambient module wash, well under the card. `accentSoft` is the token
+            designed for exactly this — a tinted ground, not a colour. */}
         <View
           style={[
-            s.glowOuter,
+            s.washOuter,
             {
-              width: width * 0.86,
-              height: width * 0.86,
-              borderRadius: width * 0.43,
-              backgroundColor: tint(item.accent, 0.05),
-            },
-          ]}
-        />
-        <View
-          style={[
-            s.glowInner,
-            {
-              width: width * 0.58,
-              height: width * 0.58,
-              borderRadius: width * 0.29,
-              backgroundColor: tint(item.accent, 0.05),
+              width: width * 0.9,
+              height: width * 0.9,
+              borderRadius: width * 0.45,
+              backgroundColor: item.palette.accentSoft,
             },
           ]}
         />
@@ -339,14 +349,14 @@ const Onboarding: React.FC = () => {
           <PreviewCard slide={item} />
 
           <View style={s.eyebrow}>
-            <View style={[s.eyebrowDot, { backgroundColor: item.accent }]} />
+            <View style={[s.eyebrowDot, { backgroundColor: item.palette.accent }]} />
             <Text style={s.eyebrowText}>{item.eyebrow}</Text>
           </View>
 
           <Text style={s.title}>
             {item.title}
             {'\n'}
-            <Text style={{ color: item.accent }}>{item.titleAccent}</Text>
+            <Text style={{ color: item.palette.accentDeep }}>{item.titleAccent}</Text>
           </Text>
 
           <Text style={s.subtitle}>{item.subtitle}</Text>
@@ -357,7 +367,7 @@ const Onboarding: React.FC = () => {
   );
 
   return (
-    <Screen background={C.ink} barStyle="light-content" edges={['top', 'bottom']}>
+    <Screen background={C.bg} barStyle="dark-content" edges={['top', 'bottom']}>
       <Animated.FlatList
         ref={listRef as any}
         style={s.list}
@@ -390,14 +400,17 @@ const Onboarding: React.FC = () => {
           accessibilityLabel={`Step ${index + 1} of ${SLIDES.length}`}
         >
           {SLIDES.map((slide, i) => (
-            <View key={`dot-${slide.key}`} style={[s.dot, { left: (WORM - DOT) / 2 + i * PITCH }]} />
+            <View
+              key={`dot-${slide.key}`}
+              style={[s.dot, { left: (WORM - DOT) / 2 + i * PITCH }]}
+            />
           ))}
           {SLIDES.map((slide, i) =>
             reduced ? (
               index === i ? (
                 <View
                   key={`worm-${slide.key}`}
-                  style={[s.worm, { left: i * PITCH, backgroundColor: slide.accent }]}
+                  style={[s.worm, { left: i * PITCH, backgroundColor: slide.palette.accent }]}
                 />
               ) : null
             ) : (
@@ -406,7 +419,7 @@ const Onboarding: React.FC = () => {
                 style={[
                   s.worm,
                   {
-                    backgroundColor: slide.accent,
+                    backgroundColor: slide.palette.accent,
                     opacity: fades[i],
                     transform: [{ translateX: wormX }],
                   },
@@ -435,7 +448,8 @@ const Onboarding: React.FC = () => {
         >
           <Text style={s.linkText}>
             I already have an account
-            <Text style={s.linkStrong}>{'  Sign in'}</Text>
+            <Text style={s.linkSep}>{'  ·  '}</Text>
+            <Text style={s.linkStrong}>Sign in</Text>
           </Text>
         </TouchableOpacity>
 
@@ -461,14 +475,17 @@ const Onboarding: React.FC = () => {
 // ── Preview card ────────────────────────────────────────────────────────────
 
 const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
-  const { accent, card, badges } = slide;
+  const { palette, card, badges } = slide;
 
   return (
     <View style={s.cardWrap}>
       <View style={s.card}>
         <View style={s.cardHead}>
           <Text style={s.cardTitle}>{card.title}</Text>
-          <View style={[s.cardChip, { backgroundColor: tint(accent, 0.18) }]}>
+          {/* Ground carries the module, label stays ink. `accentDeep` on
+              `accentSoft` is only 3.9:1 for shopping — fine for the icon below
+              (icons need 3.0) but short of the 4.5 this 12pt label needs. */}
+          <View style={[s.cardChip, { backgroundColor: palette.accentSoft }]}>
             <Text style={s.cardChipText}>{card.chip}</Text>
           </View>
         </View>
@@ -480,8 +497,12 @@ const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
                 <View style={[s.rowDot, { backgroundColor: row.dot }]} />
               </View>
             ) : (
-              <View style={[s.rowLead, s.rowIcon]}>
-                <Ionicons name={row.icon ?? 'ellipse-outline'} size={14} color={accent} />
+              <View style={[s.rowLead, s.rowIcon, { backgroundColor: palette.accentSoft }]}>
+                <Ionicons
+                  name={row.icon ?? 'ellipse-outline'}
+                  size={14}
+                  color={palette.accentDeep}
+                />
               </View>
             )}
 
@@ -499,7 +520,12 @@ const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
             {!!row.trailing && (
               <View style={s.rowTrail}>
                 {!!row.trailingIcon && (
-                  <Ionicons name={row.trailingIcon} size={11} color={accent} style={s.rowTrailIcon} />
+                  <Ionicons
+                    name={row.trailingIcon}
+                    size={11}
+                    color={C.star}
+                    style={s.rowTrailIcon}
+                  />
                 )}
                 <Text style={s.rowTrailText}>{row.trailing}</Text>
               </View>
@@ -510,11 +536,11 @@ const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
 
       {/* Stat pills overhanging the card. They read as data lifted out of the
           product, which is the point — the numbers are the trust cue. */}
-      <View style={[s.badge, s.badgeTop, { borderColor: tint(accent, 0.35) }]}>
+      <View style={[s.badge, s.badgeTop, { borderColor: palette.accentLine }]}>
         <Text style={s.badgeValue}>{badges[0].value}</Text>
         <Text style={s.badgeLabel}>{badges[0].label}</Text>
       </View>
-      <View style={[s.badge, s.badgeBottom, { borderColor: tint(accent, 0.35) }]}>
+      <View style={[s.badge, s.badgeBottom, { borderColor: palette.accentLine }]}>
         <Text style={s.badgeValue}>{badges[1].value}</Text>
         <Text style={s.badgeLabel}>{badges[1].label}</Text>
       </View>
@@ -531,17 +557,17 @@ const s = StyleSheet.create({
   slide: { flex: 1, justifyContent: 'center' },
   slideBody: { paddingHorizontal: S.xxxl, alignItems: 'center' },
 
-  glowOuter: { position: 'absolute', top: '8%', left: '6%' },
-  glowInner: { position: 'absolute', top: '16%', left: '20%' },
+  washOuter: { position: 'absolute', top: '6%', left: '5%' },
 
   // ── Card ──
   cardWrap: { width: '100%', maxWidth: 300, marginBottom: S.xxxl },
   card: {
-    backgroundColor: D.cardFill,
+    backgroundColor: C.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.hairline,
+    borderColor: C.line,
     borderRadius: R.sheet,
     padding: S.lg,
+    ...E.raised,
   },
   cardHead: {
     flexDirection: 'row',
@@ -549,76 +575,63 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: S.md,
   },
-  cardTitle: { ...T.label, color: C.inkInverse },
+  cardTitle: { ...T.label, color: C.ink },
   cardChip: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.chip },
-  cardChipText: { ...T.caption, color: C.inkInverse },
+  cardChipText: { ...T.caption, color: C.ink },
 
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: S.sm },
   rowRuled: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: D.hairlineSoft,
+    borderTopColor: C.lineSoft,
     marginTop: S.xs,
     paddingTop: S.md,
   },
   rowLead: { width: 26, alignItems: 'center', justifyContent: 'center' },
-  rowIcon: {
-    height: 26,
-    borderRadius: R.chip,
-    backgroundColor: D.wellFill,
-  },
+  rowIcon: { height: 26, borderRadius: R.chip },
   rowDot: { width: 8, height: 8, borderRadius: 4 },
   rowText: { flex: 1, marginLeft: S.md },
-  rowPrimary: { ...T.caption, color: D.textBody },
-  rowSecondary: { ...T.caption, color: D.textMuted, marginTop: 1 },
+  rowPrimary: { ...T.caption, color: C.ink },
+  rowSecondary: { ...T.caption, color: C.inkMuted, marginTop: 1 },
   rowTrail: { flexDirection: 'row', alignItems: 'center' },
   rowTrailIcon: { marginRight: 3 },
-  rowTrailText: { ...T.caption, color: C.inkInverse },
+  rowTrailText: { ...T.caption, color: C.ink },
 
   // ── Floating stat pills ──
   badge: {
     position: 'absolute',
-    backgroundColor: D.badgeFill,
+    backgroundColor: C.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: R.card,
     paddingVertical: S.sm,
     paddingHorizontal: S.md,
+    ...E.raised,
   },
   badgeTop: { top: -14, right: -10 },
   badgeBottom: { bottom: -14, left: -10 },
-  badgeValue: { ...T.bodyStrong, color: C.inkInverse },
-  badgeLabel: { ...T.caption, color: D.textMuted, marginTop: 1 },
+  badgeValue: { ...T.bodyStrong, color: C.ink },
+  badgeLabel: { ...T.caption, color: C.inkMuted, marginTop: 1 },
 
   // ── Copy ──
   eyebrow: { flexDirection: 'row', alignItems: 'center', marginBottom: S.lg },
   eyebrowDot: { width: 6, height: 6, borderRadius: 3, marginRight: S.sm },
-  eyebrowText: { ...T.label, color: D.textMuted },
-  title: {
-    ...T.title,
-    color: C.inkInverse,
-    textAlign: 'center',
-    marginBottom: S.md,
-  },
+  eyebrowText: { ...T.label, color: C.inkMuted },
+  title: { ...T.title, color: C.ink, textAlign: 'center', marginBottom: S.md },
   subtitle: {
     ...T.body,
-    color: D.textMuted,
+    color: C.inkMuted,
     textAlign: 'center',
     maxWidth: PROSE_WIDTH,
   },
 
   // ── Footer ──
   footer: { paddingHorizontal: GUTTER, paddingTop: S.xl, alignItems: 'center' },
-  track: {
-    width: TRACK,
-    height: DOT,
-    marginBottom: S.xxl,
-    justifyContent: 'center',
-  },
+  track: { width: TRACK, height: DOT, marginBottom: S.xxl, justifyContent: 'center' },
   dot: {
     position: 'absolute',
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: D.dotIdle,
+    backgroundColor: C.disabled,
   },
   worm: {
     position: 'absolute',
@@ -631,14 +644,15 @@ const s = StyleSheet.create({
     alignSelf: 'stretch',
     height: 52,
     borderRadius: R.control,
-    backgroundColor: C.inkInverse,
+    backgroundColor: C.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaText: { ...T.subhead, color: C.ink },
+  ctaText: { ...T.subhead, color: C.inkInverse },
   link: { paddingVertical: S.md },
-  linkText: { ...T.body, color: D.textMuted },
-  linkStrong: { ...T.bodyStrong, color: C.inkInverse },
+  linkText: { ...T.body, color: C.inkMuted },
+  linkSep: { color: C.disabled },
+  linkStrong: { ...T.bodyStrong, color: C.ink },
   skipSlot: { height: 36, justifyContent: 'center' },
-  skipText: { ...T.body, color: D.textMuted },
+  skipText: { ...T.body, color: C.inkMuted },
 });

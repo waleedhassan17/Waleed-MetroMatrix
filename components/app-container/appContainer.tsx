@@ -9,6 +9,7 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 
 import { BaseRouteNames } from "../../navigation-maps/Base";
+import { resolveLandingRoute } from "../../navigation-maps/landingRoute";
 import BaseNavigator from "../../navigators/BaseNavigator";
 
 import {
@@ -153,58 +154,28 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
     );
   }
 
-  // Determine initial route based on app state
-  const getInitialRoute = () => {
-    console.log('📍 Determining initial route...', {
-      onboardingComplete,
-      selectedRole,
+  // Every launch opens on the intro. Splash replaces itself with Onboarding,
+  // and Onboarding hands off to `resolveLandingRoute` — so where the session
+  // belongs is still decided from exactly this state, just one screen later.
+  //
+  // This used to branch on `onboardingComplete`, which Onboarding itself sets
+  // to true on the way out: run one saw the intro and no run after it ever
+  // could, because the stored role then carried the launch on to SignIn.
+  console.log('📍 Launching on the intro...', {
+    onboardingComplete,
+    selectedRole,
+    userType,
+    hasUser: !!currentUser,
+    hasProvider: !!currentProvider,
+    willLandOn: resolveLandingRoute({
       userType,
       hasUser: !!currentUser,
       hasProvider: !!currentProvider,
-    });
+      providerType: currentProvider?.providerType,
+    }),
+  });
 
-    // Check onboarding status
-    if (!onboardingComplete) {
-      console.log('➡️ Navigating to Splash (onboarding not complete)');
-      return BaseRouteNames.Splash;
-    }
-    
-    // Check if role is selected
-    if (!selectedRole) {
-      console.log('➡️ Navigating to RoleSelection (no role selected)');
-      return BaseRouteNames.RoleSelection;
-    }
-    
-    // Check authentication based on user type
-    if (userType === 'provider' && currentProvider) {
-      // Route doctors to the healthcare DoctorStack, home_service providers to the existing dashboard
-      const providerSubType = currentProvider.providerType;
-      if (providerSubType === 'doctor') {
-        console.log('➡️ Navigating to DoctorStack (authenticated doctor)');
-        return BaseRouteNames.DoctorStack;
-      }
-      console.log('➡️ Navigating to HomeServiceProviderDashboard (authenticated provider)');
-      return BaseRouteNames.HomeServiceProviderDashboard;
-    } else if (userType === 'user' && currentUser) {
-      console.log('➡️ Navigating to UserHome (authenticated user)');
-      return BaseRouteNames.UserHome;
-    }
-    
-    // Not authenticated, check role to show appropriate sign in
-    if (selectedRole === 'provider') {
-      console.log('➡️ Navigating to ProviderSignIn (provider not authenticated)');
-      return BaseRouteNames.ProviderSignIn;
-    } else if (selectedRole === 'user') {
-      console.log('➡️ Navigating to SignIn (user not authenticated)');
-      return BaseRouteNames.SignIn;
-    }
-    
-    // Default to role selection if nothing else matches
-    console.log('➡️ Navigating to RoleSelection (default)');
-    return BaseRouteNames.RoleSelection;
-  };
-
-  const initialRoute = getInitialRoute();
+  const initialRoute = BaseRouteNames.Splash;
 
   // ✅ Deep linking configuration for email verification and OAuth
   const linking = {
