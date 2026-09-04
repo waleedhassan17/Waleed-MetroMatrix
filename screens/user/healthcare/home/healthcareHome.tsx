@@ -248,13 +248,24 @@ const HealthcareHomeScreen: React.FC = () => {
   // ── Handlers ────────────────────────────────
 
   // This screen is the healthcare module's landing page, reached by pushing the
-  // healthcare stack from the main app. `goBack` bubbles past the tab navigator
-  // and pops the whole stack, returning the user where they came from. Hidden
-  // when there is nothing to go back to, so it never becomes a dead control.
-  const canGoBack = navigation.canGoBack();
-
+  // healthcare stack from the main app, so its back control is the way OUT of
+  // the vertical — unlike the peer tabs, where back would mean nothing.
+  //
+  // It used to be hidden unless `navigation.canGoBack()` said otherwise, which
+  // failed twice over. The value was read once during render and never
+  // recomputed, so it could go stale; and after finishing a booking,
+  // appointmentConfirm `reset`s the stack to the tab shell, which genuinely
+  // leaves no history — so the one control that leaves healthcare disappeared
+  // exactly when the user had finished what they came to do.
+  //
+  // The button is unconditional now, and falls back to the module chooser so it
+  // always leads somewhere rather than being hidden to avoid being dead.
   const handleBack = () => {
-    if (navigation.canGoBack()) navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('UserHome');
   };
 
   const handleSearch = () => {
@@ -502,9 +513,7 @@ const HealthcareHomeScreen: React.FC = () => {
             style={styles.headerGradient}
           >
             <View style={styles.headerContent}>
-              {canGoBack && (
-                <BackButton tone="onAccent" onPress={handleBack} />
-              )}
+              <BackButton tone="onAccent" onPress={handleBack} />
               <View style={styles.headerTextGroup}>
                 <Text style={styles.headerTitle}>Find Your Doctor</Text>
                 <Text style={styles.headerSubtitle}>Book appointments with top specialists</Text>
