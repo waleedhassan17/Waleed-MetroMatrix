@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     borderTopColor: C.line,
     ...Platform.select({
       ios: {
-        shadowColor: '#1C1917',
+        shadowColor: C.ink,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,

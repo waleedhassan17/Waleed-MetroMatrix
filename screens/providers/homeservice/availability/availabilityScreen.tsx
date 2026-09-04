@@ -5,20 +5,7 @@
 // ============================================
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-  Platform,
-  Switch,
-  ActivityIndicator,
-} from 'react-native';
-// react-native's own SafeAreaView is iOS-only — on Android it is a plain View,
-// which is why this screen also hand-rolled a StatusBar.currentHeight pad on
-// its header. The context version applies real insets on both platforms.
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -27,7 +14,8 @@ import {
   updateProviderProfile,
 } from '../../../../networks/serviceProviders/providerNetwork';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { AppBar, Card, Chip, Screen } from '../../../../components/ui';
 
 const RADIUS_OPTIONS = [5, 10, 15, 20, 30];
 
@@ -93,15 +81,8 @@ export default function AvailabilityScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={HS.accent} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Availability</Text>
-        <View style={styles.headerBtn} />
-      </View>
+    <Screen>
+      <AppBar title="Availability" onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={styles.center}>
@@ -112,11 +93,11 @@ export default function AvailabilityScreen() {
         <View style={styles.body}>
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="warning-outline" size={16} color="#B91C1C" />
+              <Ionicons name="warning-outline" size={16} color={C.error} />
               <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={load}>
-                <Text style={styles.retryText}>Retry</Text>
-              </TouchableOpacity>
+              <Text style={styles.retryText} onPress={load}>
+                Retry
+              </Text>
             </View>
           )}
           {savedMsg && (
@@ -126,11 +107,12 @@ export default function AvailabilityScreen() {
             </View>
           )}
 
-          {/* Online toggle */}
-          <View style={styles.card}>
+          {/* Online toggle. The one card on this screen that should be read
+              first, so it is the only raised one. */}
+          <Card elevation="raised" style={styles.card}>
             <View style={styles.cardRow}>
               <View style={[styles.dot, { backgroundColor: isOnline ? HS.accent : C.inkFaint }]} />
-              <View style={{ flex: 1 }}>
+              <View style={styles.grow}>
                 <Text style={styles.cardTitle}>
                   {isOnline ? 'You are Online' : 'You are Offline'}
                 </Text>
@@ -148,10 +130,10 @@ export default function AvailabilityScreen() {
                 disabled={saving}
               />
             </View>
-          </View>
+          </Card>
 
           {/* Service radius */}
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <Text style={styles.cardTitle}>Service radius</Text>
             <Text style={styles.cardSub}>
               How far you are willing to travel for a job. Affects your ranking in
@@ -159,21 +141,17 @@ export default function AvailabilityScreen() {
             </Text>
             <View style={styles.radiusRow}>
               {RADIUS_OPTIONS.map((km) => (
-                <TouchableOpacity
+                <Chip
                   key={km}
-                  style={[styles.radiusChip, radius === km && styles.radiusChipActive]}
+                  label={`${km} km`}
+                  selected={radius === km}
                   onPress={() => pickRadius(km)}
                   disabled={saving}
-                >
-                  <Text
-                    style={[styles.radiusChipText, radius === km && styles.radiusChipTextActive]}
-                  >
-                    {km} km
-                  </Text>
-                </TouchableOpacity>
+                  style={styles.radiusChip}
+                />
               ))}
             </View>
-          </View>
+          </Card>
 
           <View style={styles.hintBox}>
             <Ionicons name="information-circle-outline" size={16} color={C.inkMuted} />
@@ -184,70 +162,41 @@ export default function AvailabilityScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: HS.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-  },
-  headerBtn: { width: 36, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  body: { padding: 16 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: C.line,
-  },
+  body: { padding: GUTTER },
+  grow: { flex: 1 },
+  card: { marginBottom: S.md },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: C.ink },
-  cardSub: { fontSize: 13, color: C.inkMuted, marginTop: 4, lineHeight: 18 },
-  radiusRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
-  radiusChip: {
-    borderWidth: 1,
-    borderColor: C.disabled,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#fff',
-  },
-  radiusChipActive: { backgroundColor: HS.accent, borderColor: HS.accent },
-  radiusChipText: { color: C.inkMuted, fontWeight: '600', fontSize: 13 },
-  radiusChipTextActive: { color: '#fff' },
-  hintBox: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 4 },
-  hintText: { color: C.inkMuted, fontSize: 12, marginLeft: 6, flex: 1, lineHeight: 17 },
+  dot: { width: 10, height: 10, borderRadius: 5, marginRight: S.md },
+  cardTitle: { ...T.subhead, color: C.ink },
+  cardSub: { ...T.body, color: C.inkMuted, marginTop: S.xs },
+  radiusRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: S.md },
+  radiusChip: { marginRight: S.sm, marginBottom: S.sm },
+  hintBox: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: S.xs },
+  hintText: { ...T.caption, color: C.inkMuted, marginLeft: 6, flex: 1 },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: C.errorSoft,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
+    borderRadius: R.control,
+    padding: S.sm + 2,
+    marginBottom: S.md,
   },
-  errorText: { color: '#B91C1C', fontSize: 13, flex: 1, marginLeft: 6 },
-  retryText: { color: '#B91C1C', fontWeight: '700', fontSize: 13 },
+  errorText: { ...T.body, color: C.error, flex: 1, marginLeft: 6 },
+  retryText: { ...T.bodyStrong, color: C.error },
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: HS.accentSoft,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
+    borderRadius: R.control,
+    padding: S.sm + 2,
+    marginBottom: S.md,
   },
-  savedText: { color: HS.accentDeep, fontSize: 13, marginLeft: 6 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: C.inkMuted, fontSize: 14 },
+  savedText: { ...T.body, color: HS.accentDeep, marginLeft: 6 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxl },
+  stateText: { ...T.body, marginTop: S.sm, color: C.inkMuted },
 });

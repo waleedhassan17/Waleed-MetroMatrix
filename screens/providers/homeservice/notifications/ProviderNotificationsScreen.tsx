@@ -22,7 +22,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -35,7 +34,8 @@ import {
 import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { AppBar, Screen } from '../../../../components/ui';
 
 const ACCENT = HS.accent;
 const ACCENT_SOFT = HS.accentSoft;
@@ -165,23 +165,23 @@ export default function ProviderNotificationsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          Notifications{unread > 0 ? ` (${unread})` : ''}
-        </Text>
-        <TouchableOpacity
-          onPress={markAll}
-          disabled={!unread}
-          style={styles.headerBtn}
-          accessibilityLabel="Mark all as read"
-        >
-          <Ionicons name="checkmark-done" size={22} color={unread ? '#fff' : 'rgba(255,255,255,0.4)'} />
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      <AppBar
+        title="Notifications"
+        subtitle={unread > 0 ? `${unread} unread` : undefined}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            onPress={markAll}
+            disabled={!unread}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all as read"
+          >
+            <Ionicons name="checkmark-done" size={22} color={unread ? C.ink : C.inkFaint} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -215,50 +215,41 @@ export default function ProviderNotificationsScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: ACCENT,
-  },
-  headerBtn: { padding: 6, width: 40, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxxl },
   emptyContent: { flexGrow: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#fff',
+    gap: S.md,
+    paddingHorizontal: GUTTER,
+    paddingVertical: S.md + 2,
+    backgroundColor: C.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.line,
   },
   rowUnread: { backgroundColor: HS.accentSoft },
   iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  title: { fontSize: 15, fontWeight: '600', color: C.ink, flex: 1 },
-  titleUnread: { fontWeight: '800' },
-  time: { fontSize: 12, color: C.inkFaint },
-  message: { fontSize: 13, color: C.inkMuted, marginTop: 3, lineHeight: 18 },
+  title: { ...T.subhead, color: C.ink, flex: 1 },
+  titleUnread: { fontFamily: F.bold },
+  time: { ...T.caption, color: C.inkFaint },
+  message: { ...T.body, color: C.inkMuted, marginTop: 3 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: C.ink, marginTop: 14 },
-  stateText: { fontSize: 14, color: C.inkMuted, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emptyTitle: { ...T.heading, color: C.ink, marginTop: S.md + 2 },
+  stateText: { ...T.body, color: C.inkMuted, textAlign: 'center', marginTop: S.sm },
   retryBtn: {
-    marginTop: 18,
-    paddingHorizontal: 26,
-    paddingVertical: 11,
-    borderRadius: 22,
+    marginTop: S.lg + 2,
+    paddingHorizontal: S.xxl + 2,
+    paddingVertical: S.md - 1,
+    borderRadius: R.pill,
     backgroundColor: ACCENT,
   },
-  retryText: { color: '#fff', fontWeight: '700' },
+  retryText: { ...T.label, fontFamily: F.bold, color: C.inkInverse },
 });

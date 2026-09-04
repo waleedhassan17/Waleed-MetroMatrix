@@ -5,7 +5,7 @@ import { Home, Briefcase, TrendingUp, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, R, S, T } from '../../../../constants/theme';
+import { C, F, R, S, T } from '../../../../constants/theme';
 import DashboardScreen from './dashboard/dashboard';
 import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingTop: S.sm,
     ...Platform.select({
       ios: {
-        shadowColor: '#1C1917',
+        shadowColor: C.ink,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   tabBarLabel: {
     ...T.caption,
-    fontWeight: '500',
+    fontFamily: F.medium,
     marginTop: 2,
   },
   tabBarItem: {

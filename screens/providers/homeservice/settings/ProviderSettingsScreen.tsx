@@ -19,14 +19,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  StatusBar,
   Alert,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ArrowLeft,
   Shield,
   Bell,
   HelpCircle,
@@ -43,6 +40,8 @@ import { contactSupport } from '../../../../utils/support/contactSupport';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { flatTheme as theme } from '../providerTheme';
+import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { AppBar, Screen } from '../../../../components/ui';
 
 
 const PRIVACY_URL = 'https://metromatrix.com/privacy';
@@ -93,8 +92,8 @@ export default function ProviderSettingsScreen() {
       title: 'Privacy Policy',
       subtitle: 'How we handle your data',
       icon: Lock,
-      color: '#6366F1',
-      bg: '#E0E7FF',
+      color: C.info,
+      bg: C.infoSoft,
       onPress: () => openExternal(PRIVACY_URL, 'Privacy Policy'),
     },
     {
@@ -102,23 +101,15 @@ export default function ProviderSettingsScreen() {
       title: 'Terms of Service',
       subtitle: 'Your agreement with MetroMatrix',
       icon: FileText,
-      color: '#F59E0B',
-      bg: '#FEF3C7',
+      color: C.warning,
+      bg: C.warningSoft,
       onPress: () => openExternal(TERMS_URL, 'Terms of Service'),
     },
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.surface} />
-
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <ArrowLeft size={22} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.headerBtn} />
-      </View>
+    <Screen>
+      <AppBar title="Settings" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>AVAILABILITY</Text>
@@ -138,14 +129,14 @@ export default function ProviderSettingsScreen() {
               onValueChange={(next) => {
                 dispatch(updateAvailability({ isOnline: next }));
               }}
-              trackColor={{ false: '#E5E7EB', true: theme.primaryLight }}
-              thumbColor={isAvailable ? theme.primary : '#F3F4F6'}
-              ios_backgroundColor="#E5E7EB"
+              trackColor={{ false: C.disabled, true: theme.primaryLight }}
+              thumbColor={isAvailable ? theme.primary : C.lineSoft}
+              ios_backgroundColor={C.disabled}
             />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.iconBox, { backgroundColor: '#FEE2E2' }]}>
+            <View style={[styles.iconBox, { backgroundColor: C.errorSoft }]}>
               <Bell size={20} color={theme.error} />
             </View>
             <View style={styles.rowContent}>
@@ -157,9 +148,9 @@ export default function ProviderSettingsScreen() {
               onValueChange={() => {
                 dispatch(toggleNotifications());
               }}
-              trackColor={{ false: '#E5E7EB', true: theme.primaryLight }}
-              thumbColor={notificationsEnabled ? theme.primary : '#F3F4F6'}
-              ios_backgroundColor="#E5E7EB"
+              trackColor={{ false: C.disabled, true: theme.primaryLight }}
+              thumbColor={notificationsEnabled ? theme.primary : C.lineSoft}
+              ios_backgroundColor={C.disabled}
             />
           </View>
         </View>
@@ -180,7 +171,7 @@ export default function ProviderSettingsScreen() {
                 <Text style={styles.rowTitle}>{link.title}</Text>
                 <Text style={styles.rowSubtitle}>{link.subtitle}</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={C.inkFaint} />
             </TouchableOpacity>
           ))}
         </View>
@@ -190,53 +181,40 @@ export default function ProviderSettingsScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
-  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: theme.text },
-  content: { padding: 20, paddingBottom: 48 },
+  content: { padding: GUTTER, paddingBottom: 48 },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...T.label,
+    fontFamily: F.bold,
     color: theme.textSecondary,
     letterSpacing: 0.6,
-    marginBottom: 10,
-    marginTop: 8,
+    marginBottom: S.sm + 2,
+    marginTop: S.sm,
   },
   card: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
-    marginBottom: 20,
+    borderRadius: R.card,
+    marginBottom: GUTTER,
     overflow: 'hidden',
   },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', padding: S.lg, gap: S.md + 2 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: theme.border },
-  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  iconBox: { width: 40, height: 40, borderRadius: R.card, alignItems: 'center', justifyContent: 'center' },
   rowContent: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: theme.text },
-  rowSubtitle: { fontSize: 12.5, color: theme.textSecondary, marginTop: 2 },
+  rowTitle: { ...T.subhead, color: theme.text },
+  rowSubtitle: { ...T.caption, color: theme.textSecondary, marginTop: 2 },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     backgroundColor: theme.surface,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: R.card,
+    paddingVertical: S.lg,
   },
-  logoutText: { fontSize: 15, fontWeight: '600', color: theme.error },
+  logoutText: { ...T.subhead, color: theme.error },
 });
