@@ -23,17 +23,17 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../store/store';
 import { updateProfile, fetchProfile } from '../profile-screen/profileSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { flatTheme as theme } from '../providerTheme';
+import { C, S, T } from '../../../../constants/theme';
+import { AppBar, Screen } from '../../../../components/ui';
 
 
 type FieldKey = 'name' | 'phone' | 'bio' | 'location';
@@ -120,26 +120,26 @@ export default function EditProfileScreen() {
   }, [dispatch, form, navigation]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.surface} />
-
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <ArrowLeft size={22} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={[styles.headerBtn, (!isDirty || saving) && styles.headerBtnDisabled]}
-          disabled={!isDirty || saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={theme.primary} />
-          ) : (
-            <Check size={22} color={isDirty ? theme.primary : theme.textTertiary} />
-          )}
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      <AppBar
+        title="Edit Profile"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            onPress={handleSave}
+            style={[styles.headerBtn, (!isDirty || saving) && styles.headerBtnDisabled]}
+            disabled={!isDirty || saving}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile"
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <Check size={22} color={isDirty ? theme.primary : theme.textTertiary} />
+            )}
+          </TouchableOpacity>
+        }
+      />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -188,7 +188,7 @@ export default function EditProfileScreen() {
                 disabled={!isDirty || saving}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={C.surface} />
                 ) : (
                   <Text style={styles.saveBtnText}>Save changes</Text>
                 )}
@@ -197,28 +197,16 @@ export default function EditProfileScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
-  },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerBtnDisabled: { opacity: 0.4 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: theme.text },
   content: { padding: 20, paddingBottom: 48 },
   field: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 },
+  label: { ...T.label, color: theme.textSecondary, marginBottom: S.sm },
   input: {
     backgroundColor: theme.surface,
     borderWidth: 1,
@@ -226,13 +214,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    ...T.body,
+
     color: theme.text,
   },
   inputMultiline: { minHeight: 100, textAlignVertical: 'top' },
-  inputReadOnly: { backgroundColor: '#F3F4F6', justifyContent: 'center' },
-  readOnlyText: { fontSize: 15, color: theme.textSecondary },
-  hint: { fontSize: 12, color: theme.textTertiary, marginTop: 6 },
+  inputReadOnly: { backgroundColor: C.surfaceSunken, justifyContent: 'center' },
+  readOnlyText: { ...T.body, color: theme.textSecondary },
+  hint: { ...T.caption, color: theme.textTertiary, marginTop: 6 },
   saveBtn: {
     marginTop: 8,
     backgroundColor: theme.primary,
@@ -241,5 +230,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnDisabled: { backgroundColor: theme.textTertiary },
-  saveBtnText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  saveBtnText: { ...T.subhead, color: C.inkInverse },
 });

@@ -36,7 +36,7 @@ import {
   StatusPill,
 } from '../../../../../components/ui';
 import { HS } from '../../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
+import { C, F, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import { getSocket } from '../../../../../services/socket/socketClient';
 import type { RootState } from '../../../../../store/store';
@@ -721,8 +721,8 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: {
     color: C.inkInverse,
-    fontSize: 10,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
   },
 
   content: {
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
   messagesBadgeText: {
     ...T.caption,
     color: C.inkInverse,
-    fontWeight: '700',
+    fontFamily: F.bold,
     textAlign: 'center',
   },
 
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   errorRetry: {
     ...T.label,
     color: C.error,
-    fontWeight: '700',
+    fontFamily: F.bold,
   },
 
   loading: {
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
   jobPrimaryText: {
     ...T.label,
     color: C.inkInverse,
-    fontWeight: '600',
+    fontFamily: F.semibold,
     marginLeft: 6,
   },
   jobDecline: {
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
   jobDeclineText: {
     ...T.label,
     color: C.error,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
 
   activityRow: {

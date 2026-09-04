@@ -30,7 +30,7 @@ import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
 import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -384,7 +384,7 @@ const NavigationMapScreen: React.FC = () => {
             </View>
           </View>
           <TouchableOpacity style={styles.callButton} onPress={handleCallCustomer}>
-            <Icon name="phone" size={20} color="#FFFFFF" />
+            <Icon name="phone" size={20} color={C.surface} />
           </TouchableOpacity>
         </View>
 
@@ -420,7 +420,7 @@ const NavigationMapScreen: React.FC = () => {
             disabled={false} // Allow manual arrival for demo
             activeOpacity={0.85}
           >
-            <Icon name="check-circle" size={20} color="#FFFFFF" />
+            <Icon name="check-circle" size={20} color={C.surface} />
             <Text style={styles.arrivedButtonText}>I've Arrived</Text>
           </TouchableOpacity>
         </View>
@@ -448,9 +448,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
+    ...T.subhead,
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
   },
   map: {
     width: width,
@@ -468,10 +468,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -483,11 +483,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 30,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -499,8 +499,8 @@ const styles = StyleSheet.create({
   },
   etaValue: {
     marginLeft: 6,
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   etaDivider: {
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   destinationMarker: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 6,
     shadowColor: HS.accent,
@@ -535,13 +535,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 36,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
@@ -575,8 +575,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   customerInitialSmall: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: HS.accent,
   },
   customerDetails: {
@@ -584,13 +584,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   customerNameText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   serviceTypeText: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
+    ...T.label,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 2,
   },
@@ -623,13 +623,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   locationAddress: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    ...T.body,
+    fontFamily: F.medium,
     color: C.ink,
   },
   locationCity: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 2,
   },
@@ -650,8 +650,8 @@ const styles = StyleSheet.create({
   },
   openMapsText: {
     marginLeft: 8,
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: HS.accent,
   },
   arrivedButton: {
@@ -673,15 +673,15 @@ const styles = StyleSheet.create({
   },
   arrivedButtonText: {
     marginLeft: 8,
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.surface,
   },
   helperText: {
     textAlign: 'center',
     marginTop: 14,
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.inkFaint,
   },
 });

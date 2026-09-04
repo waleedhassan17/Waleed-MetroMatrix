@@ -18,7 +18,7 @@ import { RootState } from '../../../../store/store';
 import { startWorkAsync, completeWorkAsync } from './jobInProgressSlice';
 import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
@@ -271,7 +271,7 @@ const JobInProgressScreen: React.FC = () => {
             <View style={styles.progressSteps}>
               <View style={styles.progressStep}>
                 <View style={[styles.stepDot, styles.stepCompleted]}>
-                  <Icon name="check" size={12} color="#FFFFFF" />
+                  <Icon name="check" size={12} color={C.surface} />
                 </View>
                 <Text style={styles.stepLabel}>Arrived</Text>
               </View>
@@ -282,7 +282,7 @@ const JobInProgressScreen: React.FC = () => {
                     workStarted ? styles.stepActive : styles.stepPending,
                   ]}
                 >
-                  {workStarted && <Icon name="wrench" size={12} color="#FFFFFF" />}
+                  {workStarted && <Icon name="wrench" size={12} color={C.surface} />}
                 </View>
                 <Text style={[styles.stepLabel, workStarted && styles.stepLabelActive]}>
                   Working
@@ -400,7 +400,7 @@ const JobInProgressScreen: React.FC = () => {
             onPress={handleStartWork}
             activeOpacity={0.85}
           >
-            <Icon name="play-circle" size={22} color="#FFFFFF" />
+            <Icon name="play-circle" size={22} color={C.surface} />
             <Text style={styles.startButtonText}>Start Work</Text>
           </TouchableOpacity>
         ) : (
@@ -409,7 +409,7 @@ const JobInProgressScreen: React.FC = () => {
             onPress={handleCompleteWork}
             activeOpacity={0.85}
           >
-            <Icon name="check-circle" size={22} color="#FFFFFF" />
+            <Icon name="check-circle" size={22} color={C.surface} />
             <Text style={styles.completeButtonText}>Mark as Complete</Text>
           </TouchableOpacity>
         )}
@@ -429,18 +429,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
+    ...T.subhead,
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -450,13 +450,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    ...T.heading,
+    fontFamily: F.bold,
     color: C.ink,
   },
   headerSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 4,
   },
@@ -467,11 +467,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   statusCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -489,8 +489,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   statusTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   timerContainer: {
@@ -501,14 +501,14 @@ const styles = StyleSheet.create({
     borderColor: C.lineSoft,
   },
   timerText: {
-    fontSize: 40,
-    fontFamily: 'Inter-Bold',
+    ...T.display,
+    fontFamily: F.bold,
     color: C.ink,
     marginTop: 8,
   },
   timerLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
+    ...T.label,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 4,
   },
@@ -552,8 +552,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.line,
   },
   stepLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    ...T.caption,
+    fontFamily: F.medium,
     color: C.inkFaint,
   },
   stepLabelActive: {
@@ -563,8 +563,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter-SemiBold',
+    ...T.label,
+    fontFamily: F.semibold,
     color: C.inkMuted,
     marginBottom: 10,
     marginLeft: 2,
@@ -573,10 +573,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -599,13 +599,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailTitle: {
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   detailSubtitle: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
+    ...T.label,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 2,
   },
@@ -616,17 +616,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   priceText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: HS.accent,
   },
   customerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -644,8 +644,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   customerInitial: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    ...T.heading,
+    fontFamily: F.bold,
     color: HS.accent,
   },
   customerInfo: {
@@ -653,23 +653,23 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   customerNameText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   customerPhoneText: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
+    ...T.label,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 2,
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -688,13 +688,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   locationAddress: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   locationCity: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.inkMuted,
     marginTop: 2,
   },
@@ -705,14 +705,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: C.warningSoft,
   },
   instructionsText: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#92400E',
+    ...T.body,
+    fontFamily: F.regular,
+    color: C.warning,
     lineHeight: 20,
   },
   quickActionsRow: {
@@ -723,10 +723,10 @@ const styles = StyleSheet.create({
   quickActionBtn: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -741,8 +741,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   quickActionLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    ...T.caption,
+    fontFamily: F.medium,
     color: C.inkMuted,
   },
   bottomContainer: {
@@ -750,13 +750,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
     borderTopColor: C.lineSoft,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -776,9 +776,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   startButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    ...T.subhead,
+    fontFamily: F.semibold,
+    color: C.surface,
     marginLeft: 8,
   },
   completeButton: {
@@ -795,9 +795,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   completeButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    ...T.subhead,
+    fontFamily: F.semibold,
+    color: C.surface,
     marginLeft: 8,
   },
 });

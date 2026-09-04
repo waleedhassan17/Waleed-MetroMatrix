@@ -43,6 +43,7 @@ import {
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
+import { C, F, T } from '../../../../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -51,38 +52,40 @@ const { width } = Dimensions.get('window');
 // Status configurations matching reference colors
 const statusConfig: Record<string, { color: string; bg: string; label: string; icon: any }> = {
   upcoming: {
-    color: '#F59E0B',
-    bg: '#FFFBEB',
+    color: C.warning,
+    bg: C.warningSoft,
     label: 'Upcoming',
     icon: AlertCircle,
   },
   active: {
-    color: '#3B82F6',
-    bg: '#EFF6FF',
+    color: C.info,
+    bg: C.infoSoft,
     label: 'In Progress',
     icon: Clock,
   },
   completed: {
-    color: '#10B981',
-    bg: '#ECFDF5',
+    color: C.success,
+    bg: C.successSoft,
     label: 'Completed',
     icon: CheckCircle2,
   },
   cancelled: {
-    color: '#EF4444',
-    bg: '#FEF2F2',
+    color: C.error,
+    bg: C.errorSoft,
     label: 'Cancelled',
     icon: XCircle,
   },
   available: {
-    color: '#059669',
-    bg: '#D1FAE5',
+    color: C.success,
+    bg: C.successSoft,
     label: 'Available',
     icon: Calendar,
   },
   today: {
-    color: '#8B5CF6',
-    bg: '#EDE9FE',
+    // Was a purple that exists in no palette. 'Available' already owns success,
+    // so 'Today' takes info — the remaining semantic slot, not a new hue.
+    color: C.info,
+    bg: C.infoSoft,
     label: 'Today',
     icon: Calendar,
   },
@@ -297,7 +300,7 @@ const JobsScreen: React.FC = () => {
               {/* Show rating for completed, actions for active */}
               {job.status === 'completed' ? (
                 <View style={styles.ratingBadge}>
-                  <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                  <Star size={14} color={C.warning} fill={C.warning} />
                   <Text style={styles.ratingText}>{job.customer.rating?.toFixed(1) || '5.0'}</Text>
                 </View>
               ) : job.status === 'active' || job.status === 'upcoming' ? (
@@ -474,13 +477,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
+    ...T.title,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 14,
+    ...T.body,
+
     color: theme.colors.text.secondary,
   },
   filterButton: {
@@ -518,16 +521,16 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   filterText: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...T.body,
+    fontFamily: F.medium,
     color: theme.colors.text.secondary,
   },
   filterTextActive: {
     color: theme.colors.text.inverse,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
   filterCount: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.surfaceSunken,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -536,8 +539,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   filterCountText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: theme.colors.text.secondary,
   },
   filterCountTextActive: {
@@ -551,9 +554,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
   },
   resultsText: {
-    fontSize: 14,
+    ...T.body,
+    fontFamily: F.medium,
+
     color: theme.colors.text.secondary,
-    fontWeight: '500',
   },
   controlDisabled: {
     opacity: 0.45,
@@ -564,9 +568,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sortText: {
-    fontSize: 14,
+    ...T.body,
+    fontFamily: F.medium,
+
     color: theme.colors.text.secondary,
-    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
@@ -579,7 +584,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -604,7 +609,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 130,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.surfaceSunken,
   },
   categoryTag: {
     position: 'absolute',
@@ -616,8 +621,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   categoryText: {
-    fontSize: 9,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
     color: theme.colors.text.inverse,
     letterSpacing: 0.5,
   },
@@ -647,12 +652,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   providerInitial: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: theme.colors.primary,
   },
   providerName: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.secondary,
     flex: 1,
   },
@@ -665,12 +671,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
   },
   jobTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...T.body,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginBottom: 8,
   },
@@ -680,7 +686,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   detailText: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.secondary,
     marginLeft: 6,
     flex: 1,
@@ -692,23 +699,23 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   price: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.primary,
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: C.warningSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     gap: 4,
   },
   ratingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#D97706',
+    ...T.label,
+    fontFamily: F.semibold,
+    color: C.warning,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -730,7 +737,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 14,
+    ...T.body,
+
     color: theme.colors.text.secondary,
   },
   emptyContainer: {
@@ -740,14 +748,14 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...T.subhead,
     color: theme.colors.text.primary,
     marginTop: 16,
     marginBottom: 4,
   },
   emptyText: {
-    fontSize: 14,
+    ...T.body,
+
     color: theme.colors.text.secondary,
   },
   bottomSpacer: {

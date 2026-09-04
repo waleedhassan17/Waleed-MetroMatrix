@@ -16,7 +16,7 @@ import { approveJob, checkApprovalStatusAsync } from './awaitingScreenSlice';
 import { setPaymentRequestData } from '../payment-screen/paymentRequestSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
@@ -210,7 +210,7 @@ const AwaitingApprovalScreen: React.FC = () => {
                 { transform: [{ scale: checkScaleAnim }] },
               ]}
             >
-              <Icon name="check" size={56} color="#FFFFFF" />
+              <Icon name="check" size={56} color={C.surface} />
             </Animated.View>
           )}
         </View>
@@ -277,14 +277,14 @@ const AwaitingApprovalScreen: React.FC = () => {
         <View style={styles.progressIndicators}>
           <View style={styles.progressItem}>
             <View style={[styles.progressDot, styles.progressCompleted]}>
-              <Icon name="check" size={12} color="#FFFFFF" />
+              <Icon name="check" size={12} color={C.surface} />
             </View>
             <Text style={styles.progressLabel}>Arrived</Text>
           </View>
           <View style={styles.progressLine} />
           <View style={styles.progressItem}>
             <View style={[styles.progressDot, styles.progressCompleted]}>
-              <Icon name="check" size={12} color="#FFFFFF" />
+              <Icon name="check" size={12} color={C.surface} />
             </View>
             <Text style={styles.progressLabel}>Worked</Text>
           </View>
@@ -297,7 +297,7 @@ const AwaitingApprovalScreen: React.FC = () => {
               ]}
             >
               {approved ? (
-                <Icon name="check" size={12} color="#FFFFFF" />
+                <Icon name="check" size={12} color={C.surface} />
               ) : (
                 <Animated.View
                   style={[
@@ -360,9 +360,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
+    ...T.subhead,
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
   },
   gradientTop: {
     position: 'absolute',
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: HS.accent,
@@ -431,15 +431,15 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   statusTitle: {
-    fontSize: 22,
-    fontFamily: 'Inter-Bold',
+    ...T.heading,
+    fontFamily: F.bold,
     color: C.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   statusSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+    fontFamily: F.regular,
     color: C.inkMuted,
     textAlign: 'center',
     marginBottom: 16,
@@ -447,12 +447,12 @@ const styles = StyleSheet.create({
   waitingTimer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -460,17 +460,17 @@ const styles = StyleSheet.create({
   },
   waitingTimeText: {
     marginLeft: 8,
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    ...T.body,
+    fontFamily: F.medium,
     color: C.inkMuted,
   },
   summaryCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     marginLeft: 10,
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   summaryRow: {
@@ -494,13 +494,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   summaryLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+    fontFamily: F.regular,
     color: C.inkMuted,
   },
   summaryValue: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
     maxWidth: '60%',
     textAlign: 'right',
@@ -540,11 +540,11 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
   },
   progressLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
+    ...T.caption,
+    fontFamily: F.medium,
     color: C.inkFaint,
   },
   progressLabelActive: {
@@ -572,8 +572,8 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
+    ...T.label,
+    fontFamily: F.regular,
     color: C.inkMuted,
     lineHeight: 18,
   },
@@ -589,13 +589,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   manualApproveBtnText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    ...T.body,
+    fontFamily: F.medium,
     color: C.inkMuted,
   },
   checkFailedText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.error,
     textAlign: 'center',
     marginBottom: 8,

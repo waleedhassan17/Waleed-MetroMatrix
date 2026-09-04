@@ -19,7 +19,7 @@ import { resetJobInProgress } from '../job-InProgress/jobInProgressSlice';
 import { resetAwaitingApproval } from '../awaiting-screen/awaitingScreenSlice';
 import { resetPaymentRequest } from '../payment-screen/paymentRequestSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -244,7 +244,7 @@ const JobCompletionScreen: React.FC = () => {
               { transform: [{ scale: checkScaleAnim }] },
             ]}
           >
-            <Icon name="check" size={60} color="#FFFFFF" />
+            <Icon name="check" size={60} color={C.surface} />
           </Animated.View>
         </View>
 
@@ -361,7 +361,7 @@ const JobCompletionScreen: React.FC = () => {
             onPress={handleGoHome}
             activeOpacity={0.85}
           >
-            <Icon name="home-outline" size={20} color="#FFFFFF" />
+            <Icon name="home-outline" size={20} color={C.surface} />
             <Text style={styles.primaryButtonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: C.surface,
   },
   checkCircle: {
     width: 120,
@@ -428,27 +428,27 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   successTitle: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
-    color: '#FFFFFF',
+    ...T.title,
+    fontFamily: F.bold,
+    color: C.surface,
     textAlign: 'center',
     marginBottom: 8,
   },
   successSubtitle: {
-    fontSize: 15,
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+    fontFamily: F.regular,
     color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
     paddingHorizontal: 20,
   },
   summaryCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   serviceName: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
     marginBottom: 8,
   },
@@ -476,8 +476,8 @@ const styles = StyleSheet.create({
   },
   durationText: {
     marginLeft: 6,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+    fontFamily: F.regular,
     color: C.inkMuted,
   },
   cardDivider: {
@@ -491,14 +491,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   earningsLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter-Medium',
+    ...T.label,
+    fontFamily: F.medium,
     color: C.inkMuted,
     marginBottom: 4,
   },
   earningsValue: {
-    fontSize: 32,
-    fontFamily: 'Inter-Bold',
+    ...T.display,
+    fontFamily: F.bold,
     color: HS.accent,
   },
   paymentBadge: {
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
   },
   paymentBadgeText: {
     marginLeft: 6,
-    fontSize: 13,
-    fontFamily: 'Inter-Medium',
+    ...T.label,
+    fontFamily: F.medium,
   },
   cashBadgeText: {
     color: HS.accent,
@@ -527,11 +527,11 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     paddingVertical: 20,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -550,14 +550,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: C.ink,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.inkMuted,
   },
   statDivider: {
@@ -588,8 +588,8 @@ const styles = StyleSheet.create({
     borderColor: HS.accentLine,
   },
   secondaryButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: HS.accent,
     marginLeft: 8,
   },
@@ -608,15 +608,15 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.surface,
     marginLeft: 8,
   },
   autoRedirectText: {
     textAlign: 'center',
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    ...T.caption,
+    fontFamily: F.regular,
     color: C.inkFaint,
   },
 });

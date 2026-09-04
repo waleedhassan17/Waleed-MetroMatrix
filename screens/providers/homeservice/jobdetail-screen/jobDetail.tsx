@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -20,8 +21,8 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
 import { setJobDetail, startNavigation, startJobAsync, JobData } from './jobDetailSlice';
 import { setNavigationData } from '../map-screen/mapSlice';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C } from '../../../../constants/theme';
+import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
+import { C, F, T } from '../../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -169,35 +170,16 @@ const JobDetailScreen: React.FC = () => {
     }
   };
 
-  const getCategoryIcon = (category: string): React.ComponentProps<typeof Icon>['name'] => {
-    const icons: { [key: string]: React.ComponentProps<typeof Icon>['name'] } = {
-      'Plumbing': 'pipe-wrench',
-      'HVAC': 'air-conditioner',
-      'Electrical': 'lightning-bolt',
-      'Cleaning': 'broom',
-      'Painting': 'format-paint',
-      'Carpentry': 'hammer',
-      'Appliance': 'washing-machine',
-      'Wiring': 'cable-data',
-      'Installation': 'tools',
-      'default': 'wrench',
-    };
-    return icons[category] || icons['default'];
-  };
+  // Both of these used to be local maps keyed on 'Plumbing' / 'HVAC' /
+  // 'Cleaning' — names that are not what a category IS. A category arrives as a
+  // slug ('electricians', 'plumbers', 'ac-repairers'), so neither map ever
+  // matched and every job silently rendered the 'default' wrench in grey.
+  //
+  // categoryAccent() is the single source of truth for a category's tint and
+  // glyph, and it degrades an unknown one to a readable neutral by design.
+  const accent = categoryAccent(currentJob.category);
+  const categoryColors = { bg: accent.tintSoft, text: accent.tint, border: accent.tint };
 
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: { bg: string; text: string; border: string } } = {
-      'Plumbing': { bg: C.infoSoft, text: C.info, border: '#BFDBFE' },
-      'HVAC': { bg: HS.accentSoft, text: HS.accent, border: HS.accentLine },
-      'Electrical': { bg: C.warningSoft, text: C.warning, border: '#FDE68A' },
-      'Cleaning': { bg: '#F3E8FF', text: '#9333EA', border: '#DDD6FE' },
-      'Painting': { bg: C.infoSoft, text: C.info, border: '#FBCFE8' },
-      'default': { bg: C.lineSoft, text: C.inkMuted, border: C.line },
-    };
-    return colors[category] || colors['default'];
-  };
-
-  const categoryColors = getCategoryColor(currentJob.category);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -241,8 +223,8 @@ const JobDetailScreen: React.FC = () => {
               <Text style={styles.serviceTypeText}>{currentJob.serviceType}</Text>
               <View style={styles.badgesRow}>
                 <View style={[styles.categoryBadge, { backgroundColor: categoryColors.bg, borderColor: categoryColors.border }]}>
-                  <Icon name={getCategoryIcon(currentJob.category)} size={14} color={categoryColors.text} />
-                  <Text style={[styles.categoryText, { color: categoryColors.text }]}>{currentJob.category}</Text>
+                  <Ionicons name={accent.icon as any} size={14} color={categoryColors.text} />
+                  <Text style={[styles.categoryText, { color: categoryColors.text }]}>{accent.label}</Text>
                 </View>
                 <View style={styles.statusBadge}>
                   <View style={styles.statusDot} />
@@ -334,7 +316,7 @@ const JobDetailScreen: React.FC = () => {
             </Marker>
           </MapView>
           <TouchableOpacity style={styles.mapOverlay} onPress={openInMaps}>
-            <Icon name="google-maps" size={16} color="#FFFFFF" />
+            <Icon name="google-maps" size={16} color={C.surface} />
             <Text style={styles.mapOverlayText}>Open in Maps</Text>
           </TouchableOpacity>
         </View>
@@ -460,9 +442,9 @@ const JobDetailScreen: React.FC = () => {
           onPress={handleStartNavigation}
           activeOpacity={0.85}
         >
-          <Icon name="navigation" size={22} color="#FFFFFF" />
+          <Icon name="navigation" size={22} color={C.surface} />
           <Text style={styles.navigateButtonText}>Start Navigation</Text>
-          <Icon name="chevron-right" size={22} color="#FFFFFF" />
+          <Icon name="chevron-right" size={22} color={C.surface} />
         </TouchableOpacity>
       </View>
     </View>
@@ -482,9 +464,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 15,
+    ...T.body,
+
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
   },
   header: {
     flexDirection: 'row',
@@ -493,7 +476,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
     borderBottomColor: C.line,
   },
@@ -506,8 +489,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   headerRight: {
@@ -522,12 +505,12 @@ const styles = StyleSheet.create({
   
   // Customer Card Styles
   customerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderTopWidth: 4,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -553,8 +536,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   customerInitial: {
-    fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    ...T.title,
+    fontFamily: F.bold,
   },
   onlineIndicator: {
     position: 'absolute',
@@ -565,7 +548,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: HS.accent,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: C.surface,
   },
   customerInfo: {
     flex: 1,
@@ -578,15 +561,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   customerName: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: C.ink,
     marginRight: 6,
   },
   serviceTypeText: {
-    fontSize: 14,
+    ...T.body,
+
     color: C.inkMuted,
-    fontFamily: 'Inter-Regular',
+    fontFamily: F.regular,
     marginBottom: 8,
   },
   badgesRow: {
@@ -604,8 +588,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   categoryText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    ...T.caption,
+    fontFamily: F.semibold,
     marginLeft: 5,
   },
   statusBadge: {
@@ -624,9 +608,10 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   statusText: {
-    fontSize: 12,
+    ...T.caption,
+
     color: HS.accent,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: F.semibold,
   },
   contactActions: {
     flexDirection: 'row',
@@ -647,9 +632,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   contactButtonText: {
-    fontSize: 12,
+    ...T.caption,
+
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
   },
 
   // Section Styles
@@ -670,8 +656,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    fontFamily: F.semibold,
     color: C.ink,
   },
 
@@ -679,10 +665,10 @@ const styles = StyleSheet.create({
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -701,20 +687,21 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   locationLabel: {
-    fontSize: 12,
+    ...T.caption,
+
     color: C.inkFaint,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
     marginBottom: 2,
   },
   locationAddress: {
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
   },
   locationCity: {
-    fontSize: 13,
+    ...T.label,
     color: C.inkMuted,
-    fontFamily: 'Inter-Regular',
+    fontFamily: F.regular,
     marginTop: 2,
   },
 
@@ -746,9 +733,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   mapOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+    color: C.surface,
+    ...T.caption,
+    fontFamily: F.semibold,
     marginLeft: 6,
   },
 
@@ -756,10 +743,10 @@ const styles = StyleSheet.create({
   scheduleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -778,32 +765,33 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   scheduleLabel: {
-    fontSize: 12,
+    ...T.caption,
+
     color: C.inkFaint,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
     marginBottom: 2,
   },
   scheduleValue: {
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
+    ...T.body,
+    fontFamily: F.semibold,
     color: C.ink,
   },
 
   // Time Container
   timeContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
   timeOfDayLabel: {
-    fontSize: 13,
+    ...T.label,
     color: C.inkMuted,
-    fontFamily: 'Inter-Medium',
+    fontFamily: F.medium,
     marginBottom: 12,
   },
   selectedTimeCard: {
@@ -816,8 +804,8 @@ const styles = StyleSheet.create({
     borderColor: HS.accent,
   },
   selectedTimeText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: HS.accent,
     marginLeft: 10,
   },
@@ -828,21 +816,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: C.warningSoft,
   },
   instructionsText: {
-    fontSize: 14,
-    color: '#92400E',
-    fontFamily: 'Inter-Regular',
+    ...T.body,
+
+    color: C.warning,
+    fontFamily: F.regular,
     lineHeight: 22,
   },
 
   // Summary Card
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -855,21 +844,24 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   summaryLabel: {
-    fontSize: 14,
+    ...T.body,
+
     color: C.inkMuted,
-    fontFamily: 'Inter-Regular',
+    fontFamily: F.regular,
   },
   summaryValue: {
-    fontSize: 14,
+    ...T.body,
+
     color: C.ink,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: F.semibold,
     maxWidth: '60%',
     textAlign: 'right',
   },
   summaryPriceValue: {
-    fontSize: 15,
+    ...T.body,
+
     color: HS.accent,
-    fontFamily: 'Inter-Bold',
+    fontFamily: F.bold,
   },
   summaryDivider: {
     height: 1,
@@ -896,20 +888,22 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   earningsLabel: {
-    fontSize: 15,
+    ...T.body,
+
     color: HS.accentDeep,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: F.semibold,
   },
   earningsSubtext: {
-    fontSize: 12,
+    ...T.caption,
+
     color: HS.accent,
-    fontFamily: 'Inter-Regular',
+    fontFamily: F.regular,
     marginTop: 2,
   },
   earningsValue: {
-    fontSize: 22,
+    ...T.heading,
     color: HS.accent,
-    fontFamily: 'Inter-Bold',
+    fontFamily: F.bold,
   },
 
   // Bottom Container
@@ -918,13 +912,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
     borderTopColor: C.line,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -944,9 +938,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   navigateButtonText: {
-    fontSize: 17,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
+    ...T.subhead,
+    color: C.surface,
+    fontFamily: F.semibold,
     marginHorizontal: 10,
   },
 });

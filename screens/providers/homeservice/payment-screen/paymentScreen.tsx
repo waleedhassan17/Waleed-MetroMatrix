@@ -25,6 +25,7 @@ import {
 import { setJobCompletionData } from '../job-completion/jobCompletionSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { checkJobApprovalStatus } from '../../../../networks/serviceProviders/jobNetwork';
+import { C, F, T } from '../../../../constants/theme';
 
 type RootStackParamList = {
   JobCompletion: undefined;
@@ -278,7 +279,7 @@ const PaymentRequestScreen: React.FC = () => {
         <View style={styles.invoiceCard}>
           <View style={styles.invoiceHeader}>
             <View style={styles.invoiceIconBg}>
-              <Icon name="receipt" size={22} color="#10B981" />
+              <Icon name="receipt" size={22} color={C.success} />
             </View>
             <View style={styles.invoiceHeaderInfo}>
               <Text style={styles.invoiceTitle}>Invoice</Text>
@@ -356,14 +357,14 @@ const PaymentRequestScreen: React.FC = () => {
             <Text style={styles.paymentMethodsTitle}>Payment Options</Text>
             <View style={styles.paymentMethodsRow}>
               <View style={styles.paymentMethodItem}>
-                <View style={[styles.paymentMethodIcon, { backgroundColor: '#EFF6FF' }]}>
-                  <Icon name="credit-card-outline" size={22} color="#3B82F6" />
+                <View style={[styles.paymentMethodIcon, { backgroundColor: C.infoSoft }]}>
+                  <Icon name="credit-card-outline" size={22} color={C.info} />
                 </View>
                 <Text style={styles.paymentMethodText}>Online Payment</Text>
               </View>
               <View style={styles.paymentMethodItem}>
-                <View style={[styles.paymentMethodIcon, { backgroundColor: '#ECFDF5' }]}>
-                  <Icon name="cash" size={22} color="#10B981" />
+                <View style={[styles.paymentMethodIcon, { backgroundColor: C.successSoft }]}>
+                  <Icon name="cash" size={22} color={C.success} />
                 </View>
                 <Text style={styles.paymentMethodText}>Cash Payment</Text>
               </View>
@@ -383,7 +384,7 @@ const PaymentRequestScreen: React.FC = () => {
             ]}
           >
             <View style={styles.waitingIconBg}>
-              <Icon name="clock-outline" size={32} color="#F59E0B" />
+              <Icon name="clock-outline" size={32} color={C.warning} />
             </View>
             <Text style={styles.waitingTitle}>Payment Requested</Text>
             <Text style={styles.waitingSubtitle}>
@@ -409,7 +410,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleCashPayment}
               activeOpacity={0.85}
             >
-              <Icon name="cash" size={20} color="#10B981" />
+              <Icon name="cash" size={20} color={C.success} />
               <Text style={styles.cashButtonText}>Paid in Cash</Text>
             </TouchableOpacity>
 
@@ -418,7 +419,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleRequestPayment}
               activeOpacity={0.85}
             >
-              <Icon name="send" size={20} color="#FFFFFF" />
+              <Icon name="send" size={20} color={C.surface} />
               <Text style={styles.requestButtonText}>Request Payment</Text>
             </TouchableOpacity>
           </View>
@@ -434,7 +435,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleCashPayment}
               activeOpacity={0.85}
             >
-              <Icon name="cash" size={20} color="#10B981" />
+              <Icon name="cash" size={20} color={C.success} />
               <Text style={styles.cashButtonText}>Paid in Cash</Text>
             </TouchableOpacity>
 
@@ -443,7 +444,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleRequestPayment}
               activeOpacity={0.85}
             >
-              <Icon name="send" size={20} color="#FFFFFF" />
+              <Icon name="send" size={20} color={C.surface} />
               <Text style={styles.requestButtonText}>Send Reminder</Text>
             </TouchableOpacity>
           </View>
@@ -456,7 +457,7 @@ const PaymentRequestScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.surfaceSunken,
   },
   loadingContainer: {
     flex: 1,
@@ -464,28 +465,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontFamily: 'Inter-Medium',
+    ...T.subhead,
+    color: C.inkMuted,
+    fontFamily: F.medium,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingTop: 55,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: C.surfaceSunken,
   },
   headerTitle: {
-    fontSize: 22,
-    fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    ...T.heading,
+    fontFamily: F.bold,
+    color: C.ink,
     textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    ...T.body,
+    fontFamily: F.regular,
+    color: C.inkMuted,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -496,11 +497,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   invoiceCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: C.successSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -523,45 +524,45 @@ const styles = StyleSheet.create({
     marginLeft: 14,
   },
   invoiceTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#1F2937',
+    ...T.subhead,
+    fontFamily: F.bold,
+    color: C.ink,
   },
   invoiceNumber: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    ...T.label,
+    fontFamily: F.regular,
+    color: C.inkMuted,
     marginTop: 2,
   },
   serviceInfo: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.surfaceSunken,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
   },
   serviceName: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    ...T.subhead,
+    fontFamily: F.semibold,
+    color: C.ink,
   },
   customerName: {
-    fontSize: 13,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    ...T.label,
+    fontFamily: F.regular,
+    color: C.inkMuted,
     marginTop: 4,
   },
   invoiceDivider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
     marginBottom: 16,
   },
   breakdownSection: {
     marginBottom: 16,
   },
   breakdownTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#6B7280',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.inkMuted,
     marginBottom: 12,
   },
   breakdownRow: {
@@ -571,14 +572,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   breakdownLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
+    ...T.body,
+    fontFamily: F.regular,
+    color: C.inkMuted,
   },
   breakdownValue: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.ink,
   },
   editableRow: {
     flexDirection: 'row',
@@ -589,30 +590,30 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.surfaceSunken,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: C.line,
   },
   inputPrefix: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    ...T.body,
+    fontFamily: F.medium,
+    color: C.inkMuted,
     marginRight: 4,
   },
   amountInput: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.ink,
     minWidth: 60,
     textAlign: 'right',
     padding: 0,
   },
   totalDivider: {
     height: 2,
-    backgroundColor: '#10B981',
+    backgroundColor: C.success,
     marginBottom: 16,
     borderRadius: 1,
   },
@@ -622,30 +623,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    ...T.subhead,
+    fontFamily: F.semibold,
+    color: C.ink,
   },
   totalValue: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#10B981',
+    ...T.heading,
+    fontFamily: F.bold,
+    color: C.success,
   },
   paymentMethodsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
   paymentMethodsTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#6B7280',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.inkMuted,
     marginBottom: 14,
   },
   paymentMethodsRow: {
@@ -655,7 +656,7 @@ const styles = StyleSheet.create({
   paymentMethodItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.surfaceSunken,
     borderRadius: 14,
     padding: 16,
   },
@@ -668,37 +669,37 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   paymentMethodText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#6B7280',
+    ...T.caption,
+    fontFamily: F.medium,
+    color: C.inkMuted,
   },
   waitingCard: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: C.warningSoft,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: C.warningSoft,
   },
   waitingIconBg: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: C.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   waitingTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#92400E',
+    ...T.subhead,
+    fontFamily: F.bold,
+    color: C.warning,
     marginBottom: 8,
   },
   waitingSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#B45309',
+    ...T.body,
+    fontFamily: F.regular,
+    color: C.warning,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -710,23 +711,23 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.line,
   },
   dotActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: C.warning,
   },
   bottomContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    shadowColor: '#000',
+    borderTopColor: C.surfaceSunken,
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -741,16 +742,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: C.successSoft,
     borderRadius: 14,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: C.successSoft,
   },
   cashButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#10B981',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.success,
     marginLeft: 8,
   },
   requestButton: {
@@ -758,19 +759,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: C.success,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#10B981',
+    shadowColor: C.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   requestButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    ...T.body,
+    fontFamily: F.semibold,
+    color: C.surface,
     marginLeft: 8,
   },
 });

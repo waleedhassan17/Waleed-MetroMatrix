@@ -52,6 +52,7 @@ import {
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
+import { C, F, T } from '../../../../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -197,7 +198,7 @@ export default function EarningsScreen() {
           <View
             style={[
               styles.trendBadge,
-              { backgroundColor: trend >= 0 ? '#ECFDF5' : '#FEF2F2' },
+              { backgroundColor: trend >= 0 ? C.successSoft : C.errorSoft },
             ]}
           >
             {trend >= 0 ? (
@@ -236,14 +237,14 @@ export default function EarningsScreen() {
 
       <View style={styles.metricsGrid}>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: '#FFFBEB' }]}>
+          <View style={[styles.metricIcon, { backgroundColor: C.warningSoft }]}>
             <Star size={18} color={theme.colors.warning} />
           </View>
           <Text style={styles.metricValue}>{performance.avgRating}</Text>
           <Text style={styles.metricLabel}>Rating</Text>
         </View>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: '#ECFDF5' }]}>
+          <View style={[styles.metricIcon, { backgroundColor: C.successSoft }]}>
             <Zap size={18} color={theme.colors.success} />
           </View>
           <Text style={styles.metricValue}>{performance.onTimeRate}%</Text>
@@ -257,7 +258,7 @@ export default function EarningsScreen() {
           <Text style={styles.metricLabel}>Tier</Text>
         </View>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: '#EFF6FF' }]}>
+          <View style={[styles.metricIcon, { backgroundColor: C.infoSoft }]}>
             <Target size={18} color={theme.colors.info} />
           </View>
           <Text style={styles.metricValue}>{performance.repeatCustomerRate}%</Text>
@@ -342,10 +343,10 @@ export default function EarningsScreen() {
   // Payment Item Component
   const PaymentItemComponent = ({ item }: { item: PaymentItem }) => {
     const statusConfig = {
-      completed: { color: theme.colors.success, bg: '#ECFDF5', icon: CheckCircle2 },
-      pending: { color: theme.colors.warning, bg: '#FFFBEB', icon: Clock },
-      processing: { color: theme.colors.info, bg: '#EFF6FF', icon: CreditCard },
-      failed: { color: theme.colors.error, bg: '#FEF2F2', icon: X },
+      completed: { color: theme.colors.success, bg: C.successSoft, icon: CheckCircle2 },
+      pending: { color: theme.colors.warning, bg: C.warningSoft, icon: Clock },
+      processing: { color: theme.colors.info, bg: C.infoSoft, icon: CreditCard },
+      failed: { color: theme.colors.error, bg: C.errorSoft, icon: X },
     }[item.status];
 
     const StatusIcon = statusConfig.icon;
@@ -562,14 +563,14 @@ export default function EarningsScreen() {
             icon={TrendingUp}
             trend={stats.monthlyGrowth}
             color={theme.colors.info}
-            bgColor="#EFF6FF"
+            bgColor={C.infoSoft}
           />
           <StatsCard
             title="Available"
             value={formatCurrency(stats.pendingPayouts)}
             icon={Wallet}
             color={theme.colors.warning}
-            bgColor="#FFFBEB"
+            bgColor={C.warningSoft}
             onPress={() => setShowPayoutModal(true)}
           />
           {/* No trend badge here: the API sends growth for earnings only, and
@@ -632,16 +633,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: C.errorSoft,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: C.errorSoft,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
   },
   errorText: {
     flex: 1,
-    fontSize: 13,
+    ...T.label,
+    fontFamily: F.regular,
+
     color: theme.colors.error,
   },
   errorRetryBtn: {
@@ -651,8 +654,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.error,
   },
   errorRetryText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...T.label,
+    fontFamily: F.semibold,
     color: theme.colors.text.inverse,
   },
   headerBtnDisabled: {
@@ -675,13 +678,13 @@ const styles = StyleSheet.create({
   },
   periodOptionText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    ...T.body,
+    fontFamily: F.medium,
     color: theme.colors.text.primary,
   },
   periodOptionTextActive: {
     color: theme.colors.primaryDark,
-    fontWeight: '600',
+    fontFamily: F.semibold,
   },
   container: {
     flex: 1,
@@ -702,13 +705,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
+    ...T.title,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 14,
+    ...T.body,
+
     color: theme.colors.text.secondary,
   },
   headerActions: {
@@ -718,7 +721,7 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 44,
     height: 44,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.surfaceSunken,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -741,7 +744,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -769,26 +772,27 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   trendText: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...T.caption,
+    fontFamily: F.bold,
   },
   statsValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...T.heading,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   statsTitle: {
-    fontSize: 12,
+    ...T.caption,
+    fontFamily: F.medium,
+
     color: theme.colors.text.secondary,
-    fontWeight: '500',
   },
   performanceCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -800,8 +804,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   performanceTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginLeft: 8,
     flex: 1,
@@ -812,8 +816,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   detailsBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...T.bodyStrong,
     color: theme.colors.primary,
   },
   metricsGrid: {
@@ -833,22 +836,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   metricValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginBottom: 2,
   },
   metricLabel: {
-    fontSize: 12,
+    ...T.caption,
+    fontFamily: F.medium,
+
     color: theme.colors.text.secondary,
-    fontWeight: '500',
   },
   chartCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -861,18 +865,19 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   chartTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   chartSubtitle: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.secondary,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.surfaceSunken,
     borderRadius: 8,
     padding: 3,
   },
@@ -885,15 +890,15 @@ const styles = StyleSheet.create({
   },
   periodBtnActive: {
     backgroundColor: theme.colors.surface,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   periodBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: theme.colors.text.secondary,
   },
   periodBtnTextActive: {
@@ -910,8 +915,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   barAmount: {
-    fontSize: 10,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: theme.colors.text.secondary,
     marginBottom: 4,
   },
@@ -925,8 +930,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   barMonth: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
     color: theme.colors.text.tertiary,
   },
   barMonthActive: {
@@ -936,7 +941,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
-    shadowColor: '#000',
+    shadowColor: C.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -949,13 +954,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   transactionsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   transactionsSubtitle: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.secondary,
   },
   viewAllBtn: {
@@ -964,8 +970,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...T.bodyStrong,
     color: theme.colors.primary,
   },
   transactionsList: {
@@ -974,7 +979,7 @@ const styles = StyleSheet.create({
   paymentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: C.surfaceSunken,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
   },
@@ -990,8 +995,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paymentDesc: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...T.bodyStrong,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
@@ -1001,7 +1005,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   paymentDate: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.tertiary,
   },
   metaDot: {
@@ -1011,12 +1016,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
   },
   paymentStatus: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...T.caption,
+    fontFamily: F.semibold,
   },
   paymentAmount: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...T.body,
+    fontFamily: F.bold,
   },
   modalOverlay: {
     flex: 1,
@@ -1043,8 +1048,8 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...T.heading,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
   },
   modalBody: {
@@ -1058,33 +1063,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   availableLabel: {
-    fontSize: 12,
+    ...T.caption,
+
     color: theme.colors.text.secondary,
     marginBottom: 4,
   },
   availableAmount: {
-    fontSize: 28,
-    fontWeight: '800',
+    ...T.title,
     color: theme.colors.primary,
   },
   inputContainer: {
     marginBottom: theme.spacing.xl,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...T.bodyStrong,
     color: theme.colors.text.primary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: C.surfaceSunken,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    fontSize: 20,
-    fontWeight: '700',
+    ...T.heading,
+    fontFamily: F.bold,
     color: theme.colors.text.primary,
   },
   submitBtn: {
@@ -1100,8 +1104,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
   },
   submitBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...T.subhead,
+    fontFamily: F.bold,
     color: theme.colors.text.inverse,
   },
   bottomSpacer: {
