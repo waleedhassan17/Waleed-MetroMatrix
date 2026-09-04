@@ -80,11 +80,6 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "metromatrix",
-    "facebookScheme": "fb26818541697736156",
-    "facebookAppId": "26818541697736156",
-    "facebookDisplayName": "MetroMatrix",
-    "facebookAutoLogAppEventsEnabled": false,
-    "facebookAdvertiserIDCollectionEnabled": false,
     "plugins": [
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
@@ -121,7 +116,9 @@
         }
       ],
       "@config-plugins/react-native-webrtc",
-      "expo-audio"
+      "expo-audio",
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
