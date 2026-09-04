@@ -57,7 +57,28 @@ export interface CategoryAccent {
   icon: string;
   /** What the trade actually does. Plain text — no emoji, no bullet soup. */
   summary: string;
+  /**
+   * Card photograph for the category.
+   *
+   * The home screen renders `service.image` from `/user/home` first, so the
+   * backend can still own this. This is what shows when it returns nothing —
+   * which is what it does today, and why every card was a tinted glyph panel.
+   * Undefined for the neutral fallback: an unknown category has no photo that
+   * would be honest.
+   */
+  photo?: string;
 }
+
+/**
+ * Unsplash, cropped by the server to the card's shape.
+ *
+ * `crop=entropy` picks the busiest region rather than the centre, which is what
+ * makes a portrait original (the plumber shot) resolve to a usable landscape
+ * band instead of a slice of someone's shoulder. `w`/`h` are sized for a
+ * full-width card at 3x. Every id below was fetched and looked at, not guessed.
+ */
+const photo = (id: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&crop=entropy&w=900&h=500&q=70`;
 
 const NEUTRAL_CATEGORY: CategoryAccent = {
   label: 'Service',
@@ -76,6 +97,8 @@ const CATEGORIES: Record<ServiceCategory, CategoryAccent> = {
     tintSoft: '#FEF6EC',
     icon: 'flash-outline',
     summary: 'Wiring, installation and repairs',
+    // Electrician in a hard hat wiring a wall box.
+    photo: photo('photo-1621905251189-08b45d6a269e'),
   },
   plumbers: {
     label: 'Plumber',
@@ -84,6 +107,9 @@ const CATEGORIES: Record<ServiceCategory, CategoryAccent> = {
     tintSoft: '#EFF6FF',
     icon: 'water-outline',
     summary: 'Pipe fitting, leaks and installation',
+    // Hands on a P-trap under a sink. Portrait original, so it leans on the
+    // entropy crop above to land on the pipework.
+    photo: photo('photo-1676210133055-eab6ef033ce3'),
   },
   'ac-repairers': {
     label: 'AC technician',
@@ -92,6 +118,10 @@ const CATEGORIES: Record<ServiceCategory, CategoryAccent> = {
     tintSoft: '#ECFEFF',
     icon: 'snow-outline',
     summary: 'Installation, cooling faults and gas refills',
+    // A clean wall-mounted condenser. The technician-on-a-roof alternatives
+    // put the people too far away to read at 140pt tall; the unit itself is
+    // what says "air conditioning" at card size.
+    photo: photo('photo-1757219525975-03b5984bc6e8'),
   },
 };
 

@@ -66,14 +66,21 @@ interface ServiceCardProps {
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
-  const [imageFailed, setImageFailed] = useState(!service.image);
   const category = categoryAccent(service.id);
+
+  // The server's image wins when it sends one, so this screen does not have to
+  // change for the backend to take the content back. `/user/home` returns
+  // nothing today, which is why every card was a tinted glyph panel rather than
+  // a photograph — the category's own photo fills that in.
+  const imageUri = service.image || category.photo;
+
+  const [imageFailed, setImageFailed] = useState(!imageUri);
 
   // A refresh can hand us a different (or newly working) url — retry it rather
   // than leaving the card stuck on the fallback from a previous failure.
   useEffect(() => {
-    setImageFailed(!service.image);
-  }, [service.image]);
+    setImageFailed(!imageUri);
+  }, [imageUri]);
 
   return (
     <Card padded={false} onPress={onPress} accessibilityLabel={service.name} style={styles.card}>
@@ -88,7 +95,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
         ) : (
           <>
             <Image
-              source={{ uri: service.image }}
+              source={{ uri: imageUri }}
               style={styles.image}
               resizeMode="cover"
               onError={() => setImageFailed(true)}
