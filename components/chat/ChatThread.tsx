@@ -30,6 +30,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../ui';
+import { MODULE_PALETTES } from '../../theme/palettes';
 import { fetchChatData, RoomType } from '../../networks/serviceProviders/chatNetwork';
 import { useRoomSocket } from '../../hooks/useRoomSocket';
 import { ChatMessage, ChatParticipant } from '../../models/serviceProviders';
@@ -77,8 +79,8 @@ export interface ChatThreadProps {
 export const ChatThread: React.FC<ChatThreadProps> = ({
   roomId,
   roomType,
-  accent = '#10B981',
-  accentSoft = '#D1FAE5',
+  accent = MODULE_PALETTES.homeservice.accent,
+  accentSoft = MODULE_PALETTES.homeservice.accentSoft,
   fallbackTitle = 'Chat',
   onParticipantsLoaded,
   onCall,
@@ -271,12 +273,18 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={accent} />
-      <View style={[styles.header, { backgroundColor: accent }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+    // `edges={[]}`: the header pads its own status-bar space below. With
+    // `edges={['top']}` the container inset AND the header's own
+    // StatusBar.currentHeight padding both applied, stacking two status bars'
+    // worth of blue above the name.
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Transparent and translucent so the header colour is what shows behind
+          the clock and battery, with light icons over it — the same three
+          props AppBar uses on an accent bar. `backgroundColor={accent}` was
+          ignored here anyway: Android only honours it on an opaque bar. */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <View style={[styles.header, { backgroundColor: accent, paddingTop: insets.top + 12 }]}>
+        <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         <View style={styles.headerCenter}>
           {counterpart?.image ? (
             <Image source={{ uri: counterpart.image }} style={styles.avatar} />
@@ -340,9 +348,21 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
             renderItem={renderMessage}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
+              // Names the person and says what the thread is for. "Say hello!"
+              // asked for small talk; someone opening a consultation thread
+              // wants to know it is the right place to describe their problem.
               <View style={styles.center}>
-                <Ionicons name="chatbubbles-outline" size={44} color="#D1D5DB" />
-                <Text style={styles.stateText}>No messages yet — say hello!</Text>
+                <View style={[styles.emptyIcon, { backgroundColor: accentSoft }]}>
+                  <Ionicons name="chatbubbles-outline" size={26} color={accent} />
+                </View>
+                <Text style={styles.emptyTitle}>
+                  {counterpart?.name
+                    ? `This is the start of your chat with ${counterpart.name}`
+                    : 'No messages yet'}
+                </Text>
+                <Text style={styles.stateText}>
+                  Messages are private between the two of you.
+                </Text>
               </View>
             }
           />
@@ -408,15 +428,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 12,
+    // paddingTop comes from the safe-area inset inline. `StatusBar.currentHeight`
+    // is Android-only and wrong under edge-to-edge, which is the formula Screen.tsx
+    // exists to have deleted everywhere.
+    paddingBottom: 12,
   },
-  headerBtn: { padding: 6 },
+  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 6 },
   avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   avatarFallback: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  headerName: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  headerSub: { fontSize: 12 },
+  headerName: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  headerSub: { fontSize: 13 },
   listContent: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, flexGrow: 1 },
   bubbleRow: { marginBottom: 8, flexDirection: 'row' },
   rowMine: { justifyContent: 'flex-end' },
@@ -477,6 +499,21 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: '#CBD5E1' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1917',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
   stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
   retryBtn: { marginTop: 14, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#fff', fontWeight: '700' },

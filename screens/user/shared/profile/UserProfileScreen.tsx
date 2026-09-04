@@ -338,7 +338,13 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       ...(unreadTotal > 0
         ? { badge: unreadTotal > 99 ? '99+' : String(unreadTotal), badgeColor: C.error }
         : {}),
-      onPress: () => navigation.navigate('Conversations' as never),
+      // The list paints its header from `roomType`, which defaults to
+      // homeservice — so opening it from healthcare gave a green Messages
+      // header above a blue conversation. Say which vertical we are in.
+      onPress: () =>
+        navigation.navigate('Conversations', {
+          roomType: module === 'healthcare' ? 'healthcare' : 'homeservice',
+        }),
     },
     {
       id: 'payment-methods',

@@ -22,11 +22,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '../../../components/ui';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import ChatThread from '../../../components/chat/ChatThread';
@@ -38,6 +39,7 @@ export default function ChatScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const room = normalizeRoomParams(route.params);
+  const insets = useSafeAreaInsets();
 
   const [counterpart, setCounterpart] = useState<ChatParticipant | null>(null);
   // null = still resolving, '' = resolved to nothing.
@@ -78,8 +80,8 @@ export default function ChatScreen() {
 
   if (resolving) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={room.accent} />
+      <SafeAreaView style={styles.container} edges={[]}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={room.accent} />
         </View>
@@ -90,12 +92,15 @@ export default function ChatScreen() {
   // Genuinely no room with this person: say so, and offer the action that fixes it.
   if (!resolvedId) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={room.accent} />
-        <View style={[styles.header, { backgroundColor: room.accent }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
+      <SafeAreaView style={styles.container} edges={[]}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: room.accent, paddingTop: insets.top + 12 },
+          ]}
+        >
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle} numberOfLines={1}>
             {room.name || 'Chat'}
           </Text>
@@ -158,8 +163,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  headerBtn: { padding: 6, width: 36 },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
+  headerBtn: { width: 40, height: 40 },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 20 },
   avatarFallback: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },

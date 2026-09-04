@@ -21,6 +21,7 @@
 // ============================================================================
 
 import type { RoomType } from '../../../services/socket/socketClient';
+import { MODULE_PALETTES } from '../../../theme/palettes';
 
 export type RoomParams = {
   // Room id — canonical, then the vertical-specific aliases.
@@ -60,10 +61,23 @@ export type RoomParams = {
   serviceType?: string;
 };
 
-/** Home services is green-accented, healthcare blue — matching each vertical. */
+/**
+ * Home services is green-accented, healthcare blue — matching each vertical.
+ *
+ * Read from the module palettes rather than typed as hex: these were a third
+ * hand-written pair (`#10B981` / `#2563EB`) that had drifted off both modules'
+ * real accents, so a chat header was a slightly different green from the app
+ * bar on the screen that opened it.
+ */
 const THEME: Record<RoomType, { accent: string; accentSoft: string }> = {
-  homeservice: { accent: '#10B981', accentSoft: '#D1FAE5' },
-  healthcare: { accent: '#2563EB', accentSoft: '#DBEAFE' },
+  homeservice: {
+    accent: MODULE_PALETTES.homeservice.accent,
+    accentSoft: MODULE_PALETTES.homeservice.accentSoft,
+  },
+  healthcare: {
+    accent: MODULE_PALETTES.healthcare.accent,
+    accentSoft: MODULE_PALETTES.healthcare.accentSoft,
+  },
 };
 
 export interface NormalizedRoom {

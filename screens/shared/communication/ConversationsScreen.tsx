@@ -22,8 +22,10 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '../../../components/ui';
 import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -140,6 +142,7 @@ export default function ConversationsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const theme = normalizeRoomParams(route.params);
+  const insets = useSafeAreaInsets();
 
   // Cached after the first call — a native module cannot appear at runtime.
   const callingSupported = isCallingSupported();
@@ -286,11 +289,23 @@ export default function ConversationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: theme.accent }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+    // `edges={[]}`: the header paints its own status-bar space below, the way
+    // AppBar does. With `edges={['top']}` the container inset pushed the header
+    // down and the strip above it was left showing the page background.
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Translucent and light — so the header colour IS the status bar
+          ground and the clock and battery stay legible on it. This screen set
+          no StatusBar at all, so it inherited whatever the previous screen
+          left behind, which is why the icons came out dark on green. */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.accent, paddingTop: insets.top + 12 },
+        ]}
+      >
+        <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Messages</Text>
         <View style={styles.headerBtn} />
       </View>
@@ -343,8 +358,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  headerBtn: { padding: 6, width: 36 },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
+  headerBtn: { width: 40, height: 40 },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   listContent: { paddingVertical: 6 },
   listEmpty: { flexGrow: 1 },
