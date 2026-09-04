@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -231,9 +232,7 @@ const SpecialtyListScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.gradientHeader}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>Specialties</Text>
             </View>
@@ -277,9 +276,7 @@ const SpecialtyListScreen: React.FC = () => {
         >
           {/* Title row */}
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>Medical Specialties</Text>
               <Text style={styles.headerSubtitle}>
@@ -376,8 +373,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

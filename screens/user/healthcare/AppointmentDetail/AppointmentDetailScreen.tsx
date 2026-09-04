@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -392,9 +393,7 @@ const AppointmentDetailScreen: React.FC = () => {
           colors={THEME.gradient.header as any}
           style={styles.loadingHeader}
         >
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={handleBack} />
         </LinearGradient>
         <View style={styles.loadingContent}>
           <SkeletonBox width="100%" height={100} borderRadius={16} />
@@ -412,9 +411,7 @@ const AppointmentDetailScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.emptyHeader}>
-          <TouchableOpacity onPress={handleBack} style={styles.emptyBackButton}>
-            <Ionicons name="arrow-back" size={22} color={Colors.text.primary} />
-          </TouchableOpacity>
+          <BackButton tone="onSurface" onPress={handleBack} />
           <Text style={styles.emptyHeaderTitle}>Appointment Detail</Text>
           <View style={{ width: 42 }} />
         </View>
@@ -446,9 +443,7 @@ const AppointmentDetailScreen: React.FC = () => {
       >
 
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={handleBack} />
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Appointment Detail</Text>
@@ -934,8 +929,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -953,7 +946,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -1046,8 +1038,6 @@ const styles = StyleSheet.create({
   statusIconBg: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,

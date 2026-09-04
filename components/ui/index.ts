@@ -17,6 +17,9 @@ export type { AppBarProps } from './AppBar';
 export { default as Avatar } from './Avatar';
 export type { AvatarProps } from './Avatar';
 
+export { default as BackButton, BackButtonSpacer } from './BackButton';
+export type { BackButtonProps } from './BackButton';
+
 export { default as Button } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 

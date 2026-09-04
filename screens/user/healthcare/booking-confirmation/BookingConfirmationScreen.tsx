@@ -15,6 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -335,12 +336,7 @@ const BookingConfirmationScreen: React.FC = () => {
           colors={THEME.gradient.header as any}
           style={styles.loadingHeader}
         >
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         </LinearGradient>
 
         <View style={styles.prepErrorContainer}>
@@ -398,12 +394,7 @@ const BookingConfirmationScreen: React.FC = () => {
           colors={THEME.gradient.header as any}
           style={styles.loadingHeader}
         >
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         </LinearGradient>
         <View style={styles.loadingContent}>
           <SkeletonBox width="100%" height={180} borderRadius={20} />
@@ -443,12 +434,7 @@ const BookingConfirmationScreen: React.FC = () => {
       >
 
         <View style={styles.headerContent}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Confirm Booking</Text>
@@ -1079,8 +1065,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

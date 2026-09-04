@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
@@ -489,9 +490,7 @@ const PatientQueueScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           {isInTab ? <View style={styles.headerBtn} /> : (
-          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
           <Text style={styles.headerTitle}>Patient Queue</Text>
           <View style={styles.headerBtn} />
         </LinearGradient>
@@ -511,9 +510,7 @@ const PatientQueueScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           {isInTab ? <View style={styles.headerBtn} /> : (
-          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
           <Text style={styles.headerTitle}>Patient Queue</Text>
           <View style={styles.headerBtn} />
         </LinearGradient>
@@ -549,9 +546,7 @@ const PatientQueueScreen: React.FC = () => {
       >
         <View style={styles.headerNav}>
           {isInTab ? <View style={styles.headerBtn} /> : (
-          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Patient Queue</Text>
             <Text style={styles.headerSubtitle}>{stats.waiting} waiting  ·  {stats.completed} completed</Text>
@@ -766,8 +761,6 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

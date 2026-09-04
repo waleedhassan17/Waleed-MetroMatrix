@@ -32,6 +32,7 @@ import {
   Crown,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { MODULE_PALETTES } from '../../theme/palettes';
 import { performLogout } from '../../services/auth/logout';
 import { contactSupport } from '../../utils/support/contactSupport';
 import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
@@ -45,6 +46,12 @@ import MiniWalletCard from '../MiniWalletCard/MiniWalletCard';
 
 const { width, height } = Dimensions.get('window');
 const SIDEBAR_WIDTH = width * 0.85;
+
+/** The brand green, shared with the profile hero this sheet opens. */
+const SIDEBAR_GRADIENT = [
+  MODULE_PALETTES.homeservice.accent,
+  MODULE_PALETTES.homeservice.accentDeep,
+] as const;
 
 interface MenuItem {
   id: string;
@@ -157,17 +164,27 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
     } else {
       // Navigate based on item id
       switch (item.id) {
+        // The module chooser has not entered a vertical, so the profile would
+        // otherwise inherit the neutral ink theme and open charcoal. Green is
+        // the brand colour and this sheet is already painted in it, so the
+        // screen it opens says so explicitly.
         case 'profile':
           onClose();
-          navigation.navigate('UserProfileScreen');
+          navigation.navigate('UserProfileScreen', { module: 'homeservice' });
           break;
         case 'notifications':
           onClose();
-          navigation.navigate('UserProfileScreen', { tab: 'notifications' });
+          navigation.navigate('UserProfileScreen', {
+            module: 'homeservice',
+            tab: 'notifications',
+          });
           break;
         case 'settings':
           onClose();
-          navigation.navigate('UserProfileScreen', { tab: 'settings' });
+          navigation.navigate('UserProfileScreen', {
+            module: 'homeservice',
+            tab: 'settings',
+          });
           break;
         case 'help':
           onClose();
@@ -319,9 +336,14 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
             },
           ]}
         >
-          {/* Header with User Info */}
+          {/* Header with User Info.
+              Read straight from the palette rather than typed as hex: this
+              sheet opens the profile, whose hero paints itself from the same
+              two values, and two hand-written greens had already drifted a
+              shade apart. The sidebar sits on the module chooser and so is not
+              inside a homeservice ThemeProvider — hence the direct read. */}
           <LinearGradient
-            colors={['#10B981', '#059669']}
+            colors={SIDEBAR_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.header}

@@ -11,6 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
@@ -87,9 +88,7 @@ const MyPrescriptionsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={C.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.headerText}>
           <Text style={styles.title}>My Prescriptions</Text>
           {prescriptions.length > 0 && (
@@ -158,7 +157,7 @@ const MyPrescriptionsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerText: { flex: 1, alignItems: 'center' },
   title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   subtitle: { fontSize: 12, color: C.textSec, marginTop: 1 },

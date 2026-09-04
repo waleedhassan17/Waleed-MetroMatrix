@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { fetchMyReviewsApi } from '../../../../networks/healthcare/providerApi';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -93,9 +94,7 @@ const DoctorReviewsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={C.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>My Reviews</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -195,7 +194,7 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   summaryCard: { flexDirection: 'row', backgroundColor: C.surface, marginHorizontal: 16, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border, gap: 16 },
   summaryLeft: { alignItems: 'center', gap: 4 },

@@ -12,6 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -196,9 +197,7 @@ const PatientHistoryScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Patient History</Text>
           <View style={styles.backBtn} />
         </LinearGradient>
@@ -219,9 +218,7 @@ const PatientHistoryScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Patient History</Text>
           <View style={styles.backBtn} />
         </LinearGradient>
@@ -258,9 +255,7 @@ const PatientHistoryScreen: React.FC = () => {
         style={styles.headerGradient}
       >
         <View style={styles.headerNav}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Patient History</Text>
             <Text style={styles.headerSubtitle}>{patient.visits.length} visit{patient.visits.length !== 1 ? 's' : ''} recorded</Text>
@@ -467,8 +462,6 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -491,8 +484,6 @@ const styles = StyleSheet.create({
   callBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

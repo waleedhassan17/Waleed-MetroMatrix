@@ -49,6 +49,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 // in navigation-maps/Base, which imports this screen, and importing it back
 // would close the cycle.
 import { C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
+import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
 import {
@@ -93,7 +94,6 @@ import {
   Settings,
   Headphones,
   X,
-  ChevronLeft,
   Plus,
   MessageSquare,
   ClipboardList,
@@ -772,18 +772,12 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
                 control that does nothing — the same call FavoritesScreen makes.
                 The empty view keeps the gear on the right where it belongs. */}
             {asTab ? (
-              <View style={styles.navBtnPlaceholder} />
+              <BackButtonSpacer />
             ) : (
-              <TouchableOpacity
-                style={styles.navBtn}
-                onPress={() => navigation.goBack()}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-              >
-                <ChevronLeft size={22} color={C.inkInverse} strokeWidth={2.5} />
-              </TouchableOpacity>
+              <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
             )}
+            {/* Bare, like the back control beside it. One contained button and
+                one bare one in the same row reads as an accident. */}
             <TouchableOpacity
               style={styles.navBtn}
               onPress={() => setActiveTab('settings')}
@@ -791,7 +785,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
               accessibilityRole="button"
               accessibilityLabel="Settings"
             >
-              <Settings size={18} color={C.inkInverse} strokeWidth={2} />
+              <Settings size={20} color={C.inkInverse} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -991,19 +985,12 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
   },
+  // Matches BackButton's 40x40 bare target so the two ends of the row agree.
   navBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  // Holds the back button's space on a tab root so the gear stays right-aligned
-  // rather than sliding across to where the chevron was.
-  navBtnPlaceholder: {
-    width: 36,
-    height: 36,
   },
   profileInfo: {
     alignItems: 'center',

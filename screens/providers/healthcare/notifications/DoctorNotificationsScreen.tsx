@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -85,9 +86,7 @@ const DoctorNotificationsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={C.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Notifications{unread ? ` (${unread})` : ''}</Text>
         <TouchableOpacity style={styles.iconBtn} onPress={handleReadAll} disabled={unread === 0}>
           <Ionicons name="checkmark-done" size={20} color={unread ? C.primary : C.textSec} />
@@ -161,7 +160,7 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   list: { padding: 16, paddingBottom: 40 },
   card: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },

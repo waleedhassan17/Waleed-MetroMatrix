@@ -20,6 +20,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
+import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import {
   fetchRecords,
   setSelectedCategory,
@@ -584,17 +585,15 @@ const HealthRecordsScreen: React.FC = () => {
           {/* Header Content */}
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
+              {/* As a tab root there is nowhere to go back to, so the slot
+                  holds its width and shows nothing — the same spacer the right
+                  side already uses. It used to show a static folder glyph,
+                  which looked like a button and did not respond to one. */}
               {isInTab ? (
-                <View style={styles.backButton}>
-                  <Ionicons name="folder-open" size={20} color="#FFFFFF" />
-                </View>
+                <BackButtonSpacer />
               ) : (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-              </TouchableOpacity>)}
+                <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
+              )}
               <Text style={styles.headerTitle}>Health Records</Text>
               {/*
                 The overflow (⋮) button that sat here had no onPress and no menu
@@ -761,14 +760,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,

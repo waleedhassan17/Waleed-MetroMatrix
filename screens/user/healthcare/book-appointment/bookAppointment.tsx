@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -649,9 +650,7 @@ const BookAppointmentScreen: React.FC = () => {
         style={styles.header}
       >
 
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <BackButton tone="onAccent" onPress={handleBack} />
         
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Book Appointment</Text>
@@ -746,8 +745,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -983,8 +980,6 @@ const styles = StyleSheet.create({
   feeIconBg: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -1004,7 +999,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   feeTypeBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,

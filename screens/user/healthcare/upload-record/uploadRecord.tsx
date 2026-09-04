@@ -15,6 +15,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -239,12 +240,7 @@ const UploadRecordScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <TouchableOpacity
-          onPress={() => { dispatch(resetUploadRecord()); navigation.goBack(); }}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Upload Record</Text>
           <Text style={styles.headerSubtitle}>Add to your health portfolio</Text>
@@ -575,8 +571,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { fetchMyPatientsApi } from '../../../../networks/healthcare/providerApi';
@@ -59,9 +60,7 @@ const DoctorPatientsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={C.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>My Patients</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -155,7 +154,7 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface, marginHorizontal: 16, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: C.border },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: C.text },

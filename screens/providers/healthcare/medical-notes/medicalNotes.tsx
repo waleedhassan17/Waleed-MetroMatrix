@@ -14,6 +14,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
@@ -267,9 +268,7 @@ const MedicalNotesScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBarPlaceholder />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Medical Notes</Text>
           <View style={styles.headerIconBtn} />
         </LinearGradient>
@@ -510,9 +509,7 @@ const MedicalNotesScreen: React.FC = () => {
         style={styles.headerGradient}
       >
         <View style={styles.headerNav}>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Medical Notes</Text>
             <Text style={styles.headerSubtitle}>{notes.length} note{notes.length !== 1 ? 's' : ''}</Text>
@@ -683,8 +680,6 @@ const styles = StyleSheet.create({
   headerIconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

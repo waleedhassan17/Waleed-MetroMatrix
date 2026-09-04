@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -218,9 +219,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={handleBack} />
           <Text style={styles.headerTitle}>Reschedule</Text>
           <View style={styles.headerSpacer} />
         </LinearGradient>
@@ -248,9 +247,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
 
       {/* ── Gradient Header ── */}
       <LinearGradient colors={THEME.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <BackButton tone="onAccent" onPress={handleBack} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Reschedule</Text>
           <Text style={styles.headerSubtitle}>Pick a new date & time</Text>
@@ -501,8 +498,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

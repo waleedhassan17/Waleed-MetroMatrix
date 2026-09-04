@@ -1,5 +1,7 @@
 export { default as HCScreen, STATUS_BAR_PAD } from './HCScreen';
-export { default as HCAppBar } from './HCAppBar';
+// HCAppBar is gone. It was healthcare's intended standard header and had zero
+// importers — the module hand-rolled its look instead, 26 times. The back
+// control it was meant to own now lives in components/ui/BackButton.
 export { default as HCButton } from './HCButton';
 export { default as HCCard } from './HCCard';
 export { default as HCChip } from './HCChip';

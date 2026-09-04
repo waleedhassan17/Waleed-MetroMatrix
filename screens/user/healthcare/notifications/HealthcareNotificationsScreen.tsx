@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -200,13 +201,7 @@ const HealthcareNotificationsScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
@@ -283,8 +278,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,7 +303,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   markAllText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
   headerRight: { width: 60 },

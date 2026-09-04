@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -502,16 +503,7 @@ const HealthcareHomeScreen: React.FC = () => {
           >
             <View style={styles.headerContent}>
               {canGoBack && (
-                <TouchableOpacity
-                  onPress={handleBack}
-                  style={styles.headerBackButton}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Go back"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-                </TouchableOpacity>
+                <BackButton tone="onAccent" onPress={handleBack} />
               )}
               <View style={styles.headerTextGroup}>
                 <Text style={styles.headerTitle}>Find Your Doctor</Text>
@@ -909,8 +901,6 @@ const styles = StyleSheet.create({
   headerBackButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1112,7 +1102,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -1278,7 +1267,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,

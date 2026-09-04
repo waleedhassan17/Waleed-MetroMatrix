@@ -17,6 +17,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -426,9 +427,7 @@ const DoctorListScreen: React.FC = () => {
 
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={handleBack} />
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle} numberOfLines={1}>
                 {headerTitle}
@@ -796,8 +795,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -822,7 +819,6 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 14,
     height: 48,
     borderRadius: 14,

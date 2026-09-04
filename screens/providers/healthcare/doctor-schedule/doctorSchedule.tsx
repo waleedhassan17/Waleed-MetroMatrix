@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
@@ -351,9 +352,7 @@ const DoctorScheduleScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           {isInTab ? <View style={styles.backButton} /> : (
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
           <Text style={styles.headerTitle}>Schedule</Text>
           <View style={styles.backButton} />
         </LinearGradient>
@@ -375,9 +374,7 @@ const DoctorScheduleScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           {isInTab ? <View style={styles.backButton} /> : (
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>)}
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
           <Text style={styles.headerTitle}>Schedule</Text>
           <View style={styles.backButton} />
         </LinearGradient>
@@ -415,9 +412,7 @@ const DoctorScheduleScreen: React.FC = () => {
           {/* Nav row */}
           <View style={styles.headerNav}>
             {isInTab ? <View style={styles.backButton} /> : (
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>)}
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>Schedule</Text>
               <Text style={styles.headerSubtitle}>{formatDateHeader(selectedDate)}</Text>
@@ -677,8 +672,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -716,7 +709,6 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -729,7 +721,6 @@ const styles = StyleSheet.create({
   },
   viewToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: 3,
   },

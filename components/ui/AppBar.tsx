@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C, F, GUTTER, S, T } from '../../constants/theme';
 import { textOn, useTheme } from '../../theme';
+import BackButton from './BackButton';
 
 /**
  * The one page header.
@@ -103,17 +104,9 @@ const AppBar: React.FC<AppBarProps> = ({
       />
 
       <View style={styles.slot}>
-        {!hideBack && (
-          <TouchableOpacity
-            onPress={onBack}
-            style={styles.iconButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={24} color={ink} />
-          </TouchableOpacity>
-        )}
+        {/* The same component every hand-rolled header now uses, so there is
+            one implementation rather than two that happen to agree today. */}
+        {!hideBack && <BackButton onPress={onBack ?? (() => {})} color={ink} />}
       </View>
 
       <View style={styles.titles} pointerEvents="none">

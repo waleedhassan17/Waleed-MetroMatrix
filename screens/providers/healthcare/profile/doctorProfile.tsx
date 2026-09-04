@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
@@ -196,9 +197,7 @@ const DoctorProfileScreen: React.FC = () => {
           {/* Nav */}
           <View style={styles.headerNav}>
             {isInTab ? <View style={styles.headerBtn} /> : (
-            <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>)}
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
             <Text style={styles.headerTitle}>My Profile</Text>
             <TouchableOpacity
               style={styles.headerBtn}
@@ -511,8 +510,6 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

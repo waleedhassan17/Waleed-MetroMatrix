@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
@@ -750,9 +751,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Availability</Text>
           </View>
@@ -775,9 +774,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Availability</Text>
           </View>
@@ -813,9 +810,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Availability</Text>
           <Text style={styles.headerSubtitle}>Manage your schedule</Text>
@@ -1148,8 +1143,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1172,8 +1165,6 @@ const styles = StyleSheet.create({
   headerSaveBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

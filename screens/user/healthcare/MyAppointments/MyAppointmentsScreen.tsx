@@ -20,6 +20,7 @@ import { setActiveTab, fetchMyAppointments } from './myAppointmentsSlice';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
+import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
@@ -341,14 +342,13 @@ const MyAppointmentsScreen: React.FC = () => {
       >
         {/* Title row */}
         <View style={styles.headerRow}>
+          {/* As a tab root there is nowhere to go back to, so the slot holds
+              its width and shows nothing. It used to show a static calendar
+              glyph, which looked like a button and did not respond to one. */}
           {isInTab ? (
-            <View style={styles.backButton}>
-              <Ionicons name="calendar" size={20} color="#FFFFFF" />
-            </View>
+            <BackButtonSpacer />
           ) : (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>My Appointments</Text>
@@ -356,7 +356,13 @@ const MyAppointmentsScreen: React.FC = () => {
               {filteredAppointments.length} {activeTab === 'upcoming' ? 'upcoming' : 'past'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.backButton} onPress={onRefresh} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.headerAction}
+            onPress={onRefresh}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh appointments"
+          >
             <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -449,11 +455,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  backButton: {
+  // Was `backButton`, and was a glass square. The back control is a shared
+  // component now, and this is the trailing action — bare, so the two sides of
+  // the header match each other and match AppBar.
+  headerAction: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },

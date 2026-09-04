@@ -21,6 +21,7 @@ import {
   Share,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
@@ -243,9 +244,7 @@ const DoctorEarningsScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           {!isInTab && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           )}
           <Text style={styles.headerTitle}>Earnings</Text>
           {!isInTab && <View style={styles.backButton} />}
@@ -268,9 +267,7 @@ const DoctorEarningsScreen: React.FC = () => {
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           {!isInTab && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+            <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           )}
           <Text style={styles.headerTitle}>Earnings</Text>
           {!isInTab && <View style={styles.backButton} />}
@@ -361,9 +358,7 @@ const DoctorEarningsScreen: React.FC = () => {
           {/* Nav row */}
           <View style={styles.heroNav}>
             {!isInTab ? (
-              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
+              <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
             ) : (
               <View style={styles.backButtonPlaceholder} />
             )}
@@ -648,8 +643,6 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -689,7 +682,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -704,7 +696,6 @@ const styles = StyleSheet.create({
   periodFilter: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
     padding: 4,
   },

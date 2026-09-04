@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import {
@@ -63,9 +64,7 @@ const SymptomCheckerScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={C.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Symptom Checker</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -144,7 +143,7 @@ const SymptomCheckerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border },
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '700', color: C.text },
   scroll: { padding: 16, paddingBottom: 40 },
   introCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: C.primaryLight, borderRadius: 14, padding: 14, marginBottom: 16 },
