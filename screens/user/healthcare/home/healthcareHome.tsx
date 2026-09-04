@@ -258,13 +258,14 @@ const HealthcareHomeScreen: React.FC = () => {
   // leaves no history — so the one control that leaves healthcare disappeared
   // exactly when the user had finished what they came to do.
   //
-  // The button is unconditional now, and falls back to the module chooser so it
-  // always leads somewhere rather than being hidden to avoid being dead.
+  // It names its destination instead of calling `goBack()`. This screen is a
+  // tab inside a stack inside the root stack, and `goBack` is resolved by
+  // whichever navigator in that chain decides it can handle it — so what the
+  // one control that leaves healthcare actually did depended on tab history.
+  // Naming the module chooser makes it the same action every time, and
+  // `navigate` pops back to it when it is already below rather than stacking a
+  // second copy.
   const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
     navigation.navigate('UserHome');
   };
 
@@ -469,8 +470,16 @@ const HealthcareHomeScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primary} translucent />
 
-      {/* Floating Header on Scroll */}
+      {/* Floating Header on Scroll.
+
+          `pointerEvents="none"` is what makes the back button below work. This
+          bar is absolutely positioned across the top at zIndex 100 and is
+          `opacity: 0` until you scroll — but opacity does not affect hit
+          testing, so an invisible white rectangle 60pt tall was sitting over
+          the header and swallowing every tap on the back control. It holds a
+          title and nothing else, so it should never take a touch at all. */}
       <Animated.View
+        pointerEvents="none"
         style={[
           styles.floatingHeader,
           {

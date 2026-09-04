@@ -183,8 +183,14 @@ const DoctorHomeScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={THEME.pageBg} translucent />
 
-      {/* Floating scroll header */}
-      <Animated.View style={[styles.floatingHeader, { opacity: headerOpacity }]}>
+      {/* Floating scroll header. `pointerEvents="none"` because it is absolute
+          at zIndex 100 and `opacity: 0` until you scroll — and opacity does not
+          affect hit testing, so it was an invisible 58pt bar swallowing taps on
+          whatever sat under it. It holds a title and nothing else. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.floatingHeader, { opacity: headerOpacity }]}
+      >
         <Text style={styles.floatingHeaderTitle}>Dashboard</Text>
       </Animated.View>
 
