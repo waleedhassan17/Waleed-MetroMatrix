@@ -1,10 +1,13 @@
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
-import { Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
+// Imported per weight, not from the package index. The index is a barrel of
+// `require('./<weight>/<face>.ttf')` calls for all 18 Inter and 8 Sora faces,
+// and Metro does not tree-shake a module-level require — importing from it
+// bundled ~2MB of italics and hairline weights the app never asks for.
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { Sora_600SemiBold } from '@expo-google-fonts/sora/600SemiBold';
+import { Sora_700Bold } from '@expo-google-fonts/sora/700Bold';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback } from 'react';
@@ -12,6 +15,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './store/store';
 import AppContainer from './components/app-container/appContainer';
+import { ThemeProvider } from './theme';
 
 // Hold the native splash until the faces are in memory. Without this the first
 // frame renders in San Francisco / Roboto and then reflows into Inter — the
@@ -57,7 +61,11 @@ const App: React.FC = () => {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <AppContainer onLayout={onReady} />
+        {/* Root layer: base tokens, no vertical's colour. Each module stack
+            narrows it, and a brand subtree narrows it again. */}
+        <ThemeProvider module="neutral">
+          <AppContainer onLayout={onReady} />
+        </ThemeProvider>
       </PersistGate>
     </Provider>
   );

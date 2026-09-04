@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, R, S, T } from '../../../../constants/theme';
+import { ThemeProvider } from '../../../../theme';
 import BookingsScreen from './booking-screen/booking';
 import HomeScreen from './home-screen/index';
 
@@ -70,21 +71,23 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 };
 
 const TabLayout: React.FC = () => (
-  <Tab.Navigator
-    tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
-    screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
-  >
-    <Tab.Screen
-      name="index"
-      component={HomeScreen}
-      options={{ title: 'Home', tabBarAccessibilityLabel: 'Home' }}
-    />
-    <Tab.Screen
-      name="bookings"
-      component={BookingsScreen}
-      options={{ title: 'Bookings', tabBarAccessibilityLabel: 'Bookings' }}
-    />
-  </Tab.Navigator>
+  <ThemeProvider module="homeservice">
+    <Tab.Navigator
+      tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false, tabBarHideOnKeyboard: true }}
+    >
+      <Tab.Screen
+        name="index"
+        component={HomeScreen}
+        options={{ title: 'Home', tabBarAccessibilityLabel: 'Home' }}
+      />
+      <Tab.Screen
+        name="bookings"
+        component={BookingsScreen}
+        options={{ title: 'Bookings', tabBarAccessibilityLabel: 'Bookings' }}
+      />
+    </Tab.Navigator>
+  </ThemeProvider>
 );
 
 const styles = StyleSheet.create({

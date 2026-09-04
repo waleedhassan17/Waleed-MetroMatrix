@@ -18,6 +18,7 @@ import DoctorReviewsScreen from '../screens/providers/healthcare/doctor-reviews/
 import DoctorNotificationsScreen from '../screens/providers/healthcare/notifications/DoctorNotificationsScreen';
 import DoctorPatientsScreen from '../screens/providers/healthcare/patients/DoctorPatientsScreen';
 import ManageSlotsScreen from '../screens/providers/healthcare/manage-slots/manageSlots';
+import { ThemeProvider } from '../theme';
 // Wallet + top-up live ONLY in the root navigator (navigation-maps/Base.tsx)
 // now — DoctorStack used to own a local copy of both routes, which shadowed
 // the shared one for anything navigating from inside this stack. React
@@ -29,67 +30,70 @@ const Stack = createNativeStackNavigator<DoctorStackParamList>();
 
 const DoctorStack: React.FC = () => {
   return (
-    <Stack.Navigator
-      initialRouteName={DoctorRouteNames.DoctorTabs}
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-      }}
-    >
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorTabs}
-        component={DoctorTabNavigator}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorDashboard}
-        component={DoctorDashboardScreen}
-      />
-      {/* Schedule / Patient Queue / Earnings are TABS (DoctorTabNavigator).
-          They used to ALSO be registered here, and the dashboard's quick
-          actions pushed these copies — mounting a second component against the
-          same Redux slice, whose unmount reset() then wiped the tab's data.
-          Reach them via navigate(DoctorTabs, { screen: 'Schedule' }). */}
-      <Stack.Screen
-        name={DoctorRouteNames.ConsultationNotes}
-        component={ConsultationScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.PrescriptionWriter}
-        component={PrescriptionWriterScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.PatientHistory}
-        component={PatientHistoryScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorProfile}
-        component={DoctorProfileScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorAvailability}
-        component={DoctorSettingsScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.ManageSlots}
-        component={ManageSlotsScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorVideoConsultation}
-        component={DoctorVideoConsultationScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorMyReviews}
-        component={DoctorReviewsScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorNotifications}
-        component={DoctorNotificationsScreen}
-      />
-      <Stack.Screen
-        name={DoctorRouteNames.DoctorPatients}
-        component={DoctorPatientsScreen}
-      />
-    </Stack.Navigator>
+    // The doctor side is the same vertical as the patient side — same accent.
+    <ThemeProvider module="healthcare">
+      <Stack.Navigator
+        initialRouteName={DoctorRouteNames.DoctorTabs}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorTabs}
+          component={DoctorTabNavigator}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorDashboard}
+          component={DoctorDashboardScreen}
+        />
+        {/* Schedule / Patient Queue / Earnings are TABS (DoctorTabNavigator).
+            They used to ALSO be registered here, and the dashboard's quick
+            actions pushed these copies — mounting a second component against the
+            same Redux slice, whose unmount reset() then wiped the tab's data.
+            Reach them via navigate(DoctorTabs, { screen: 'Schedule' }). */}
+        <Stack.Screen
+          name={DoctorRouteNames.ConsultationNotes}
+          component={ConsultationScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.PrescriptionWriter}
+          component={PrescriptionWriterScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.PatientHistory}
+          component={PatientHistoryScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorProfile}
+          component={DoctorProfileScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorAvailability}
+          component={DoctorSettingsScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.ManageSlots}
+          component={ManageSlotsScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorVideoConsultation}
+          component={DoctorVideoConsultationScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorMyReviews}
+          component={DoctorReviewsScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorNotifications}
+          component={DoctorNotificationsScreen}
+        />
+        <Stack.Screen
+          name={DoctorRouteNames.DoctorPatients}
+          component={DoctorPatientsScreen}
+        />
+      </Stack.Navigator>
+    </ThemeProvider>
   );
 };
 

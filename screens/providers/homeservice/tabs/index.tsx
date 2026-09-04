@@ -10,6 +10,7 @@ import DashboardScreen from './dashboard/dashboard';
 import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
 import ProfileScreen from '../profile-screen/profile';
+import { ThemeProvider } from '../../../../theme';
 
 // Navigation Types
 type TabParamList = {
@@ -50,61 +51,63 @@ const HomeServiceProviderLayout: React.FC = () => {
   const insets = useSafeAreaInsets();
   
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          ...styles.tabBar,
-          height: 60 + Math.max(insets.bottom, 10),
-          paddingBottom: Math.max(insets.bottom, 10),
-        },
-        tabBarActiveTintColor: HS.accentDeep,
-        tabBarInactiveTintColor: C.inkFaint,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon focused={focused} Icon={Home} size={size} />
-          ),
+    <ThemeProvider module="homeservice">
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            ...styles.tabBar,
+            height: 60 + Math.max(insets.bottom, 10),
+            paddingBottom: Math.max(insets.bottom, 10),
+          },
+          tabBarActiveTintColor: HS.accentDeep,
+          tabBarInactiveTintColor: C.inkFaint,
+          tabBarLabelStyle: styles.tabBarLabel,
+          tabBarItemStyle: styles.tabBarItem,
         }}
-      />
-      <Tab.Screen
-        name="Jobs"
-        component={JobsScreen}
-        options={{
-          tabBarLabel: 'Jobs',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon focused={focused} Icon={Briefcase} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Earnings"
-        component={EarningsScreen}
-        options={{
-          tabBarLabel: 'Earnings',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon focused={focused} Icon={TrendingUp} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ focused, size }) => (
-            <TabIcon focused={focused} Icon={User} size={size} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Dashboard"
+          component={DashboardScreen}
+          options={{
+            tabBarLabel: 'Home',
+            tabBarIcon: ({ focused, size }) => (
+              <TabIcon focused={focused} Icon={Home} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Jobs"
+          component={JobsScreen}
+          options={{
+            tabBarLabel: 'Jobs',
+            tabBarIcon: ({ focused, size }) => (
+              <TabIcon focused={focused} Icon={Briefcase} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Earnings"
+          component={EarningsScreen}
+          options={{
+            tabBarLabel: 'Earnings',
+            tabBarIcon: ({ focused, size }) => (
+              <TabIcon focused={focused} Icon={TrendingUp} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: ({ focused, size }) => (
+              <TabIcon focused={focused} Icon={User} size={size} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </ThemeProvider>
   );
 };
 

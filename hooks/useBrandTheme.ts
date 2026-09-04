@@ -4,8 +4,14 @@
 //
 // Returns brand-specific colors when inside a brand store.
 // Falls back to app default colors when no brand is selected.
+//
+// This is the narrow, imperative form: it hands back four values for a screen
+// to place by hand. For anything that should recolour SHARED components, wrap
+// the subtree in `<ThemeProvider brand={brand}>` from `theme/` instead — that
+// is what makes a brand's colours reach a component nobody wrote for them.
 
 import { useMemo } from 'react';
+import { textOn } from '../theme/contrast';
 import type { BrandConfig, BrandTheme } from '../types/shopping';
 
 // Default Shopping Module colors (Shopping Orange)
@@ -19,19 +25,13 @@ const DEFAULT_THEME: BrandTheme = {
 /**
  * Determines whether white or dark text provides better contrast
  * against the given hex background color.
+ *
+ * Delegates to `theme/contrast`. The version that used to live here claimed to
+ * be the WCAG formula but was YIQ perceived brightness with no gamma
+ * expansion, and returned white for any input that was not exactly six hex
+ * digits — so a three-digit hex produced white-on-white.
  */
-const getTextOnColor = (hex: string): string => {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return '#FFFFFF';
-
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-
-  // Relative luminance (WCAG formula)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? '#1F2937' : '#FFFFFF';
-};
+export const getTextOnColor = (hex: string): string => textOn(hex);
 
 /**
  * useBrandTheme
@@ -61,7 +61,7 @@ export const useBrandTheme = (
       primaryColor: brand.primaryColor,
       secondaryColor: brand.secondaryColor || DEFAULT_THEME.secondaryColor,
       accentColor: brand.accentColor || DEFAULT_THEME.accentColor,
-      textOnPrimary: getTextOnColor(brand.primaryColor),
+      textOnPrimary: textOn(brand.primaryColor),
     };
   }, [brand?.primaryColor, brand?.secondaryColor, brand?.accentColor]);
 };

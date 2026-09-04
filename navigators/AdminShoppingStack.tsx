@@ -14,68 +14,72 @@ import AdminShoppingOrdersScreen from '../screens/admin/Shopping/AdminShoppingOr
 import AdminShoppingOrderDetailScreen from '../screens/admin/Shopping/AdminShoppingOrderDetail/AdminShoppingOrderDetailScreen';
 import AdminShoppingAnalyticsScreen from '../screens/admin/Shopping/AdminShoppingAnalytics/AdminShoppingAnalyticsScreen';
 import AdminShoppingSettingsScreen from '../screens/admin/Shopping/AdminShoppingSettings/AdminShoppingSettingsScreen';
+import { ThemeProvider } from '../theme';
 
 const Stack = createNativeStackNavigator<AdminShoppingParamList>();
 
 const AdminShoppingStack: React.FC = () => {
   return (
-    <Stack.Navigator
-      initialRouteName={AdminShoppingRouteNames.AdminShoppingDashboard as keyof AdminShoppingParamList}
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-      }}
-    >
-      {/* Dashboard & oversight */}
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminShoppingDashboard}
-        component={AdminShoppingDashboardScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminShoppingOrders}
-        component={AdminShoppingOrdersScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminShoppingOrderDetail}
-        component={AdminShoppingOrderDetailScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminShoppingAnalytics}
-        component={AdminShoppingAnalyticsScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminShoppingSettings}
-        component={AdminShoppingSettingsScreen}
-      />
+    // Admin manages shopping, so it reads as shopping — never a brand.
+    <ThemeProvider module="shopping">
+      <Stack.Navigator
+        initialRouteName={AdminShoppingRouteNames.AdminShoppingDashboard as keyof AdminShoppingParamList}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
+        {/* Dashboard & oversight */}
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminShoppingDashboard}
+          component={AdminShoppingDashboardScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminShoppingOrders}
+          component={AdminShoppingOrdersScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminShoppingOrderDetail}
+          component={AdminShoppingOrderDetailScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminShoppingAnalytics}
+          component={AdminShoppingAnalyticsScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminShoppingSettings}
+          component={AdminShoppingSettingsScreen}
+        />
 
-      {/* Brand Management */}
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminBrandList}
-        component={BrandManagementScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminAddBrand}
-        component={AddBrandScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminBrandDetail}
-        component={EditBrandScreen}
-      />
+        {/* Brand Management */}
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminBrandList}
+          component={BrandManagementScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminAddBrand}
+          component={AddBrandScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminBrandDetail}
+          component={EditBrandScreen}
+        />
 
-      {/* Outlet Management */}
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminOutletList}
-        component={OutletManagementScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminAddOutlet}
-        component={AddOutletScreen}
-      />
-      <Stack.Screen
-        name={AdminShoppingRouteNames.AdminOutletDetail}
-        component={OutletDetailScreen}
-      />
-    </Stack.Navigator>
+        {/* Outlet Management */}
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminOutletList}
+          component={OutletManagementScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminAddOutlet}
+          component={AddOutletScreen}
+        />
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminOutletDetail}
+          component={OutletDetailScreen}
+        />
+      </Stack.Navigator>
+    </ThemeProvider>
   );
 };
 

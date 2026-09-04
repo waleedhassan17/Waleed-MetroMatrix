@@ -1,10 +1,19 @@
-// ============================================
+// ============================================================================
 // Healthcare Module — Unified Design Tokens
-// Marham-style clinical blue. Single source of
-// truth for the patient (user) healthcare flow.
-// Consolidates the per-screen THEME blocks that
-// used to be copy-pasted across screens.
-// ============================================
+// Marham-style clinical blue. Single source of truth for the patient (user)
+// healthcare flow AND, via constants/DoctorTheme.ts, the doctor flow.
+// Consolidates the per-screen THEME blocks that used to be copy-pasted.
+//
+// HOW THIS RELATES TO constants/theme.ts
+// --------------------------------------
+// The blue is real and stays: it is healthcare's accent, and `theme/palettes.ts`
+// lifts it into the `healthcare` module layer.
+//
+// The NEUTRALS below are a different matter. The base ramp is warm stone
+// (#FAFAF9 / #1C1917 / #57534E); the surfaces, text and lines in this file are
+// cool slate. Those two should not both exist — see the marked compatibility
+// block further down for why they still do, and what deletes it.
+// ============================================================================
 
 import { Platform } from 'react-native';
 
@@ -31,6 +40,28 @@ export const HC = {
   info: '#0EA5E9',
   infoLight: '#E0F2FE',
 
+  // ══ SLATE COMPATIBILITY BLOCK ══════════════
+  //
+  // TEMPORARY. Everything from here to `divider` is a cool-slate neutral ramp
+  // that duplicates — and disagrees with — the warm stone ramp in
+  // constants/theme.ts (`C`). One app, one grey story; this is the exception.
+  //
+  // WHY IT SURVIVES
+  // Healthcare SCREENS do not import HC at all. All 21 of them declare their
+  // own local `const THEME = { … }` full of these same slate hexes. Only the
+  // 11 files under components/Healthcare/** read HC. So flipping these keys to
+  // `C` today would turn the shared healthcare components warm while the screen
+  // bodies wrapping them stayed cool — a visible seam down the middle of every
+  // screen, which is worse than either end state.
+  //
+  // WHAT DELETES IT
+  // Migrating the healthcare screens off their local THEME blocks onto
+  // `useTheme()`. On the day the last one lands, delete this block and the
+  // neutrals resolve from `C` — the module keeps its blue and gains the shared
+  // ramp. Nothing else has to change.
+  //
+  // Until then: do not add keys here, and do not copy these hexes into a screen.
+
   // ── Surfaces ───────────────────────────────
   pageBg: '#F8FBFF',
   card: '#FFFFFF',
@@ -49,6 +80,7 @@ export const HC = {
   border: '#E2E8F0',
   borderLight: '#EEF2FF',
   divider: '#F1F5F9',
+  // ══ END SLATE COMPATIBILITY BLOCK ══════════
 
   // ── Misc ───────────────────────────────────
   star: '#FBBF24',
