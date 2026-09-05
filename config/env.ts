@@ -34,6 +34,24 @@ export const REALTIME_BASE_URL =
 // Shopping module mount point on the main host
 export const SHOPPING_API_URL = `${API_BASE_URL}/shopping`;
 
+// ── Maps ────────────────────────────────────────────────────────────────────
+// The map stack is MapLibre, not Google. react-native-maps on Android requires a
+// Google Maps API key in the manifest no matter which `provider` you pass, and
+// this project never had one — `android.config.googleMaps.apiKey` was never in
+// app.json, so prebuild stripped `com.google.android.geo.API_KEY` and every
+// MapView mount crashed the process. MapLibre needs no key at all.
+//
+// OpenFreeMap serves the OSM planet as free vector tiles with no key, no account
+// and no rate limit. It is community-run with no SLA, which is the tradeoff for
+// keyless. Every map screen reads this one constant, so moving to a keyed
+// provider (MapTiler, Stadia) later is a one-line change here.
+//
+// Do NOT point this at https://demotiles.maplibre.org/style.json except to prove
+// the native module loads: that style has 8 layers — coastlines and country
+// borders — and renders no streets, so markers float on an empty world.
+export const MAP_STYLE_URL =
+  process.env.EXPO_PUBLIC_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty';
+
 // NOTE: the USE_SHOPPING_DUMMY_DATA flag and the bundled dummyData.ts fixtures
 // are gone. Every shopping screen now reads the API, banners and delivery tiers
 // included — there is no offline fixture path left to fall back to.

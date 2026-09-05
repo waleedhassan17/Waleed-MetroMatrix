@@ -85,6 +85,13 @@
     "scheme": "metromatrix",
     "plugins": [
       "expo-web-browser",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MetroMatrix uses your location to show your service provider on the map and tell you how far away they are."
+        }
+      ],
       "@react-native-google-signin/google-signin",
       [
         "react-native-fbsdk-next",
@@ -121,7 +128,17 @@
       "@config-plugins/react-native-webrtc",
       "expo-audio",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": [
+              "../../node_modules/@notifee/react-native/android/libs"
+            ]
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

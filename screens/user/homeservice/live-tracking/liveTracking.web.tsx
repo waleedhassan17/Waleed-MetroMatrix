@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { C, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 
-// Web stub: react-native-maps has no web support. The native live-tracking screen
+// Web stub: MapLibre React Native is native-only. The live-tracking screen
 // (liveTracking.tsx) is used on iOS/Android automatically.
 export default function LiveTrackingScreen() {
   const { colors } = useTheme();

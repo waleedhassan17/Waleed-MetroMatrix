@@ -16,7 +16,10 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
+import { MAP_STYLE_URL } from '../../../../config/env';
+import { loadMapLibre } from '../../../../components/homeservice/mapLibreSafe';
+import { toLngLat } from '../../../../utils/homeservice/maplibre';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
 import { setJobDetail, startNavigation, startJobAsync, JobData } from './jobDetailSlice';
@@ -29,6 +32,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBar, Screen } from '../../../../components/ui';
 
 const { width } = Dimensions.get('window');
+
+// Street-level framing for a single address. Replaces the old 0.01 lat/long
+// delta, which is not how MapLibre expresses camera tightness.
+const PREVIEW_ZOOM = 15;
 
 // Define navigation types
 type RootStackParamList = {
@@ -46,7 +53,47 @@ type RootStackParamList = {
 type JobDetailScreenRouteProp = RouteProp<RootStackParamList, 'JobDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+/**
+ * The map preview, isolated so `ML` is non-null inside it. MapLibre is native
+ * and absent from binaries built before it was added, and TypeScript will not
+ * narrow components destructured from a nullable module at the JSX call site.
+ */
+const JobMapPreview: React.FC<{
+  ML: NonNullable<ReturnType<typeof loadMapLibre>>;
+  coords: { latitude: number; longitude: number };
+  styles: any;
+}> = ({ ML, coords, styles }) => {
+  const { Map, Camera, Marker } = ML;
+  const { colors } = useTheme();
+  return (
+    <Map
+      style={styles.map}
+      mapStyle={MAP_STYLE_URL}
+      attribution
+      logo={false}
+      dragPan={false}
+      touchZoom={false}
+      doubleTapZoom={false}
+      doubleTapHoldZoom={false}
+      touchRotate={false}
+      touchPitch={false}
+    >
+      <Camera initialViewState={{ center: toLngLat(coords), zoom: PREVIEW_ZOOM }} />
+      <Marker id="job" lngLat={toLngLat(coords)} anchor="bottom">
+        <View style={styles.mapMarker}>
+          <Icon name="map-marker" size={36} color={colors.accent} />
+        </View>
+      </Marker>
+    </Map>
+  );
+};
+
 const JobDetailScreen: React.FC = () => {
+  // MapLibre is native: on a binary built before it was added, requiring it
+  // throws at import. Load it defensively so the rest of the job detail still
+  // renders. See components/homeservice/mapLibreSafe.ts.
+  const ML = loadMapLibre();
+
   const { colors, mode } = useTheme();
   const theme = useMemo(() => makeProviderTheme(colors), [colors]);
   const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
@@ -290,32 +337,14 @@ const JobDetailScreen: React.FC = () => {
 
         {/* Map Preview */}
         <View style={styles.mapContainer}>
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            initialRegion={{
-              latitude: currentJob.coordinates.latitude,
-              longitude: currentJob.coordinates.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            rotateEnabled={false}
-            pitchEnabled={false}
-            onMapReady={() => setMapReady(true)}
-          >
-            <Marker
-              coordinate={{
-                latitude: currentJob.coordinates.latitude,
-                longitude: currentJob.coordinates.longitude,
-              }}
-            >
-              <View style={styles.mapMarker}>
-                <Icon name="map-marker" size={36} color={colors.accent} />
-              </View>
-            </Marker>
-          </MapView>
+          {ML ? (
+            <JobMapPreview ML={ML} coords={currentJob.coordinates} styles={styles} />
+          ) : (
+            <View style={[styles.map, styles.mapFallback]}>
+              <Icon name="map-outline" size={28} color={colors.inkFaint} />
+              <Text style={styles.mapFallbackText}>Map needs a newer build</Text>
+            </View>
+          )}
           <TouchableOpacity style={styles.mapOverlay} onPress={openInMaps}>
             <Icon name="google-maps" size={16} color={colors.surface} />
             <Text style={styles.mapOverlayText}>Open in Maps</Text>
@@ -453,6 +482,8 @@ const JobDetailScreen: React.FC = () => {
 };
 
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
+  mapFallback: { alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceSunken },
+  mapFallbackText: { fontSize: 12, color: c.inkMuted },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

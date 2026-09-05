@@ -4,7 +4,7 @@ import { C, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 
-// Web stub: react-native-maps has no web support. The native map screen
+// Web stub: MapLibre React Native is native-only. The map screen
 // (map.tsx) is used on iOS/Android automatically.
 export default function NavigationMapScreen() {
   const { colors } = useTheme();

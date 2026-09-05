@@ -4,7 +4,7 @@ import { C, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 
-// Web stub: jobDetail.tsx imports react-native-maps which has no web support.
+// Web stub: jobDetail.tsx imports MapLibre, which is native-only.
 // The native screen is used on iOS/Android automatically.
 export default function JobDetailScreen() {
   const { colors } = useTheme();

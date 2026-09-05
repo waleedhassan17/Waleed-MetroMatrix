@@ -1,4 +1,4 @@
-import { PayloadAction } from '@reduxjs/toolkit';
+import { createSelector, PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
 import { fetchTrackingData } from '../../../../networks/serviceProviders/trackingNetwork';
 import { trackingDataSerializer } from '../../../../serializers/serviceProviders/trackingSerializer';
@@ -320,28 +320,26 @@ export const {
 } = liveTrackingSlice.selectors;
 
 // Computed Selectors
-export const selectIsProviderNearby = (state: { liveTracking?: LiveTrackingState }) => {
-  const trackingState = state.liveTracking;
-  if (!trackingState) return false;
-  return trackingState.trackingStatus.status === 'nearby' || 
-         trackingState.trackingStatus.status === 'arrived';
-};
+//
+// These are memoised with createSelector because they derive NEW values.
+// selectTrackingInfo used to build a fresh object literal on every call, so
+// react-redux's reference check never matched and this screen re-rendered on
+// every action dispatched anywhere in the app — expensive here, where
+// setUserLocation fires per GPS tick and setProviderLocation per socket frame.
+//
+// The `state.liveTracking?` guards these used to carry were dead code: the
+// slice is registered unconditionally (store/store.ts) and is not in the
+// persist whitelist, so it always exists.
 
-export const selectTrackingInfo = (state: { liveTracking?: LiveTrackingState }) => {
-  const trackingState = state.liveTracking;
-  if (!trackingState) {
-    return {
-      providerName: '',
-      providerPhone: '',
-      providerImage: '',
-      distance: 'Calculating...',
-      eta: 'Calculating...',
-      status: 'en_route' as const,
-      statusMessage: '',
-    };
-  }
-  const { provider, route, trackingStatus } = trackingState;
-  return {
+export const selectIsProviderNearby = createSelector(
+  [selectTrackingStatus],
+  (trackingStatus) =>
+    trackingStatus.status === 'nearby' || trackingStatus.status === 'arrived'
+);
+
+export const selectTrackingInfo = createSelector(
+  [selectProvider, selectRoute, selectTrackingStatus],
+  (provider, route, trackingStatus) => ({
     providerName: provider?.name || '',
     providerPhone: provider?.phone || '',
     providerImage: provider?.image || '',
@@ -349,7 +347,7 @@ export const selectTrackingInfo = (state: { liveTracking?: LiveTrackingState }) 
     eta: route?.duration || 'Calculating...',
     status: trackingStatus.status,
     statusMessage: trackingStatus.message,
-  };
-};
+  })
+);
 
 export default liveTrackingSlice.reducer;

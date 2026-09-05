@@ -17,7 +17,7 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
 import {
@@ -34,6 +34,9 @@ import { C, E, GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
+import { MAP_STYLE_URL } from '../../../../config/env';
+import { loadMapLibre } from '../../../../components/homeservice/mapLibreSafe';
+import { boundsOf, lineFeature, metresCircle, toLngLat } from '../../../../utils/homeservice/maplibre';
 import { AppDispatch, RootState } from '../../../../store/store';
 import { formatRating } from '../../../../utils/homeservice/format';
 import {
@@ -52,8 +55,9 @@ import {
   updateStatusToNearby,
 } from './liveTrackingSlice';
 
-const LATITUDE_DELTA = 0.015;
-const LONGITUDE_DELTA = 0.015;
+// MapLibre expresses camera tightness as a zoom level, not a lat/long delta.
+// 13 frames roughly the same span the old 0.015 deltas did.
+const DEFAULT_ZOOM = 13;
 const PROXIMITY_RADIUS = 100; // metres
 
 type RouteParams = {
@@ -92,14 +96,12 @@ export default function LiveTrackingScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
   const [showPermissionSheet, setShowPermissionSheet] = useState(false);
-  const [initialRegion, setInitialRegion] = useState({
+  const [initialCentre, setInitialCentre] = useState<Coordinates>({
     latitude: 31.4504,
     longitude: 73.135,
-    latitudeDelta: LATITUDE_DELTA,
-    longitudeDelta: LONGITUDE_DELTA,
   });
 
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
@@ -117,7 +119,18 @@ export default function LiveTrackingScreen() {
     if (liveStatus === 'ARRIVED') dispatch(updateStatusToArrived());
   }, [liveStatus, dispatch]);
 
+  /**
+   * Raised by cleanup so an in-flight initializeLocationTracking knows the
+   * screen is gone. Without it, leaving while the permission prompt or the
+   * first GPS fix is still pending meant cleanup ran against a null ref, then
+   * watchPositionAsync resolved and installed a subscription nothing would ever
+   * remove — one orphaned watcher per visit, each dispatching every 3 s for the
+   * life of the process. Same shape as the socket teardown in useRoomSocket.
+   */
+  const cancelledRef = useRef(false);
+
   const cleanup = useCallback(() => {
+    cancelledRef.current = true;
     if (locationWatchRef.current) {
       locationWatchRef.current.remove();
       locationWatchRef.current = null;
@@ -126,8 +139,10 @@ export default function LiveTrackingScreen() {
   }, [dispatch]);
 
   const initializeLocationTracking = useCallback(async () => {
+    cancelledRef.current = false;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
+      if (cancelledRef.current) return;
 
       if (status !== 'granted') {
         dispatch(setLocationPermission(false));
@@ -141,6 +156,7 @@ export default function LiveTrackingScreen() {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.BestForNavigation,
       });
+      if (cancelledRef.current) return;
 
       const currentLocation: Coordinates = {
         latitude: location.coords.latitude,
@@ -148,13 +164,9 @@ export default function LiveTrackingScreen() {
       };
 
       dispatch(setUserLocation(currentLocation));
-      setInitialRegion({
-        ...currentLocation,
-        latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
-      });
+      setInitialCentre(currentLocation);
 
-      locationWatchRef.current = await Location.watchPositionAsync(
+      const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
           timeInterval: 3000,
@@ -169,17 +181,21 @@ export default function LiveTrackingScreen() {
           );
         }
       );
+      // The screen may have been left while this was resolving — cleanup has
+      // already run and cannot see this subscription, so drop it here.
+      if (cancelledRef.current) {
+        subscription.remove();
+        return;
+      }
+      locationWatchRef.current = subscription;
     } catch (error) {
+      if (cancelledRef.current) return;
       console.error('Location error:', error);
       dispatch(setLocationError('Unable to get current location'));
 
       const fallbackLocation: Coordinates = { latitude: 31.4504, longitude: 73.135 };
       dispatch(setUserLocation(fallbackLocation));
-      setInitialRegion({
-        ...fallbackLocation,
-        latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
-      });
+      setInitialCentre(fallbackLocation);
     }
   }, [dispatch]);
 
@@ -237,10 +253,10 @@ export default function LiveTrackingScreen() {
   }, [providerLocation, userLocation, dispatch]);
 
   const handleCenterMap = useCallback(() => {
-    if (mapRef.current && providerLocation && userLocation) {
-      mapRef.current.fitToCoordinates([userLocation, providerLocation], {
-        edgePadding: { top: 100, right: 50, bottom: 240, left: 50 },
-        animated: true,
+    if (cameraRef.current && providerLocation && userLocation) {
+      cameraRef.current.fitBounds(boundsOf([userLocation, providerLocation]), {
+        padding: { top: 100, right: 50, bottom: 240, left: 50 },
+        duration: 600,
       });
     }
   }, [providerLocation, userLocation]);
@@ -268,6 +284,24 @@ export default function LiveTrackingScreen() {
     );
   }
 
+  // MapLibre is native. On a binary built before it was added, requiring it
+  // throws — so this is a load-and-check, not an import. See mapLibreSafe.ts.
+  const ML = loadMapLibre();
+  if (!ML) {
+    return (
+      <Screen>
+        <AppBar title="Tracking" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="map-outline"
+          title="Map needs a newer build"
+          message="This build of the app does not include the map component. Install the latest build to follow your provider live."
+          actionLabel="Go back"
+          onAction={() => navigation.goBack()}
+        />
+      </Screen>
+    );
+  }
+
   if (isLoading || !provider) {
     return (
       <Screen>
@@ -280,6 +314,7 @@ export default function LiveTrackingScreen() {
     );
   }
 
+  const { Camera, GeoJSONSource, Layer, Map, Marker } = ML;
   const rating = formatRating(provider.rating);
 
   return (
@@ -293,19 +328,56 @@ export default function LiveTrackingScreen() {
       />
 
       <View style={styles.mapWrap}>
-        <MapView
-          ref={mapRef}
+        <Map
           style={StyleSheet.absoluteFill}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={initialRegion}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          showsTraffic
-          onMapReady={() => setMapReady(true)}
+          mapStyle={MAP_STYLE_URL}
+          attribution
+          logo={false}
+          onDidFinishLoadingMap={() => setMapReady(true)}
         >
+          <Camera
+            ref={cameraRef}
+            initialViewState={{
+              center: toLngLat(initialCentre),
+              zoom: DEFAULT_ZOOM,
+            }}
+          />
+
+          {/* Proximity ring is drawn UNDER the markers, and as a real polygon:
+              MapLibre's circle-radius is in screen pixels, so a circle layer
+              would not stay 100 m across zoom levels. */}
           {userLocation && (
-            <Marker coordinate={userLocation} anchor={{ x: 0.5, y: 0.5 }}>
+            <GeoJSONSource id="proximity" data={metresCircle(userLocation, PROXIMITY_RADIUS)}>
+              <Layer
+                id="proximity-fill"
+                type="fill"
+                style={{ fillColor: colors.accent, fillOpacity: 0.08 }}
+              />
+              <Layer
+                id="proximity-outline"
+                type="line"
+                style={{ lineColor: colors.accent, lineOpacity: 0.27, lineWidth: 2 }}
+              />
+            </GeoJSONSource>
+          )}
+
+          {routeInfo?.coordinates && routeInfo.coordinates.length >= 2 && (
+            <GeoJSONSource id="route" data={lineFeature(routeInfo.coordinates)}>
+              <Layer
+                id="route-line"
+                type="line"
+                style={{
+                  lineColor: accent.tint,
+                  lineWidth: 4,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+              />
+            </GeoJSONSource>
+          )}
+
+          {userLocation && (
+            <Marker id="user" lngLat={toLngLat(userLocation)} anchor="center">
               <View style={styles.markerOuter}>
                 <View style={[styles.marker, { backgroundColor: colors.accent }]}>
                   <Ionicons name="home" size={14} color={colors.inkInverse} />
@@ -315,7 +387,7 @@ export default function LiveTrackingScreen() {
           )}
 
           {providerLocation && (
-            <Marker coordinate={providerLocation} anchor={{ x: 0.5, y: 0.5 }}>
+            <Marker id="provider" lngLat={toLngLat(providerLocation)} anchor="center">
               <View style={styles.markerOuter}>
                 <View style={[styles.marker, { backgroundColor: accent.tint }]}>
                   <Ionicons name={accent.icon as any} size={16} color={colors.inkInverse} />
@@ -323,21 +395,7 @@ export default function LiveTrackingScreen() {
               </View>
             </Marker>
           )}
-
-          {routeInfo?.coordinates && routeInfo.coordinates.length >= 2 && (
-            <Polyline coordinates={routeInfo.coordinates} strokeColor={accent.tint} strokeWidth={4} />
-          )}
-
-          {userLocation && (
-            <Circle
-              center={userLocation}
-              radius={PROXIMITY_RADIUS}
-              fillColor={`${colors.accent}14`}
-              strokeColor={`${colors.accent}44`}
-              strokeWidth={2}
-            />
-          )}
-        </MapView>
+        </Map>
 
         {mapReady && (
           <View style={styles.eta}>

@@ -15,8 +15,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import MapViewDirections from 'react-native-maps-directions';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
+
+import { MAP_STYLE_URL } from '../../../../config/env';
+import { loadMapLibre } from '../../../../components/homeservice/mapLibreSafe';
+import { boundsOf, estimateRoute, lineFeature, toLngLat } from '../../../../utils/homeservice/maplibre';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
@@ -36,7 +39,10 @@ import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+
+// Wide enough to hold both the provider and the job. Replaces the old 0.05
+// lat/long delta — MapLibre frames by zoom level, not by degree span.
+const OVERVIEW_ZOOM = 11;
 const ARRIVAL_THRESHOLD = 100; // meters
 
 type RootStackParamList = {
@@ -75,7 +81,7 @@ const NavigationMapScreen: React.FC = () => {
   // Get job data from jobDetail slice for passing to next screen
   const { job } = useSelector((state: RootState) => state.jobDetail);
   
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<CameraRef>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -273,21 +279,25 @@ const NavigationMapScreen: React.FC = () => {
     });
   };
 
+  // The ETA used to arrive from Google Directions' onReady callback. That call
+  // was keyed with a placeholder and never fired, so distance/duration were
+  // always undefined and the bubble never rendered. Compute the estimate
+  // locally instead, and keep it fresh as the provider drives.
+  useEffect(() => {
+    if (!currentLocation) return;
+    dispatch(updateRouteInfo(estimateRoute(currentLocation, destinationCoords)));
+  }, [currentLocation, destinationCoords, dispatch]);
+
   const centerOnRoute = () => {
-    if (mapRef.current && currentLocation) {
-      mapRef.current.fitToCoordinates([currentLocation, destinationCoords], {
-        edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
-        animated: true,
+    if (cameraRef.current && currentLocation) {
+      cameraRef.current.fitBounds(boundsOf([currentLocation, destinationCoords]), {
+        padding: { top: 100, right: 50, bottom: 300, left: 50 },
+        duration: 600,
       });
     }
   };
 
-  const onDirectionsReady = (result: any) => {
-    dispatch(updateRouteInfo({
-      distance: result.distance.toFixed(1) + ' km',
-      duration: Math.ceil(result.duration) + ' min',
-    }));
-  };
+
 
   if (!destination) {
     return (
@@ -297,25 +307,40 @@ const NavigationMapScreen: React.FC = () => {
     );
   }
 
+  // MapLibre is native and absent from binaries built before it was added;
+  // requiring it there throws. See components/homeservice/mapLibreSafe.ts.
+  const ML = loadMapLibre();
+  if (!ML) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>
+          Navigation needs a newer build of the app.
+        </Text>
+      </View>
+    );
+  }
+  const { Camera, GeoJSONSource, Layer, Map, Marker, UserLocation } = ML;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Map */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+      <Map
         style={styles.map}
-        initialRegion={{
-          latitude: destinationCoords.latitude,
-          longitude: destinationCoords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
+        mapStyle={MAP_STYLE_URL}
+        attribution
+        logo={false}
+        compass={false}
       >
+        <Camera
+          ref={cameraRef}
+          initialViewState={{
+            center: toLngLat(destinationCoords),
+            zoom: OVERVIEW_ZOOM,
+          }}
+        />
+        <UserLocation />
         {/* Destination Marker */}
-        <Marker coordinate={destinationCoords}>
+        <Marker id="destination" lngLat={toLngLat(destinationCoords)} anchor="center">
           <View style={styles.destinationMarkerContainer}>
             <Animated.View
               style={[
@@ -329,18 +354,27 @@ const NavigationMapScreen: React.FC = () => {
           </View>
         </Marker>
 
-        {/* Directions */}
+        {/* Direct line to the job. This was Google Directions keyed with the
+            literal string 'YOUR_GOOGLE_MAPS_API_KEY', so it never drew anything
+            and never reported a distance — the ETA bubble below has always been
+            empty. A straight line with a haversine distance is honest about
+            what it is; road routing needs a routing provider we do not have. */}
         {currentLocation && (
-          <MapViewDirections
-            origin={currentLocation}
-            destination={destinationCoords}
-            apikey={GOOGLE_MAPS_API_KEY}
-            strokeWidth={5}
-            strokeColor={colors.accent}
-            onReady={onDirectionsReady}
-          />
+          <GeoJSONSource id="route" data={lineFeature([currentLocation, destinationCoords])}>
+            <Layer
+              id="route-line"
+              type="line"
+              style={{
+                lineColor: colors.accent,
+                lineWidth: 5,
+                lineCap: 'round',
+                lineJoin: 'round',
+                lineDasharray: [2, 1.5],
+              }}
+            />
+          </GeoJSONSource>
         )}
-      </MapView>
+      </Map>
 
       {/* Top Controls */}
       <View style={styles.topControls}>
