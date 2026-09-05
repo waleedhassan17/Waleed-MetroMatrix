@@ -8,6 +8,7 @@ import {
   applyCouponApi,
   removeCouponApi,
   type CartView,
+  type CartBrandRow,
 } from '../../../../networks/shopping/cartApi';
 
 // ── Cart Item State (with display fields) ───
@@ -47,6 +48,13 @@ export interface CartState {
   discount: number;
   couponDiscount: number;
   shippingFee: number;
+  /**
+   * Per-brand subtotal and shipping, computed by the server from the same
+   * settings checkout uses. The cart screen used to derive these from its own
+   * hardcoded 150 / 3000, so the per-brand rows could contradict the order
+   * total shown below them once an admin changed either value.
+   */
+  brandBreakdown: CartBrandRow[];
   total: number;
   appliedCoupon: Coupon | null;
   loading: boolean;
@@ -59,6 +67,7 @@ const initialState: CartState = {
   discount: 0,
   couponDiscount: 0,
   shippingFee: 0,
+  brandBreakdown: [],
   total: 0,
   appliedCoupon: null,
   loading: false,
@@ -88,6 +97,7 @@ const applyServerCart = (state: CartState, cart: CartView) => {
   state.discount = cart.discount;
   state.couponDiscount = cart.discount;
   state.shippingFee = cart.shippingFee;
+  state.brandBreakdown = cart.brandBreakdown ?? [];
   state.total = cart.total;
   state.appliedCoupon = cart.appliedCoupon
     ? {
@@ -110,9 +120,17 @@ export const fetchCart = createAsyncThunk('cart/fetchCart', async (_, { rejectWi
   }
 });
 
+/**
+ * Takes only what the endpoint needs. The server returns the authoritative
+ * cart, so display fields (names, images, prices) never have to be guessed by
+ * the caller — which is what let a caller pass a brand id as a brand name.
+ */
 export const addItem = createAsyncThunk(
   'cart/addItem',
-  async (item: CartItemState, { rejectWithValue }) => {
+  async (
+    item: Pick<CartItemState, 'productId' | 'brandId' | 'variantId' | 'quantity'>,
+    { rejectWithValue }
+  ) => {
     try {
       const res = await addToCartApi({
         productId: item.productId,
@@ -238,6 +256,7 @@ export const selectCartItemCount = (state: { cart: CartState }) =>
   state.cart.items.reduce((sum, i) => sum + i.quantity, 0);
 export const selectCartSubtotal = (state: { cart: CartState }) => state.cart.subtotal;
 export const selectCartShipping = (state: { cart: CartState }) => state.cart.shippingFee;
+export const selectCartBrandBreakdown = (state: { cart: CartState }) => state.cart.brandBreakdown;
 export const selectCartTotal = (state: { cart: CartState }) => state.cart.total;
 export const selectAppliedCoupon = (state: { cart: CartState }) => state.cart.appliedCoupon;
 export const selectCouponDiscount = (state: { cart: CartState }) => state.cart.couponDiscount;

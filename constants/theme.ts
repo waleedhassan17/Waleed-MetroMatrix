@@ -71,7 +71,107 @@ export const C = {
 
   /** Scrim behind sheets and modals. */
   scrim: 'rgba(28, 25, 23, 0.45)',
+
+  /**
+   * A card that has to read as LIFTED off `surface`.
+   *
+   * In light this is just `surface` again — a shadow does the lifting, so there
+   * is nothing to change and every existing screen keeps its exact appearance.
+   * It exists for the dark ramp, where a shadow is invisible against a dark
+   * ground and elevation can only be expressed by making the surface lighter.
+   * Reach for it only where `E.raised` is already in play.
+   */
+  surfaceRaised: '#FFFFFF',
 } as const;
+
+/**
+ * The shape both ramps share.
+ *
+ * Deliberately `string` rather than `typeof C`: `C` is `as const`, so its keys
+ * carry literal types and a second ramp could never satisfy them. Annotating
+ * `DARK_C` with this makes a missing or misspelled key a COMPILE error, which
+ * is the whole point — a dark ramp that silently lacks `errorLine` would fail
+ * as an invisible border at runtime, on one screen, in one state.
+ */
+export type Ramp = Record<keyof typeof C, string>;
+
+// ── Dark neutrals ───────────────────────────────────────────────────────────
+//
+// The same warm stone family, not slate. The light ramp's header explains why
+// this app does not use the default Tailwind greys; inverting into them here
+// would reintroduce exactly the drift that was cleaned up.
+//
+// ELEVATION IS EXPRESSED BY TONE, NOT BY SHADOW
+// ---------------------------------------------
+// `E.raised` and `E.overlay` are near-invisible on a dark ground — a black
+// shadow on a near-black canvas has nothing to darken. So the surfaces carry
+// the hierarchy themselves, and they keep the light ramp's semantics:
+//
+//   surfaceSunken (#0C0A09)  recessed — wells, input grounds, tracks
+//   bg            (#131110)  the page
+//   surface       (#201D1B)  cards sitting on the page
+//   surfaceRaised (#272321)  the one card that must read as lifted
+//
+// EVERY VALUE BELOW WAS MEASURED, NOT PICKED
+// ------------------------------------------
+// Using this project's own `contrastRatio()` (see theme/contrast.ts), against
+// `surface` — the hardest ground here, because it is the lightest:
+//
+//   ink       15.14   AA body        success  9.03   AA body
+//   inkMuted   7.40   AA body        warning 10.39   AA body
+//   inkFaint   3.66   AA large       error    6.27   AA body
+//                                    info     8.44   AA body
+//
+// `inkFaint` clears AA-large but not AA-body, which is the same contract it has
+// in light: icons, placeholders and disabled labels — never body copy.
+// `disabled` measures 1.65 and is NOT a text colour; it is a fill and a rule,
+// exactly as `#D6D3D1` is in light (1.4 on white).
+export const DARK_C: Ramp = {
+  bg: '#131110',
+  surface: '#201D1B',
+  surfaceSunken: '#0C0A09',
+  surfaceRaised: '#272321',
+
+  ink: '#F5F3F1',
+  inkMuted: '#B3ABA4',
+  inkFaint: '#7D746D',
+  /**
+   * Still white. `inkInverse` means "ink on an accent ground", and the dark
+   * accents are light tones whose readable ink is DARK — but that decision is
+   * `onAccent`'s, computed per palette by `textOn()`. Leaving this white keeps
+   * the handful of genuinely-on-a-dark-ground uses correct.
+   */
+  inkInverse: '#FFFFFF',
+  inkInverseSoft: 'rgba(255, 255, 255, 0.9)',
+
+  line: '#34302C',
+  lineSoft: '#2A2624',
+  disabled: '#443E3A',
+
+  // Status colours lighten and desaturate: the light ramp's #047857 green
+  // measures 1.6 against this canvas and would read as a dark smudge.
+  success: '#34D399',
+  successSoft: '#0F2B22',
+  warning: '#FBBF24',
+  warningSoft: '#2C2113',
+  error: '#F87171',
+  errorSoft: '#33181A',
+  errorLine: '#6B2E2E',
+  info: '#93B4FF',
+  infoSoft: '#192440',
+
+  star: '#FBBF24',
+
+  // Black rather than the warm ink: a scrim over a dark app has to darken
+  // something already dark, so it needs to go further than 45% of #1C1917.
+  scrim: 'rgba(0, 0, 0, 0.6)',
+};
+
+/** Which ramp is in play. Named here because this is where both ramps live. */
+export type ThemeMode = 'light' | 'dark';
+
+/** The neutral ramp for a mode. The one place the two are chosen between. */
+export const ramp = (mode: ThemeMode): Ramp => (mode === 'dark' ? DARK_C : C);
 
 // ── Spacing (4-pt) ──────────────────────────────────────────────────────────
 export const S = {

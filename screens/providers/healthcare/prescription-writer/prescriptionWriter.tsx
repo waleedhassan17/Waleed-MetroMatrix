@@ -1,5 +1,5 @@
 import { toLocalISODate } from '../../../../utils/date/localDate';
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   StatusBar,
   Switch,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
@@ -64,6 +66,9 @@ const SECTION_COLORS = {
 // ── Component ─────────────────────────────────
 
 const PrescriptionWriterScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -278,7 +283,7 @@ const PrescriptionWriterScreen: React.FC = () => {
           <View style={styles.headerBtn} />
         </LinearGradient>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-           <Text style={{ fontSize: 16, color: '#64748B' }}>Patient data missing</Text>
+           <Text style={{ fontSize: 16, color: sh.n('#64748B', 'inkMuted') }}>Patient data missing</Text>
         </View>
       </SafeAreaView>
     );
@@ -467,7 +472,7 @@ const PrescriptionWriterScreen: React.FC = () => {
                         </TouchableOpacity>
                       </View>
                       <View style={styles.medTagRow}>
-                        <View style={[styles.medInfoChip, { backgroundColor: '#F0F7FF' }]}>
+                        <View style={[styles.medInfoChip, { backgroundColor: sh.ground('#F0F7FF', '#2A7FFF') }]}>
                           <MaterialCommunityIcons name="flask-outline" size={10} color={THEME.primary} />
                           <Text style={[styles.medInfoText, { color: THEME.primary }]}>{med.dosage}</Text>
                         </View>
@@ -476,7 +481,7 @@ const PrescriptionWriterScreen: React.FC = () => {
                           <Text style={[styles.medInfoText, { color: THEME.success }]}>{med.frequency}</Text>
                         </View>
                         {med.duration ? (
-                          <View style={[styles.medInfoChip, { backgroundColor: '#FFFBEB' }]}>
+                          <View style={[styles.medInfoChip, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
                             <MaterialCommunityIcons name="timer-outline" size={10} color={THEME.warning} />
                             <Text style={[styles.medInfoText, { color: THEME.warning }]}>{med.duration}</Text>
                           </View>
@@ -610,7 +615,7 @@ const PrescriptionWriterScreen: React.FC = () => {
             animIndex={5}
           >
             <TouchableOpacity style={styles.inputWrapper} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-              <Text style={[styles.textInput, !followUpDate && { color: '#CBD5E1', paddingVertical: Platform.OS === 'ios' ? 12 : 8 }]}>
+              <Text style={[styles.textInput, !followUpDate && { color: sh.n('#CBD5E1', 'disabled'), paddingVertical: Platform.OS === 'ios' ? 12 : 8 }]}>
                 {followUpDate || 'Select Date (YYYY-MM-DD)'}
               </Text>
             </TouchableOpacity>
@@ -707,7 +712,7 @@ const PrescriptionWriterScreen: React.FC = () => {
             ) : (
               <View style={styles.saveBtnGradient}>
                 <Ionicons name="checkmark-done" size={20} color="#94A3B8" />
-                <Text style={[styles.saveBtnText, { color: '#94A3B8' }]}>Complete form to save</Text>
+                <Text style={[styles.saveBtnText, { color: sh.n('#94A3B8', 'inkFaint') }]}>Complete form to save</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -721,10 +726,10 @@ export default PrescriptionWriterScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   flex: { flex: 1 },
 
@@ -746,7 +751,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.3 },
   headerSubtitle: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
 
   // Scroll
@@ -756,12 +761,12 @@ const styles = StyleSheet.create({
   patientCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     gap: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
@@ -775,9 +780,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   patientInfo: { flex: 1, gap: 2 },
-  patientName: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  patientMeta: { fontSize: 12, fontWeight: '500', color: '#64748B' },
-  patientAppt: { fontSize: 11, fontWeight: '500', color: '#94A3B8' },
+  patientName: { fontSize: 16, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
+  patientMeta: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
+  patientAppt: { fontSize: 11, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint') },
   patientTypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -790,11 +795,11 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
@@ -816,7 +821,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     flex: 1,
@@ -835,26 +840,26 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', gap: 8 },
   rowInput: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   textInput: {
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   textArea: { minHeight: 100, textAlignVertical: 'top' },
   twoCol: { flexDirection: 'row', gap: 8, marginTop: 8 },
@@ -881,11 +886,11 @@ const styles = StyleSheet.create({
 
   // Diagnosis autocomplete
   suggestionsBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10 },
@@ -899,11 +904,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: sh.n('#F1F5F9', 'lineSoft') },
   suggestionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
 
   templateToggleRow: {
@@ -916,18 +921,18 @@ const styles = StyleSheet.create({
   templateToggleLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: THEME.textDark || '#0F172A',
+    color: THEME.textDark || sh.n('#0F172A', 'ink'),
   },
 
   // Meds list
   medList: { gap: 8, marginBottom: 14 },
   medCard: {
     flexDirection: 'row',
-    backgroundColor: '#FAFBFF',
+    backgroundColor: sh.n('#FAFBFF', 'surfaceSunken'),
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#D6E8FF',
+    borderColor: sh.ground('#D6E8FF', '#5A9FFF'),
   },
   medStripe: { width: 4 },
   medCardBody: { flex: 1, padding: 12, gap: 7 },
@@ -936,16 +941,16 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
   },
-  medName: { fontSize: 14, fontWeight: '700', color: '#0F172A', flex: 1 },
+  medName: { fontSize: 14, fontWeight: '700', color: sh.n('#0F172A', 'ink'), flex: 1 },
   medDeleteBtn: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -959,21 +964,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   medInfoText: { fontSize: 11, fontWeight: '700' },
-  medInstructions: { fontSize: 12, fontWeight: '500', color: '#64748B', lineHeight: 16 },
+  medInstructions: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), lineHeight: 16 },
 
   // Med form
   medFormCard: {
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     padding: 14,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   medFormTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -986,19 +991,19 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
   },
-  addMedBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  addMedBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Banners
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
   errorText: { fontSize: 13, fontWeight: '600', color: THEME.error, flex: 1 },
   successBanner: { marginBottom: 10, borderRadius: 12, overflow: 'hidden' },
@@ -1009,13 +1014,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
-  successText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  successText: { fontSize: 13, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Bottom bar
   bottomBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 30 : 18,
@@ -1026,9 +1031,9 @@ const styles = StyleSheet.create({
     }),
   },
   bottomSummaryRow: { flexDirection: 'row', justifyContent: 'center' },
-  bottomSummaryText: { fontSize: 12, fontWeight: '500', color: '#94A3B8' },
+  bottomSummaryText: { fontSize: 12, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint') },
   saveBtn: { borderRadius: 10, overflow: 'hidden' },
-  saveBtnDisabled: { backgroundColor: '#F1F5F9' },
+  saveBtnDisabled: { backgroundColor: sh.n('#F1F5F9', 'lineSoft') },
   saveBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1036,5 +1041,5 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 16,
   },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  saveBtnText: { fontSize: 16, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.2 },
 });

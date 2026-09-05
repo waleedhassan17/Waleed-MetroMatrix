@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchAdminHealthcareDashboardApi } from '../../../../networks/healthcare/adminApi';
@@ -37,6 +39,9 @@ type DashboardData = {
 };
 
 const AdminHealthcareDashboardScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,7 +80,7 @@ const AdminHealthcareDashboardScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
@@ -143,7 +148,7 @@ const AdminHealthcareDashboardScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },

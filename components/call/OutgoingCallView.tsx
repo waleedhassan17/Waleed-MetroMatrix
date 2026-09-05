@@ -23,6 +23,8 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,6 +96,9 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
   autoAccept = false,
   media = 'audio',
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   // React Native's SafeAreaView is a no-op on Android, so the action row could
   // sit under the gesture bar — on a call screen that means End is unreachable.
@@ -384,12 +389,12 @@ export const OutgoingCallView: React.FC<OutgoingCallViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   control: { alignItems: 'center', gap: 6 },
-  controlLabel: { color: '#94A3B8', fontSize: 11, fontWeight: '500' },
+  controlLabel: { color: sh.n('#94A3B8', 'inkFaint'), fontSize: 11, fontWeight: '500' },
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: sh.n('#0F172A', 'ink'),
     justifyContent: 'space-between',
     paddingVertical: 56,
   },
@@ -402,10 +407,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 22 },
-  avatarFallback: { backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' },
+  avatarFallback: { backgroundColor: sh.n('#1E293B', 'ink'), alignItems: 'center', justifyContent: 'center' },
   name: { color: '#fff', fontSize: 26, fontWeight: '700', textAlign: 'center' },
-  status: { color: '#94A3B8', fontSize: 16, marginTop: 10 },
-  hint: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center', lineHeight: 19 },
+  status: { color: sh.n('#94A3B8', 'inkFaint'), fontSize: 16, marginTop: 10 },
+  hint: { color: sh.n('#64748B', 'inkMuted'), fontSize: 13, marginTop: 16, textAlign: 'center', lineHeight: 19 },
   localTile: {
     position: 'absolute',
     top: 60,
@@ -419,8 +424,8 @@ const styles = StyleSheet.create({
   roundBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
   utilBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.16)' },
   utilBtnOff: { backgroundColor: 'rgba(255,255,255,0.38)' },
-  endBtn: { backgroundColor: '#DC2626' },
-  footnote: { color: '#475569', fontSize: 12, textAlign: 'center', paddingHorizontal: 32 },
+  endBtn: { backgroundColor: sh.hue('#DC2626') },
+  footnote: { color: sh.n('#475569', 'inkMuted'), fontSize: 12, textAlign: 'center', paddingHorizontal: 32 },
 });
 
 export default OutgoingCallView;

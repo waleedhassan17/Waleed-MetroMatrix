@@ -9,14 +9,6 @@ import type {
   SingleResponse,
 } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
-import { USE_SHOPPING_DUMMY_DATA } from "../../config/env";
-import {
-  OUTFITTERS_BRAND,
-  OUTFITTERS_CATEGORIES,
-  simulateDelay,
-  paginateArray,
-  singleResponse,
-} from "./dummyData";
 
 // ── Fetch All Active Brands ─────────────────
 
@@ -26,10 +18,6 @@ export const fetchBrandsApi = async ({
 }: { page?: number; limit?: number } = {}): Promise<
   PaginatedResponse<BrandConfig>
 > => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(400);
-    return paginateArray([OUTFITTERS_BRAND].filter((b) => b.isActive), page, limit);
-  }
   try {
     const res = await ShoppingAxiosInstance.get("/brands", { params: { page, limit } });
     return res.data;
@@ -43,10 +31,6 @@ export const fetchBrandsApi = async ({
 export const fetchBrandByIdApi = async (
   brandId: string
 ): Promise<SingleResponse<BrandConfig>> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(250);
-    return singleResponse(OUTFITTERS_BRAND);
-  }
   try {
     const res = await ShoppingAxiosInstance.get(`/brands/${brandId}`);
     return res.data;
@@ -60,10 +44,6 @@ export const fetchBrandByIdApi = async (
 export const fetchBrandBySlugApi = async (
   slug: string
 ): Promise<SingleResponse<BrandConfig>> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(250);
-    return singleResponse(OUTFITTERS_BRAND);
-  }
   try {
     const res = await ShoppingAxiosInstance.get(`/brands/slug/${slug}`);
     return res.data;
@@ -77,10 +57,6 @@ export const fetchBrandBySlugApi = async (
 export const fetchBrandCategoriesApi = async (
   brandId: string
 ): Promise<{ success: boolean; data: Category[] }> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(200);
-    return { success: true, data: OUTFITTERS_CATEGORIES };
-  }
   try {
     const res = await ShoppingAxiosInstance.get(`/brands/${brandId}/categories`);
     return res.data;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,8 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { ErrorState, LoadingState } from '../../../../components/Shopping/ScreenState';
 import { swatchColor } from '../../../../constants/ProductColors';
@@ -35,7 +36,7 @@ import {
   clearCart,
   selectCart,
   selectCartGroupedByBrand,
-  selectBrandSubtotals,
+  selectCartBrandBreakdown,
   selectAppliedCoupon,
   selectCouponDiscount,
   selectCartTotal,
@@ -43,17 +44,21 @@ import {
   selectCartError,
 } from './cartSlice';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', success: '#27AE60', danger: '#E74C3C' };
+// A function of the ramp — see the note in constants/Colors.ts.
+const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, success: c.success, danger: c.error });
 const CURRENCY = 'PKR';
-const FREE_SHIPPING_THRESHOLD = 3000;
 
 const CartScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
   const cart = useAppSelector(selectCart);
   const brandGroups = useAppSelector(selectCartGroupedByBrand);
-  const brandSubtotals = useAppSelector(selectBrandSubtotals);
+  const brandBreakdown = useAppSelector(selectCartBrandBreakdown);
   const appliedCoupon = useAppSelector(selectAppliedCoupon);
   const couponDiscount = useAppSelector(selectCouponDiscount);
   const total = useAppSelector(selectCartTotal);
@@ -107,7 +112,7 @@ const CartScreen: React.FC = () => {
   if (cart.items.length === 0) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
@@ -139,7 +144,7 @@ const CartScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
@@ -155,8 +160,12 @@ const CartScreen: React.FC = () => {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {brandGroups.map((group) => {
-          const brandSub = brandSubtotals.get(group.brandId) || 0;
-          const brandShipping = brandSub >= FREE_SHIPPING_THRESHOLD ? 0 : 150;
+          // Shipping comes from the server's per-brand breakdown, computed with
+          // the same fee and threshold checkout charges — this used to be
+          // recomputed here from hardcoded constants.
+          const row = brandBreakdown.find((b) => b.brandId === group.brandId);
+          const brandSub = row?.subtotal ?? 0;
+          const brandShipping = row?.shippingFee ?? 0;
           return (
             <View key={group.brandId} style={styles.brandSection}>
               <View style={styles.brandHeader}>
@@ -168,7 +177,7 @@ const CartScreen: React.FC = () => {
                   {brandShipping === 0 ? (
                     <Text style={styles.freeShippingBadge}>Free Shipping</Text>
                   ) : (
-                    <Text style={styles.shippingText}>{CURRENCY} 150 shipping</Text>
+                    <Text style={styles.shippingText}>{CURRENCY} {brandShipping.toLocaleString()} shipping</Text>
                   )}
                 </View>
               </View>
@@ -295,7 +304,8 @@ const CartScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: (StatusBar.currentHeight || 0) + 20, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
@@ -312,7 +322,7 @@ const styles = StyleSheet.create({
   brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   brandName: { fontSize: 15, fontWeight: '700', color: Colors.text.primary },
   brandItemCount: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2 },
-  freeShippingBadge: { fontSize: 11, fontWeight: '600', color: ShopColors.success, backgroundColor: '#E8F8F0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.xs },
+  freeShippingBadge: { fontSize: 11, fontWeight: '600', color: ShopColors.success, backgroundColor: Colors.successLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.xs },
   shippingText: { fontSize: 12, color: Colors.text.tertiary },
 
   itemCard: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { STATUS_STYLE, AppointmentStatus } from '../../../constants/HealthcareTheme';
 
@@ -9,6 +11,9 @@ interface HCStatusPillProps {
 }
 
 const HCStatusPill: React.FC<HCStatusPillProps> = ({ status, size = 'md' }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const cfg = STATUS_STYLE[status as AppointmentStatus] || STATUS_STYLE.pending;
   const fs = size === 'sm' ? 10 : 12;
   return (
@@ -19,7 +24,7 @@ const HCStatusPill: React.FC<HCStatusPillProps> = ({ status, size = 'md' }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

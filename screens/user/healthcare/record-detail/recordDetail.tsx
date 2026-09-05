@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -41,18 +44,23 @@ type RecordDetailRoute = RouteProp<HealthcareStackParamList, 'RecordDetail'>;
 
 // ── Theme (matches health-records / prescription-view) ─
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    header: ['#1857C0', '#1E6AE1'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
+    header: grad(['#1857C0', '#1E6AE1']) as [string, string],
   },
+  };
 };
 
 // ── Section Header ──────────────────────────
@@ -62,32 +70,50 @@ const SectionHeader: React.FC<{
   title: string;
   iconBg: string;
   iconColor: string;
-}> = ({ icon, title, iconBg, iconColor }) => (
+}> = ({ icon, title, iconBg, iconColor }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.sectionHeader}>
     <View style={[styles.sectionIconBg, { backgroundColor: iconBg }]}>
       <Ionicons name={icon as any} size={16} color={iconColor} />
     </View>
     <Text style={styles.sectionTitle}>{title}</Text>
   </View>
-);
+  );
+};
 
 // ── Detail Row ──────────────────────────────
 
 const DetailRow: React.FC<{ label: string; value: string }> = ({
   label,
   value,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.detailRow}>
     <Text style={styles.detailLabel}>{label}</Text>
     <Text style={styles.detailValue} numberOfLines={2}>
       {value}
     </Text>
   </View>
-);
+  );
+};
 
 // ── Component ───────────────────────────────
 
 const RecordDetailScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const bottomBarPadding = useBottomBarPadding();
   const route = useRoute<RecordDetailRoute>();
@@ -175,7 +201,7 @@ const RecordDetailScreen: React.FC = () => {
   if (!record && loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FBFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#F8FBFF', 'bg')} />
         <View style={styles.spinnerWrap}>
           <ActivityIndicator size="large" color={THEME.primary} />
         </View>
@@ -190,9 +216,9 @@ const RecordDetailScreen: React.FC = () => {
   if (!record) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FBFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#F8FBFF', 'bg')} />
         <LinearGradient
-          colors={['#FEE2E2', '#FECACA']}
+          colors={sh.grad(['#FEE2E2', '#FECACA'])}
           style={styles.notFoundIcon}
         >
           <Ionicons name="document-outline" size={40} color={THEME.error} />
@@ -438,12 +464,12 @@ const RecordDetailScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FBFF' },
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#F8FBFF', 'bg') },
 
   centered: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
@@ -452,7 +478,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
@@ -487,7 +513,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 24,
   },
-  notFoundBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  notFoundBtnText: { fontSize: 15, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   header: {
     paddingTop:
@@ -503,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
   headerSubtitle: {
     fontSize: 12,
     fontWeight: '500',
@@ -515,12 +541,12 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16 },
 
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -586,7 +612,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 16,
   },
   detailLabel: { fontSize: 13, fontWeight: '500', color: Colors.text.secondary },
@@ -602,7 +628,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 220,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   fileRow: {
     flexDirection: 'row',
@@ -610,7 +636,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   fileIconBg: {
     width: 42,
@@ -633,11 +659,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   linkIconBg: {
     width: 36,
@@ -665,9 +691,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   deleteBtn: {
     flexDirection: 'row',
@@ -678,8 +704,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#FECACA',
-    backgroundColor: '#FEF2F2',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
   },
   deleteBtnText: { fontSize: 14, fontWeight: '700', color: THEME.error },
   openBtn: { flex: 1, borderRadius: 14, overflow: 'hidden' },
@@ -690,7 +716,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
   },
-  openBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  openBtnText: { fontSize: 15, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 });
 
 export default RecordDetailScreen;

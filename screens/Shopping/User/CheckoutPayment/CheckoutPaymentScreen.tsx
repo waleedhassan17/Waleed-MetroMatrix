@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { selectCartTotal } from '../Cart/cartSlice';
@@ -35,7 +36,8 @@ import {
   type PaymentMethod,
 } from './checkoutPaymentSlice';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', badge: '#E74C3C' };
+// A function of the ramp — see the note in constants/Colors.ts.
+const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, badge: c.error });
 
 const getMethodIcon = (id: string) => {
   switch (id) {
@@ -46,6 +48,10 @@ const getMethodIcon = (id: string) => {
 };
 
 const CheckoutPaymentScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -131,7 +137,7 @@ const CheckoutPaymentScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -233,7 +239,8 @@ const CheckoutPaymentScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
   backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', ...Shadows.sm },
@@ -245,7 +252,7 @@ const styles = StyleSheet.create({
   stepLabel: { fontSize: 12, fontWeight: '700', color: ShopColors.primary },
   stepLabelDone: { fontSize: 12, color: ShopColors.primary, opacity: 0.75 },
   stepLabelMuted: { fontSize: 12, color: Colors.text.tertiary },
-  progressBar: { height: 8, borderRadius: 999, backgroundColor: '#F4F4F5', overflow: 'hidden' },
+  progressBar: { height: 8, borderRadius: 999, backgroundColor: Colors.backgroundAlt, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: ShopColors.primary, borderRadius: 999 },
   scrollContent: { padding: Spacing.lg, paddingBottom: 120 },
   section: { marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: '#FFF', ...Shadows.sm },
@@ -254,17 +261,17 @@ const styles = StyleSheet.create({
   methodCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    borderBottomWidth: 1, borderBottomColor: Colors.backgroundAlt,
   },
   methodCardSelected: { backgroundColor: ShopColors.primaryLight, marginHorizontal: -Spacing.md, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md },
   methodLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
-  methodIconWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#F8F9FA', alignItems: 'center', justifyContent: 'center' },
+  methodIconWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   methodName: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
   methodDesc: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2, paddingRight: Spacing.md },
   walletBalanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   walletBalanceText: { fontSize: 12, fontWeight: '600' },
   methodTag: {
-    backgroundColor: '#FDEAD7',
+    backgroundColor: ShopColors.primaryLight,
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 999,
   },
@@ -291,7 +298,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(39,174,96,0.2)',
   },
   walletInfoText: { flex: 1, fontSize: 13, color: Colors.success, fontWeight: '500', lineHeight: 19 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: Colors.backgroundAlt },
   continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ShopColors.primary, paddingVertical: 16, borderRadius: BorderRadius.xl },
   continueBtnDisabled: { opacity: 0.45 },
   continueBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },

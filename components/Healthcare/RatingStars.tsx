@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing } from '../../constants/Colors';
 import { Typography } from '../../constants/Fonts';
@@ -17,6 +19,9 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   showValue = true,
   totalReviews,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.container}>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -35,7 +40,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

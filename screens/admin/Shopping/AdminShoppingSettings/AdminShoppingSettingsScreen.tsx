@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Save, TriangleAlert } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -20,6 +22,7 @@ import {
   saveShoppingSettings,
   selectAdminShoppingSettings,
 } from './adminShoppingSettingsSlice';
+import type { DeliveryTierView } from '../../../../networks/shopping/adminShoppingApi';
 
 const COLORS = {
   primary: '#E67E22',
@@ -40,11 +43,17 @@ const NUMERIC_FIELDS: { key: 'commissionPercent' | 'shippingFeePerBrand' | 'free
 ];
 
 const AdminShoppingSettingsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { settings, loading, saving, error } = useAppSelector(selectAdminShoppingSettings);
   const [form, setForm] = useState<Record<string, string>>({});
   const [autoApprove, setAutoApprove] = useState(false);
+  // Delivery tiers are what checkout actually charges for a speed upgrade, so
+  // they belong here rather than in a client-side constant.
+  const [tiers, setTiers] = useState<DeliveryTierView[]>([]);
 
   useEffect(() => {
     dispatch(fetchShoppingSettings());
@@ -60,8 +69,12 @@ const AdminShoppingSettingsScreen: React.FC = () => {
         defaultReturnDays: String(settings.defaultReturnDays),
       });
       setAutoApprove(settings.autoApproveBrands);
+      setTiers(settings.deliveryTiers ?? []);
     }
   }, [settings]);
+
+  const updateTier = (id: string, patch: Partial<DeliveryTierView>) =>
+    setTiers((list) => list.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
   const handleSave = async () => {
     const patch: Record<string, number | boolean> = { autoApproveBrands: autoApprove };
@@ -73,7 +86,21 @@ const AdminShoppingSettingsScreen: React.FC = () => {
       }
       patch[field.key] = parsed;
     }
-    const result = await dispatch(saveShoppingSettings(patch));
+
+    for (const tier of tiers) {
+      if (!Number.isFinite(tier.surcharge) || tier.surcharge < 0) {
+        Alert.alert('Invalid value', `${tier.name} surcharge must be a non-negative number.`);
+        return;
+      }
+    }
+    if (!tiers.some((t) => t.isActive)) {
+      Alert.alert('At least one tier', 'Checkout needs one active delivery option.');
+      return;
+    }
+
+    const result = await dispatch(
+      saveShoppingSettings({ ...patch, deliveryTiers: tiers } as any)
+    );
     if (saveShoppingSettings.fulfilled.match(result)) {
       Alert.alert('Saved', 'Settings updated — these values drive live checkout behaviour.');
     } else {
@@ -83,7 +110,7 @@ const AdminShoppingSettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={COLORS.text} strokeWidth={2} />
@@ -138,6 +165,36 @@ const AdminShoppingSettingsScreen: React.FC = () => {
             </View>
           </View>
 
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Delivery options</Text>
+            <Text style={styles.fieldHint}>
+              The surcharge is added on top of per-brand shipping and is charged at checkout —
+              the shopper is shown exactly this number.
+            </Text>
+            {tiers.map((tier) => (
+              <View key={tier.id} style={styles.tierRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>{tier.name}</Text>
+                  <Text style={styles.fieldHint}>{tier.eta || tier.description}</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, styles.tierInput]}
+                  keyboardType="number-pad"
+                  value={String(tier.surcharge)}
+                  onChangeText={(value) =>
+                    updateTier(tier.id, { surcharge: Number(value.replace(/[^0-9]/g, '')) || 0 })
+                  }
+                />
+                <Switch
+                  value={tier.isActive}
+                  onValueChange={(isActive) => updateTier(tier.id, { isActive })}
+                  trackColor={{ true: COLORS.primary, false: COLORS.border }}
+                  thumbColor="#FFF"
+                />
+              </View>
+            ))}
+          </View>
+
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
             <Save size={18} stroke="#FFF" strokeWidth={2} />
             <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save Settings'}</Text>
@@ -148,7 +205,7 @@ const AdminShoppingSettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },
@@ -158,14 +215,17 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   scroll: { padding: 16, paddingBottom: 40 },
-  warnBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, marginBottom: 14 },
-  warnText: { flex: 1, fontSize: 12, color: '#92400E' },
+  warnBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: sh.ground('#FEF3C7', '#F59E0B'), borderRadius: 12, padding: 12, marginBottom: 14 },
+  warnText: { flex: 1, fontSize: 12, color: sh.hue('#92400E') },
   card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   fieldHint: { fontSize: 11, color: COLORS.textLight, marginTop: 3 },
   input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: COLORS.text },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
+  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  tierInput: { width: 84, textAlign: 'right' },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14 },
   saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });

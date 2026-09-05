@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,6 +71,9 @@ const NoteCard: React.FC<{
   onPress: () => void;
   onDelete: () => void;
 }> = ({ note, index, onPress, onDelete }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const gradient = NOTE_ACCENTS[index % NOTE_ACCENTS.length];
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -156,6 +161,9 @@ const NoteCard: React.FC<{
 // ── Main Component ────────────────────────────
 
 const MedicalNotesScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -556,7 +564,7 @@ const MedicalNotesScreen: React.FC = () => {
                   </View>
                 )}
                 {patient.chronicConditions.length > 0 && (
-                  <View style={[styles.alertChip, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+                  <View style={[styles.alertChip, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B'), borderColor: '#FDE68A' }]}>
                     <Ionicons name="fitness-outline" size={12} color={THEME.warning} />
                     <Text style={[styles.alertChipText, { color: THEME.warning }]}>
                       {patient.chronicConditions.join(', ')}
@@ -582,7 +590,7 @@ const MedicalNotesScreen: React.FC = () => {
         {/* ── Notes ── */}
         {notes.length === 0 ? (
           <View style={styles.emptyCard}>
-            <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+            <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
               <MaterialCommunityIcons name="clipboard-text-outline" size={36} color={THEME.primary} />
             </LinearGradient>
             <Text style={styles.emptyTitle}>No Notes Yet</Text>
@@ -637,10 +645,10 @@ export default MedicalNotesScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   flex: { flex: 1 },
 
@@ -655,7 +663,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -663,7 +671,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // Header (list)
@@ -690,7 +698,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -703,7 +711,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
@@ -734,7 +742,7 @@ const styles = StyleSheet.create({
   saveHeaderBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Scroll content
@@ -749,12 +757,12 @@ const styles = StyleSheet.create({
 
   // Patient card
   patientCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
       android: { elevation: 3 },
@@ -777,16 +785,16 @@ const styles = StyleSheet.create({
   patientName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   patientMeta: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     marginTop: 3,
   },
   patientBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -794,7 +802,7 @@ const styles = StyleSheet.create({
   patientBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#16A34A',
+    color: sh.hue('#16A34A'),
   },
   patientAlerts: {
     flexDirection: 'row',
@@ -802,18 +810,18 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   alertChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
   alertChipText: {
     fontSize: 11,
@@ -836,7 +844,7 @@ const styles = StyleSheet.create({
   notesSectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
     flex: 1,
   },
@@ -860,11 +868,11 @@ const styles = StyleSheet.create({
   },
   noteCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
@@ -897,20 +905,20 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 9,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   noteCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     marginBottom: 5,
   },
   noteCardPreview: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     lineHeight: 18,
   },
   noteCardFooter: {
@@ -920,7 +928,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   noteTagsRow: {
     flexDirection: 'row',
@@ -940,13 +948,13 @@ const styles = StyleSheet.create({
   moreTagsText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   attachCountChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
@@ -954,18 +962,18 @@ const styles = StyleSheet.create({
   attachCountText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // Empty
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 36,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   emptyIconWrap: {
     width: 80,
@@ -978,12 +986,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -1002,7 +1010,7 @@ const styles = StyleSheet.create({
   emptyAddBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // ── Editor styles ─────────────────────────────
@@ -1011,20 +1019,20 @@ const styles = StyleSheet.create({
   titleInput: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.5,
     paddingVertical: 4,
     borderBottomWidth: 2,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: sh.n('#E2E8F0', 'line'),
     marginBottom: 16,
   },
 
   // Toolbar
   toolbarCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     marginBottom: 2,
     overflow: 'hidden',
     ...Platform.select({
@@ -1055,15 +1063,15 @@ const styles = StyleSheet.create({
   toolbarDivider: {
     width: 1,
     height: 22,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginHorizontal: 4,
   },
 
   // Note textarea
   noteTextArea: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     borderTopWidth: 0,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
@@ -1071,7 +1079,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 15,
     fontWeight: '400',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     minHeight: 220,
     textAlignVertical: 'top',
     marginBottom: 20,
@@ -1096,7 +1104,7 @@ const styles = StyleSheet.create({
   editorSectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     flex: 1,
@@ -1105,7 +1113,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1119,12 +1127,12 @@ const styles = StyleSheet.create({
   attachmentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 13,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 12,
   },
   attachmentIconWrap: {
@@ -1138,12 +1146,12 @@ const styles = StyleSheet.create({
   attachmentName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   attachmentSize: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 2,
   },
   attachmentRemoveBtn: {
@@ -1160,10 +1168,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     paddingHorizontal: 12,
     gap: 8,
   },
@@ -1171,7 +1179,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     paddingVertical: 11,
   },
   tagAddBtn: {
@@ -1198,7 +1206,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
   },
   tagChipText: {
     fontSize: 12,
@@ -1211,12 +1219,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderRadius: 12,
     padding: 14,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
   errorText: {
     fontSize: 13,

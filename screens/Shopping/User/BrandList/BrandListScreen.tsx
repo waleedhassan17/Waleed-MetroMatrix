@@ -15,7 +15,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ShoppingBag, Star, ChevronRight, Heart, Check, User } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { BrandConfig } from '../../../../types/shopping';
 import {
@@ -29,25 +30,32 @@ import {
   selectBrandSearchQuery,
 } from './brandListSlice';
 import { fetchHomeData, selectFeaturedBrands, selectFeaturedProducts, selectBanners, selectShoppingHome } from '../ShoppingHome/shoppingHomeSlice';
+import type { Banner } from '../ShoppingHome/shoppingHomeSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import type { Product } from '../../../../types/shopping';
 import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
-const ShopColors = {
-  primary: '#E67E22',
-  primaryDark: '#D35400',
-  primaryLight: '#FFF8F0',
-  accent: '#F39C12',
-  surface: '#FFFFFF',
-  backgroundAlt: '#F8F9FA',
-  textPrimary: '#1A1A2E',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F0F0F0',
-  success: '#10B981',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryDark: c.accentDeep,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+  surface: c.surface,
+  backgroundAlt: c.bg,
+  textPrimary: c.ink,
+  textSecondary: c.inkMuted,
+  textMuted: c.inkFaint,
+  border: c.line,
+  success: c.success,
+});
 
 const BrandListScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -144,7 +152,7 @@ const BrandListScreen: React.FC = () => {
 
   // ── Render Helpers ────────────────────────
 
-  const renderBanner = ({ item }: { item: any }) => (
+  const renderBanner = ({ item }: { item: Banner }) => (
     <TouchableOpacity
       style={styles.bannerCard}
       activeOpacity={0.9}
@@ -181,21 +189,13 @@ const BrandListScreen: React.FC = () => {
             style={styles.wishlistBtn}
             activeOpacity={0.7}
             onPress={() => {
-              dispatch(toggleWishlistItem({
-                productId: item.productId,
-                productName: item.name,
-                productImage: item.images?.[0] ?? '',
-                brandId: item.brandId,
-                brandName: item.brandId,
-                price: item.salePrice ?? item.basePrice,
-                originalPrice: item.salePrice ? item.basePrice : undefined,
-              }));
+              dispatch(toggleWishlistItem({ productId: item.productId }));
             }}
           >
             <Heart
               size={16}
-              stroke={wishlistIds.has(item.productId) ? '#E74C3C' : Colors.text.tertiary}
-              fill={wishlistIds.has(item.productId) ? '#E74C3C' : 'none'}
+              stroke={wishlistIds.has(item.productId) ? Colors.error : Colors.text.tertiary}
+              fill={wishlistIds.has(item.productId) ? Colors.error : 'none'}
               strokeWidth={1.75}
             />
           </TouchableOpacity>
@@ -232,13 +232,6 @@ const BrandListScreen: React.FC = () => {
       <Text style={styles.smallBrandName} numberOfLines={1}>{item.name}</Text>
     </TouchableOpacity>
   );
-
-  // ── Dummy banners if none from API ────────
-  const displayBanners = banners.length > 0 ? banners : [
-    { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800', title: 'New Arrivals', subtitle: 'Discover the latest trends' },
-    { id: '2', image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800', title: 'Flash Sale', subtitle: 'Up to 50% off' },
-    { id: '3', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', title: 'Top Brands', subtitle: 'Shop from the best' },
-  ];
 
   const [bannerIndex, setBannerIndex] = useState(0);
   const BANNER_WIDTH = 320;
@@ -309,12 +302,13 @@ const BrandListScreen: React.FC = () => {
       <View style={styles.listHeader}>
         {!isSearching && (
           <>
-            {/* ── Banners Carousel ────────────────── */}
+            {/* ── Banners Carousel (server-driven; hidden when empty) ── */}
+            {banners.length > 0 && (
             <View style={styles.bannerSection}>
               <FlatList
-                data={displayBanners}
+                data={banners}
                 renderItem={renderBanner}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.bannerId}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
@@ -327,9 +321,9 @@ const BrandListScreen: React.FC = () => {
                   setBannerIndex(idx);
                 }}
               />
-              {displayBanners.length > 1 && (
+              {banners.length > 1 && (
                 <View style={styles.dotsRow}>
-                  {displayBanners.map((_: any, i: number) => (
+                  {banners.map((_, i: number) => (
                     <View
                       key={i}
                       style={[styles.dot, i === bannerIndex ? styles.dotActive : {}]}
@@ -338,6 +332,7 @@ const BrandListScreen: React.FC = () => {
                 </View>
               )}
             </View>
+            )}
 
             {/* ── Featured Brands ────────────────── */}
             {featuredBrands.length > 0 && (
@@ -421,7 +416,7 @@ const BrandListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={ShopColors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={ShopColors.surface} />
 
       {/* ── Header ──────────────────────────── */}
       <ShoppingHeader
@@ -509,7 +504,8 @@ const BrandListScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: ShopColors.backgroundAlt,
@@ -558,7 +554,7 @@ const styles = StyleSheet.create({
     height: 220,
     // Placeholder ink so the card reads as a card while the banner loads,
     // instead of flashing a white block against the grey list.
-    backgroundColor: '#1A1A2E',
+    backgroundColor: Colors.text.primary,
     ...Shadows.medium,
   },
   heroBannerImg: {
@@ -874,7 +870,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.sm,
     left: Spacing.sm,
-    backgroundColor: '#E74C3C',
+    backgroundColor: Colors.error,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: 4,

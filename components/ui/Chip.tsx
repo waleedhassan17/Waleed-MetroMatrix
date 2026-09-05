@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { HS } from '../../constants/HomeServiceTheme';
-import { C, F, R, S, T } from '../../constants/theme';
+import { F, R, S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
+import { uiAccent } from './accentCompat';
 
 /**
  * Filter / segmented-control chip.
@@ -32,7 +33,11 @@ const Chip: React.FC<ChipProps> = ({
   disabled,
   style,
 }) => {
-  const fg = disabled ? C.inkFaint : selected ? HS.accentDeep : C.inkMuted;
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const a = uiAccent(colors, isDark);
+
+  const fg = disabled ? colors.inkFaint : selected ? a.accentDeep : colors.inkMuted;
 
   return (
     <TouchableOpacity
@@ -44,8 +49,8 @@ const Chip: React.FC<ChipProps> = ({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? HS.accentSoft : C.surface,
-          borderColor: selected ? HS.accentLine : C.line,
+          backgroundColor: selected ? a.accentSoft : colors.surface,
+          borderColor: selected ? a.accentLine : colors.line,
         },
         style,
       ]}
@@ -63,7 +68,7 @@ const Chip: React.FC<ChipProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -80,10 +85,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: R.chip - 2,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
   },
-  countSelected: { backgroundColor: C.surface },
+  countSelected: { backgroundColor: c.surface },
   countText: { ...T.micro },
 });
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -38,6 +40,9 @@ type NotificationRow = {
 };
 
 const DoctorNotificationsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   // react-native's SafeAreaView is a plain View on Android, so the back
   // button was drawing against the status-bar icons.
   const insets = useSafeAreaInsets();
@@ -84,7 +89,7 @@ const DoctorNotificationsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Notifications{unread ? ` (${unread})` : ''}</Text>
@@ -145,7 +150,7 @@ const DoctorNotificationsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
 
   // Shared doctor-screen chrome: safe-area header + a centred empty state.
   headerText: { flex: 1, alignItems: 'center' },
@@ -155,7 +160,7 @@ const styles = StyleSheet.create({
     width: 84, height: 84, borderRadius: 42, backgroundColor: C.primaryLight,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  medallionError: { backgroundColor: '#FEF2F2' },
+  medallionError: { backgroundColor: sh.ground('#FEF2F2', '#EF4444') },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: C.bg },

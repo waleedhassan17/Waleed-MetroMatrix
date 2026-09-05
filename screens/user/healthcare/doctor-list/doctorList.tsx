@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,9 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -50,20 +53,25 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  star: '#FBBF24',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  star: hue('#FBBF24'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
   },
+  };
 };
 
 // ── Sort Options ────────────────────────────
@@ -134,7 +142,13 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const DoctorCardSkeleton: React.FC = () => (
+const DoctorCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.doctorCard}>
     <View style={styles.cardRow}>
       <SkeletonBox width={64} height={64} borderRadius={20} />
@@ -154,7 +168,8 @@ const DoctorCardSkeleton: React.FC = () => (
       <SkeletonBox width={70} height={36} borderRadius={10} />
     </View>
   </View>
-);
+  );
+};
 
 // ── Filter Chip Component ───────────────────
 
@@ -163,7 +178,13 @@ const FilterChip: React.FC<{
   selected: boolean;
   onPress: () => void;
   icon?: string;
-}> = ({ label, selected, onPress, icon }) => (
+}> = ({ label, selected, onPress, icon }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <TouchableOpacity
     style={[styles.filterChip, selected && styles.filterChipSelected]}
     onPress={onPress}
@@ -180,11 +201,16 @@ const FilterChip: React.FC<{
       {label}
     </Text>
   </TouchableOpacity>
-);
+  );
+};
 
 // ── Main Component ──────────────────────────
 
 const DoctorListScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -385,7 +411,7 @@ const DoctorListScreen: React.FC = () => {
   if (error && !loading && doctors.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
         <View style={styles.errorContainer}>
           <View style={styles.errorIconContainer}>
             <Ionicons name="cloud-offline-outline" size={48} color={THEME.error} />
@@ -772,10 +798,10 @@ const DoctorListScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -805,7 +831,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerCount: {
@@ -826,15 +852,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   searchContainerFocused: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   searchInputFocused: {
     color: Colors.text.primary,
@@ -846,19 +872,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     gap: 6,
   },
   controlButtonText: {
@@ -878,7 +904,7 @@ const styles = StyleSheet.create({
   filterBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // List
@@ -893,15 +919,15 @@ const styles = StyleSheet.create({
 
   // Doctor Card
   doctorCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 18,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
       ios: {
-        shadowColor: '#64748B',
+        shadowColor: sh.n('#64748B', 'inkMuted'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -934,7 +960,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: THEME.success,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   cardInfo: {
     flex: 1,
@@ -972,7 +998,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -980,13 +1006,13 @@ const styles = StyleSheet.create({
   ratingChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#D97706',
+    color: sh.hue('#D97706'),
   },
   metaChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1001,7 +1027,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingTop: 14,
   },
   feeLabel: {
@@ -1024,7 +1050,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1045,7 +1071,7 @@ const styles = StyleSheet.create({
   bookButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Loading
@@ -1078,7 +1104,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1123,7 +1149,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1155,7 +1181,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Modals
@@ -1167,7 +1193,7 @@ const styles = StyleSheet.create({
 
   // Sort Sheet
   sortSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 20,
@@ -1177,7 +1203,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 20,
@@ -1194,7 +1220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   sortOptionActive: {
     backgroundColor: THEME.primaryLight,
@@ -1212,7 +1238,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1231,7 +1257,7 @@ const styles = StyleSheet.create({
 
   // Filter Sheet
   filterSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '85%',
@@ -1247,7 +1273,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   clearAllText: {
     fontSize: 12,
@@ -1280,8 +1306,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.n('#E2E8F0', 'line'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   filterChipSelected: {
     backgroundColor: THEME.primary,
@@ -1293,21 +1319,21 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   filterChipTextSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   filterFooter: {
     flexDirection: 'row',
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     alignItems: 'center',
   },
   cancelButtonText: {
@@ -1327,7 +1353,7 @@ const styles = StyleSheet.create({
   applyButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

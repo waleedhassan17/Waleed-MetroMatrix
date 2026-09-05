@@ -34,7 +34,7 @@ const FIELDS: { key: EditableField; label: string; multiline?: boolean }[] = [
 ];
 
 const BrandProfileScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -72,7 +72,7 @@ const BrandProfileScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <BrandHeader title="Brand Profile" showBack />
 
       {loading && !brand && (

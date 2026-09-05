@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   TextInput,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../../../hooks/useReduxHooks';
@@ -44,6 +46,9 @@ import {
 const isAndroid = Platform.OS === 'android';
 
 const SignIn = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -306,7 +311,7 @@ const SignIn = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
         translucent={!isAndroid}
       />
@@ -461,10 +466,10 @@ const SignIn = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   keyboardView: {
     flex: 1,
@@ -489,23 +494,23 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: sh.n('#F5F5F5', 'surfaceSunken'),
     borderRadius: 8,
     padding: 4,
     marginBottom: 24,
@@ -521,7 +526,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -531,19 +536,19 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
   tabTextActive: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
+    backgroundColor: sh.n('#FFEBEE', 'surfaceSunken'),
     borderLeftWidth: 4,
-    borderLeftColor: '#D32F2F',
+    borderLeftColor: sh.hue('#D32F2F'),
     padding: 12,
     marginBottom: 20,
     borderRadius: 8,
@@ -551,7 +556,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#D32F2F',
+    color: sh.hue('#D32F2F'),
     fontSize: 14,
   },
   formContainer: {
@@ -560,17 +565,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
     marginTop: 16,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     paddingHorizontal: 16,
     height: 56,
     ...Platform.select({
@@ -591,7 +596,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#0f172a',
+    color: sh.n('#0f172a', 'ink'),
     paddingVertical: 0,
   },
   eyeIcon: {
@@ -603,12 +608,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   forgotPasswordText: {
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     fontSize: 13,
     fontWeight: '500',
   },
   signInButton: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: sh.n('#E0E0E0', 'disabled'),
     height: 50,
     borderRadius: 25,
     alignItems: 'center',
@@ -616,14 +621,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signInButtonActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
   },
   signInButtonLoading: {
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     opacity: 0.7,
   },
   signInButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 16,
     fontWeight: '600',
   },
@@ -635,12 +640,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: sh.n('#e2e8f0', 'line'),
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 13,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
   socialContainer: {
     flexDirection: 'row',
@@ -651,10 +656,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     height: 50,
     gap: 8,
     ...Platform.select({
@@ -675,7 +680,7 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
 });
 

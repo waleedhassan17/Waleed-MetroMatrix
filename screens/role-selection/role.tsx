@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   ScrollView,
   Alert
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -46,6 +48,9 @@ interface RoleCardConfig {
 }
 
 export default function RoleSelectionScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const dispatch = useDispatch();
   
@@ -153,8 +158,8 @@ export default function RoleSelectionScreen() {
       }
     ]}>
       <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor={isAndroid ? '#F8FAFC' : 'transparent'} 
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} 
+        backgroundColor={isAndroid ? sh.n('#F8FAFC', 'bg') : 'transparent'} 
         translucent={!isAndroid} 
       />
       
@@ -224,16 +229,16 @@ export default function RoleSelectionScreen() {
       title: "Service Provider",
       description: "Offer your professional services to customers in your area",
       icon: "construct",
-      iconColor: "#6366f1",
-      iconBg: "#f0f4ff",
+      iconColor: sh.hue("#6366f1"),
+      iconBg: sh.ground("#f0f4ff", "#6366f1"),
       onPress: handleProviderSelect
     },
     {
       title: "User",
       description: "Find and book trusted service providers for your needs",
       icon: "person",
-      iconColor: "#10b981",
-      iconBg: "#f0fdf4",
+      iconColor: sh.hue("#10b981"),
+      iconBg: sh.ground("#f0fdf4", "#10b981"),
       onPress: handleUserSelect
     }
   ];
@@ -300,10 +305,10 @@ export default function RoleSelectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: sh.n('#F8FAFC', 'surfaceSunken'),
   },
   
   // Modern background elements for visual interest
@@ -365,7 +370,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     letterSpacing: -0.5,
     marginBottom: 8,
   },
@@ -373,7 +378,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -405,7 +410,7 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     letterSpacing: -0.5,
     marginBottom: 12,
     textAlign: 'center',
@@ -414,7 +419,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: width * 0.85,
@@ -426,10 +431,10 @@ const styles = StyleSheet.create({
   },
   
   roleCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -473,7 +478,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     letterSpacing: -0.3,
     marginBottom: 6,
   },
@@ -481,7 +486,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 13,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     lineHeight: 20,
     letterSpacing: 0.1,
   },
@@ -489,12 +494,12 @@ const styles = StyleSheet.create({
   arrowContainer: {
     width: 32,
     height: 32,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
   },
   
   helpSection: {
@@ -504,12 +509,12 @@ const styles = StyleSheet.create({
   helpCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     padding: 16,
     borderRadius: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -527,7 +532,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     letterSpacing: 0.2,
   },
 });

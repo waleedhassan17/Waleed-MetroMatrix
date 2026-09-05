@@ -38,6 +38,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { Provider } from '../../../../models/serviceProviders';
 import { RootState } from '../../../../store/store';
 import { formatPrice, formatRating, formatReviewCount } from '../../../../utils/homeservice/format';
@@ -86,6 +87,8 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   isFavorite,
   onToggleFavorite,
 }) => {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const rating = formatRating(item.rating);
   const reviews = formatReviewCount(item.reviews);
 
@@ -102,7 +105,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           <Avatar uri={item.image} name={item.name} size={52} tint={tintSoft} color={tint} />
           {item.verified && (
             <View style={[styles.verified, { backgroundColor: tint }]}>
-              <Ionicons name="checkmark" size={10} color={C.inkInverse} />
+              <Ionicons name="checkmark" size={10} color={colors.inkInverse} />
             </View>
           )}
         </View>
@@ -117,7 +120,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           <View style={styles.metaRow}>
             {rating ? (
               <>
-                <Ionicons name="star" size={13} color={C.star} />
+                <Ionicons name="star" size={13} color={colors.star} />
                 <Text style={styles.ratingText}>{rating}</Text>
                 {!!reviews && <Text style={styles.metaText}>· {reviews}</Text>}
               </>
@@ -142,7 +145,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           <Ionicons
             name={isFavorite ? 'heart' : 'heart-outline'}
             size={20}
-            color={isFavorite ? C.error : C.inkFaint}
+            color={isFavorite ? colors.error : colors.inkFaint}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -151,7 +154,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
         <View
           style={[
             styles.dot,
-            { backgroundColor: item.available ? C.success : C.inkFaint },
+            { backgroundColor: item.available ? colors.success : colors.inkFaint },
           ]}
         />
         <Text style={styles.metaText}>
@@ -172,14 +175,14 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
             onPress={() => onChat(item)}
             accessibilityLabel={`Message ${item.name}`}
           >
-            <Ionicons name="chatbubble-outline" size={17} color={C.inkMuted} />
+            <Ionicons name="chatbubble-outline" size={17} color={colors.inkMuted} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => onCall(item)}
             accessibilityLabel={`Call ${item.name}`}
           >
-            <Ionicons name="call-outline" size={17} color={C.inkMuted} />
+            <Ionicons name="call-outline" size={17} color={colors.inkMuted} />
           </TouchableOpacity>
           <Button
             label="Book"
@@ -202,12 +205,14 @@ type ProvidersScreenRouteParams = {
 };
 
 export default function ProvidersScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: ProvidersScreenRouteParams }, 'params'>>();
   const dispatch = useDispatch();
 
   const { serviceType = 'ac-repairers' } = route.params || {};
-  const category = categoryAccent(serviceType);
+  const category = categoryAccent(serviceType, mode);
 
   const providers = useSelector((state: RootState) => selectFilteredProviders(state)) as Provider[];
   const isLoading = useSelector((state: RootState) => selectIsLoading(state)) as boolean;
@@ -327,11 +332,11 @@ export default function ProvidersScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.search, searchFocused && styles.searchFocused]}>
-          <Ionicons name="search" size={18} color={C.inkFaint} />
+          <Ionicons name="search" size={18} color={colors.inkFaint} />
           <TextInput
             style={styles.searchInput}
             placeholder={`Search ${category.labelPlural}`}
-            placeholderTextColor={C.inkFaint}
+            placeholderTextColor={colors.inkFaint}
             value={searchQuery}
             onChangeText={(text) => dispatch(setSearchQuery(text))}
             onFocus={() => setSearchFocused(true)}
@@ -344,7 +349,7 @@ export default function ProvidersScreen() {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel="Clear search"
             >
-              <Ionicons name="close-circle" size={18} color={C.inkFaint} />
+              <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
             </TouchableOpacity>
           )}
         </View>
@@ -451,7 +456,7 @@ export default function ProvidersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: S.huge,
@@ -463,18 +468,18 @@ const styles = StyleSheet.create({
     height: 46,
     paddingHorizontal: S.md,
     borderRadius: R.control,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   searchFocused: {
-    borderColor: HS.accent,
+    borderColor: c.accent,
   },
   searchInput: {
     flex: 1,
     marginLeft: S.sm,
     ...T.body,
-    color: C.ink,
+    color: c.ink,
     padding: 0,
   },
 
@@ -492,11 +497,11 @@ const styles = StyleSheet.create({
     marginTop: S.md,
     padding: S.md,
     borderRadius: R.control,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
   quickSearchText: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
     flex: 1,
     marginHorizontal: S.sm,
   },
@@ -514,22 +519,22 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   statLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
 
   listCount: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xxl,
     marginBottom: S.md,
   },
@@ -551,7 +556,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   providerInfo: {
     flex: 1,
@@ -559,7 +564,7 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   metaRow: {
     flexDirection: 'row',
@@ -568,12 +573,12 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     ...T.label,
-    color: C.ink,
+    color: c.ink,
     marginLeft: 3,
   },
   metaText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: 4,
   },
 
@@ -595,15 +600,15 @@ const styles = StyleSheet.create({
     marginTop: S.md,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   priceLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   price: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   providerActions: {
     flexDirection: 'row',
@@ -613,7 +618,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: R.chip,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: S.sm,

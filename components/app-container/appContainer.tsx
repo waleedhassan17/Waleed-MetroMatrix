@@ -1,5 +1,9 @@
-import React, { useEffect, useCallback } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import React, { useEffect, useCallback, useMemo } from "react";
+import {
+  NavigationContainer,
+  DefaultTheme as NavDefaultTheme,
+  DarkTheme as NavDarkTheme,
+} from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Platform, ActivityIndicator, View, Linking } from "react-native";
@@ -39,13 +43,11 @@ import {
   registerForPushNotifications,
 } from "../../services/push/pushNotifications";
 import { useNotificationRouting } from "../../services/push/useNotificationRouting";
+import { useTheme } from "../../theme";
 
 // Configure once at module load, before any notification can arrive.
 configureNotificationHandler();
 
-// Define colors
-const Black = "#000000";
-const White = "#FFFFFF";
 
 /**
  * Lives INSIDE IncomingCallProvider so it can surface a call from a
@@ -70,6 +72,28 @@ interface AppContainerProps {
 
 export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   const dispatch = useAppDispatch();
+  const { colors, isDark } = useTheme();
+
+  /**
+   * React Navigation paints the gap between two screens itself, using its own
+   * theme — not the screen's background. Without this, every push flashed the
+   * navigator's default white, which no per-screen `backgroundColor` can fix
+   * because the flash happens where no screen is mounted yet.
+   */
+  const navTheme = useMemo(() => {
+    const base = isDark ? NavDarkTheme : NavDefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        background: colors.bg,
+        card: colors.surface,
+        text: colors.ink,
+        border: colors.line,
+        primary: colors.accent,
+      },
+    };
+  }, [isDark, colors]);
   
   // Use selectors with proper root state access
   const currentUser = useAppSelector((state) => state.appContainer.currentUser);
@@ -148,8 +172,11 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   // down and show this spinner rather than leaving the app apparently frozen.
   if (!isAppReady || status === 'loading') {
     return (
-      <View style={styles.loadingContainer} onLayout={onLayout}>
-        <ActivityIndicator size="large" color={White} />
+      <View
+        style={[styles.loadingContainer, { backgroundColor: colors.bg }]}
+        onLayout={onLayout}
+      >
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -234,10 +261,15 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   };
 
   return (
-    <GestureHandlerRootView style={styles.gestureStyle} onLayout={onLayout}>
+    <GestureHandlerRootView
+      style={[styles.gestureStyle, { backgroundColor: colors.bg }]}
+      onLayout={onLayout}
+    >
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <NavigationContainer ref={navigationRef} linking={linking}>
+        {/* Was hardcoded `light`, which was wrong for every light screen in the
+            app — white icons on a white bar. It follows the ramp now. */}
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <NavigationContainer ref={navigationRef} linking={linking} theme={navTheme}>
           {/* Wraps the navigator so an incoming ring can surface over ANY
               screen — the server targets a per-user room, so a call arrives
               regardless of where the callee happens to be. */}
@@ -254,16 +286,18 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
 const styles = StyleSheet.create({
   gestureStyle: {
     flex: 1,
-    // Light app-root background. Screens cover this on native, but on web some
-    // screens (e.g. the doctor tab scenes) don't fully cover it — a black root
-    // showed through and made those screens look odd/blank.
-    backgroundColor: '#F8FBFF',
+    // The app-root ground, painted from the active ramp at the call site.
+    // Screens cover this on native, but on web some screens (e.g. the doctor
+    // tab scenes) don't fully cover it — an unpainted root showed through and
+    // made those screens look odd/blank. It must track the theme, or the seam
+    // reappears as a pale strip on a dark page.
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Black,
+    // Ground comes from the ramp — the boot screen was hardcoded black, which
+    // is a jarring flash ahead of a light app and the wrong black for a dark one.
   },
 });
 

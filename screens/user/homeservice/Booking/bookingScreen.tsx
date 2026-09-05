@@ -14,7 +14,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   Platform,
   ScrollView,
@@ -38,6 +38,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';
 import {
@@ -75,13 +76,15 @@ const ADDRESS_ICON: Record<string, string> = {
 };
 
 export default function BookingScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const bottomPad = useBottomBarPadding(GUTTER);
 
   const { providerId, category = 'ac-repairers' } = route.params || {};
-  const accent = categoryAccent(category);
+  const accent = categoryAccent(category, mode);
 
   const provider = useSelector((state: RootState) => state.booking?.provider);
   const savedAddresses = useSelector((state: RootState) => state.booking?.savedAddresses) || [];
@@ -250,7 +253,7 @@ export default function BookingScreen() {
               <View style={styles.ratingRow}>
                 {rating ? (
                   <>
-                    <Ionicons name="star" size={12} color={C.star} />
+                    <Ionicons name="star" size={12} color={colors.star} />
                     <Text style={styles.ratingText}>{rating}</Text>
                     {!!reviews && <Text style={styles.meta}>· {reviews}</Text>}
                   </>
@@ -263,12 +266,12 @@ export default function BookingScreen() {
 
           <View style={styles.highlights}>
             <View style={styles.highlight}>
-              <Ionicons name="navigate-outline" size={15} color={C.inkFaint} />
+              <Ionicons name="navigate-outline" size={15} color={colors.inkFaint} />
               <Text style={styles.highlightText}>Visits your address</Text>
             </View>
             {!!provider.responseTime && (
               <View style={styles.highlight}>
-                <Ionicons name="time-outline" size={15} color={C.inkFaint} />
+                <Ionicons name="time-outline" size={15} color={colors.inkFaint} />
                 <Text style={styles.highlightText}>Replies in {provider.responseTime}</Text>
               </View>
             )}
@@ -279,7 +282,7 @@ export default function BookingScreen() {
           <SectionHeader title="Where" />
           <Card onPress={() => setShowAddressSheet(true)} style={styles.selectorCard}>
             <View style={styles.selector}>
-              <Ionicons name="location-outline" size={18} color={C.inkFaint} />
+              <Ionicons name="location-outline" size={18} color={colors.inkFaint} />
               <View style={styles.selectorText}>
                 {!!selectedAddress && <Text style={styles.selectorLabel}>{selectedAddress.label}</Text>}
                 <Text
@@ -289,7 +292,7 @@ export default function BookingScreen() {
                   {selectedAddress?.address || 'Choose a service address'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={C.inkFaint} />
+              <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
             </View>
           </Card>
         </View>
@@ -298,7 +301,7 @@ export default function BookingScreen() {
           <SectionHeader title="When" />
           <Card onPress={() => setShowDatePicker(true)} style={styles.selectorCard}>
             <View style={styles.selector}>
-              <Ionicons name="calendar-outline" size={18} color={C.inkFaint} />
+              <Ionicons name="calendar-outline" size={18} color={colors.inkFaint} />
               <View style={styles.selectorText}>
                 <Text
                   style={selectedDate ? styles.selectorValue : styles.selectorPlaceholder}
@@ -307,7 +310,7 @@ export default function BookingScreen() {
                   {selectedDate || 'Choose a date'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={C.inkFaint} />
+              <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
             </View>
           </Card>
 
@@ -329,7 +332,7 @@ export default function BookingScreen() {
           <TextInput
             style={styles.instructions}
             placeholder="Describe the fault, access instructions, parking — anything that saves a trip."
-            placeholderTextColor={C.inkFaint}
+            placeholderTextColor={colors.inkFaint}
             value={instructions}
             onChangeText={(text) => dispatch(setInstructions(text))}
             multiline
@@ -416,7 +419,7 @@ export default function BookingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: 120,
@@ -441,13 +444,13 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     marginRight: S.xs,
     flexShrink: 1,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   ratingRow: {
@@ -457,14 +460,14 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     ...T.label,
-    color: C.ink,
+    color: c.ink,
     marginHorizontal: 3,
   },
   highlights: {
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   highlight: {
     flexDirection: 'row',
@@ -473,7 +476,7 @@ const styles = StyleSheet.create({
   },
   highlightText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: S.sm,
   },
 
@@ -493,16 +496,16 @@ const styles = StyleSheet.create({
   },
   selectorLabel: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginBottom: 1,
   },
   selectorValue: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   selectorPlaceholder: {
     ...T.body,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
 
   timeGroup: {
@@ -510,7 +513,7 @@ const styles = StyleSheet.create({
   },
   timeGroupLabel: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: S.sm,
   },
   timeGrid: {
@@ -521,30 +524,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.lg,
     paddingVertical: S.sm,
     borderRadius: R.chip,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     marginRight: S.sm,
     marginBottom: S.sm,
   },
   timeSlotSelected: {
-    backgroundColor: HS.accentSoft,
-    borderColor: HS.accent,
+    backgroundColor: c.accentSoft,
+    borderColor: c.accent,
   },
   timeSlotDisabled: {
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderColor: 'transparent',
   },
   timeSlotText: {
     ...T.label,
-    color: C.ink,
+    color: c.ink,
   },
   timeSlotTextSelected: {
-    color: HS.accentDeep,
+    color: c.accentDeep,
     fontFamily: F.semibold,
   },
   timeSlotTextDisabled: {
-    color: C.disabled,
+    color: c.disabled,
     textDecorationLine: 'line-through',
   },
 
@@ -553,11 +556,11 @@ const styles = StyleSheet.create({
     minHeight: 108,
     padding: S.md,
     borderRadius: R.control,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
 
   summaryRow: {
@@ -570,15 +573,15 @@ const styles = StyleSheet.create({
     marginTop: S.sm,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   summaryKey: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   summaryValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.lg,
     flexShrink: 1,
     textAlign: 'right',
@@ -587,19 +590,19 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: GUTTER,
     paddingTop: S.md,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.line,
+    borderTopColor: c.line,
   },
   footerHint: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginBottom: S.sm,
   },
   error: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     textAlign: 'center',
     marginBottom: S.sm,
   },

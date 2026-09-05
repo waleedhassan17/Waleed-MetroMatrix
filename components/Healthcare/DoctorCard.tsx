@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { HC, HCRadius, HCShadow } from '../../constants/HealthcareTheme';
+import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../constants/HealthcareTheme';
+import { useTheme } from '../../theme';
 import type { Doctor } from '../../models/healthcare/types';
 import DoctorAvatar from './DoctorAvatar';
 import {
@@ -21,6 +22,9 @@ interface DoctorCardProps {
 }
 
 const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onPress, onBook }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const rating = getRating(doctor);
   const modes = getConsultationModes(doctor);
   const experience = getExperienceLabel(doctor);
@@ -95,7 +99,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onPress, onBook }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   card: {
     backgroundColor: HC.card,
     borderRadius: HCRadius.lg,

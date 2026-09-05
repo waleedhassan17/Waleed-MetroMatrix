@@ -12,6 +12,8 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -68,6 +70,9 @@ const CurrentPatientCard: React.FC<{
   onComplete: () => void;
   onSkip: () => void;
 }> = ({ patient, onComplete, onSkip }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const isVideo = patient.type === 'video';
   const initials = patient.patientName
@@ -258,6 +263,9 @@ const PatientRow: React.FC<{
   onToggleExpand: () => void;
   hasCurrentPatient: boolean;
 }> = ({ patient, index, onStart, isExpanded, onToggleExpand, hasCurrentPatient }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const cfg = STATUS_CONFIG[patient.status];
   const isVideo = patient.type === 'video';
   const expandAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
@@ -375,6 +383,9 @@ const PatientRow: React.FC<{
 // ── Main Component ────────────────────────────
 
 const PatientQueueScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -515,7 +526,7 @@ const PatientQueueScreen: React.FC = () => {
           <View style={styles.headerBtn} />
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load queue</Text>
@@ -564,7 +575,7 @@ const PatientQueueScreen: React.FC = () => {
       >
 
         {/* ── Stats Strip ── */}
-        <LinearGradient colors={['#F0F7FF', '#EAF3FF']} style={styles.statsStrip}>
+        <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.statsStrip}>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{stats.total}</Text>
             <Text style={styles.statLabel}>Total</Text>
@@ -672,7 +683,7 @@ const PatientQueueScreen: React.FC = () => {
 
           {filteredQueue.length === 0 ? (
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                 <Ionicons name="people-outline" size={36} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>No patients</Text>
@@ -705,10 +716,10 @@ export default PatientQueueScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading / Error
@@ -723,7 +734,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -731,7 +742,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -741,11 +752,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  errorSubtext: { fontSize: 14, fontWeight: '500', color: '#64748B', textAlign: 'center', marginBottom: 6 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
+  errorSubtext: { fontSize: 14, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), textAlign: 'center', marginBottom: 6 },
   retryBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
   retryBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 14 },
-  retryBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  retryBtnText: { fontSize: 15, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Header
   headerGradient: {
@@ -765,7 +776,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.3 },
   headerSubtitle: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
 
   // Scroll
@@ -779,21 +790,21 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
     alignItems: 'center',
   },
   statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statNum: { fontSize: 22, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.3 },
-  statDivider: { width: 1, height: 30, backgroundColor: '#B8D4FF' },
+  statNum: { fontSize: 22, fontWeight: '800', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.5 },
+  statLabel: { fontSize: 10, fontWeight: '700', color: sh.n('#64748B', 'inkMuted'), textTransform: 'uppercase', letterSpacing: 0.3 },
+  statDivider: { width: 1, height: 30, backgroundColor: sh.hue('#B8D4FF') },
 
   // Current patient card
   currentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
     ...Platform.select({
       ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
       android: { elevation: 6 },
@@ -821,16 +832,16 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
-  currentLiveText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  currentLiveText: { fontSize: 12, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
   currentTokenBadge: {
     backgroundColor: 'rgba(255,255,255,0.22)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 12,
   },
-  currentTokenText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  currentTokenText: { fontSize: 13, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
   currentBody: {
     flexDirection: 'row',
     padding: 16,
@@ -848,7 +859,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  currentInitials: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  currentInitials: { fontSize: 18, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
   currentTypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -859,11 +870,11 @@ const styles = StyleSheet.create({
   },
   currentTypeText: { fontSize: 10, fontWeight: '700' },
   currentInfo: { flex: 1, gap: 4 },
-  currentName: { fontSize: 17, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
-  currentMeta: { fontSize: 12, fontWeight: '500', color: '#64748B' },
-  currentSymptoms: { fontSize: 13, fontWeight: '500', color: '#64748B', lineHeight: 18 },
+  currentName: { fontSize: 17, fontWeight: '800', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.3 },
+  currentMeta: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
+  currentSymptoms: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), lineHeight: 18 },
   currentHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  currentHistoryText: { fontSize: 11, fontWeight: '500', color: '#94A3B8', flex: 1 },
+  currentHistoryText: { fontSize: 11, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint'), flex: 1 },
   currentActionsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -902,11 +913,11 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 13,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
-  skipBtnText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+  skipBtnText: { fontSize: 13, fontWeight: '700', color: sh.n('#64748B', 'inkMuted') },
   completeBtn: { flex: 2, borderRadius: 13, overflow: 'hidden' },
   completeBtnGradient: {
     flexDirection: 'row',
@@ -915,7 +926,7 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingVertical: 13,
   },
-  completeBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  completeBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Call next
   callNextBtn: { borderRadius: 10, overflow: 'hidden' },
@@ -927,23 +938,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
   },
-  callNextBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', flex: 1, textAlign: 'center' },
+  callNextBtnText: { fontSize: 16, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), flex: 1, textAlign: 'center' },
   callNextCountBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  callNextCountText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
+  callNextCountText: { fontSize: 12, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Filter tabs
   filterTabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     position: 'relative',
     height: 46,
     overflow: 'hidden',
@@ -966,13 +977,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  filterTabText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
-  filterTabTextActive: { color: '#FFFFFF' },
+  filterTabText: { fontSize: 12, fontWeight: '700', color: sh.n('#64748B', 'inkMuted') },
+  filterTabTextActive: { color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Queue list
   queueSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   queueSectionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: THEME.primary },
-  queueSectionTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A', letterSpacing: -0.2, flex: 1 },
+  queueSectionTitle: { fontSize: 15, fontWeight: '700', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.2, flex: 1 },
   queueCountBadge: {
     width: 26,
     height: 26,
@@ -988,17 +999,17 @@ const styles = StyleSheet.create({
   queueRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
       android: { elevation: 2 },
     }),
   },
-  queueRowActive: { borderColor: '#BFDBFE', backgroundColor: '#FAFEFF' },
+  queueRowActive: { borderColor: sh.hue('#BFDBFE'), backgroundColor: sh.n('#FAFEFF', 'surfaceSunken') },
   queueRowDim: { opacity: 0.65 },
   tokenBadge: {
     width: 44,
@@ -1011,7 +1022,7 @@ const styles = StyleSheet.create({
   tokenNum: { fontSize: 13, fontWeight: '800' },
   queueRowInfo: { flex: 1, gap: 6 },
   queueNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  queuePatientName: { fontSize: 14, fontWeight: '700', color: '#0F172A', flex: 1 },
+  queuePatientName: { fontSize: 14, fontWeight: '700', color: sh.n('#0F172A', 'ink'), flex: 1 },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1023,8 +1034,8 @@ const styles = StyleSheet.create({
   statusPillDot: { width: 5, height: 5, borderRadius: 2.5 },
   statusPillText: { fontSize: 10, fontWeight: '700' },
   queueMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  queueMeta: { fontSize: 11, fontWeight: '500', color: '#64748B' },
-  metaSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#CBD5E1' },
+  queueMeta: { fontSize: 11, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
+  metaSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: sh.n('#CBD5E1', 'disabled') },
   typeMiniChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1042,18 +1053,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 10,
   },
   expandedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  expandedText: { fontSize: 13, fontWeight: '500', color: '#64748B', flex: 1, lineHeight: 18 },
+  expandedText: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), flex: 1, lineHeight: 18 },
   historyBlock: { gap: 6 },
-  historyBlockTitle: { fontSize: 11, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.4 },
+  historyBlockTitle: { fontSize: 11, fontWeight: '700', color: sh.n('#94A3B8', 'inkFaint'), textTransform: 'uppercase', letterSpacing: 0.4 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: THEME.primary },
-  historyDate: { fontSize: 11, fontWeight: '600', color: '#94A3B8', width: 72 },
-  historyDiag: { fontSize: 12, fontWeight: '600', color: '#374151', flex: 1 },
-  noHistory: { fontSize: 12, fontWeight: '500', color: '#CBD5E1', fontStyle: 'italic' },
+  historyDate: { fontSize: 11, fontWeight: '600', color: sh.n('#94A3B8', 'inkFaint'), width: 72 },
+  historyDiag: { fontSize: 12, fontWeight: '600', color: sh.hue('#374151'), flex: 1 },
+  noHistory: { fontSize: 12, fontWeight: '500', color: sh.n('#CBD5E1', 'disabled'), fontStyle: 'italic' },
   startBtn: { borderRadius: 13, overflow: 'hidden', marginTop: 4 },
   startBtnGradient: {
     flexDirection: 'row',
@@ -1062,19 +1073,19 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
-  startBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  startBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   // Empty
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 36,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   emptyIconWrap: { width: 72, height: 72, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#374151' },
-  emptySubtitle: { fontSize: 13, fontWeight: '500', color: '#64748B', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: sh.hue('#374151') },
+  emptySubtitle: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), textAlign: 'center' },
 });

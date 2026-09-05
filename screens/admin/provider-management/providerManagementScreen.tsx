@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -63,6 +65,9 @@ const FilterChip = ({
   onPress: () => void;
   color?: string;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -117,7 +122,12 @@ const StatsSummary = ({
   doctors: number;
   homeServices: number;
   vendors: number;
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.statsContainer}>
     <View style={styles.statItem}>
       <Text style={styles.statValue}>{total}</Text>
@@ -139,7 +149,8 @@ const StatsSummary = ({
       <Text style={styles.statLabel}>Vendors</Text>
     </View>
   </View>
-);
+  );
+};
 
 // Provider Card Component
 const ProviderCard = ({
@@ -157,6 +168,9 @@ const ProviderCard = ({
   onDelete: () => void;
   isActionLoading: boolean;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -231,12 +245,12 @@ const ProviderCard = ({
                 <Text style={[styles.providerTagText, { color: typeColor }]}>{typeLabel}</Text>
               </View>
               {provider.specialty && (
-                <View style={[styles.providerTag, { backgroundColor: '#f1f5f9' }]}>
+                <View style={[styles.providerTag, { backgroundColor: sh.n('#f1f5f9', 'lineSoft') }]}>
                   <Text style={styles.providerTagText}>{provider.specialty}</Text>
                 </View>
               )}
               {provider.providerSubType && (
-                <View style={[styles.providerTag, { backgroundColor: '#f1f5f9' }]}>
+                <View style={[styles.providerTag, { backgroundColor: sh.n('#f1f5f9', 'lineSoft') }]}>
                   <Text style={styles.providerTagText}>
                     {provider.providerSubType.replace('_', ' ')}
                   </Text>
@@ -298,7 +312,7 @@ const ProviderCard = ({
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#fef2f2' }]}
+              style={[styles.actionBtn, { backgroundColor: sh.ground('#fef2f2', '#EF4444') }]}
               onPress={onDelete}
             >
               <Ionicons name="trash-outline" size={20} color="#ef4444" />
@@ -326,6 +340,9 @@ const ProviderDetailModal = ({
   onDelete: () => void;
   isActionLoading: boolean;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   if (!provider) return null;
 
   const typeColor = PROVIDER_TYPE_CONFIG[provider.providerType]?.color || '#6366f1';
@@ -464,7 +481,7 @@ const ProviderDetailModal = ({
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalActionBtn, { backgroundColor: '#fef2f2' }]}
+              style={[styles.modalActionBtn, { backgroundColor: sh.ground('#fef2f2', '#EF4444') }]}
               onPress={onDelete}
             >
               <Ionicons name="trash" size={22} color="#ef4444" />
@@ -481,6 +498,9 @@ const ProviderDetailModal = ({
 
 // Main Screen Component
 const ProviderManagementScreen = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -805,10 +825,10 @@ const ProviderManagementScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 0 : 20,
@@ -835,7 +855,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   headerSubtitle: {
     fontSize: 13,
@@ -845,7 +865,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -853,7 +873,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginLeft: 10,
   },
   filtersSection: {
@@ -870,22 +890,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     marginRight: 8,
   },
   filterChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   filterChipBadge: {
     marginLeft: 6,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -896,11 +916,11 @@ const styles = StyleSheet.create({
   filterChipBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
   statsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 16,
@@ -917,17 +937,17 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   statLabel: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginTop: 2,
   },
   statDivider: {
     width: 1,
     height: '70%',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     alignSelf: 'center',
   },
   listContent: {
@@ -935,7 +955,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   providerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
@@ -969,7 +989,7 @@ const styles = StyleSheet.create({
   providerAvatarText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   onlineIndicator: {
     position: 'absolute',
@@ -978,9 +998,9 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#10b981',
+    backgroundColor: sh.hue('#10b981'),
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   providerInfo: {
     flex: 1,
@@ -993,12 +1013,12 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     flex: 1,
   },
   providerEmail: {
     fontSize: 13,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     marginTop: 2,
   },
   providerTagsRow: {
@@ -1018,13 +1038,13 @@ const styles = StyleSheet.create({
   providerTagText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     textTransform: 'capitalize',
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffbeb',
+    backgroundColor: sh.ground('#fffbeb', '#F59E0B'),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1033,7 +1053,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#f59e0b',
+    color: sh.hue('#f59e0b'),
   },
   providerDetails: {
     flexDirection: 'row',
@@ -1041,7 +1061,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: sh.n('#f1f5f9', 'lineSoft'),
     gap: 16,
   },
   detailItem: {
@@ -1051,7 +1071,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 12,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
   providerFooter: {
     flexDirection: 'row',
@@ -1060,7 +1080,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: sh.n('#f1f5f9', 'lineSoft'),
   },
   footerLeft: {
     flexDirection: 'row',
@@ -1069,7 +1089,7 @@ const styles = StyleSheet.create({
   },
   joinedText: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1105,14 +1125,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: sh.n('#f1f5f9', 'lineSoft'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   pageBtn: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1122,7 +1142,7 @@ const styles = StyleSheet.create({
   pageInfo: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     marginHorizontal: 20,
   },
   loadingContainer: {
@@ -1148,18 +1168,18 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     textAlign: 'center',
   },
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   modalHeader: {
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
@@ -1185,7 +1205,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1193,7 +1213,7 @@ const styles = StyleSheet.create({
   modalName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 4,
   },
   modalType: {
@@ -1214,7 +1234,7 @@ const styles = StyleSheet.create({
   modalStatusText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   modalRatingBadge: {
     flexDirection: 'row',
@@ -1228,7 +1248,7 @@ const styles = StyleSheet.create({
   modalRatingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   modalContent: {
     flex: 1,
@@ -1241,11 +1261,11 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginBottom: 12,
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 16,
     ...Platform.select({
@@ -1258,13 +1278,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
+    borderBottomColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   modalInfoIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#eef2ff',
+    backgroundColor: sh.n('#eef2ff', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1274,17 +1294,17 @@ const styles = StyleSheet.create({
   },
   modalInfoLabel: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginBottom: 2,
   },
   modalInfoValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   descriptionText: {
     fontSize: 14,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     lineHeight: 22,
   },
   documentsGrid: {
@@ -1294,7 +1314,7 @@ const styles = StyleSheet.create({
   },
   documentItem: {
     width: (SCREEN_WIDTH - 72) / 3,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -1307,7 +1327,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#eef2ff',
+    backgroundColor: sh.n('#eef2ff', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -1316,12 +1336,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
   },
   documentName: {
     fontSize: 10,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     textAlign: 'center',
     textTransform: 'capitalize',
   },

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import {
   Animated,
   Share,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,21 +69,26 @@ const TOP_BAR_HEIGHT = 56;
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  star: '#FBBF24',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  star: hue('#FBBF24'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
-    book: ['#10B981', '#059669'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
+    book: grad(['#10B981', '#059669']),
   },
+  };
 };
 
 // ── Tab Config ──────────────────────────────
@@ -141,7 +149,13 @@ const StarRating: React.FC<{ rating: number; size?: number; showValue?: boolean 
   rating,
   size = 14,
   showValue = false,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.starsRow}>
     {Array.from({ length: 5 }).map((_, i) => (
       <Ionicons
@@ -155,11 +169,16 @@ const StarRating: React.FC<{ rating: number; size?: number; showValue?: boolean 
       <Text style={[styles.starValueText, { fontSize: size }]}>{rating.toFixed(1)}</Text>
     )}
   </View>
-);
+  );
+};
 
 // ── Main Component ──────────────────────────
 
 const DoctorDetailScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -345,7 +364,7 @@ const DoctorDetailScreen: React.FC = () => {
   if (error && !doctor) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
         <View style={styles.errorContainer}>
           <View style={styles.errorIconContainer}>
             <Ionicons name="cloud-offline-outline" size={48} color={THEME.error} />
@@ -414,7 +433,7 @@ const DoctorDetailScreen: React.FC = () => {
   const renderStatsRow = () => (
     <View style={styles.statsCard}>
       <View style={styles.statItem}>
-        <View style={[styles.statIconBg, { backgroundColor: '#EAF3FF' }]}>
+        <View style={[styles.statIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
           <MaterialCommunityIcons
             name="briefcase-outline"
             size={18}
@@ -438,7 +457,7 @@ const DoctorDetailScreen: React.FC = () => {
       <View style={styles.statDivider} />
 
       <View style={styles.statItem}>
-        <View style={[styles.statIconBg, { backgroundColor: '#FEF3C7' }]}>
+        <View style={[styles.statIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
           <Ionicons name="chatbubbles-outline" size={18} color={THEME.warning} />
         </View>
         <Text style={styles.statValue}>{doctor.totalReviews || '0'}</Text>
@@ -493,7 +512,7 @@ const DoctorDetailScreen: React.FC = () => {
       {/* Bio Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={[styles.sectionIconBg, { backgroundColor: '#EAF3FF' }]}>
+          <View style={[styles.sectionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
             <Ionicons name="person-outline" size={16} color={THEME.primary} />
           </View>
           <Text style={styles.sectionTitle}>About</Text>
@@ -521,7 +540,7 @@ const DoctorDetailScreen: React.FC = () => {
       {doctor.subspecialties?.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.sectionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <MaterialCommunityIcons
                 name="stethoscope"
                 size={16}
@@ -543,7 +562,7 @@ const DoctorDetailScreen: React.FC = () => {
       {/* Registration */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <View style={[styles.sectionIconBg, { backgroundColor: '#ECFDF5' }]}>
+          <View style={[styles.sectionIconBg, { backgroundColor: sh.ground('#ECFDF5', '#10B981') }]}>
             <MaterialCommunityIcons
               name="shield-check-outline"
               size={16}
@@ -575,7 +594,7 @@ const DoctorDetailScreen: React.FC = () => {
       {doctor.languages?.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.sectionIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
               <MaterialCommunityIcons
                 name="translate"
                 size={16}
@@ -598,7 +617,7 @@ const DoctorDetailScreen: React.FC = () => {
       {doctor.awards?.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: '#FFFBEB' }]}>
+            <View style={[styles.sectionIconBg, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
               <Ionicons name="trophy-outline" size={16} color={THEME.warning} />
             </View>
             <Text style={styles.sectionTitle}>Awards & Recognition</Text>
@@ -634,7 +653,7 @@ const DoctorDetailScreen: React.FC = () => {
           <>
             <View style={styles.feeDivider} />
             <View style={styles.feeRow}>
-              <View style={[styles.feeIconBg, { backgroundColor: '#EAF3FF' }]}>
+              <View style={[styles.feeIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                 <MaterialCommunityIcons
                   name="video-outline"
                   size={18}
@@ -656,7 +675,7 @@ const DoctorDetailScreen: React.FC = () => {
       {/* Consultation Guarantee */}
       <View style={styles.guaranteeCard}>
         <LinearGradient
-          colors={['#F0FDF4', '#DCFCE7']}
+          colors={sh.grad(['#F0FDF4', '#DCFCE7'])}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.guaranteeGradient}
@@ -892,7 +911,7 @@ const DoctorDetailScreen: React.FC = () => {
               openMap(clinic.coordinates.lat, clinic.coordinates.lng)
             }
           >
-            <View style={[styles.actionIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.actionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="navigate" size={16} color={THEME.primary} />
             </View>
             <Text style={styles.actionText}>Directions</Text>
@@ -902,7 +921,7 @@ const DoctorDetailScreen: React.FC = () => {
             style={styles.clinicActionButton}
             onPress={handleBookAppointment}
           >
-            <View style={[styles.actionIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.actionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="calendar" size={16} color={THEME.accent} />
             </View>
             <Text style={styles.actionText}>Book</Text>
@@ -1059,10 +1078,10 @@ const DoctorDetailScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -1091,7 +1110,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     textAlign: 'center',
     marginHorizontal: 16,
   },
@@ -1134,20 +1153,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: THEME.success,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   verifiedBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 2,
   },
   doctorName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 4,
     letterSpacing: -0.3,
   },
@@ -1179,7 +1198,7 @@ const styles = StyleSheet.create({
   ratingValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   reviewCount: {
     fontSize: 12,
@@ -1205,15 +1224,15 @@ const styles = StyleSheet.create({
   // Stats Card
   statsCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 20,
     padding: 22,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
       ios: {
-        shadowColor: '#64748B',
+        shadowColor: sh.n('#64748B', 'inkMuted'),
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.1,
         shadowRadius: 14,
@@ -1249,19 +1268,19 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 50,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     alignSelf: 'center',
   },
 
   // Tab Bar
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 6,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   tab: {
     flex: 1,
@@ -1284,7 +1303,7 @@ const styles = StyleSheet.create({
     color: THEME.primary,
   },
   tabBadge: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -1298,7 +1317,7 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
   },
   tabBadgeTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Tab Content
@@ -1373,7 +1392,7 @@ const styles = StyleSheet.create({
     color: THEME.primary,
   },
   langChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1388,11 +1407,11 @@ const styles = StyleSheet.create({
   registrationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   registrationInfo: {
     flex: 1,
@@ -1413,7 +1432,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1440,13 +1459,13 @@ const styles = StyleSheet.create({
 
   // Fee Card
   feeCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 2 },
     }),
   },
@@ -1490,7 +1509,7 @@ const styles = StyleSheet.create({
   },
   feeDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
 
@@ -1521,13 +1540,13 @@ const styles = StyleSheet.create({
   guaranteeTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#065F46',
+    color: sh.hue('#065F46'),
     marginBottom: 2,
   },
   guaranteeText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#047857',
+    color: sh.hue('#047857'),
     lineHeight: 16,
   },
 
@@ -1536,12 +1555,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   reviewSummaryLeft: {
     alignItems: 'flex-start',
@@ -1573,12 +1592,12 @@ const styles = StyleSheet.create({
     color: THEME.primary,
   },
   reviewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -1589,7 +1608,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1624,7 +1643,7 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
   },
   recentBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1638,7 +1657,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -1646,7 +1665,7 @@ const styles = StyleSheet.create({
   reviewRatingText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#D97706',
+    color: sh.hue('#D97706'),
   },
   reviewComment: {
     fontSize: 14,
@@ -1691,7 +1710,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     borderWidth: 1,
     borderColor: THEME.primaryLight,
@@ -1711,12 +1730,12 @@ const styles = StyleSheet.create({
 
   // Clinic Card
   clinicCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   clinicHeader: {
     flexDirection: 'row',
@@ -1786,7 +1805,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1797,7 +1816,7 @@ const styles = StyleSheet.create({
     color: THEME.success,
   },
   amenityMore: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1812,14 +1831,14 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   clinicActionButton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   actionIconBg: {
     width: 36,
@@ -1844,7 +1863,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1874,15 +1893,15 @@ const styles = StyleSheet.create({
   footerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 16,
     padding: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
       ios: {
-        shadowColor: '#1E293B',
+        shadowColor: sh.n('#1E293B', 'ink'),
         shadowOffset: { width: 0, height: -6 },
         shadowOpacity: 0.12,
         shadowRadius: 16,
@@ -1921,7 +1940,7 @@ const styles = StyleSheet.create({
   bookButtonText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Loading
@@ -1946,7 +1965,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1978,7 +1997,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

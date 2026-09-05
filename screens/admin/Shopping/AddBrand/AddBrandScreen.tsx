@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Alert,
   Switch,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
 import {
   ChevronLeft,
@@ -45,6 +47,7 @@ import {
 } from './addBrandSlice';
 import { computeStepErrors } from './addBrandSlice';
 import type { WizardStep } from './addBrandSlice';
+import { SHOPPING_PAYMENT_METHODS, SHOPPING_BRAND_CATEGORIES, paymentMethodLabel } from '../../../../constants/shopping';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
 
@@ -57,7 +60,6 @@ const STEPS: { num: WizardStep; label: string; icon: React.ElementType }[] = [
   { num: 6, label: 'Review', icon: Eye },
 ];
 
-const PAYMENT_METHODS = ['Cash on Delivery', 'Credit/Debit Card', 'Bank Transfer', 'JazzCash', 'EasyPaisa'];
 
 const COLORS = {
   primary: '#E67E22',
@@ -73,6 +75,9 @@ const COLORS = {
 };
 
 const AddBrandScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useAppDispatch();
   const step = useAppSelector(selectWizardStep);
@@ -322,13 +327,12 @@ const AddBrandScreen: React.FC = () => {
   );
 
   const Step3_Categories = () => {
-    const globalCategories = ['Men', 'Women', 'Kids', 'Shoes', 'Accessories', 'Home', 'Sports'];
     return (
       <View style={styles.stepContent}>
         <Text style={styles.stepTitle}>Categories</Text>
         <Text style={styles.subtitle}>Select categories this brand will sell in</Text>
         <View style={styles.chipGrid}>
-          {globalCategories.map(cat => (
+          {SHOPPING_BRAND_CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat}
               style={[
@@ -385,19 +389,19 @@ const AddBrandScreen: React.FC = () => {
       <View style={styles.field}>
         <Text style={styles.label}>Accepted Payment Methods</Text>
         <View style={styles.chipGrid}>
-          {PAYMENT_METHODS.map(method => (
+          {SHOPPING_PAYMENT_METHODS.map(({ value, label }) => (
             <TouchableOpacity
-              key={method}
+              key={value}
               style={[
                 styles.chip,
-                selectedPayments.includes(method) && styles.chipActive,
+                selectedPayments.includes(value) && styles.chipActive,
               ]}
-              onPress={() => togglePayment(method)}
+              onPress={() => togglePayment(value)}
             >
               <Text style={[
                 styles.chipText,
-                selectedPayments.includes(method) && styles.chipTextActive,
-              ]}>{method}</Text>
+                selectedPayments.includes(value) && styles.chipTextActive,
+              ]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -509,7 +513,7 @@ const AddBrandScreen: React.FC = () => {
         <Text style={styles.reviewSection}>Policies</Text>
         <ReviewRow label="Return Days" value={String(data.policies?.returnDays ?? 7)} />
         <ReviewRow label="Shipping" value={data.policies?.shippingInfo || '-'} />
-        <ReviewRow label="Payments" value={(data.policies?.paymentMethods || []).join(', ') || '-'} />
+        <ReviewRow label="Payments" value={(data.policies?.paymentMethods || []).map(paymentMethodLabel).join(', ') || '-'} />
 
         <Text style={styles.reviewSection}>Contact</Text>
         <ReviewRow label="Email" value={data.contactEmail} />
@@ -576,7 +580,7 @@ const AddBrandScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
@@ -620,7 +624,7 @@ const AddBrandScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',

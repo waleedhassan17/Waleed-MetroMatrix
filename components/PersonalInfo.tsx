@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppSelector, useAppDispatch } from '../hooks/useReduxHooks';
@@ -13,6 +15,9 @@ import {
 } from '../screens/authentication-screens/profile-info/completeProfileSlice';
 
 const Step1PersonalInfo = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   
   const dateOfBirth = useAppSelector(selectDateOfBirth);
@@ -120,14 +125,14 @@ const Step1PersonalInfo = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   formContainer: {
     flex: 1,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
     marginTop: 16,
   },
@@ -136,17 +141,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 50,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: sh.hue('#E0E0E0'),
     borderRadius: 8,
     paddingHorizontal: 16,
     gap: 12,
   },
   datePickerText: {
     fontSize: 15,
-    color: '#999999',
+    color: sh.hue('#999999'),
   },
   datePickerTextSelected: {
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   genderContainer: {
     flexDirection: 'row',
@@ -156,22 +161,22 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: sh.hue('#E0E0E0'),
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   genderButtonActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
+    borderColor: sh.hue('#10B981'),
   },
   genderButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
   genderButtonTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

@@ -14,7 +14,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -40,6 +40,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -71,13 +72,15 @@ type RouteParams = {
 };
 
 export default function PaymentScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const bottomPad = useBottomBarPadding(GUTTER);
 
   const { bookingId = 'default', category = 'ac-repairers', paymentData } = route.params || {};
-  const accent = categoryAccent(category);
+  const accent = categoryAccent(category, mode);
 
   const recipient = useSelector((state: RootState) => state.payment?.recipient);
   const paymentDetails = useSelector((state: RootState) => state.payment?.paymentDetails);
@@ -269,7 +272,7 @@ export default function PaymentScreen() {
                         value={manualAmount}
                         onChangeText={handleAmountChange}
                         placeholder="0"
-                        placeholderTextColor={C.inkFaint}
+                        placeholderTextColor={colors.inkFaint}
                         keyboardType="number-pad"
                         autoFocus
                         accessibilityLabel="Payment amount"
@@ -323,7 +326,7 @@ export default function PaymentScreen() {
                     <Ionicons
                       name={method.icon as keyof typeof Ionicons.glyphMap}
                       size={20}
-                      color={isSelected ? HS.accentDeep : C.inkMuted}
+                      color={isSelected ? colors.accentDeep : colors.inkMuted}
                     />
                   </View>
 
@@ -337,7 +340,7 @@ export default function PaymentScreen() {
                   </View>
 
                   <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                    {isSelected && <Ionicons name="checkmark" size={13} color={C.inkInverse} />}
+                    {isSelected && <Ionicons name="checkmark" size={13} color={colors.inkInverse} />}
                   </View>
                 </TouchableOpacity>
               );
@@ -356,12 +359,12 @@ export default function PaymentScreen() {
                 onPress={() => navigation.navigate('WalletScreen')}
                 activeOpacity={0.85}
               >
-                <Ionicons name="alert-circle-outline" size={17} color={C.error} />
+                <Ionicons name="alert-circle-outline" size={17} color={colors.error} />
                 <Text style={styles.bannerText}>
                   Your wallet is {walletCurrency.toUpperCase()}{' '}
                   {(paymentAmount - walletBalance).toLocaleString()} short. Top up
                 </Text>
-                <Ionicons name="chevron-forward" size={15} color={C.error} />
+                <Ionicons name="chevron-forward" size={15} color={colors.error} />
               </TouchableOpacity>
             )}
           </View>
@@ -404,7 +407,7 @@ export default function PaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   flex: { flex: 1 },
   content: {
     padding: GUTTER,
@@ -426,11 +429,11 @@ const styles = StyleSheet.create({
   },
   recipientName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
 
@@ -442,7 +445,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: S.md,
     maxWidth: PROSE_WIDTH,
   },
@@ -454,25 +457,25 @@ const styles = StyleSheet.create({
   },
   rowKey: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   rowValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.lg,
     flexShrink: 1,
     textAlign: 'right',
   },
   link: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
   },
 
   amountBlock: {
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   amountHeader: {
     flexDirection: 'row',
@@ -482,7 +485,7 @@ const styles = StyleSheet.create({
   },
   quoted: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   amountField: {
     flexDirection: 'row',
@@ -491,18 +494,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.md,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: HS.accent,
-    backgroundColor: C.surface,
+    borderColor: c.accent,
+    backgroundColor: c.surface,
   },
   currency: {
     ...T.bodyStrong,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginRight: S.sm,
   },
   amountInput: {
     flex: 1,
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
     padding: 0,
   },
   restore: {
@@ -517,15 +520,15 @@ const styles = StyleSheet.create({
     marginTop: S.xl,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   totalLabel: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   totalValue: {
     ...T.title,
-    color: C.ink,
+    color: c.ink,
   },
 
   method: {
@@ -534,25 +537,25 @@ const styles = StyleSheet.create({
     padding: S.lg,
     marginTop: S.md,
     borderRadius: R.card,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   methodSelected: {
     borderWidth: 1.5,
-    borderColor: HS.accent,
-    backgroundColor: HS.accentSoft,
+    borderColor: c.accent,
+    backgroundColor: c.accentSoft,
   },
   methodIcon: {
     width: 42,
     height: 42,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
   methodIconSelected: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
   },
   methodInfo: {
     flex: 1,
@@ -560,29 +563,29 @@ const styles = StyleSheet.create({
   },
   methodName: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   methodNameSelected: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
   radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: C.disabled,
+    borderColor: c.disabled,
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioSelected: {
-    backgroundColor: HS.accent,
-    borderColor: HS.accent,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
 
   balance: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.md,
   },
   banner: {
@@ -591,17 +594,17 @@ const styles = StyleSheet.create({
     marginTop: S.md,
     padding: S.md,
     borderRadius: R.control,
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
   },
   bannerText: {
     ...T.label,
-    color: C.error,
+    color: c.error,
     flex: 1,
     marginHorizontal: S.sm,
   },
   error: {
     ...T.body,
-    color: C.error,
+    color: c.error,
     marginTop: S.lg,
   },
 
@@ -612,13 +615,13 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: GUTTER,
     paddingTop: S.md,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.line,
+    borderTopColor: c.line,
   },
   footerNote: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: S.sm,
   },

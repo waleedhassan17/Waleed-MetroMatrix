@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   Animated,
   Modal,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { C, GUTTER, R, S, T } from '../../constants/theme';
+import { GUTTER, R, S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 /**
@@ -52,6 +53,8 @@ const ActionSheet: React.FC<ActionSheetProps> = ({
   onClose,
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const reducedMotion = useReducedMotion();
   const slide = useRef(new Animated.Value(visible ? 1 : 0)).current;
 
@@ -97,7 +100,7 @@ const ActionSheet: React.FC<ActionSheetProps> = ({
         <View style={styles.options}>
           {options.map((option, index) => {
             const destructive = option.tone === 'destructive';
-            const fg = destructive ? C.error : C.ink;
+            const fg = destructive ? colors.error : colors.ink;
             return (
               <TouchableOpacity
                 key={option.label}
@@ -110,7 +113,7 @@ const ActionSheet: React.FC<ActionSheetProps> = ({
                   <View
                     style={[
                       styles.optionIcon,
-                      destructive && { backgroundColor: C.errorSoft },
+                      destructive && { backgroundColor: colors.errorSoft },
                     ]}
                   >
                     <Ionicons name={option.icon as any} size={18} color={fg} />
@@ -135,17 +138,17 @@ const ActionSheet: React.FC<ActionSheetProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: C.scrim,
+    backgroundColor: c.scrim,
   },
   sheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: R.sheet,
     borderTopRightRadius: R.sheet,
     paddingHorizontal: GUTTER,
@@ -156,16 +159,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginBottom: S.lg,
   },
   title: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   message: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xs,
   },
   options: {
@@ -178,13 +181,13 @@ const styles = StyleSheet.create({
   },
   optionDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   optionIcon: {
     width: 38,
     height: 38,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: S.md,
@@ -192,20 +195,20 @@ const styles = StyleSheet.create({
   optionText: { flex: 1 },
   optionDescription: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 1,
   },
   cancel: {
     marginTop: S.sm,
     height: 46,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
     ...T.bodyStrong,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
 });
 

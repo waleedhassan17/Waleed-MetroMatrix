@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Text,
   StyleSheet,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC, HCRadius, HCShadow } from '../../../constants/HealthcareTheme';
+import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -43,6 +44,9 @@ const HCButton: React.FC<HCButtonProps> = ({
   fullWidth = true,
   style,
 }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const height = HEIGHTS[size];
   const isSolid = variant === 'primary' || variant === 'danger';
   const isDisabled = disabled || loading;
@@ -110,7 +114,7 @@ const HCButton: React.FC<HCButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   base: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { fontWeight: '700', letterSpacing: 0.2 },

@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { fetchDeliveryOptionsApi } from '../../../../networks/shopping/cartApi';
 
 export interface DeliveryOption {
   id: string;
@@ -16,16 +17,6 @@ export interface CheckoutDeliveryState {
   error: string | null;
 }
 
-// Surcharge on top of the brand's flat shipping fee (cart.shippingFee), which
-// the server computes separately. Standard is included at no extra cost; the
-// faster tiers are priced, and the chosen id now travels to POST /checkout so
-// the server can charge for the upgrade it is being asked to fulfil.
-const sampleOptions: DeliveryOption[] = [
-  { id: 'standard', name: 'Standard', eta: '5-7 days', cost: 0, description: 'Our regular delivery window' },
-  { id: 'express', name: 'Express', eta: '2-3 days', cost: 250, description: 'Faster delivery for urgent orders' },
-  { id: 'same-day', name: 'Same Day', eta: 'Today', cost: 500, description: 'Available in select cities only' },
-];
-
 const initialState: CheckoutDeliveryState = {
   deliveryOptions: [],
   selectedOption: null,
@@ -34,10 +25,25 @@ const initialState: CheckoutDeliveryState = {
   error: null,
 };
 
-export const fetchDeliveryOptions = createAsyncThunk('checkoutDelivery/fetchDeliveryOptions', async () => {
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  return sampleOptions;
-});
+/**
+ * Tiers and their surcharges live in admin settings and are served by
+ * GET /shopping/delivery-options. They used to be a client-side constant with
+ * a fake 250ms delay, and the chosen id was sent to POST /checkout but never
+ * priced — so the review screen showed a surcharge nobody was charged. The
+ * same ids the server hands out here are the ones it will bill for.
+ */
+export const fetchDeliveryOptions = createAsyncThunk(
+  'checkoutDelivery/fetchDeliveryOptions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetchDeliveryOptionsApi();
+      if (!res.success) return rejectWithValue('Failed to load delivery options.');
+      return res.data as DeliveryOption[];
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load delivery options.');
+    }
+  }
+);
 
 const checkoutDeliverySlice = createSlice({
   name: 'checkoutDelivery',
@@ -67,9 +73,9 @@ const checkoutDeliverySlice = createSlice({
         state.selectedOption = action.payload[0] || null;
         state.estimatedDelivery = action.payload[0] ? action.payload[0].eta : 'Select a delivery option';
       })
-      .addCase(fetchDeliveryOptions.rejected, (state) => {
+      .addCase(fetchDeliveryOptions.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to load delivery options.';
+        state.error = (action.payload as string) || 'Failed to load delivery options.';
       });
   },
 });

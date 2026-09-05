@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,22 +55,27 @@ type ConfirmRoute = RouteProp<HealthcareStackParamList, 'AppointmentConfirm'>;
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  successDark: '#059669',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#2A7FFF',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  successDark: hue('#059669'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  info: hue('#2A7FFF'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    success: ['#10B981', '#059669'],
-    accent: ['#5A9FFF', '#2A7FFF'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    success: grad(['#10B981', '#059669']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
   },
+  };
 };
 
 // ── Confetti Particle ───────────────────────
@@ -93,6 +101,10 @@ const CONFETTI_COLORS = [
 // ── Component ───────────────────────────────
 
 const AppointmentConfirmScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const bottomBarPadding = useBottomBarPadding();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
@@ -293,7 +305,7 @@ const AppointmentConfirmScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FBFF" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#F8FBFF', 'bg')} />
 
       {/* Confetti */}
       {showConfetti && (
@@ -414,7 +426,7 @@ const AppointmentConfirmScreen: React.FC = () => {
           ]}
         >
           <View style={styles.detailsHeader}>
-            <View style={[styles.detailsIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.detailsIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="calendar" size={18} color={THEME.primary} />
             </View>
             <Text style={styles.detailsTitle}>Booking Details</Text>
@@ -422,7 +434,7 @@ const AppointmentConfirmScreen: React.FC = () => {
 
           {/* Consultation Type */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <MaterialCommunityIcons
                 name={booking.appointmentType === 'video' ? 'video-outline' : 'hospital-building'}
                 size={16}
@@ -439,7 +451,7 @@ const AppointmentConfirmScreen: React.FC = () => {
 
           {/* Symptoms */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
               <Ionicons name="document-text-outline" size={16} color={THEME.warning} />
             </View>
             <View style={styles.detailContent}>
@@ -454,7 +466,7 @@ const AppointmentConfirmScreen: React.FC = () => {
 
           {/* Status */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
               <Ionicons name="time-outline" size={16} color={THEME.warning} />
             </View>
             <View style={styles.detailContent}>
@@ -615,7 +627,7 @@ const AppointmentConfirmScreen: React.FC = () => {
             onPress={handleShare}
             activeOpacity={0.7}
           >
-            <View style={[styles.actionIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.actionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="share-social-outline" size={18} color={THEME.accent} />
             </View>
             <Text style={styles.actionText}>Share Details</Text>
@@ -711,16 +723,16 @@ const AppointmentConfirmScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   // ── Invoice ──
   invoiceCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 18,
     marginHorizontal: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   invoiceHead: {
     flexDirection: 'row',
@@ -747,8 +759,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
   },
-  invoiceStatusPaid: { backgroundColor: '#DCFCE7' },
-  invoiceStatusDue: { backgroundColor: '#FEF3C7' },
+  invoiceStatusPaid: { backgroundColor: sh.ground('#DCFCE7', '#10B981') },
+  invoiceStatusDue: { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') },
   invoiceStatusText: {
     fontSize: 10,
     fontWeight: '800',
@@ -756,7 +768,7 @@ const styles = StyleSheet.create({
   },
   invoiceDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
   invoiceLine: {
@@ -802,7 +814,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: THEME.primary,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
   },
   invoiceDownloadText: {
     fontSize: 14,
@@ -819,7 +831,7 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   scrollView: {
     flex: 1,
@@ -911,7 +923,7 @@ const styles = StyleSheet.create({
 
   // Code Card
   codeCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     borderRadius: 18,
     padding: 22,
@@ -964,16 +976,16 @@ const styles = StyleSheet.create({
 
   // Details Card
   detailsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     borderRadius: 18,
     padding: 20,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
       ios: {
-        shadowColor: '#64748B',
+        shadowColor: sh.n('#64748B', 'inkMuted'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -1029,14 +1041,14 @@ const styles = StyleSheet.create({
   },
   detailDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
@@ -1052,18 +1064,18 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B45309',
+    color: sh.hue('#B45309'),
   },
 
   // Actions Card
   actionsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     borderRadius: 10,
     padding: 6,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   actionButton: {
     flexDirection: 'row',
@@ -1087,18 +1099,18 @@ const styles = StyleSheet.create({
   },
   actionDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginHorizontal: 14,
   },
 
   // Next Steps Card
   nextStepsCard: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     marginHorizontal: 20,
     borderRadius: 10,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#FEF3C7',
+    borderColor: sh.ground('#FEF3C7', '#F59E0B'),
   },
   nextStepsHeader: {
     flexDirection: 'row',
@@ -1110,14 +1122,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   nextStepsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#92400E',
+    color: sh.hue('#92400E'),
   },
   nextStepItem: {
     flexDirection: 'row',
@@ -1128,7 +1140,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 8,
-    backgroundColor: '#FDE68A',
+    backgroundColor: sh.hue('#FDE68A'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1136,13 +1148,13 @@ const styles = StyleSheet.create({
   nextStepNumberText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#92400E',
+    color: sh.hue('#92400E'),
   },
   nextStepText: {
     flex: 1,
     fontSize: 13,
     fontWeight: '500',
-    color: '#78350F',
+    color: sh.hue('#78350F'),
     lineHeight: 20,
   },
 
@@ -1152,12 +1164,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 20,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1185,7 +1197,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   secondaryButton: {
     flexDirection: 'row',

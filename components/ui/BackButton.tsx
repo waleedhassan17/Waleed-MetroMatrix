@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-
 
 import { RawIcon } from '../Icon';
 import { ICONS } from '../../constants/icons';
-import { C } from '../../constants/theme';
+import { useTheme } from '../../theme';
 
 /**
  * The back control. One glyph, one size, one hit target — everywhere.
@@ -48,7 +48,10 @@ const BackButton: React.FC<BackButtonProps> = ({
   color,
   style,
   accessibilityLabel = 'Go back',
-}) => (
+}) => {
+  const { colors } = useTheme();
+
+  return (
   <TouchableOpacity
     onPress={onPress}
     style={[styles.button, style]}
@@ -61,10 +64,11 @@ const BackButton: React.FC<BackButtonProps> = ({
     <RawIcon
       icon={ICONS.back}
       size={24}
-      color={color ?? (tone === 'onAccent' ? C.inkInverse : C.ink)}
+      color={color ?? (tone === 'onAccent' ? colors.inkInverse : colors.ink)}
     />
   </TouchableOpacity>
-);
+  );
+};
 
 /**
  * Holds the back button's 40x40 footprint where there is nothing to go back to

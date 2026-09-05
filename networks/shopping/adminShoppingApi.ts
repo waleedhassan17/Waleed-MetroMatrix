@@ -30,6 +30,16 @@ export interface AdminOrderView extends Order {
   group?: OrderGroupView & { orders: (Order & { statusHistory?: any[] })[] };
 }
 
+/** A delivery speed tier. `surcharge` is added on top of per-brand shipping. */
+export interface DeliveryTierView {
+  id: string;
+  name: string;
+  eta: string;
+  description: string;
+  surcharge: number;
+  isActive: boolean;
+}
+
 export interface ShoppingSettingsView {
   commissionPercent: number;
   shippingFeePerBrand: number;
@@ -37,6 +47,7 @@ export interface ShoppingSettingsView {
   lowStockThreshold: number;
   defaultReturnDays: number;
   autoApproveBrands: boolean;
+  deliveryTiers: DeliveryTierView[];
 }
 
 export interface AdminDashboardView {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Heart, Star } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import SaleBadge from './SaleBadge';
 import PriceDisplay from './PriceDisplay';
 
@@ -58,6 +59,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
   isWishlisted = false,
   style,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const [imageFailed, setImageFailed] = useState(false);
   const hasDiscount = !!product.salePrice && product.salePrice < product.basePrice;
   const inStock = product.inStock !== false;
@@ -143,7 +147,12 @@ export const ProductCardSkeleton: React.FC<{ width: number; imageHeight: number;
   width,
   imageHeight,
   style,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
+  return (
   <View style={[styles.card, { width }, style]}>
     <View style={[styles.imageWrap, styles.skeletonBlock, { height: imageHeight }]} />
     <View style={[styles.info, { height: INFO_HEIGHT }]}>
@@ -152,9 +161,10 @@ export const ProductCardSkeleton: React.FC<{ width: number; imageHeight: number;
       <View style={[styles.skeletonBlock, styles.skeletonPrice]} />
     </View>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,

@@ -37,7 +37,7 @@ const filterLabels: { key: 'all' | 'in_stock' | 'low_stock' | 'out_of_stock'; la
 ];
 
 const BrandProductsScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -117,7 +117,7 @@ const BrandProductsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.surface} />
 
       {/* Header */}
       <BrandHeader

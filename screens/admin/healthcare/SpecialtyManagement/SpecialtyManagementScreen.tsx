@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {
   Switch,
   KeyboardAvoidingView,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -117,6 +119,9 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({
   onToggle,
   onDelete,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -279,6 +284,9 @@ const EditModal: React.FC<EditModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const [form, setForm] = useState<EditingSpecialty>({
     name: '',
     icon: 'medkit',
@@ -493,6 +501,9 @@ const EditModal: React.FC<EditModalProps> = ({
 // ============================================
 
 const SpecialtyManagementScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -572,7 +583,7 @@ const SpecialtyManagementScreen: React.FC = () => {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading specialties...</Text>
       </SafeAreaView>
@@ -734,7 +745,7 @@ const SpecialtyManagementScreen: React.FC = () => {
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -777,7 +788,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
   },
   headerSubtitle: {
     fontSize: 13,
@@ -807,7 +818,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
   },
 
   // Filters
@@ -825,7 +836,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterChipActive: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
   },
   filterChipText: {
     fontSize: 13,
@@ -949,7 +960,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   conditionChip: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -974,7 +985,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: sh.n('#f1f5f9', 'lineSoft'),
     paddingTop: 12,
   },
   cardActionsLeft: {
@@ -1105,7 +1116,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -1127,7 +1138,7 @@ const styles = StyleSheet.create({
   },
   colorOptionSelected: {
     borderWidth: 3,
-    borderColor: '#ffffff',
+    borderColor: sh.n('#ffffff', 'surface'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -21,23 +24,31 @@ import { performLogout } from '../../../../services/auth/logout';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
 
 // ── Theme ───────────────────────────────────
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  surface: '#FFFFFF',
-  bg: '#F7F9FC',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#64748B',
-  textTertiary: '#94A3B8',
-  border: '#E5E7EB',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  surface: n('#FFFFFF', 'surface'),
+  bg: n('#F7F9FC', 'surfaceSunken'),
+  textPrimary: hue('#1A1A1A'),
+  textSecondary: n('#64748B', 'inkMuted'),
+  textTertiary: n('#94A3B8', 'inkFaint'),
+  border: n('#E5E7EB', 'line'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  };
 };
 
 // ── Section Items ────────────────────────────
-const QUICK_ACTIONS = [
+// The table reads the palette, which now varies by mode, so it becomes
+// a function of it — every reference below is otherwise unchanged.
+const makeQUICK_ACTIONS = (THEME: ReturnType<typeof makeTHEME>) =>
+  [
   { id: 'appointments', label: 'My Appointments', icon: 'calendar-outline', color: THEME.primary, bg: THEME.primaryLight, route: 'MyAppointments' },
   { id: 'records', label: 'Health Records', icon: 'document-text-outline', color: '#10B981', bg: '#ECFDF5', route: 'HealthRecords' },
   { id: 'prescriptions', label: 'Prescriptions', icon: 'medkit-outline', color: '#7C3AED', bg: '#F5F3FF', route: 'MyPrescriptions' },
@@ -59,7 +70,11 @@ const QUICK_ACTIONS = [
   },
 ];
 
-const SETTINGS_SECTIONS = [
+
+// The table reads the palette, which now varies by mode, so it becomes
+// a function of it — every reference below is otherwise unchanged.
+const makeSETTINGS_SECTIONS = (THEME: ReturnType<typeof makeTHEME>) =>
+  [
   {
     title: 'Account',
     items: [
@@ -85,8 +100,15 @@ const SETTINGS_SECTIONS = [
   },
 ];
 
+
 // ── Main Screen ─────────────────────────────
 const HealthcareProfileScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const SETTINGS_SECTIONS = useMemo(() => makeSETTINGS_SECTIONS(THEME), [THEME]);
+  const QUICK_ACTIONS = useMemo(() => makeQUICK_ACTIONS(THEME), [THEME]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const totalUnread = useAppSelector(selectTotalUnread);
@@ -149,7 +171,7 @@ const HealthcareProfileScreen: React.FC = () => {
 
       {/* Header */}
       <LinearGradient
-        colors={['#2A7FFF', '#1857C0']}
+        colors={sh.grad(['#2A7FFF', '#1857C0'])}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -172,7 +194,7 @@ const HealthcareProfileScreen: React.FC = () => {
         {/* Profile Card */}
         <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
           <LinearGradient
-            colors={['#2A7FFF', '#1857C0']}
+            colors={sh.grad(['#2A7FFF', '#1857C0'])}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.profileCard}
@@ -218,7 +240,7 @@ const HealthcareProfileScreen: React.FC = () => {
             <View style={styles.tagRow}>
               {profile.allergies.length > 0 ? (
                 profile.allergies.map((a) => (
-                  <View key={a} style={[styles.tag, { backgroundColor: '#FEF2F2' }]}>
+                  <View key={a} style={[styles.tag, { backgroundColor: sh.ground('#FEF2F2', '#EF4444') }]}>
                     <Text style={[styles.tagText, { color: '#EF4444' }]}>{a}</Text>
                   </View>
                 ))
@@ -344,7 +366,7 @@ const HealthcareProfileScreen: React.FC = () => {
 // ── Styles ──────────────────────────────────
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 0;
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: THEME.bg },
   header: {
     flexDirection: 'row',
@@ -363,7 +385,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     textAlign: 'center',
   },
   editHeaderButton: {
@@ -395,10 +417,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
   },
-  profileName: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  profileName: { fontSize: 20, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), marginBottom: 4 },
   profileEmail: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginBottom: 2 },
   profilePhone: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 16 },
   statsRow: {
@@ -411,7 +433,7 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  statValue: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
   statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
 
   // Section Card
@@ -494,11 +516,11 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   quickActionBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   quickActionIconBg: {
@@ -565,11 +587,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderRadius: 14,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   signOutText: { fontSize: 15, fontWeight: '600', color: THEME.error },
 });

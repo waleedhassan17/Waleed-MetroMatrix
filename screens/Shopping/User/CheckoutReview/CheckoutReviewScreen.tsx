@@ -1,13 +1,17 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowRight, ChevronLeft, Edit3, MapPin, Truck, CreditCard, ShoppingBag, AlertCircle } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { placeOrder, selectCheckoutError, selectCheckoutOrderSummary, selectCheckoutPlacing } from './checkoutReviewSlice';
 
 const CheckoutReviewScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -45,7 +49,7 @@ const CheckoutReviewScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
@@ -163,7 +167,7 @@ const CheckoutReviewScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
   backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', ...Shadows.sm },
@@ -174,13 +178,13 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   stepLabel: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   stepLabelDone: { fontSize: 12, color: Colors.primary, opacity: 0.85 },
-  progressBar: { height: 8, borderRadius: 999, backgroundColor: '#F4F4F5', overflow: 'hidden' },
+  progressBar: { height: 8, borderRadius: 999, backgroundColor: Colors.backgroundAlt, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 999 },
   scrollContent: { padding: Spacing.lg, paddingBottom: 120 },
   section: { marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: '#FFF', ...Shadows.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.text.primary },
-  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.backgroundAlt },
   itemName: { fontSize: 14, fontWeight: '700', color: Colors.text.primary },
   itemMeta: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2 },
   itemPrice: { fontSize: 14, fontWeight: '800', color: Colors.text.primary },
@@ -191,12 +195,12 @@ const styles = StyleSheet.create({
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   breakdownLabel: { fontSize: 13, color: Colors.text.secondary },
   breakdownValue: { fontSize: 13, fontWeight: '700', color: Colors.text.primary },
-  breakdownDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: Spacing.sm },
+  breakdownDivider: { height: 1, backgroundColor: Colors.backgroundAlt, marginVertical: Spacing.sm },
   totalLabel: { fontSize: 15, fontWeight: '800', color: Colors.text.primary },
   totalValue: { fontSize: 15, fontWeight: '800', color: Colors.primary },
-  errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: '#FEF2F2' },
+  errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: Colors.errorLight },
   errorText: { flex: 1, fontSize: 12, color: Colors.error },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: Colors.backgroundAlt },
   placeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: BorderRadius.xl },
   placeBtnDisabled: { opacity: 0.45 },
   placeBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },

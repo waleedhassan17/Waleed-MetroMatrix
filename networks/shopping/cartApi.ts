@@ -16,9 +16,45 @@ export interface CartItemView extends CartItem {
   colorCode?: string;
 }
 
+/**
+ * Per-brand money rows, computed server-side from the same settings checkout
+ * uses. The cart screen used to derive these from its own hardcoded fee and
+ * threshold, which could disagree with the order summary below them.
+ */
+export interface CartBrandRow {
+  brandId: string;
+  brandName: string;
+  subtotal: number;
+  shippingFee: number;
+}
+
 export interface CartView extends Omit<Cart, "items"> {
   items: CartItemView[];
+  brandBreakdown: CartBrandRow[];
 }
+
+/** A delivery speed tier offered at checkout. `cost` is the surcharge. */
+export interface DeliveryOptionView {
+  id: string;
+  name: string;
+  eta: string;
+  description: string;
+  cost: number;
+}
+
+// GET /delivery-options — tiers and their prices come from admin settings, and
+// the id chosen here is what POST /checkout actually charges for.
+export const fetchDeliveryOptionsApi = async (): Promise<{
+  success: boolean;
+  data: DeliveryOptionView[];
+}> => {
+  try {
+    const res = await ShoppingAxiosInstance.get("/delivery-options");
+    return res.data;
+  } catch (e) {
+    throw new Error(extractShoppingError(e, "Failed to load delivery options"));
+  }
+};
 
 // GET /cart
 export const fetchCartApi = async (): Promise<SingleResponse<CartView>> => {

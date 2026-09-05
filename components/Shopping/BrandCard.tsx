@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import type { BrandConfig } from '../../types/shopping';
 
 interface BrandCardProps {
@@ -18,6 +19,9 @@ interface BrandCardProps {
 }
 
 const BrandCard: React.FC<BrandCardProps> = ({ brand, onPress, width, style }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : {}, style]}
@@ -50,7 +54,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand, onPress, width, style }) =
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,

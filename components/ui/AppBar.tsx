@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Platform,
   StatusBar,
@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { C, F, GUTTER, S, T } from '../../constants/theme';
-import { textOn, useTheme } from '../../theme';
+import { F, GUTTER, S, T } from '../../constants/theme';
+import { textOn, ThemeColors, useTheme } from '../../theme';
 import BackButton from './BackButton';
 
 /**
@@ -21,8 +21,13 @@ import BackButton from './BackButton';
  *
  * TWO TONES, CHOSEN BY THE MODULE — NOT BY THE SCREEN
  * ---------------------------------------------------
- * `surface` is a white ground with an ink title. `accent` paints the bar in the
- * module's own colour. Which one a module uses lives in its palette
+ * `surface` is the card ground with an ink title — white in light, near-black
+ * in dark. `accent` paints the bar in the module's own colour. In dark, no
+ * module asks for that (a saturated band across the top of a dark screen reads
+ * as a flare, and `accentDeep` inverts to a LIGHT tone there), so a screen that
+ * asks for it explicitly gets the deep tinted `accentSoft` instead.
+ *
+ * Which one a module uses lives in its palette
  * (`barTone`), so every screen in a vertical agrees without being told; a
  * screen may still override it, but the default is not its decision. Seventeen
  * hand-rolled headers that each answered this differently is the thing this
@@ -77,13 +82,18 @@ const AppBar: React.FC<AppBarProps> = ({
   style,
 }) => {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  // In dark, no module asks for an accent bar (see palettes.ts) — but a screen
+  // still can, per `tone`. It gets the module's deep tinted ground rather than
+  // the light accent: `accentDeep` inverts to a LIGHT tone on dark, and a
+  // bright band across the top of a dark screen is not a header, it is a flare.
   const accented = (tone ?? colors.barTone) === 'accent';
-  const ground = accented ? colors.accentDeep : C.surface;
-  const ink = accented ? textOn(ground) : C.ink;
+  const ground = accented ? (isDark ? colors.accentSoft : colors.accentDeep) : colors.surface;
+  const ink = accented ? textOn(ground, colors.ink, colors.inkInverse) : colors.ink;
   // Hierarchy by opacity is only safe here because the value was measured.
-  const inkSoft = accented ? C.inkInverseSoft : C.inkMuted;
+  const inkSoft = accented && !isDark ? colors.inkInverseSoft : colors.inkMuted;
 
   return (
     <View
@@ -98,7 +108,7 @@ const AppBar: React.FC<AppBarProps> = ({
       {/* Mounted after <Screen>'s StatusBar, so this wins — the status icons
           have to flip to light or they disappear into a dark bar. */}
       <StatusBar
-        barStyle={accented ? 'light-content' : 'dark-content'}
+        barStyle={isDark || accented ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
         translucent
       />
@@ -148,7 +158,7 @@ const AppBar: React.FC<AppBarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,7 +167,7 @@ const styles = StyleSheet.create({
   },
   ruled: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.line,
+    borderBottomColor: c.line,
   },
   // Equal-width side slots keep the title optically centred whether or not
   // there is a trailing action.
@@ -195,14 +205,14 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     paddingHorizontal: 4,
-    backgroundColor: C.error,
+    backgroundColor: c.error,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
     ...T.micro,
     fontFamily: F.bold,
-    color: C.inkInverse,
+    color: c.inkInverse,
     lineHeight: Platform.OS === 'ios' ? 13 : 14,
   },
 });

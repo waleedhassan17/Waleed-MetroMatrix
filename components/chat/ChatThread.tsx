@@ -27,6 +27,8 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,6 +87,9 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   onParticipantsLoaded,
   onCall,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   // React Native's own SafeAreaView does nothing on Android, so the composer
   // used to sit UNDER the gesture/navigation bar and could not be tapped.
@@ -406,7 +411,7 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -414,16 +419,16 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
     borderBottomWidth: 1,
-    borderBottomColor: '#FDE68A',
+    borderBottomColor: sh.hue('#FDE68A'),
   },
   offlineBannerText: {
     fontSize: 12.5,
-    color: '#92400E',
+    color: sh.hue('#92400E'),
     fontWeight: '500',
   },
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: sh.n('#F9FAFB', 'bg') },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -436,7 +441,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 6 },
   avatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
-  avatarFallback: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  avatarFallback: { backgroundColor: sh.n('#FFFFFF', 'surface'), alignItems: 'center', justifyContent: 'center' },
   headerName: { color: '#fff', fontSize: 18, fontWeight: '700' },
   headerSub: { fontSize: 13 },
   listContent: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, flexGrow: 1 },
@@ -460,12 +465,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: sh.n('#E5E7EB', 'line'),
   },
-  bubbleText: { fontSize: 15, color: '#111827', lineHeight: 21 },
+  bubbleText: { fontSize: 15, color: sh.n('#111827', 'ink'), lineHeight: 21 },
   bubbleTextMine: { color: '#fff' },
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', marginTop: 3 },
-  timeText: { fontSize: 10, color: '#9CA3AF' },
+  timeText: { fontSize: 10, color: sh.n('#9CA3AF', 'inkFaint') },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -473,21 +478,21 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: sh.n('#E5E7EB', 'line'),
   },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: sh.n('#E5E7EB', 'line'),
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'ios' ? 12 : 9,
     paddingBottom: Platform.OS === 'ios' ? 12 : 9,
     fontSize: 15,
-    color: '#111827',
+    color: sh.n('#111827', 'ink'),
     marginRight: 8,
   },
   sendBtn: {
@@ -497,7 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
+  sendBtnDisabled: { backgroundColor: sh.n('#CBD5E1', 'disabled') },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyIcon: {
     width: 56,
@@ -510,11 +515,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1C1917',
+    color: sh.n('#1C1917', 'ink'),
     textAlign: 'center',
     marginBottom: 6,
   },
-  stateText: { marginTop: 10, color: '#6B7280', fontSize: 14, textAlign: 'center' },
+  stateText: { marginTop: 10, color: sh.n('#6B7280', 'inkMuted'), fontSize: 14, textAlign: 'center' },
   retryBtn: { marginTop: 14, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#fff', fontWeight: '700' },
 });

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StatusBar, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
-import { HC } from '../../../constants/HealthcareTheme';
+import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 
 interface HCScreenProps {
   children: React.ReactNode;
@@ -16,6 +17,9 @@ const HCScreen: React.FC<HCScreenProps> = ({
   barStyle = 'dark-content',
   style,
 }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   return (
     <View style={[styles.root, { backgroundColor: background }, style]}>
       <StatusBar
@@ -28,7 +32,7 @@ const HCScreen: React.FC<HCScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   root: { flex: 1 },
 });
 

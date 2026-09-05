@@ -16,6 +16,8 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -137,6 +139,9 @@ const SlotGridItem: React.FC<{
   slot: TimeSlot;
   onToggle: (id: string) => void;
 }> = React.memo(({ slot, onToggle }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const isBooked = slot.bookedCount > 0;
   const isAvailable = slot.isAvailable;
   const pressAnim = useRef(new Animated.Value(1)).current;
@@ -209,6 +214,9 @@ const SlotGridItem: React.FC<{
 // ── Main Component ────────────────────────────
 
 const ManageSlotsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -373,7 +381,7 @@ const ManageSlotsScreen: React.FC = () => {
           <View style={styles.backButton} />
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load slots</Text>
@@ -574,7 +582,7 @@ const ManageSlotsScreen: React.FC = () => {
                       style={[StyleSheet.absoluteFill, { borderRadius: 13 }]}
                     />
                   )}
-                  <Text style={[styles.durationNum, isActive && { color: '#FFFFFF' }]}>{opt.label}</Text>
+                  <Text style={[styles.durationNum, isActive && { color: sh.n('#FFFFFF', 'inkInverse') }]}>{opt.label}</Text>
                   <Text style={[styles.durationSub, isActive && { color: 'rgba(255,255,255,0.8)' }]}>{opt.sub}</Text>
                 </TouchableOpacity>
               );
@@ -615,7 +623,7 @@ const ManageSlotsScreen: React.FC = () => {
         </View>
 
         {/* ── Slot Stats ── */}
-        <LinearGradient colors={['#F0F7FF', '#EAF3FF']} style={styles.slotStatsStrip}>
+        <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.slotStatsStrip}>
           <View style={styles.slotStatItem}>
             <Text style={styles.slotStatValue}>{totalSlots}</Text>
             <Text style={styles.slotStatLabel}>Total</Text>
@@ -636,7 +644,7 @@ const ManageSlotsScreen: React.FC = () => {
         <View style={styles.legend}>
           {[
             { color: THEME.primary, bg: '#F0F7FF', label: 'Available' },
-            { color: '#94A3B8', bg: '#F8FBFF', label: 'Blocked' },
+            { color: sh.n('#94A3B8', 'inkFaint'), bg: '#F8FBFF', label: 'Blocked' },
             { color: THEME.accent, bg: '#EAF3FF', label: 'Booked' },
           ].map((item) => (
             <View key={item.label} style={styles.legendItem}>
@@ -666,7 +674,7 @@ const ManageSlotsScreen: React.FC = () => {
 
           {slots.length === 0 ? (
             <View style={styles.emptySlots}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptySlotsIcon}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptySlotsIcon}>
                 <Ionicons name="time-outline" size={28} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptySlotsTitle}>No slots configured</Text>
@@ -800,7 +808,7 @@ const ManageSlotsScreen: React.FC = () => {
           ) : (
             <View style={styles.saveButtonGradient}>
               <Ionicons name="save-outline" size={20} color="#94A3B8" />
-              <Text style={[styles.saveButtonText, { color: '#94A3B8' }]}>No slots to save</Text>
+              <Text style={[styles.saveButtonText, { color: sh.n('#94A3B8', 'inkFaint') }]}>No slots to save</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -813,10 +821,10 @@ export default ManageSlotsScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading / Error
@@ -831,7 +839,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -839,7 +847,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -852,12 +860,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -876,7 +884,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Header
@@ -903,7 +911,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -921,12 +929,12 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
       android: { elevation: 3 },
@@ -947,7 +955,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     flex: 1,
@@ -990,16 +998,16 @@ const styles = StyleSheet.create({
   clinicCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     padding: 14,
     gap: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   clinicCardActive: {
     borderColor: THEME.primary,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
   },
   clinicIconWrap: {
     borderRadius: 12,
@@ -1015,12 +1023,12 @@ const styles = StyleSheet.create({
   clinicName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   clinicAddress: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 2,
   },
 
@@ -1034,9 +1042,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
     gap: 2,
   },
@@ -1049,7 +1057,7 @@ const styles = StyleSheet.create({
   dateDayName: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -1057,10 +1065,10 @@ const styles = StyleSheet.create({
   dateDayNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
-  dateDayNumberSelected: { color: '#FFFFFF' },
-  dateDimText: { color: '#CBD5E1' },
+  dateDayNumberSelected: { color: sh.n('#FFFFFF', 'inkInverse') },
+  dateDimText: { color: sh.n('#CBD5E1', 'disabled') },
   todayDot: {
     width: 4,
     height: 4,
@@ -1078,9 +1086,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 13,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
     gap: 2,
   },
@@ -1090,13 +1098,13 @@ const styles = StyleSheet.create({
   durationNum: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#374151',
+    color: sh.hue('#374151'),
     letterSpacing: -0.4,
   },
   durationSub: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -1107,7 +1115,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 24,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     paddingVertical: 16,
   },
@@ -1115,11 +1123,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
       android: { elevation: 1 },
@@ -1143,7 +1151,7 @@ const styles = StyleSheet.create({
   stepperValueLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -1155,7 +1163,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
     alignItems: 'center',
   },
   slotStatItem: {
@@ -1166,20 +1174,20 @@ const styles = StyleSheet.create({
   slotStatValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.5,
   },
   slotStatLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   slotStatDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#B8D4FF',
+    backgroundColor: sh.hue('#B8D4FF'),
   },
 
   // Legend
@@ -1203,7 +1211,7 @@ const styles = StyleSheet.create({
   legendLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // Slot grid
@@ -1237,7 +1245,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#D6E8FF',
+    backgroundColor: sh.ground('#D6E8FF', '#5A9FFF'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -1265,20 +1273,20 @@ const styles = StyleSheet.create({
   emptySlotsTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySlotsSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
   },
 
   // Bottom bar
   bottomBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
@@ -1302,7 +1310,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   saveButton: {
     borderRadius: 10,
@@ -1313,7 +1321,7 @@ const styles = StyleSheet.create({
     }),
   },
   saveButtonDisabled: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     shadowColor: 'transparent',
     elevation: 0,
   },
@@ -1327,7 +1335,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 });

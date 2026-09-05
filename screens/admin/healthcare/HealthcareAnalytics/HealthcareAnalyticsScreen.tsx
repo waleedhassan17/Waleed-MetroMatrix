@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -132,6 +134,9 @@ const StatCard: React.FC<StatCardProps> = ({
   trend,
   delay = 0,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -210,7 +215,12 @@ interface SectionCardProps {
   rightAction?: React.ReactNode;
 }
 
-const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children, rightAction }) => (
+const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children, rightAction }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.sectionCard}>
     <View style={styles.sectionHeader}>
       <View style={styles.sectionTitleRow}>
@@ -223,7 +233,8 @@ const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children, rightA
     </View>
     {children}
   </View>
-);
+  );
+};
 
 // ============================================
 // BAR CHART COMPONENT
@@ -242,6 +253,9 @@ const SimpleBarChart: React.FC<BarChartProps> = ({
   showValues = true,
   formatValue = (v) => formatNumber(v),
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const max = maxValue || Math.max(...data.map((d) => d.value));
 
   return (
@@ -279,6 +293,9 @@ const SimpleBarChart: React.FC<BarChartProps> = ({
 // ============================================
 
 const HealthcareAnalyticsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -335,7 +352,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading analytics...</Text>
       </SafeAreaView>
@@ -767,7 +784,7 @@ const HealthcareAnalyticsScreen: React.FC = () => {
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -810,7 +827,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
   },
   headerSubtitle: {
     fontSize: 13,
@@ -838,7 +855,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   dateRangeChipActive: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
   },
   dateRangeText: {
     fontSize: 13,
@@ -887,7 +904,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
     marginBottom: 4,
   },
   statLabel: {
@@ -999,7 +1016,7 @@ const styles = StyleSheet.create({
   breakdownBarTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     overflow: 'hidden',
   },
   breakdownBarFill: {
@@ -1038,7 +1055,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     overflow: 'hidden',
   },
   barFill: {
@@ -1062,7 +1079,7 @@ const styles = StyleSheet.create({
   },
   doctorRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: sh.n('#f1f5f9', 'lineSoft'),
   },
   doctorRank: {
     width: 24,
@@ -1124,7 +1141,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: sh.n('#f1f5f9', 'lineSoft'),
   },
   revenueSummaryItem: {
     flex: 1,
@@ -1187,7 +1204,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     overflow: 'hidden',
   },
   satisfactionBarFill: {
@@ -1210,7 +1227,7 @@ const styles = StyleSheet.create({
   },
   appointmentStatusCard: {
     width: (SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - 32 - 10) / 2,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     borderRadius: 12,
     padding: 14,
     alignItems: 'center',
@@ -1269,11 +1286,11 @@ const styles = StyleSheet.create({
   },
   exportBtnPdf: {
     borderColor: COLORS.errorLight,
-    backgroundColor: '#fef2f2',
+    backgroundColor: sh.ground('#fef2f2', '#EF4444'),
   },
   exportBtnCsv: {
     borderColor: COLORS.successLight,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: sh.n('#f0fdf4', 'surfaceSunken'),
   },
   exportBtnText: {
     fontSize: 14,

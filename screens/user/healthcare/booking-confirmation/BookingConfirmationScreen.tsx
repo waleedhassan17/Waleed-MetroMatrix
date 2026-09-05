@@ -14,6 +14,9 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -50,21 +53,26 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  star: '#FBBF24',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  star: hue('#FBBF24'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
-    success: ['#10B981', '#059669'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
+    success: grad(['#10B981', '#059669']),
   },
+  };
 };
 
 // ── Route / Nav Types ───────────────────────
@@ -158,19 +166,34 @@ const SectionHeader: React.FC<{
   title: string;
   iconBg?: string;
   iconColor?: string;
-}> = ({ icon, title, iconBg = THEME.primaryLight, iconColor = THEME.primary }) => (
+}> = ({ icon, title, iconBg, iconColor }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  // Defaults read the palette, so they resolve inside the component now.
+  const bg = iconBg ?? THEME.primaryLight;
+  const fg = iconColor ?? THEME.primary;
+
+  return (
   <View style={styles.sectionHeader}>
-    <View style={[styles.sectionIconBg, { backgroundColor: iconBg }]}>
-      <Ionicons name={icon as any} size={16} color={iconColor} />
+    <View style={[styles.sectionIconBg, { backgroundColor: bg }]}>
+      <Ionicons name={icon as any} size={16} color={fg} />
     </View>
     <Text style={styles.sectionTitle}>{title}</Text>
   </View>
-);
+  );
+};
+
 
 // ── Main Screen ─────────────────────────────
 
 const BookingConfirmationScreen: React.FC = () => {
-  const dispatch = useAppDispatch();
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+    const dispatch = useAppDispatch();
   const bottomBarPadding = useBottomBarPadding();
   const navigation = useNavigation<Nav>();
   const route = useRoute<BookingConfirmationRoute>();
@@ -496,7 +519,7 @@ const BookingConfirmationScreen: React.FC = () => {
               {/* Appointment Details Grid */}
               <View style={styles.detailsGrid}>
                 <View style={styles.detailItem}>
-                  <View style={[styles.detailIconBg, { backgroundColor: '#EAF3FF' }]}>
+                  <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                     <Ionicons name="calendar" size={16} color={THEME.primary} />
                   </View>
                   <View style={styles.detailTexts}>
@@ -506,7 +529,7 @@ const BookingConfirmationScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.detailItem}>
-                  <View style={[styles.detailIconBg, { backgroundColor: '#EAF3FF' }]}>
+                  <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                     <Ionicons name="time" size={16} color={THEME.accent} />
                   </View>
                   <View style={styles.detailTexts}>
@@ -944,7 +967,7 @@ export default BookingConfirmationScreen;
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   // ── Hydration error state ──
   prepErrorContainer: {
     flex: 1,
@@ -956,7 +979,7 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 26,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -992,7 +1015,7 @@ const styles = StyleSheet.create({
   prepErrorPrimaryText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   prepErrorSecondary: {
     marginTop: 14,
@@ -1014,13 +1037,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
   },
   walletShortText: {
     flex: 1,
     fontSize: 12,
     fontWeight: '500',
-    color: '#92400E',
+    color: sh.hue('#92400E'),
     lineHeight: 16,
   },
   walletTopUpLink: {
@@ -1037,19 +1060,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   bookingErrorText: {
     flex: 1,
     fontSize: 12,
     fontWeight: '600',
-    color: '#991B1B',
+    color: sh.hue('#991B1B'),
     lineHeight: 16,
   },
 
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -1075,7 +1098,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -1106,12 +1129,12 @@ const styles = StyleSheet.create({
 
   // Summary Card
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1169,7 +1192,7 @@ const styles = StyleSheet.create({
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 16,
   },
   detailsGrid: {
@@ -1206,12 +1229,12 @@ const styles = StyleSheet.create({
 
   // Section
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1246,8 +1269,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.n('#E2E8F0', 'line'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   toggleBtnActive: {
     backgroundColor: THEME.primary,
@@ -1259,7 +1282,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   toggleTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Input Fields
@@ -1279,10 +1302,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     borderRadius: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   input: {
     flex: 1,
@@ -1296,15 +1319,15 @@ const styles = StyleSheet.create({
   // Payment Grid
   // ── Wallet payment card ──
   walletCard: {
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: THEME.primary,
     padding: 16,
   },
   walletCardShort: {
-    borderColor: '#FCD34D',
-    backgroundColor: '#FFFBEB',
+    borderColor: sh.hue('#FCD34D'),
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
   },
   walletCardTop: {
     flexDirection: 'row',
@@ -1343,7 +1366,7 @@ const styles = StyleSheet.create({
   },
   walletDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginVertical: 14,
   },
   walletBalanceRow: {
@@ -1365,7 +1388,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   walletBalanceValueShort: {
-    color: '#B45309',
+    color: sh.hue('#B45309'),
   },
   walletAfterBox: {
     alignItems: 'flex-end',
@@ -1387,14 +1410,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     borderRadius: 14,
     paddingLeft: 14,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   couponInputContainerFocused: {
     borderColor: THEME.primary,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   couponInput: {
     flex: 1,
@@ -1412,12 +1435,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   couponApplyBtnDisabled: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
   },
   couponApplyText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   couponLoading: {
     width: 40,
@@ -1427,13 +1450,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   couponApplied: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -1467,7 +1490,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1485,7 +1508,7 @@ const styles = StyleSheet.create({
 
   // Fee Card
   feeCard: {
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     padding: 14,
   },
@@ -1522,7 +1545,7 @@ const styles = StyleSheet.create({
   },
   feeDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginVertical: 8,
   },
   feeTotalLabel: {
@@ -1547,12 +1570,12 @@ const styles = StyleSheet.create({
   bottomContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1598,7 +1621,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   confirmingLoader: {
     flexDirection: 'row',

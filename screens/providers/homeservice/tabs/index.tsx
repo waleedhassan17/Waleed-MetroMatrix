@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Platform, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Briefcase, TrendingUp, User } from 'lucide-react-native';
@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import DashboardScreen from './dashboard/dashboard';
 import JobsScreen from './jobs/job';
 import EarningsScreen from './earnings/earning';
@@ -32,6 +34,10 @@ const TabIcon = ({
   Icon: React.ComponentType<{ size: number; color: string; strokeWidth?: number }>; 
   size: number;
 }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   return (
     <View style={[
       styles.iconContainer,
@@ -39,7 +45,7 @@ const TabIcon = ({
     ]}>
       <Icon 
         size={size - 2} 
-        color={focused ? HS.accentDeep : C.inkFaint}
+        color={focused ? colors.accentDeep : colors.inkFaint}
         strokeWidth={focused ? 2.5 : 2}
       />
     </View>
@@ -48,6 +54,10 @@ const TabIcon = ({
 
 // Home Service Provider Layout with Bottom Tabs
 const HomeServiceProviderLayout: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const insets = useSafeAreaInsets();
   
   return (
@@ -60,8 +70,8 @@ const HomeServiceProviderLayout: React.FC = () => {
             height: 60 + Math.max(insets.bottom, 10),
             paddingBottom: Math.max(insets.bottom, 10),
           },
-          tabBarActiveTintColor: HS.accentDeep,
-          tabBarInactiveTintColor: C.inkFaint,
+          tabBarActiveTintColor: colors.accentDeep,
+          tabBarInactiveTintColor: colors.inkFaint,
           tabBarLabelStyle: styles.tabBarLabel,
           tabBarItemStyle: styles.tabBarItem,
         }}
@@ -111,17 +121,17 @@ const HomeServiceProviderLayout: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   // Matches the customer tab bar exactly — same ground, same hairline, same
   // pill on the active item — so the two roles read as one app.
   tabBar: {
-    backgroundColor: C.surface,
-    borderTopColor: C.line,
+    backgroundColor: c.surface,
+    borderTopColor: c.line,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: S.sm,
     ...Platform.select({
       ios: {
-        shadowColor: C.ink,
+        shadowColor: c.ink,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,
@@ -145,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainerActive: {
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
 });
 

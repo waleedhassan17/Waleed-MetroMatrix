@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
@@ -33,20 +36,25 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
-    success: ['#10B981', '#059669'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
+    success: grad(['#10B981', '#059669']),
   },
+  };
 };
 
 // ── Route / Nav Types ───────────────────────
@@ -128,7 +136,13 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const ClinicCardSkeleton: React.FC = () => (
+const ClinicCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.card}>
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
       <SkeletonBox width={24} height={24} borderRadius={12} />
@@ -144,7 +158,8 @@ const ClinicCardSkeleton: React.FC = () => (
       <SkeletonBox width={80} height={28} borderRadius={8} />
     </View>
   </View>
-);
+  );
+};
 
 // ── Timing Badge Component ──────────────────
 
@@ -152,6 +167,10 @@ const TimingBadge: React.FC<{ timing: ClinicTiming | null; isOpenNow: boolean }>
   timing,
   isOpenNow,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   if (!timing || !timing.isOpen) {
     return (
       <View style={[styles.timingBadge, styles.timingBadgeClosed]}>
@@ -182,6 +201,10 @@ interface ClinicCardProps {
 
 const ClinicCard: React.FC<ClinicCardProps> = React.memo(
   ({ clinic, isSelected, onSelect, index }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const todayName = getTodayName();
     const todayTiming = clinic.timings?.find(
@@ -268,7 +291,7 @@ const ClinicCard: React.FC<ClinicCardProps> = React.memo(
 
           {/* Address Row */}
           <View style={styles.infoRow}>
-            <View style={[styles.infoIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.infoIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="location" size={14} color={THEME.primary} />
             </View>
             <Text style={styles.infoText} numberOfLines={2}>
@@ -355,7 +378,7 @@ const ClinicCard: React.FC<ClinicCardProps> = React.memo(
               style={styles.actionButton}
               onPress={() => openInMaps(clinic)}
             >
-              <View style={[styles.actionIconBg, { backgroundColor: '#EAF3FF' }]}>
+              <View style={[styles.actionIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                 <Ionicons name="navigate" size={16} color={THEME.primary} />
               </View>
               <Text style={styles.actionText}>Directions</Text>
@@ -384,6 +407,10 @@ const ClinicCard: React.FC<ClinicCardProps> = React.memo(
 // ── Main Screen ─────────────────────────────
 
 const ClinicSelectionScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const dispatch = useAppDispatch();
   const navigation = useNavigation<Nav>();
   const route = useRoute<ClinicSelectionRoute>();
@@ -597,10 +624,10 @@ export default ClinicSelectionScreen;
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -626,7 +653,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -647,12 +674,12 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -667,7 +694,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: THEME.primary,
-    backgroundColor: '#FAFCFF',
+    backgroundColor: sh.n('#FAFCFF', 'surfaceSunken'),
   },
 
   // Card Header
@@ -681,7 +708,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: sh.n('#CBD5E1', 'disabled'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -743,16 +770,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   timingBadgeOpen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
   },
   timingBadgeClosed: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   timingDot: {
     width: 6,
@@ -821,12 +848,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   dayChipOpen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
   },
   dayChipToday: {
     backgroundColor: THEME.primary,
@@ -840,7 +867,7 @@ const styles = StyleSheet.create({
     color: THEME.success,
   },
   dayChipTextToday: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Amenities
@@ -855,7 +882,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -866,7 +893,7 @@ const styles = StyleSheet.create({
     color: THEME.success,
   },
   amenityMore: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -883,14 +910,14 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   actionButton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   actionIconBg: {
     width: 36,
@@ -921,7 +948,7 @@ const styles = StyleSheet.create({
     color: THEME.primary,
   },
   selectButtonTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Error
@@ -935,7 +962,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -967,7 +994,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Empty
@@ -981,7 +1008,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1012,12 +1039,12 @@ const styles = StyleSheet.create({
   bottomContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1059,6 +1086,6 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });

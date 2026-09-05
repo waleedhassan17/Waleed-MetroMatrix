@@ -14,6 +14,9 @@ import {
   TextInput,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -38,19 +41,24 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors ────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
   },
+  };
 };
 
 // ── Category Configuration ──────────────────
@@ -146,11 +154,17 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const RecordCardSkeleton: React.FC = () => (
+const RecordCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.timelineRow}>
     <View style={styles.timelineTrack}>
       <SkeletonBox width={36} height={36} borderRadius={12} />
-      <View style={[styles.timelineLine, { backgroundColor: '#E5E7EB' }]} />
+      <View style={[styles.timelineLine, { backgroundColor: sh.n('#E5E7EB', 'line') }]} />
     </View>
     <View style={[styles.recordCard, { padding: 16 }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -161,13 +175,18 @@ const RecordCardSkeleton: React.FC = () => (
       <SkeletonBox width="60%" height={14} style={{ marginTop: 8 }} />
     </View>
   </View>
-);
+  );
+};
 
 // ── Stats Card Component ────────────────────
 
 const StatsCard: React.FC<{
   stats: { total: number; prescriptions: number; reports: number; imaging: number };
 }> = ({ stats }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const statItems = [
     { label: 'Total', value: stats.total, icon: 'folder-multiple', color: '#1857C0' },
     { label: 'Prescriptions', value: stats.prescriptions, icon: 'prescription', color: '#2A7FFF' },
@@ -193,6 +212,10 @@ const StatsCard: React.FC<{
 // ── Main Component ──────────────────────────
 
 const HealthRecordsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -523,7 +546,7 @@ const HealthRecordsScreen: React.FC = () => {
     return (
       <View style={styles.emptyContainer}>
         <LinearGradient
-          colors={['#F1F5F9', '#E2E8F0']}
+          colors={sh.grad(['#F1F5F9', '#E2E8F0'])}
           style={styles.emptyIconContainer}
         >
           <MaterialCommunityIcons
@@ -683,7 +706,7 @@ const HealthRecordsScreen: React.FC = () => {
         ) : error ? (
           <View style={styles.errorContainer}>
             <LinearGradient
-              colors={['#FEE2E2', '#FECACA']}
+              colors={sh.grad(['#FEE2E2', '#FECACA'])}
               style={styles.errorIconContainer}
             >
               <Ionicons name="cloud-offline-outline" size={40} color="#EF4444" />
@@ -736,10 +759,10 @@ const HealthRecordsScreen: React.FC = () => {
 
 // ── Styles ────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -764,7 +787,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   // Balances the leading icon so the title stays optically centred.
@@ -788,15 +811,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   searchContainerFocused: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   searchInputFocused: {
     color: Colors.text.primary,
@@ -806,7 +829,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     marginTop: -20,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     overflow: 'hidden',
@@ -819,7 +842,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
@@ -849,9 +872,9 @@ const styles = StyleSheet.create({
 
   // Category Tabs
   categoryWrapper: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   categoryScroll: {
     paddingHorizontal: 16,
@@ -875,7 +898,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     borderRadius: 12,
     gap: 6,
   },
@@ -887,7 +910,7 @@ const styles = StyleSheet.create({
   categoryTabTextActive: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Skeleton
@@ -938,7 +961,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Empty State
@@ -985,7 +1008,7 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Timeline List
@@ -1042,7 +1065,7 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginTop: -4,
     borderRadius: 1,
   },
@@ -1050,13 +1073,13 @@ const styles = StyleSheet.create({
   // Record Card
   recordCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginLeft: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1141,7 +1164,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     justifyContent: 'center',
     alignItems: 'center',
   },

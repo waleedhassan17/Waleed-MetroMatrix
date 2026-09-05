@@ -4,6 +4,7 @@ import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { bookingStatus } from '../../constants/HomeServiceTheme';
 import { F, R, S, T } from '../../constants/theme';
+import { useTheme } from '../../theme';
 
 /**
  * The ONE status indicator.
@@ -12,9 +13,9 @@ import { F, R, S, T } from '../../constants/theme';
  * and a price pill in the same 80pt of height — pill soup, where nothing reads
  * first. A card gets one of these; everything else is plain text.
  *
- * Colour comes from `bookingStatus()` in constants/HomeServiceTheme, so an
- * unmapped server status degrades to a readable neutral pill instead of
- * crashing the list on lookup.
+ * Colour comes from `bookingStatus()` in constants/HomeServiceTheme, resolved
+ * for the active mode, so an unmapped server status degrades to a readable
+ * neutral pill instead of crashing the list on lookup.
  */
 export interface StatusPillProps {
   status?: string | null;
@@ -25,7 +26,11 @@ export interface StatusPillProps {
 }
 
 const StatusPill: React.FC<StatusPillProps> = ({ status, size = 'md', hideIcon, style }) => {
-  const s = bookingStatus(status);
+  // The mode has to reach `bookingStatus`: its grounds are the `*Soft` tokens,
+  // which are near-white in light and near-black in dark. A pill that ignores
+  // it is a bright lozenge on a dark card.
+  const { mode } = useTheme();
+  const s = bookingStatus(status, mode);
   const small = size === 'sm';
 
   return (

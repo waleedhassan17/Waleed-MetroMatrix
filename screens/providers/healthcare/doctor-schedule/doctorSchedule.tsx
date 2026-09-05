@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toLocalISODate, todayLocalISODate, fromLocalISODate } from '../../../../utils/date/localDate';
-import React, {useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -90,6 +92,9 @@ const WeekCalendarStrip: React.FC<{
   appointmentsByDate: Record<string, Appointment[]>;
   onSelectDate: (date: string) => void;
 }> = ({ weekDates, selectedDate, appointmentsByDate, onSelectDate }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const todayStr = todayLocalISODate();
 
   return (
@@ -150,6 +155,9 @@ const WeekCalendarStrip: React.FC<{
 // ── Appointment Card ──────────────────────────
 
 const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = ({ appointment, index }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const isVideo = appointment.type === 'video';
   const sc = STATUS_CONFIG[appointment.status] ?? STATUS_CONFIG.pending;
@@ -257,6 +265,9 @@ const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = (
 // ── Main Component ────────────────────────────
 
 const DoctorScheduleScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -379,7 +390,7 @@ const DoctorScheduleScreen: React.FC = () => {
           <View style={styles.backButton} />
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load schedule</Text>
@@ -497,7 +508,7 @@ const DoctorScheduleScreen: React.FC = () => {
               </View>
               <View style={styles.daySummaryDivider} />
               <View style={styles.daySummaryItem}>
-                <LinearGradient colors={['#2A7FFF', '#1E6AE1']} style={styles.daySummaryIcon}>
+                <LinearGradient colors={sh.grad(['#2A7FFF', '#1E6AE1'])} style={styles.daySummaryIcon}>
                   <Ionicons name="business-outline" size={14} color="#FFFFFF" />
                 </LinearGradient>
                 <Text style={styles.daySummaryValue}>{inClinicCount}</Text>
@@ -516,7 +527,7 @@ const DoctorScheduleScreen: React.FC = () => {
             {/* Day appointments */}
             {selectedDayAppointments.length === 0 ? (
               <View style={styles.emptyCard}>
-                <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+                <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                   <Ionicons name="calendar-outline" size={36} color={THEME.primary} />
                 </LinearGradient>
                 <Text style={styles.emptyTitle}>
@@ -543,7 +554,7 @@ const DoctorScheduleScreen: React.FC = () => {
           /* Week view */
           weekViewData.length === 0 ? (
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                 <Ionicons name="calendar-outline" size={36} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>No Appointments This Week</Text>
@@ -592,10 +603,10 @@ export default DoctorScheduleScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading / Error
@@ -610,7 +621,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -618,7 +629,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -631,12 +642,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -655,7 +666,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Header
@@ -682,7 +693,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -715,7 +726,7 @@ const styles = StyleSheet.create({
   monthText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     flex: 1,
     textAlign: 'center',
   },
@@ -730,7 +741,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   viewToggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   viewToggleText: {
     fontSize: 12,
@@ -765,7 +776,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   calendarDayNameSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   calendarDayNumber: {
     fontSize: 17,
@@ -773,10 +784,10 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   calendarDayNumberSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   calendarDayNumberToday: {
-    color: '#FDE68A',
+    color: sh.hue('#FDE68A'),
   },
   dotRow: {
     flexDirection: 'row',
@@ -801,12 +812,12 @@ const styles = StyleSheet.create({
   daySummaryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 2 },
@@ -827,20 +838,20 @@ const styles = StyleSheet.create({
   daySummaryValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.4,
   },
   daySummaryLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   daySummaryDivider: {
     width: 1,
     height: 36,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
 
   // Appointment list
@@ -850,11 +861,11 @@ const styles = StyleSheet.create({
   aptCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
@@ -882,7 +893,7 @@ const styles = StyleSheet.create({
   aptTimeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   aptStatusBadge: {
     flexDirection: 'row',
@@ -916,7 +927,7 @@ const styles = StyleSheet.create({
   aptPatientInitials: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: 0.3,
   },
   aptPatientInfo: {
@@ -925,12 +936,12 @@ const styles = StyleSheet.create({
   aptPatientName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   aptSymptoms: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     marginTop: 2,
   },
   aptFooterRow: {
@@ -954,7 +965,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -962,7 +973,7 @@ const styles = StyleSheet.create({
   aptClinicText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // Week view
@@ -984,7 +995,7 @@ const styles = StyleSheet.create({
   weekSectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     flex: 1,
     letterSpacing: -0.2,
   },
@@ -1004,13 +1015,13 @@ const styles = StyleSheet.create({
 
   // Empty
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 40,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     marginTop: 8,
   },
   emptyIconWrap: {
@@ -1024,12 +1035,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textAlign: 'center',
   },
 });

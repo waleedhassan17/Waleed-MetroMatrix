@@ -31,7 +31,8 @@ import {
 } from '../../services/wallet';
 import type { WalletState, CounterpartyType } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import { F } from '../../constants/theme';
 
 interface TransferSheetProps {
@@ -69,6 +70,9 @@ const TransferSheet: React.FC<TransferSheetProps> = ({
   prefillAmount,
   prefillDescription,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const dispatch = useAppDispatch();
   const wallet = useAppSelector(selectWallet) as WalletState;
   const transferring = useAppSelector(selectTransferring) as boolean;
@@ -359,7 +363,12 @@ const TransferSheet: React.FC<TransferSheetProps> = ({
 
 const SuccessRow: React.FC<{ label: string; value: string; monospace?: boolean }> = ({
   label, value, monospace,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
+  return (
   <View style={styles.successRow}>
     <Text style={styles.successRowLabel}>{label}</Text>
     <Text
@@ -373,9 +382,10 @@ const SuccessRow: React.FC<{ label: string; value: string; monospace?: boolean }
       {value}
     </Text>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -44,28 +47,36 @@ type BookAppointmentRoute = RouteProp<HealthcareStackParamList, 'BookAppointment
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  star: '#FBBF24',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  star: hue('#FBBF24'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
-    success: ['#10B981', '#059669'],
-    video: ['#5A9FFF', '#2A7FFF'],
-    clinic: ['#2A7FFF', '#1857C0'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
+    success: grad(['#10B981', '#059669']),
+    video: grad(['#5A9FFF', '#2A7FFF']),
+    clinic: grad(['#2A7FFF', '#1857C0']),
   },
+  };
 };
 
 // ── Consultation Type Config ────────────────
 
-const CONSULTATION_TYPES = [
+// The table reads the palette, which now varies by mode, so it becomes
+// a function of it — every reference below is otherwise unchanged.
+const makeCONSULTATION_TYPES = (THEME: ReturnType<typeof makeTHEME>) =>
+  [
   {
     key: 'in-clinic' as const,
     label: 'In-Clinic Visit',
@@ -85,6 +96,7 @@ const CONSULTATION_TYPES = [
     iconColor: THEME.accent,
   },
 ];
+
 
 // ── Quick Symptom Tags ──────────────────────
 
@@ -113,6 +125,11 @@ const STEPS = [
 // ── Component ───────────────────────────────
 
 const BookAppointmentScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const CONSULTATION_TYPES = useMemo(() => makeCONSULTATION_TYPES(THEME), [THEME]);
   const navigation = useNavigation<any>();
   const bottomBarPadding = useBottomBarPadding();
   const route = useRoute<BookAppointmentRoute>();
@@ -575,14 +592,14 @@ const BookAppointmentScreen: React.FC = () => {
       {/* Booking Summary Card */}
       <View style={styles.reviewCard}>
         <View style={styles.reviewCardTitleRow}>
-          <View style={[styles.reviewCardIconBg, { backgroundColor: '#EAF3FF' }]}>
+          <View style={[styles.reviewCardIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
             <Ionicons name="clipboard-outline" size={16} color={THEME.primary} />
           </View>
           <Text style={styles.reviewCardTitle}>Booking Summary</Text>
         </View>
 
         <View style={styles.reviewRow}>
-          <View style={[styles.reviewRowIconBg, { backgroundColor: '#EAF3FF' }]}>
+          <View style={[styles.reviewRowIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
             <MaterialCommunityIcons name="stethoscope" size={16} color={THEME.accent} />
           </View>
           <View style={styles.reviewRowContent}>
@@ -596,7 +613,7 @@ const BookAppointmentScreen: React.FC = () => {
         <View style={styles.reviewDivider} />
 
         <View style={styles.reviewRow}>
-          <View style={[styles.reviewRowIconBg, { backgroundColor: '#FEF3C7' }]}>
+          <View style={[styles.reviewRowIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
             <MaterialCommunityIcons name="clipboard-text-outline" size={16} color={THEME.warning} />
           </View>
           <View style={styles.reviewRowContent}>
@@ -730,10 +747,10 @@ const BookAppointmentScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -753,7 +770,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -769,9 +786,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 20,
     paddingHorizontal: 30,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   stepItem: {
     alignItems: 'center',
@@ -780,7 +797,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -805,7 +822,7 @@ const styles = StyleSheet.create({
   stepLine: {
     width: 50,
     height: 3,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginHorizontal: 8,
     marginBottom: 20,
     borderRadius: 2,
@@ -843,12 +860,12 @@ const styles = StyleSheet.create({
   typeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     padding: 18,
     borderRadius: 10,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -863,7 +880,7 @@ const styles = StyleSheet.create({
   },
   typeCardSelected: {
     borderColor: THEME.primary,
-    backgroundColor: '#FAFCFF',
+    backgroundColor: sh.n('#FAFCFF', 'surfaceSunken'),
   },
   typeIconContainer: {
     width: 52,
@@ -892,7 +909,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: sh.n('#CBD5E1', 'disabled'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -911,12 +928,12 @@ const styles = StyleSheet.create({
 
   // Clinic Preview
   clinicPreview: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   clinicPreviewHeader: {
     flexDirection: 'row',
@@ -927,7 +944,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -952,7 +969,7 @@ const styles = StyleSheet.create({
   clinicPreviewItem: {
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   clinicPreviewName: {
     fontSize: 14,
@@ -995,7 +1012,7 @@ const styles = StyleSheet.create({
   feeInfoAmount: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginTop: 2,
   },
   feeTypeBadge: {
@@ -1006,7 +1023,7 @@ const styles = StyleSheet.create({
   feeTypeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Input Groups
@@ -1025,10 +1042,10 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   textAreaContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
   },
   textAreaContainerFocused: {
@@ -1075,9 +1092,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   quickTagActive: {
     backgroundColor: THEME.primaryLight,
@@ -1094,12 +1111,12 @@ const styles = StyleSheet.create({
 
   // Review Card
   reviewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1201,7 +1218,7 @@ const styles = StyleSheet.create({
   },
   reviewDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
 
@@ -1236,12 +1253,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1280,13 +1297,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   loadErrorText: {
     flex: 1,
     fontSize: 12,
     fontWeight: '600',
-    color: '#991B1B',
+    color: sh.hue('#991B1B'),
     lineHeight: 16,
   },
   loadErrorRetry: {
@@ -1309,7 +1326,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

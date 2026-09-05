@@ -5,7 +5,7 @@
 // analytics screen already uses — no new charting library.
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchAdminHSAnalytics } from '../../../../networks/serviceProviders/adminHomeServiceApi';
@@ -37,6 +39,9 @@ const SimpleBarChart: React.FC<{
   data: { label: string; value: number; color?: string }[];
   formatValue?: (v: number) => string;
 }> = ({ data, formatValue = (v) => String(v) }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
     <View>
@@ -64,6 +69,9 @@ const SimpleBarChart: React.FC<{
 };
 
 const AdminHomeServiceAnalyticsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +92,7 @@ const AdminHomeServiceAnalyticsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -172,6 +180,9 @@ const AdminHomeServiceAnalyticsScreen: React.FC = () => {
 };
 
 function StatTile({ label, value, color }: { label: string; value: string; color: string }) {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={[styles.statTile, { borderColor: `${color}40` }]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -180,7 +191,7 @@ function StatTile({ label, value, color }: { label: string; value: string; color
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
@@ -213,7 +224,7 @@ const styles = StyleSheet.create({
   },
   barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   barLabel: { width: 70, fontSize: 11, color: COLORS.textLight },
-  barTrack: { flex: 1, height: 10, backgroundColor: '#F1F3F5', borderRadius: 5, marginHorizontal: 8 },
+  barTrack: { flex: 1, height: 10, backgroundColor: sh.n('#F1F3F5', 'surfaceSunken'), borderRadius: 5, marginHorizontal: 8 },
   barFill: { height: 10, borderRadius: 5 },
   barValue: { width: 50, fontSize: 11, color: COLORS.text, textAlign: 'right' },
   providerRow: {
@@ -221,7 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F5',
+    borderBottomColor: sh.n('#F1F3F5', 'surfaceSunken'),
   },
   providerName: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   providerMeta: { fontSize: 12, color: COLORS.textLight },

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HC } from '../../../constants/HealthcareTheme';
+import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 
 interface HCChipProps {
   label: string;
@@ -12,6 +13,9 @@ interface HCChipProps {
 }
 
 const HCChip: React.FC<HCChipProps> = ({ label, selected, onPress, icon, tone = 'primary' }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const Comp: any = onPress ? TouchableOpacity : View;
   const activeColor = tone === 'primary' ? HC.primary : HC.textBody;
   return (
@@ -33,7 +37,7 @@ const HCChip: React.FC<HCChipProps> = ({ label, selected, onPress, icon, tone = 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

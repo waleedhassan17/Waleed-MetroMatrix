@@ -18,7 +18,7 @@
 // importers anywhere in the app.
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -26,6 +26,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 
 import { AA_BODY, AA_LARGE, contrastRatio, isHexColor, textOn } from '../../theme';
 import { C, F, R, S, T } from '../../constants/theme';
@@ -75,6 +77,9 @@ const PRESETS = [
 ];
 
 const ContrastNote: React.FC<{ background: string }> = ({ background }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   if (!isHexColor(background)) return null;
 
   const ink = textOn(background);
@@ -109,6 +114,9 @@ const ColorRole: React.FC<{
   onChange: (hex: string) => void;
   showContrast: boolean;
 }> = ({ role, value, onChange, showContrast }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   // Held separately so a half-typed "#E6" does not repaint the preview or fail
   // validation on every keystroke.
   const [draft, setDraft] = useState<string | null>(null);
@@ -191,6 +199,9 @@ const ColorRole: React.FC<{
  * vendor is trying to answer.
  */
 const Preview: React.FC<{ value: BrandThemeValue }> = ({ value }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const primary = isHexColor(value.primaryColor) ? value.primaryColor : C.inkFaint;
   const pressed = isHexColor(value.secondaryColor) ? value.secondaryColor : primary;
   const highlight = isHexColor(value.accentColor) ? value.accentColor : primary;
@@ -238,7 +249,7 @@ const BrandThemeEditor: React.FC<Props> = ({ value, onChange }) => (
   </View>
 );
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   role: {
     paddingVertical: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,

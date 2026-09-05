@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../../constants/Colors';
 import { Typography } from '../../constants/Fonts';
@@ -13,6 +15,9 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
   size = 'small',
   showLabel = false,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const iconSize = size === 'small' ? 14 : 18;
 
   if (!showLabel) {
@@ -39,7 +44,7 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ChevronLeft, Heart, Trash2 } from 'lucide-react-native';
-import { Colors, BorderRadius, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, filterWishlistByBrand, type WishlistItemState } from './wishlistSlice';
@@ -10,9 +11,14 @@ import { selectActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', danger: '#E74C3C' };
+// A function of the ramp — see the note in constants/Colors.ts.
+const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, danger: c.error });
 
 const WishlistScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { items: allItems, loading, error } = useAppSelector(selectWishlist);
@@ -27,9 +33,20 @@ const WishlistScreen: React.FC = () => {
     [allItems, activeBrand]
   );
 
-  useEffect(() => {
-    dispatch(fetchWishlist());
-  }, [dispatch]);
+  // Saving from anywhere already updates this list instantly — every wishlist
+  // thunk replaces `items` with the server's response, and this screen reads
+  // that same slice. What a mount-only effect missed is staleness: the tab is
+  // part of a bottom-tab navigator, so it mounts once on first visit and then
+  // stays mounted, and it never refetched again for the rest of the session.
+  // Refetching on focus keeps it true to the server — including saves made on
+  // another device, and any toggle whose request failed after the optimistic
+  // render. The list stays on screen while this runs (the spinner belongs to
+  // the empty state), so there is no flicker on tab switches.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchWishlist());
+    }, [dispatch])
+  );
 
   const handleRemove = useCallback((productId: string, name: string) => {
     Alert.alert('Remove Item', `Remove "${name}" from your wishlist?`, [
@@ -126,7 +143,7 @@ const WishlistScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
@@ -169,7 +186,8 @@ const WishlistScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: (StatusBar.currentHeight || 0) + 20, paddingBottom: Spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },

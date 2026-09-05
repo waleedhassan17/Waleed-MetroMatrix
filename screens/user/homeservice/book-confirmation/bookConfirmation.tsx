@@ -17,7 +17,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -33,6 +33,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -71,13 +72,15 @@ const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 export default function BookConfirmationScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const reducedMotion = useReducedMotion();
 
   const { category = 'ac-repairers', bookingId: routeBookingId } = route.params || {};
-  const accent = categoryAccent(category);
+  const accent = categoryAccent(category, mode);
 
   const bookingConfirmation = useSelector(selectBookingConfirmation);
   const provider = useSelector(selectConfirmationProvider);
@@ -248,7 +251,7 @@ export default function BookConfirmationScreen() {
         </View>
         {!!rating && (
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={13} color={C.star} />
+            <Ionicons name="star" size={13} color={colors.star} />
             <Text style={styles.ratingText}>{rating}</Text>
           </View>
         )}
@@ -258,7 +261,7 @@ export default function BookConfirmationScreen() {
         <View style={styles.details}>
           {!!bookingDetails?.selectedDate && (
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={15} color={C.inkFaint} />
+              <Ionicons name="calendar-outline" size={15} color={colors.inkFaint} />
               <Text style={styles.detailText} numberOfLines={1}>
                 {[
                   formatBookingDate(bookingDetails.selectedDate) ?? bookingDetails.selectedDate,
@@ -271,7 +274,7 @@ export default function BookConfirmationScreen() {
           )}
           {!!bookingDetails?.selectedAddress && (
             <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={15} color={C.inkFaint} />
+              <Ionicons name="location-outline" size={15} color={colors.inkFaint} />
               <Text style={styles.detailText} numberOfLines={1}>
                 {bookingDetails.selectedAddress.address}
               </Text>
@@ -308,7 +311,7 @@ export default function BookConfirmationScreen() {
             {STEPS.map((step, index) => {
               const done = index < stepIndex;
               const active = index === stepIndex;
-              const color = done ? C.success : active ? C.ink : C.inkFaint;
+              const color = done ? colors.success : active ? colors.ink : colors.inkFaint;
               return (
                 <View key={step.key} style={styles.step}>
                   <Ionicons name={step.icon as any} size={16} color={color} />
@@ -385,7 +388,7 @@ export default function BookConfirmationScreen() {
         <Card style={styles.card}>
           <View style={styles.endedRow}>
             <View style={styles.endedIcon}>
-              <Ionicons name={config.icon as any} size={22} color={C.inkMuted} />
+              <Ionicons name={config.icon as any} size={22} color={colors.inkMuted} />
             </View>
             <View style={styles.endedText}>
               <Text style={styles.waitTitle}>{config.title}</Text>
@@ -437,7 +440,7 @@ export default function BookConfirmationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: S.huge,
@@ -456,11 +459,11 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
     flexShrink: 1,
   },
@@ -470,14 +473,14 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     ...T.label,
-    color: C.ink,
+    color: c.ink,
     marginLeft: 3,
   },
   details: {
     marginTop: S.md,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   detailRow: {
     flexDirection: 'row',
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: S.sm,
     flexShrink: 1,
   },
@@ -501,15 +504,15 @@ const styles = StyleSheet.create({
   },
   waitTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   waitTimer: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   body: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xs,
     maxWidth: PROSE_WIDTH,
   },
@@ -517,14 +520,14 @@ const styles = StyleSheet.create({
   track: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     marginTop: S.lg,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: C.success,
+    backgroundColor: c.success,
   },
 
   steps: {
@@ -555,7 +558,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -566,7 +569,7 @@ const styles = StyleSheet.create({
 
   support: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     textAlign: 'center',
     marginTop: SECTION,
   },

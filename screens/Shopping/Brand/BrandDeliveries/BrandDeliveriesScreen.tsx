@@ -58,7 +58,7 @@ const FILTERS: { key: DeliveryFilter; label: string }[] = [
 ];
 
 const BrandDeliveriesScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -194,7 +194,7 @@ const BrandDeliveriesScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.bg} />
 
       {/* ── Header ── */}
       <BrandHeader title="Deliveries" showBack />

@@ -26,20 +26,44 @@ const initialState: OutletManagementState = {
   error: null,
 };
 
-export const fetchOutletsAsync = createAsyncThunk('outletManagement/fetchOutlets', async () => {
-  const response = await fetchOutletsApi({ limit: 100 });
-  return response.data;
-});
+// These three used to have no try/catch and no rejectWithValue, unlike every
+// other slice in the module, so a failure surfaced as a raw action.error rather
+// than the message extractShoppingError had already prepared.
+export const fetchOutletsAsync = createAsyncThunk(
+  'outletManagement/fetchOutlets',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetchOutletsApi({ limit: 100 });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load outlets');
+    }
+  }
+);
 
-export const deleteOutlet = createAsyncThunk('outletManagement/delete', async (outletId: string) => {
-  await deleteOutletApi(outletId);
-  return outletId;
-});
+export const deleteOutlet = createAsyncThunk(
+  'outletManagement/delete',
+  async (outletId: string, { rejectWithValue }) => {
+    try {
+      await deleteOutletApi(outletId);
+      return outletId;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to delete outlet');
+    }
+  }
+);
 
-export const toggleOutletStatus = createAsyncThunk('outletManagement/toggle', async (outletId: string) => {
-  const response = await toggleOutletStatusApi(outletId);
-  return response.data;
-});
+export const toggleOutletStatus = createAsyncThunk(
+  'outletManagement/toggle',
+  async (outletId: string, { rejectWithValue }) => {
+    try {
+      const response = await toggleOutletStatusApi(outletId);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update outlet status');
+    }
+  }
+);
 
 const applyFilters = (
   outlets: OutletConfig[],
@@ -95,14 +119,14 @@ const outletManagementSlice = createSlice({
       })
       .addCase(fetchOutletsAsync.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to load outlets';
+        state.error = (action.payload as string) || action.error.message || 'Failed to load outlets';
       })
       .addCase(deleteOutlet.fulfilled, (state, action) => {
         state.outlets = state.outlets.filter((o) => o.outletId !== action.payload);
         state.filteredOutlets = applyFilters(state.outlets, state.statusFilter, state.searchQuery);
       })
       .addCase(deleteOutlet.rejected, (state, action) => {
-        state.error = action.error.message || 'Failed to delete outlet';
+        state.error = (action.payload as string) || action.error.message || 'Failed to delete outlet';
       })
       .addCase(toggleOutletStatus.fulfilled, (state, action) => {
         const idx = state.outlets.findIndex((o) => o.outletId === action.payload.outletId);
@@ -112,7 +136,7 @@ const outletManagementSlice = createSlice({
         }
       })
       .addCase(toggleOutletStatus.rejected, (state, action) => {
-        state.error = action.error.message || 'Failed to update outlet status';
+        state.error = (action.payload as string) || action.error.message || 'Failed to update outlet status';
       });
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,8 @@ import {
 } from '../../services/wallet';
 import type { WalletState } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import { F } from '../../constants/theme';
 
 interface PayoutSheetProps {
@@ -65,6 +66,9 @@ const formatArrivalDate = (unix: number): string => {
 };
 
 const PayoutSheet: React.FC<PayoutSheetProps> = ({ visible, onClose }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const dispatch = useAppDispatch();
   const wallet = useAppSelector(selectWallet) as WalletState;
   const payingOut = useAppSelector(selectPayingOut) as boolean;
@@ -319,7 +323,12 @@ const SuccessRow: React.FC<{
   value: string;
   monospace?: boolean;
   capitalize?: boolean;
-}> = ({ label, value, monospace, capitalize }) => (
+}> = ({ label, value, monospace, capitalize }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
+  return (
   <View style={styles.successRow}>
     <Text style={styles.successRowLabel}>{label}</Text>
     <Text
@@ -334,9 +343,10 @@ const SuccessRow: React.FC<{
       {value}
     </Text>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,

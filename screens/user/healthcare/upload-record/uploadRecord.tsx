@@ -14,6 +14,9 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,13 +43,18 @@ import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ─────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  success: '#10B981',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  success: hue('#10B981'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
   },
+  };
 };
 
 // ── Record type icon colors ───────────────────
@@ -68,6 +76,10 @@ const formatFileSize = (bytes: number) => {
 // ── Component ─────────────────────────────────
 
 const UploadRecordScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -285,7 +297,7 @@ const UploadRecordScreen: React.FC = () => {
                         <Ionicons name={opt.icon as any} size={14} color="#FFFFFF" />
                       </LinearGradient>
                     ) : (
-                      <View style={[styles.typeChipIconWrap, { backgroundColor: '#F1F5F9' }]}>
+                      <View style={[styles.typeChipIconWrap, { backgroundColor: sh.n('#F1F5F9', 'lineSoft') }]}>
                         <Ionicons name={opt.icon as any} size={14} color="#94A3B8" />
                       </View>
                     )}
@@ -384,7 +396,7 @@ const UploadRecordScreen: React.FC = () => {
                 activeOpacity={0.75}
               >
                 <LinearGradient
-                  colors={['#F0F7FF', '#EAF3FF']}
+                  colors={sh.grad(['#F0F7FF', '#EAF3FF'])}
                   style={styles.pickerButtonInner}
                 >
                   <View style={styles.pickerButtonIcon}>
@@ -402,10 +414,10 @@ const UploadRecordScreen: React.FC = () => {
                 activeOpacity={0.75}
               >
                 <LinearGradient
-                  colors={['#EAF3FF', '#D6E8FF']}
+                  colors={sh.grad(['#EAF3FF', '#D6E8FF'])}
                   style={styles.pickerButtonInner}
                 >
-                  <View style={[styles.pickerButtonIcon, { backgroundColor: '#D6E8FF' }]}>
+                  <View style={[styles.pickerButtonIcon, { backgroundColor: sh.ground('#D6E8FF', '#5A9FFF') }]}>
                     <MaterialCommunityIcons name="file-document-outline" size={22} color="#5A9FFF" />
                   </View>
                   <Text style={[styles.pickerButtonText, { color: '#1E6AE1' }]}>Choose File</Text>
@@ -539,7 +551,7 @@ const UploadRecordScreen: React.FC = () => {
               ) : (
                 <MaterialCommunityIcons name="cloud-upload-outline" size={20} color="#94A3B8" />
               )}
-              <Text style={[styles.uploadButtonText, { color: '#94A3B8' }]}>
+              <Text style={[styles.uploadButtonText, { color: sh.n('#94A3B8', 'inkFaint') }]}>
                 {uploading ? 'Uploading…' : title.trim() ? 'Add at least one file' : 'Enter a title first'}
               </Text>
             </View>
@@ -552,10 +564,10 @@ const UploadRecordScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -581,7 +593,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -602,11 +614,11 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -632,7 +644,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     flex: 1,
@@ -664,9 +676,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     position: 'relative',
   },
   typeChipIconWrap: {
@@ -679,7 +691,7 @@ const styles = StyleSheet.create({
   typeChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   typeChipCheck: {
     width: 16,
@@ -694,16 +706,16 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     paddingHorizontal: 12,
     gap: 10,
   },
@@ -719,7 +731,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     paddingVertical: 13,
   },
   dateValue: {
@@ -736,7 +748,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
     ...Platform.select({
       ios: {
         shadowColor: THEME.primary,
@@ -768,7 +780,7 @@ const styles = StyleSheet.create({
   pickerButtonSubtext: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#93C5FD',
+    color: sh.hue('#93C5FD'),
   },
 
   // Files list
@@ -779,12 +791,12 @@ const styles = StyleSheet.create({
   fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     padding: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   fileThumbnail: {
     width: 44,
@@ -804,13 +816,13 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     marginBottom: 2,
   },
   fileSize: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   fileRemoveBtn: {
     padding: 2,
@@ -818,11 +830,11 @@ const styles = StyleSheet.create({
 
   // Progress
   progressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
     gap: 12,
   },
   progressHeader: {
@@ -833,7 +845,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: sh.hue('#374151'),
     flex: 1,
   },
   progressPercent: {
@@ -844,7 +856,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     overflow: 'hidden',
   },
   progressFill: {
@@ -858,25 +870,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
   errorText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#EF4444',
+    color: sh.hue('#EF4444'),
     flex: 1,
   },
 
   // Bottom bar
   bottomBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     gap: 12,
@@ -907,14 +919,14 @@ const styles = StyleSheet.create({
   bottomFilesText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   uploadButton: {
     borderRadius: 10,
     overflow: 'hidden',
   },
   uploadButtonDisabled: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   uploadButtonGradient: {
     flexDirection: 'row',
@@ -926,7 +938,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 });

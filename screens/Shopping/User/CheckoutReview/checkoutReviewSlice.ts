@@ -68,8 +68,10 @@ export const placeOrder = createAsyncThunk(
       const res = await checkoutApi({
         addressId: address.id,
         paymentMethod: methodId,
-        // The chosen speed was never sent, so the server could not price the
-        // upgrade — every tier effectively shipped as Standard.
+        // The server prices this tier and charges for it, so the total shown
+        // on this screen is the total debited. It used to be accepted here and
+        // dropped by the controller, which is why the review screen and the
+        // confirmation screen disagreed.
         deliveryOptionId: state.checkoutDelivery.selectedOption?.id,
       });
       const group = res.data;
@@ -163,8 +165,8 @@ export const selectCheckoutOrderSummary = createSelector(
 
     // Two separate charges: the brand's flat shipping fee, which the server
     // computes onto the cart, plus the surcharge for choosing a faster tier
-    // than Standard. The tier id is sent with the checkout so the server
-    // prices the same upgrade the shopper is being shown here.
+    // than Standard. Both numbers come from the server (GET /delivery-options),
+    // and POST /checkout charges the same tier id shown here.
     const speedSurcharge = delivery?.cost ?? 0;
 
     return {

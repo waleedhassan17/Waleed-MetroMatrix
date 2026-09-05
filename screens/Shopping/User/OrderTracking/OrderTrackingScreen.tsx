@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Truck, Package, CheckCircle2, Circle, Clock, Copy, Phone, XCircle, RotateCcw } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
   fetchTracking,
@@ -11,13 +12,19 @@ import {
   type TrackingStep,
 } from './orderTrackingSlice';
 
-const ShopColors = {
-  primary: '#E67E22', primaryLight: '#FFF3E6',
-  success: '#27AE60', successLight: '#E8F8F0',
-  danger: '#E74C3C', dangerLight: '#FDEBEA',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent, primaryLight: c.accentSoft,
+  success: c.success, successLight: c.successSoft,
+  danger: c.error, dangerLight: c.errorSoft,
+});
 
-const STATUS_BADGE: Record<OrderTrackingStatus, { label: string; icon: typeof Truck; color: string; bg: string }> = {
+// Both palettes vary by mode now, so the badge table does too.
+const makeStatusBadge = (
+  Colors: ColorType,
+  ShopColors: ReturnType<typeof makeShopColors>,
+): Record<OrderTrackingStatus, { label: string; icon: typeof Truck; color: string; bg: string }> => ({
   pending: { label: 'Pending', icon: Clock, color: Colors.text.secondary, bg: Colors.backgroundAlt },
   confirmed: { label: 'Confirmed', icon: CheckCircle2, color: ShopColors.primary, bg: ShopColors.primaryLight },
   processing: { label: 'Processing', icon: Package, color: ShopColors.primary, bg: ShopColors.primaryLight },
@@ -27,9 +34,14 @@ const STATUS_BADGE: Record<OrderTrackingStatus, { label: string; icon: typeof Tr
   cancelled: { label: 'Cancelled', icon: XCircle, color: ShopColors.danger, bg: ShopColors.dangerLight },
   returned: { label: 'Returned', icon: RotateCcw, color: ShopColors.danger, bg: ShopColors.dangerLight },
   refunded: { label: 'Refunded', icon: RotateCcw, color: ShopColors.danger, bg: ShopColors.dangerLight },
-};
+});
 
 const OrderTrackingScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
+  const STATUS_BADGE = useMemo(() => makeStatusBadge(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -78,7 +90,7 @@ const OrderTrackingScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
@@ -163,7 +175,8 @@ const OrderTrackingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: (StatusBar.currentHeight || 0) + 20, paddingBottom: Spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },

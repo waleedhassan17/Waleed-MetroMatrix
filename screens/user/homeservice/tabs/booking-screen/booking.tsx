@@ -44,6 +44,7 @@ import {
   HS,
 } from '../../../../../constants/HomeServiceTheme';
 import { C, GUTTER, R, S, T } from '../../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import { isCallingSupported } from '../../../../../services/call/usePeerConnection';
 import { formatBookingWhen, formatPrice } from '../../../../../utils/homeservice/format';
@@ -91,8 +92,11 @@ const FILTERS: { key: FilterType; label: string }[] = [
 // tied to the surface token.
 const FADE_WIDTH = 28;
 const EDGE_EPSILON = 4;
-const FADE_START_COLORS = [C.surface, `${C.surface}00`] as const;
-const FADE_END_COLORS = [`${C.surface}00`, C.surface] as const;
+// Functions of the ramp, not constants: the fade has to match whichever
+// surface is behind it, and a frozen `#FFFFFF` edge is a white smear across a
+// dark card.
+const fadeStartColors = (c: ThemeColors) => [c.surface, `${c.surface}00`] as const;
+const fadeEndColors = (c: ThemeColors) => [`${c.surface}00`, c.surface] as const;
 const FADE_FROM = { x: 0, y: 0 };
 const FADE_TO = { x: 1, y: 0 };
 
@@ -102,10 +106,12 @@ const FADE_TO = { x: 1, y: 0 };
 // filter tap, a refresh flag), and every card here is a pure function of a
 // booking object the store hands back by reference.
 const BookingCard = React.memo(function BookingCard({ booking }: { booking: Booking }) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   // Cached after the first call — a native module cannot appear at runtime.
   const callingSupported = isCallingSupported();
-  const category = categoryAccent(booking.categoryType);
+  const category = categoryAccent(booking.categoryType, mode);
   const isActive = ACTIVE_STATUSES.includes(booking.status as any);
 
   // Only claim a booking is unpaid when the server actually said so. An older
@@ -186,7 +192,7 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
                 accessibilityLabel={`Call ${booking.providerName}`}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Ionicons name="call-outline" size={16} color={HS.accentDeep} />
+                <Ionicons name="call-outline" size={16} color={colors.accentDeep} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -195,7 +201,7 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
               accessibilityLabel={`Message ${booking.providerName}`}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Ionicons name="chatbubble-outline" size={16} color={HS.accentDeep} />
+              <Ionicons name="chatbubble-outline" size={16} color={colors.accentDeep} />
             </TouchableOpacity>
           </View>
         )}
@@ -214,7 +220,7 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
 
         {booking.status === 'completed' && !!booking.rating ? (
           <View style={styles.ratedRow}>
-            <Ionicons name="star" size={13} color={C.star} />
+            <Ionicons name="star" size={13} color={colors.star} />
             <Text style={styles.ratedText}>You rated {booking.rating}</Text>
           </View>
         ) : nextAction ? (
@@ -234,6 +240,8 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function BookingsScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -436,7 +444,7 @@ export default function BookingsScreen() {
 
         {fade.start && (
           <LinearGradient
-            colors={FADE_START_COLORS}
+            colors={fadeStartColors(colors)}
             start={FADE_FROM}
             end={FADE_TO}
             pointerEvents="none"
@@ -445,7 +453,7 @@ export default function BookingsScreen() {
         )}
         {fade.end && (
           <LinearGradient
-            colors={FADE_END_COLORS}
+            colors={fadeEndColors(colors)}
             start={FADE_FROM}
             end={FADE_TO}
             pointerEvents="none"
@@ -470,8 +478,8 @@ export default function BookingsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[HS.accent]}
-            tintColor={HS.accent}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
         ListEmptyComponent={listEmpty}
@@ -480,11 +488,11 @@ export default function BookingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   filters: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.line,
+    borderBottomColor: c.line,
   },
   filtersContent: {
     paddingHorizontal: GUTTER,
@@ -528,7 +536,7 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     flex: 1,
     marginRight: S.sm,
   },
@@ -543,7 +551,7 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     flex: 1,
     marginLeft: S.sm,
   },
@@ -554,7 +562,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: R.chip,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: S.sm,
@@ -562,7 +570,7 @@ const styles = StyleSheet.create({
 
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.sm,
   },
 
@@ -573,15 +581,15 @@ const styles = StyleSheet.create({
     marginTop: S.md,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   price: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
   nextAction: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
   },
   ratedRow: {
     flexDirection: 'row',
@@ -589,7 +597,7 @@ const styles = StyleSheet.create({
   },
   ratedText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: 4,
   },
 });

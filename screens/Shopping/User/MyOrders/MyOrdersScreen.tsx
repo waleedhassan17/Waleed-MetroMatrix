@@ -2,44 +2,51 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, ClipboardList, Package, Truck, CheckCircle2, Clock, XCircle, ChevronRight } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyOrders, selectMyOrders, setStatusFilter } from './myOrdersSlice';
 import { selectActiveBrand } from '../BrandList/brandListSlice';
 
-const ShopColors = {
-  primary: '#E67E22',
-  primaryDark: '#D35400',
-  primaryLight: '#FFF8F0',
-  accent: '#F39C12',
-  badge: '#E74C3C',
-  success: '#10B981',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryDark: c.accentDeep,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+  badge: c.error, badgeLight: c.errorSoft,
+  success: c.success,
+  accentLight: c.warningSoft,});
 
 const filters = ['all', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 
-const getStatusDetails = (status: string) => {
+const getStatusDetails = (status: string, ShopColors: ReturnType<typeof makeShopColors>) => {
   switch (status.toLowerCase()) {
     case 'delivered':
-      return { icon: <CheckCircle2 size={24} color={ShopColors.success} />, color: ShopColors.success, bg: '#ECFDF5' };
+      return { icon: <CheckCircle2 size={24} color={ShopColors.success} />, color: ShopColors.success, bg: ShopColors.primaryLight };
     case 'shipped':
     case 'out_for_delivery':
       return { icon: <Truck size={24} color={ShopColors.primary} />, color: ShopColors.primary, bg: ShopColors.primaryLight };
     case 'processing':
     case 'pending':
     case 'confirmed':
-      return { icon: <Clock size={24} color={ShopColors.accent} />, color: ShopColors.accent, bg: '#FEF3C7' };
+      return { icon: <Clock size={24} color={ShopColors.accent} />, color: ShopColors.accent, bg: ShopColors.accentLight };
     case 'cancelled':
     case 'returned':
     case 'refunded':
-      return { icon: <XCircle size={24} color={ShopColors.badge} />, color: ShopColors.badge, bg: '#FEF2F2' };
+      return { icon: <XCircle size={24} color={ShopColors.badge} />, color: ShopColors.badge, bg: ShopColors.badgeLight };
     default:
       return { icon: <Package size={24} color={Colors.text.tertiary} />, color: Colors.text.secondary, bg: Colors.borderLight };
   }
 };
 
 const MyOrdersScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -74,7 +81,7 @@ const MyOrdersScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
@@ -126,7 +133,7 @@ const MyOrdersScreen: React.FC = () => {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {filtered.map((order) => {
-          const statusMeta = getStatusDetails(order.status);
+          const statusMeta = getStatusDetails(order.status, ShopColors);
           return (
             <TouchableOpacity 
               key={order.orderId} 
@@ -178,7 +185,8 @@ const MyOrdersScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundAlt },
   header: { 
     flexDirection: 'row', 

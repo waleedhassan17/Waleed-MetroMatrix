@@ -30,12 +30,15 @@ import {
   GUTTER,
   PROSE_WIDTH,
   R,
+  ramp,
+  Ramp,
   S,
   SECTION,
   T,
+  ThemeMode,
 } from '../constants/theme';
 import { textOn } from './contrast';
-import { brandPalette, MODULE_PALETTES, ModuleName, ModulePalette } from './palettes';
+import { brandPalette, modulePalette, MODULE_PALETTES, ModuleName, ModulePalette } from './palettes';
 
 /**
  * The resolved colour set.
@@ -45,11 +48,15 @@ import { brandPalette, MODULE_PALETTES, ModuleName, ModulePalette } from './pale
  * `const makeStyles = (c: ThemeColors) => StyleSheet.create({ … })` and build
  * it inside the component with `useMemo`.
  */
-export type ThemeColors = typeof C & ModulePalette;
+export type ThemeColors = Ramp & ModulePalette;
 
 export interface Theme {
   /** Neutrals and semantics from the base, plus the active accent set. */
   colors: ThemeColors;
+  /** Which neutral ramp `colors` was built from. */
+  mode: ThemeMode;
+  /** `mode === 'dark'`. Here because reading it is the common case. */
+  isDark: boolean;
   type: typeof T;
   families: typeof F;
   spacing: typeof S;
@@ -71,12 +78,15 @@ export interface Theme {
 }
 
 const buildTheme = (
+  mode: ThemeMode,
   module: ModuleName,
   palette: ModulePalette,
   isBranded: boolean,
   brandAccent: string | null,
 ): Theme => ({
-  colors: { ...C, ...palette },
+  colors: { ...ramp(mode), ...palette },
+  mode,
+  isDark: mode === 'dark',
   type: T,
   families: F,
   spacing: S,
@@ -90,7 +100,10 @@ const buildTheme = (
   brandAccent,
 });
 
-const DEFAULT_THEME = buildTheme('neutral', MODULE_PALETTES.neutral, false, null);
+// Light on purpose: `useTheme()` outside a provider must behave exactly as it
+// did before dark mode existed, or an unmigrated screen that happens to mount a
+// shared component starts rendering dark chrome on a white page.
+const DEFAULT_THEME = buildTheme('light', 'neutral', MODULE_PALETTES.neutral, false, null);
 
 const ThemeContext = createContext<Theme>(DEFAULT_THEME);
 
@@ -111,14 +124,29 @@ export interface ThemeProviderProps {
    * — which is how a brand that never picked colours gets the shopping default.
    */
   brand?: BrandColors | null;
+  /**
+   * Light or dark. Omit to inherit — which is what almost every provider in
+   * the tree does, so the mode is set once at the root and a stack naming only
+   * its module cannot accidentally revert it.
+   *
+   * Pass it explicitly to PIN a subtree: that is how routes which have not been
+   * migrated to the theme stay light while the rest of the app goes dark.
+   */
+  mode?: ThemeMode;
 }
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, module, brand }) => {
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({
+  children,
+  module,
+  brand,
+  mode,
+}) => {
   const parent = useContext(ThemeContext);
 
   const value = useMemo<Theme>(() => {
     const name = module ?? parent.module;
-    const base = MODULE_PALETTES[name] ?? MODULE_PALETTES.neutral;
+    const activeMode = mode ?? parent.mode;
+    const base = modulePalette(name, activeMode);
 
     // A brand overrides colours, not layout decisions: whether the app bar is
     // painted at all stays the module's call, so a brand cannot accidentally
@@ -128,14 +156,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, module, 
       brand?.secondaryColor,
       brand?.accentColor,
       base.barTone,
+      activeMode,
     );
 
     // An inherited brand must survive a child provider that only names a
     // module, or dropping into a branded screen's sub-route would silently
     // revert to orange.
-    if (!branded && parent.isBranded && module === undefined) return parent;
+    //
+    // `activeMode === parent.mode` guards the shortcut: handing back the parent
+    // wholesale also hands back its ramp, so without this a provider that pins
+    // a mode inside a branded subtree would be silently ignored.
+    if (!branded && parent.isBranded && module === undefined && activeMode === parent.mode) {
+      return parent;
+    }
 
     return buildTheme(
+      activeMode,
       name,
       branded ?? base,
       !!branded,
@@ -143,6 +179,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, module, 
     );
   }, [
     module,
+    mode,
     brand?.primaryColor,
     brand?.secondaryColor,
     brand?.accentColor,

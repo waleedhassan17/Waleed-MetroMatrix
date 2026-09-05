@@ -83,10 +83,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   primaryText: {
-    color: Colors.surface,
+    color: Colors.text.inverse,
   },
   secondaryText: {
-    color: Colors.surface,
+    color: Colors.text.inverse,
   },
   outlineText: {
     color: Colors.primary,

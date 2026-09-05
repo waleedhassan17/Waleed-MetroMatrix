@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,16 +21,21 @@ import HealthRecordsScreen from '../health-records/healthRecords';
 import UserProfileScreen from '../../shared/profile/UserProfileScreen';
 
 // ── Blue Healthcare Palette ─────────────────
-const COLORS = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  surface: '#FFFFFF',
-  border: '#D6E8FF',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#64748B',
-  textTertiary: '#94A3B8',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeCOLORS = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  surface: n('#FFFFFF', 'surface'),
+  border: ground('#D6E8FF', '#5A9FFF'),
+  textPrimary: hue('#1A1A1A'),
+  textSecondary: n('#64748B', 'inkMuted'),
+  textTertiary: n('#94A3B8', 'inkFaint'),
+  };
 };
 
 type TabParamList = {
@@ -52,6 +60,10 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
 
 // ── Animated Tab Icon ───────────────────────
 const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName, focused }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const COLORS = useMemo(() => makeCOLORS(mode), [mode]);
+  const styles = useMemo(() => makeStyles(COLORS, sh), [COLORS, sh]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const config = TAB_CONFIG[routeName];
 
@@ -86,6 +98,10 @@ const TabIcon: React.FC<{ routeName: string; focused: boolean }> = ({ routeName,
 
 // ── Custom Tab Bar ──────────────────────────
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const COLORS = useMemo(() => makeCOLORS(mode), [mode]);
+  const styles = useMemo(() => makeStyles(COLORS, sh), [COLORS, sh]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -136,6 +152,10 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 
 // ── Main Tab Navigator ──────────────────────
 const HealthcareTabNavigator: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const COLORS = useMemo(() => makeCOLORS(mode), [mode]);
+  const styles = useMemo(() => makeStyles(COLORS, sh), [COLORS, sh]);
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -157,7 +177,7 @@ const HealthcareTabNavigator: React.FC = () => {
 };
 
 // ── Styles ──────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ReturnType<typeof makeCOLORS>, sh: DarkShift) => StyleSheet.create({
   tabBarContainer: {
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,

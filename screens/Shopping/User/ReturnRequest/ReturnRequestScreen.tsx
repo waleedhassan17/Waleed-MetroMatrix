@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, RotateCcw } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { resetReturnRequest, selectReturnRequest, setDetails, setReason, submitReturnRequest } from './returnRequestSlice';
 
 const reasons = ['Size issue', 'Damaged item', 'Wrong item', 'Late delivery'] as const;
 
 const ReturnRequestScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -32,7 +36,7 @@ const ReturnRequestScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}><ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} /></TouchableOpacity>
         <Text style={styles.title}>Return Request</Text>
@@ -57,7 +61,7 @@ const ReturnRequestScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Spacing.xl, paddingBottom: Spacing.md },
   iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface, ...Shadows.sm },

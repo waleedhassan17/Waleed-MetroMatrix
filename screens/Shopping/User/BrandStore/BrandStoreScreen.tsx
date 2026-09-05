@@ -14,7 +14,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';
 import { ThemeProvider } from '../../../../theme';
@@ -43,6 +44,9 @@ import {
 const BANNER_HEIGHT = 200;
 
 const BrandStoreScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -217,15 +221,7 @@ const BrandStoreScreen: React.FC = () => {
       width={cardWidth}
       imageHeight={imageHeight}
       onPress={navigateToProductDetail}
-      onWishlist={() => dispatch(toggleWishlistItem({
-        productId: item.productId,
-        productName: item.name,
-        productImage: item.images?.[0] ?? '',
-        brandId: item.brandId,
-        brandName: item.brandId,
-        price: item.salePrice ?? item.basePrice,
-        originalPrice: item.salePrice ? item.basePrice : undefined,
-      }))}
+      onWishlist={() => dispatch(toggleWishlistItem({ productId: item.productId }))}
       isWishlisted={wishlistIds.has(item.productId)}
     />
   );
@@ -430,7 +426,7 @@ const BrandStoreScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

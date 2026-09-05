@@ -54,7 +54,10 @@ const makeEmptyDraft = (): Product => ({
   sku: `SKU-${Date.now().toString(36).toUpperCase()}`,
   name: '',
   description: '',
-  images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800'],
+  // Starts empty. This used to seed a stock Unsplash photo, so a vendor who
+  // never touched the image field published a product with someone else's
+  // photograph on it.
+  images: [],
   // Was hardcoded to 'cat-apparel' — a made-up slug where the backend needs a
   // Mongo ObjectId, which is what produced the BSONError on every save.
   categoryId: '',

@@ -15,7 +15,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useDispatch, useSelector } from 'react-redux';
@@ -31,6 +31,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, E, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -61,13 +62,15 @@ type RouteParams = {
 };
 
 export default function LiveTrackingScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const bottomPad = useBottomBarPadding(GUTTER);
 
   const { bookingId, category = 'ac-repairers' } = route.params || {};
-  const accent = categoryAccent(category);
+  const accent = categoryAccent(category, mode);
 
   const provider = useSelector((state: RootState) => state.liveTracking?.provider);
   const providerLocation = useSelector((state: RootState) => state.liveTracking?.providerLocation);
@@ -304,8 +307,8 @@ export default function LiveTrackingScreen() {
           {userLocation && (
             <Marker coordinate={userLocation} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.markerOuter}>
-                <View style={[styles.marker, { backgroundColor: HS.accent }]}>
-                  <Ionicons name="home" size={14} color={C.inkInverse} />
+                <View style={[styles.marker, { backgroundColor: colors.accent }]}>
+                  <Ionicons name="home" size={14} color={colors.inkInverse} />
                 </View>
               </View>
             </Marker>
@@ -315,7 +318,7 @@ export default function LiveTrackingScreen() {
             <Marker coordinate={providerLocation} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.markerOuter}>
                 <View style={[styles.marker, { backgroundColor: accent.tint }]}>
-                  <Ionicons name={accent.icon as any} size={16} color={C.inkInverse} />
+                  <Ionicons name={accent.icon as any} size={16} color={colors.inkInverse} />
                 </View>
               </View>
             </Marker>
@@ -329,8 +332,8 @@ export default function LiveTrackingScreen() {
             <Circle
               center={userLocation}
               radius={PROXIMITY_RADIUS}
-              fillColor={`${HS.accent}14`}
-              strokeColor={`${HS.accent}44`}
+              fillColor={`${colors.accent}14`}
+              strokeColor={`${colors.accent}44`}
               strokeWidth={2}
             />
           )}
@@ -339,12 +342,12 @@ export default function LiveTrackingScreen() {
         {mapReady && (
           <View style={styles.eta}>
             <View style={styles.etaItem}>
-              <Ionicons name="time-outline" size={16} color={C.inkMuted} />
+              <Ionicons name="time-outline" size={16} color={colors.inkMuted} />
               <Text style={styles.etaText}>{trackingInfo.eta}</Text>
             </View>
             <View style={styles.etaDivider} />
             <View style={styles.etaItem}>
-              <Ionicons name="navigate-outline" size={16} color={C.inkMuted} />
+              <Ionicons name="navigate-outline" size={16} color={colors.inkMuted} />
               <Text style={styles.etaText}>{trackingInfo.distance}</Text>
             </View>
           </View>
@@ -391,7 +394,7 @@ export default function LiveTrackingScreen() {
             }
             accessibilityLabel={`Call ${provider.name}`}
           >
-            <Ionicons name="call-outline" size={18} color={C.ink} />
+            <Ionicons name="call-outline" size={18} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
@@ -403,7 +406,7 @@ export default function LiveTrackingScreen() {
             }
             accessibilityLabel={`Message ${provider.name}`}
           >
-            <Ionicons name="chatbubble-outline" size={18} color={C.ink} />
+            <Ionicons name="chatbubble-outline" size={18} color={colors.ink} />
           </TouchableOpacity>
         </View>
 
@@ -454,7 +457,7 @@ export default function LiveTrackingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   loading: {
     padding: GUTTER,
   },
@@ -464,12 +467,12 @@ const styles = StyleSheet.create({
 
   mapWrap: {
     flex: 1,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
   },
   markerOuter: {
     padding: 3,
     borderRadius: R.pill,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     ...E.raised,
   },
   marker: {
@@ -489,7 +492,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.lg,
     paddingVertical: S.sm,
     borderRadius: R.pill,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     ...E.overlay,
   },
   etaItem: {
@@ -498,18 +501,18 @@ const styles = StyleSheet.create({
   },
   etaText: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: 6,
   },
   etaDivider: {
     width: StyleSheet.hairlineWidth,
     height: 16,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginHorizontal: S.md,
   },
 
   sheet: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: R.sheet,
     borderTopRightRadius: R.sheet,
     paddingHorizontal: GUTTER,
@@ -530,20 +533,20 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     marginRight: S.xs,
     flexShrink: 1,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   iconButton: {
     width: 38,
     height: 38,
     borderRadius: R.chip,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: S.sm,

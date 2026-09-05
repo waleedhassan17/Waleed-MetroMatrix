@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -41,6 +43,9 @@ const NotificationCard = ({
   onPress: () => void;
   onDelete: () => void;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -117,6 +122,9 @@ const NotificationCard = ({
 };
 
 const NotificationsScreen = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -252,10 +260,10 @@ const NotificationsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 0 : 20,
@@ -285,10 +293,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   unreadBadge: {
-    backgroundColor: '#ef4444',
+    backgroundColor: sh.hue('#ef4444'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -296,7 +304,7 @@ const styles = StyleSheet.create({
   unreadBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   markAllBtn: {
     width: 40,
@@ -317,7 +325,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   filterBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   filterBtnText: {
     fontSize: 14,
@@ -325,14 +333,14 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   filterBtnTextActive: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
   },
   listContent: {
     padding: 16,
     paddingBottom: 20,
   },
   notificationCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     marginBottom: 12,
     overflow: 'hidden',
@@ -347,9 +355,9 @@ const styles = StyleSheet.create({
     }),
   },
   notificationCardUnread: {
-    backgroundColor: '#fefce8',
+    backgroundColor: sh.n('#fefce8', 'surfaceSunken'),
     borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
+    borderLeftColor: sh.hue('#6366f1'),
   },
   notificationContent: {
     flexDirection: 'row',
@@ -363,7 +371,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
   },
   notificationIcon: {
     width: 48,
@@ -379,24 +387,24 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginBottom: 4,
   },
   notificationMessage: {
     fontSize: 13,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     lineHeight: 18,
     marginBottom: 6,
   },
   notificationTime: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
   deleteBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 10,
@@ -424,12 +432,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     textAlign: 'center',
   },
 });

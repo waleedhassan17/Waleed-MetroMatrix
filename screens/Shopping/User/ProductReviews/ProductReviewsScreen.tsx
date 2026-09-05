@@ -13,7 +13,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Star, Camera, X } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { ProductReview } from '../../../../types/shopping';
 import { ErrorState } from '../../../../components/Shopping/ScreenState';
@@ -31,15 +32,21 @@ import {
   selectHasPhotosOnly,
 } from './productReviewsSlice';
 
-const ShopColors = {
-  primary: '#E67E22',
-  primaryLight: '#FFF3E6',
-  accent: '#F39C12',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+});
 
 const STAR_LABELS = ['', '1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'];
 
 const ProductReviewsScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -146,7 +153,7 @@ const ProductReviewsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Header ──────────────────────────── */}
       <View style={styles.header}>
@@ -303,7 +310,8 @@ const ProductReviewsScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -505,7 +513,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   verifiedBadge: {
-    backgroundColor: '#E8F8F0',
+    backgroundColor: Colors.successLight,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: BorderRadius.xs,
@@ -514,7 +522,7 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#27AE60',
+    color: Colors.success,
   },
   reviewDate: {
     fontSize: 11,

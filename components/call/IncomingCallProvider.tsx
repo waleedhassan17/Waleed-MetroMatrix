@@ -13,7 +13,7 @@
 // why splitting those two would race.
 // ============================================================================
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -26,6 +26,8 @@ import {
   AppState,
   type AppStateStatus,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { getSocket, emitEvent, RoomType } from '../../services/socket/socketClient';
 import { startRingtone, stopRingtone, stopRingtoneSync } from '../../services/call/ringtone';
 import {
@@ -87,6 +89,9 @@ const BIND_RETRY_MS = 3000;
 const LOCAL_RING_TIMEOUT_MS = 40_000;
 
 export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ children }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const activeRef = useRef<string | null>(null);
@@ -423,16 +428,16 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A', justifyContent: 'space-between', paddingVertical: 72 },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#0F172A', 'ink'), justifyContent: 'space-between', paddingVertical: 72 },
   header: { alignItems: 'center', marginTop: 40 },
-  label: { color: '#94A3B8', fontSize: 15, marginBottom: 12 },
-  name: { color: '#FFFFFF', fontSize: 30, fontWeight: '700', textAlign: 'center', paddingHorizontal: 24 },
-  phone: { color: '#CBD5E1', fontSize: 16, marginTop: 8 },
+  label: { color: sh.n('#94A3B8', 'inkFaint'), fontSize: 15, marginBottom: 12 },
+  name: { color: sh.n('#FFFFFF', 'inkInverse'), fontSize: 30, fontWeight: '700', textAlign: 'center', paddingHorizontal: 24 },
+  phone: { color: sh.n('#CBD5E1', 'disabled'), fontSize: 16, marginTop: 8 },
   actions: { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: 24 },
   btn: { paddingVertical: 18, paddingHorizontal: 34, borderRadius: 40, minWidth: 140, alignItems: 'center' },
-  decline: { backgroundColor: '#DC2626' },
-  accept: { backgroundColor: '#16A34A' },
-  btnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
-  hint: { color: '#64748B', fontSize: 13, textAlign: 'center' },
+  decline: { backgroundColor: sh.hue('#DC2626') },
+  accept: { backgroundColor: sh.hue('#16A34A') },
+  btnText: { color: sh.n('#FFFFFF', 'inkInverse'), fontSize: 17, fontWeight: '700' },
+  hint: { color: sh.n('#64748B', 'inkMuted'), fontSize: 13, textAlign: 'center' },
 });

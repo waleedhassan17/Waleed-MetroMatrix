@@ -12,7 +12,7 @@
 // the data is genuinely persisted rather than synthesized per request.
 // ============================================================================
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -35,28 +35,40 @@ import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
 
-const ACCENT = HS.accent;
-const ACCENT_SOFT = HS.accentSoft;
-
-/** Icon and tint per event, so the list is scannable without reading it. */
-const LOOK: Record<string, { icon: any; color: string; bg: string }> = {
-  booking_created: { icon: 'add-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
-  booking_accepted: { icon: 'checkmark-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
-  booking_rejected: { icon: 'close-circle-outline', color: C.error, bg: C.errorSoft },
-  booking_cancelled: { icon: 'close-circle-outline', color: C.error, bg: C.errorSoft },
-  booking_en_route: { icon: 'navigate-outline', color: C.info, bg: C.infoSoft },
-  booking_arrived: { icon: 'location-outline', color: C.info, bg: C.infoSoft },
-  booking_in_progress: { icon: 'construct-outline', color: C.warning, bg: C.warningSoft },
-  booking_completed: { icon: 'checkmark-done-outline', color: ACCENT, bg: ACCENT_SOFT },
-  message: { icon: 'chatbubble-outline', color: C.info, bg: C.infoSoft },
-  missed_call: { icon: 'call-outline', color: C.error, bg: C.errorSoft },
-  payment_requested: { icon: 'cash-outline', color: C.warning, bg: C.warningSoft },
-  payment_received: { icon: 'cash-outline', color: ACCENT, bg: ACCENT_SOFT },
+/**
+ * Icon and tint per event, so the list is scannable without reading it.
+ *
+ * A function of the ramp rather than a frozen table: every `bg` here is a
+ * `*Soft` token, and those are near-white in light and near-black in dark.
+ */
+const makeLook = (c: ThemeColors): Record<string, { icon: any; color: string; bg: string }> => {
+  const ACCENT = c.accent;
+  const ACCENT_SOFT = c.accentSoft;
+return {
+    booking_created: { icon: 'add-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
+    booking_accepted: { icon: 'checkmark-circle-outline', color: ACCENT, bg: ACCENT_SOFT },
+    booking_rejected: { icon: 'close-circle-outline', color: c.error, bg: c.errorSoft },
+    booking_cancelled: { icon: 'close-circle-outline', color: c.error, bg: c.errorSoft },
+    booking_en_route: { icon: 'navigate-outline', color: c.info, bg: c.infoSoft },
+    booking_arrived: { icon: 'location-outline', color: c.info, bg: c.infoSoft },
+    booking_in_progress: { icon: 'construct-outline', color: c.warning, bg: c.warningSoft },
+    booking_completed: { icon: 'checkmark-done-outline', color: ACCENT, bg: ACCENT_SOFT },
+    message: { icon: 'chatbubble-outline', color: c.info, bg: c.infoSoft },
+    missed_call: { icon: 'call-outline', color: c.error, bg: c.errorSoft },
+    payment_requested: { icon: 'cash-outline', color: c.warning, bg: c.warningSoft },
+    payment_received: { icon: 'cash-outline', color: ACCENT, bg: ACCENT_SOFT },
+  };
 };
 
-const FALLBACK_LOOK = { icon: 'notifications-outline' as any, color: C.inkMuted, bg: C.lineSoft };
+const fallbackLook = (c: ThemeColors) => ({
+  icon: 'notifications-outline' as any,
+  color: c.inkMuted,
+  bg: c.lineSoft,
+});
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
@@ -71,6 +83,12 @@ function timeAgo(iso: string): string {
 }
 
 export default function ProviderNotificationsScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+  const LOOK = useMemo(() => makeLook(colors), [colors]);
+  const FALLBACK_LOOK = useMemo(() => fallbackLook(colors), [colors]);
+  const ACCENT = colors.accent;
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -178,7 +196,7 @@ export default function ProviderNotificationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Mark all as read"
           >
-            <Ionicons name="checkmark-done" size={22} color={unread ? C.ink : C.inkFaint} />
+            <Ionicons name="checkmark-done" size={22} color={unread ? colors.ink : colors.inkFaint} />
           </TouchableOpacity>
         }
       />
@@ -189,7 +207,7 @@ export default function ProviderNotificationsScreen() {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color={C.inkFaint} />
+          <Ionicons name="cloud-offline-outline" size={44} color={colors.inkFaint} />
           <Text style={styles.stateText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
             <Text style={styles.retryText}>Try again</Text>
@@ -206,7 +224,7 @@ export default function ProviderNotificationsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.center}>
-              <Ionicons name="notifications-off-outline" size={48} color={C.inkFaint} />
+              <Ionicons name="notifications-off-outline" size={48} color={colors.inkFaint} />
               <Text style={styles.emptyTitle}>You're all caught up</Text>
               <Text style={styles.stateText}>
                 New bookings, messages and job updates will appear here.
@@ -219,7 +237,7 @@ export default function ProviderNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxxl },
@@ -230,26 +248,26 @@ const styles = StyleSheet.create({
     gap: S.md,
     paddingHorizontal: GUTTER,
     paddingVertical: S.md + 2,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.line,
+    borderBottomColor: c.line,
   },
-  rowUnread: { backgroundColor: HS.accentSoft },
+  rowUnread: { backgroundColor: c.accentSoft },
   iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  title: { ...T.subhead, color: C.ink, flex: 1 },
+  title: { ...T.subhead, color: c.ink, flex: 1 },
   titleUnread: { fontFamily: F.bold },
-  time: { ...T.caption, color: C.inkFaint },
-  message: { ...T.body, color: C.inkMuted, marginTop: 3 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT },
-  emptyTitle: { ...T.heading, color: C.ink, marginTop: S.md + 2 },
-  stateText: { ...T.body, color: C.inkMuted, textAlign: 'center', marginTop: S.sm },
+  time: { ...T.caption, color: c.inkFaint },
+  message: { ...T.body, color: c.inkMuted, marginTop: 3 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent },
+  emptyTitle: { ...T.heading, color: c.ink, marginTop: S.md + 2 },
+  stateText: { ...T.body, color: c.inkMuted, textAlign: 'center', marginTop: S.sm },
   retryBtn: {
     marginTop: S.lg + 2,
     paddingHorizontal: S.xxl + 2,
     paddingVertical: S.md - 1,
     borderRadius: R.pill,
-    backgroundColor: ACCENT,
+    backgroundColor: c.accent,
   },
-  retryText: { ...T.label, fontFamily: F.bold, color: C.inkInverse },
+  retryText: { ...T.label, fontFamily: F.bold, color: c.inkInverse },
 });

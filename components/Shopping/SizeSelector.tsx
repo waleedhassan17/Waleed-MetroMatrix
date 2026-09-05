@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Spacing, BorderRadius } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 
 interface SizeSelectorProps {
   sizes: string[];
@@ -19,6 +20,9 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
   disabledSizes = [],
   style,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   return (
     <View style={[styles.container, style]}>
       {sizes.map((size) => {
@@ -51,7 +55,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',

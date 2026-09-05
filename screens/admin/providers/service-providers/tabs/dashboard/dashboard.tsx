@@ -1,5 +1,5 @@
 // FILE: screens/admin/providers/service-providers/tabs/dashboard/dashboard.tsx
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../../../constants/darkShift';
+import { useTheme } from '../../../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../../../../hooks/useReduxHooks';
 import {
@@ -51,6 +53,9 @@ const colors = {
 };
 
 export default function DashboardScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const { stats, categories, cities, isLoading } = useAppSelector(
     (state) => state.adminSPDashboard
@@ -95,7 +100,7 @@ export default function DashboardScreen() {
 
   const renderHeader = () => (
     <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
       
       <View style={styles.headerContent}>
         <View style={styles.titleContainer}>
@@ -321,7 +326,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -375,7 +380,7 @@ const styles = StyleSheet.create({
     right: 10,
     width: 8,
     height: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     borderRadius: 4,
     borderWidth: 2,
     borderColor: colors.surface,
@@ -383,7 +388,7 @@ const styles = StyleSheet.create({
   profileButton: {
     width: 44,
     height: 44,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: sh.ground('#ECFDF5', '#10B981'),
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
@@ -427,7 +432,7 @@ const styles = StyleSheet.create({
   changeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 12,
@@ -537,7 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   percentageBadge: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 8,
@@ -549,7 +554,7 @@ const styles = StyleSheet.create({
   },
   categoryProgressContainer: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
     borderRadius: 3,
     overflow: 'hidden',
     marginTop: spacing.sm,
@@ -561,7 +566,7 @@ const styles = StyleSheet.create({
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: sh.ground('#ECFDF5', '#10B981'),
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 12,
@@ -598,7 +603,7 @@ const styles = StyleSheet.create({
   cityGrowth: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 8,
@@ -623,7 +628,7 @@ const styles = StyleSheet.create({
   },
   cityProgressContainer: {
     height: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
     borderRadius: 2,
     overflow: 'hidden',
   },

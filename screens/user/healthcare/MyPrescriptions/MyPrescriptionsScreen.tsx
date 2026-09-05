@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +32,9 @@ const C = {
 };
 
 const MyPrescriptionsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   // react-native's SafeAreaView is a plain View on Android, so the back button
   // was drawing up against the status bar icons.
@@ -86,7 +91,7 @@ const MyPrescriptionsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.headerText}>
@@ -117,7 +122,7 @@ const MyPrescriptionsScreen: React.FC = () => {
             <ActivityIndicator color={C.primary} />
           ) : error ? (
             <View style={styles.center}>
-              <View style={[styles.emptyMedallion, { backgroundColor: '#FEF2F2' }]}>
+              <View style={[styles.emptyMedallion, { backgroundColor: sh.ground('#FEF2F2', '#EF4444') }]}>
                 <Ionicons name="cloud-offline-outline" size={34} color="#EF4444" />
               </View>
               <Text style={styles.emptyText}>Couldn't load prescriptions</Text>
@@ -154,7 +159,7 @@ const MyPrescriptionsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

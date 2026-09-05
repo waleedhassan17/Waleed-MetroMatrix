@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -66,6 +68,9 @@ const StatCard: React.FC<{
   gradient: [string, string];
   delay: number;
 }> = ({ icon, label, value, gradient, delay }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -102,6 +107,9 @@ const StatCard: React.FC<{
 // ── Component ─────────────────────────────────
 
 const DoctorHomeScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const unreadTotal = useAppSelector(selectTotalUnread);
@@ -143,7 +151,7 @@ const DoctorHomeScreen: React.FC = () => {
   if (loading && !doctorName) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.pageBg} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={THEME.pageBg} />
         <View style={styles.loadingWrap}>
           <View style={styles.loadingIconWrap}>
             <ActivityIndicator size="large" color={THEME.primary} />
@@ -159,9 +167,9 @@ const DoctorHomeScreen: React.FC = () => {
   if (error && !doctorName) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.pageBg} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={THEME.pageBg} />
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load dashboard</Text>
@@ -181,7 +189,7 @@ const DoctorHomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.pageBg} translucent />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={THEME.pageBg} translucent />
 
       {/* Floating scroll header. `pointerEvents="none"` because it is absolute
           at zIndex 100 and `opacity: 0` until you scroll — and opacity does not
@@ -227,7 +235,7 @@ const DoctorHomeScreen: React.FC = () => {
 
         {/* ── Header with subtle gradient ── */}
         <LinearGradient
-          colors={['#FFFFFF', THEME.pageBg]}
+          colors={[sh.n('#FFFFFF', 'surface'), THEME.pageBg]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.headerSection}
@@ -440,7 +448,7 @@ const DoctorHomeScreen: React.FC = () => {
 
           {upcomingAppointments.length === 0 ? (
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                 <Ionicons name="calendar-outline" size={32} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>No appointments today</Text>
@@ -543,7 +551,7 @@ const DoctorHomeScreen: React.FC = () => {
               </View>
               <View style={styles.earningsDivider} />
               <View style={styles.earningsItem}>
-                <View style={[styles.earningsDotWrap, { backgroundColor: '#ECFDF5' }]}>
+                <View style={[styles.earningsDotWrap, { backgroundColor: sh.ground('#ECFDF5', '#10B981') }]}>
                   <View style={[styles.earningsDotInner, { backgroundColor: THEME.success }]} />
                 </View>
                 <Text style={styles.earningsItemLabel}>This Week</Text>
@@ -551,7 +559,7 @@ const DoctorHomeScreen: React.FC = () => {
               </View>
               <View style={styles.earningsDivider} />
               <View style={styles.earningsItem}>
-                <View style={[styles.earningsDotWrap, { backgroundColor: '#FFFBEB' }]}>
+                <View style={[styles.earningsDotWrap, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
                   <View style={[styles.earningsDotInner, { backgroundColor: THEME.warning }]} />
                 </View>
                 <Text style={styles.earningsItemLabel}>This Month</Text>
@@ -585,7 +593,7 @@ const DoctorHomeScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.pageBg,
@@ -599,7 +607,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: STATUS_BAR_HEIGHT,
     height: 58 + STATUS_BAR_HEIGHT,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     zIndex: 100,
     justifyContent: 'center',
     alignItems: 'center',
@@ -686,7 +694,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Header
@@ -749,14 +757,14 @@ const styles = StyleSheet.create({
   },
   statMiniCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 8,
     alignItems: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#E8F0FE',
+    borderColor: sh.n('#E8F0FE', 'surfaceSunken'),
     ...Platform.select({
       ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 2 },
@@ -807,7 +815,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -846,7 +854,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: '#E8F0FE',
+    borderColor: sh.n('#E8F0FE', 'surfaceSunken'),
     ...Platform.select({
       ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 16 },
       android: { elevation: 5 },
@@ -908,7 +916,7 @@ const styles = StyleSheet.create({
   nextPatientInitials: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: 0.5,
   },
   nextPatientInfo: {
@@ -926,7 +934,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   nextDurationBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
@@ -934,7 +942,7 @@ const styles = StyleSheet.create({
   nextDurationText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   startBtn: {
     flexDirection: 'row',
@@ -947,7 +955,7 @@ const styles = StyleSheet.create({
   startBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 
@@ -980,11 +988,11 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   quickActionBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   quickActionIconWrap: {
@@ -1049,7 +1057,7 @@ const styles = StyleSheet.create({
   scheduleVerticalDivider: {
     width: 1.5,
     height: 32,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     borderRadius: 1,
   },
   scheduleContent: {
@@ -1129,7 +1137,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySubtitle: {
     fontSize: 13,
@@ -1143,7 +1151,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E8F0FE',
+    borderColor: sh.n('#E8F0FE', 'surfaceSunken'),
     ...Platform.select({
       ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 14 },
       android: { elevation: 4 },
@@ -1201,7 +1209,7 @@ const styles = StyleSheet.create({
   earningsCTAText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // StatCard (unused component kept for reference)
@@ -1232,7 +1240,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '800' as const,
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.5,
   },
   statLabel: {

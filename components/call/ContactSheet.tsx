@@ -18,10 +18,11 @@
 // works whether or not the other person is holding their phone.
 // ============================================================================
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { Colors, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import { isCallingSupported } from '../../services/call/usePeerConnection';
 
 export interface ContactSheetProps {
@@ -51,6 +52,9 @@ const ContactSheet: React.FC<ContactSheetProps> = ({
   onCall,
   onMessage,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const supported = isCallingSupported();
   const reachable = presence === 'online';
   const canCall = supported && reachable;
@@ -153,7 +157,7 @@ const ContactSheet: React.FC<ContactSheetProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,

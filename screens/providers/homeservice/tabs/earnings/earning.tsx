@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -51,6 +51,8 @@ import {
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
 import { C, F, T } from '../../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { AppBar, Screen } from '../../../../../components/ui';
 
 const { width } = Dimensions.get('window');
@@ -95,6 +97,9 @@ const formatDate = (dateString: string): string => {
 };
 
 export default function EarningsScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const dispatch = useAppDispatch();
 
   // Real figures, scoped to this provider by their own JWT.
@@ -197,7 +202,7 @@ export default function EarningsScreen() {
           <View
             style={[
               styles.trendBadge,
-              { backgroundColor: trend >= 0 ? C.successSoft : C.errorSoft },
+              { backgroundColor: trend >= 0 ? colors.successSoft : colors.errorSoft },
             ]}
           >
             {trend >= 0 ? (
@@ -236,14 +241,14 @@ export default function EarningsScreen() {
 
       <View style={styles.metricsGrid}>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: C.warningSoft }]}>
+          <View style={[styles.metricIcon, { backgroundColor: colors.warningSoft }]}>
             <Star size={18} color={theme.colors.warning} />
           </View>
           <Text style={styles.metricValue}>{performance.avgRating}</Text>
           <Text style={styles.metricLabel}>Rating</Text>
         </View>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: C.successSoft }]}>
+          <View style={[styles.metricIcon, { backgroundColor: colors.successSoft }]}>
             <Zap size={18} color={theme.colors.success} />
           </View>
           <Text style={styles.metricValue}>{performance.onTimeRate}%</Text>
@@ -257,7 +262,7 @@ export default function EarningsScreen() {
           <Text style={styles.metricLabel}>Tier</Text>
         </View>
         <View style={styles.metricItem}>
-          <View style={[styles.metricIcon, { backgroundColor: C.infoSoft }]}>
+          <View style={[styles.metricIcon, { backgroundColor: colors.infoSoft }]}>
             <Target size={18} color={theme.colors.info} />
           </View>
           <Text style={styles.metricValue}>{performance.repeatCustomerRate}%</Text>
@@ -342,10 +347,10 @@ export default function EarningsScreen() {
   // Payment Item Component
   const PaymentItemComponent = ({ item }: { item: PaymentItem }) => {
     const statusConfig = {
-      completed: { color: theme.colors.success, bg: C.successSoft, icon: CheckCircle2 },
-      pending: { color: theme.colors.warning, bg: C.warningSoft, icon: Clock },
-      processing: { color: theme.colors.info, bg: C.infoSoft, icon: CreditCard },
-      failed: { color: theme.colors.error, bg: C.errorSoft, icon: X },
+      completed: { color: theme.colors.success, bg: colors.successSoft, icon: CheckCircle2 },
+      pending: { color: theme.colors.warning, bg: colors.warningSoft, icon: Clock },
+      processing: { color: theme.colors.info, bg: colors.infoSoft, icon: CreditCard },
+      failed: { color: theme.colors.error, bg: colors.errorSoft, icon: X },
     }[item.status];
 
     const StatusIcon = statusConfig.icon;
@@ -496,7 +501,7 @@ export default function EarningsScreen() {
             onPress={() => setShowPeriodFilter(true)}
             accessibilityLabel="Filter earnings by period"
           >
-            <Filter size={20} color={C.inkInverse} />
+            <Filter size={20} color={colors.inkInverse} />
           </TouchableOpacity>
           {/* Export is not built yet. A disabled, dimmed control is honest;
               a tappable one that does nothing is the bug QA reported. */}
@@ -505,7 +510,7 @@ export default function EarningsScreen() {
             disabled
             accessibilityLabel="Download earnings report (coming soon)"
           >
-            <Download size={20} color={C.disabled} />
+            <Download size={20} color={colors.disabled} />
           </TouchableOpacity>
         </View>
         }
@@ -560,14 +565,14 @@ export default function EarningsScreen() {
             icon={TrendingUp}
             trend={stats.monthlyGrowth}
             color={theme.colors.info}
-            bgColor={C.infoSoft}
+            bgColor={colors.infoSoft}
           />
           <StatsCard
             title="Available"
             value={formatCurrency(stats.pendingPayouts)}
             icon={Wallet}
             color={theme.colors.warning}
-            bgColor={C.warningSoft}
+            bgColor={colors.warningSoft}
             onPress={() => setShowPayoutModal(true)}
           />
           {/* No trend badge here: the API sends growth for earnings only, and
@@ -617,7 +622,7 @@ export default function EarningsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   controlDisabled: {
     opacity: 0.4,
   },
@@ -630,9 +635,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     borderWidth: 1,
-    borderColor: C.errorSoft,
+    borderColor: c.errorSoft,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
@@ -695,7 +700,7 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 44,
     height: 44,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -718,7 +723,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -766,7 +771,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -826,7 +831,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -851,7 +856,7 @@ const styles = StyleSheet.create({
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 8,
     padding: 3,
   },
@@ -864,7 +869,7 @@ const styles = StyleSheet.create({
   },
   periodBtnActive: {
     backgroundColor: theme.colors.surface,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -915,7 +920,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -953,7 +958,7 @@ const styles = StyleSheet.create({
   paymentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
   },
@@ -1055,7 +1060,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,

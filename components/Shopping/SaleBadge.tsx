@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { BorderRadius } from '../../constants/Colors';
+import { BorderRadius, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 
 interface SaleBadgeProps {
   basePrice: number;
@@ -10,6 +11,9 @@ interface SaleBadgeProps {
 }
 
 const SaleBadge: React.FC<SaleBadgeProps> = ({ basePrice, salePrice, style, size = 'sm' }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   if (!salePrice || salePrice >= basePrice) return null;
   const percent = Math.round(((basePrice - salePrice) / basePrice) * 100);
 
@@ -20,7 +24,7 @@ const SaleBadge: React.FC<SaleBadgeProps> = ({ basePrice, salePrice, style, size
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   badge: {
     backgroundColor: '#E74C3C',
     paddingHorizontal: 6,

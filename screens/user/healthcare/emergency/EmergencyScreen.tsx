@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,22 +11,30 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ── Theme ───────────────────────────────────
-const THEME = {
-  emergency: '#EF4444',
-  emergencyDark: '#DC2626',
-  emergencyLight: '#FEF2F2',
-  primary: '#2A7FFF',
-  surface: '#FFFFFF',
-  bg: '#F7F9FC',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#64748B',
-  border: '#E5E7EB',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  emergency: hue('#EF4444'),
+  emergencyDark: hue('#DC2626'),
+  emergencyLight: ground('#FEF2F2', '#EF4444'),
+  primary: hue('#2A7FFF'),
+  surface: n('#FFFFFF', 'surface'),
+  bg: n('#F7F9FC', 'surfaceSunken'),
+  textPrimary: hue('#1A1A1A'),
+  textSecondary: n('#64748B', 'inkMuted'),
+  border: n('#E5E7EB', 'line'),
+  };
 };
 
 // ── Emergency Contacts ──────────────────────
@@ -155,6 +163,10 @@ const IMPORTANT_NOTES = [
 
 // ── Component ───────────────────────────────
 const EmergencyScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -185,7 +197,7 @@ const EmergencyScreen: React.FC = () => {
 
       {/* Header */}
       <LinearGradient
-        colors={['#EF4444', '#DC2626']}
+        colors={sh.grad(['#EF4444', '#DC2626'])}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -208,7 +220,7 @@ const EmergencyScreen: React.FC = () => {
           ]}
         >
           <LinearGradient
-            colors={['#FEF2F2', '#FEE2E2']}
+            colors={sh.grad(['#FEF2F2', '#FEE2E2'])}
             style={styles.heroBanner}
           >
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
@@ -218,7 +230,7 @@ const EmergencyScreen: React.FC = () => {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={['#EF4444', '#DC2626']}
+                  colors={sh.grad(['#EF4444', '#DC2626'])}
                   style={styles.mainEmergencyGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -298,6 +310,10 @@ const EmergencyScreen: React.FC = () => {
 
 // ── First Aid Accordion Card ────────────────
 const FirstAidCard: React.FC<{ tip: typeof FIRST_AID_TIPS[0] }> = ({ tip }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const [expanded, setExpanded] = React.useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
 
@@ -347,7 +363,7 @@ const FirstAidCard: React.FC<{ tip: typeof FIRST_AID_TIPS[0] }> = ({ tip }) => {
 // ── Styles ──────────────────────────────────
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 0;
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: THEME.bg,
@@ -369,7 +385,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: 0.3,
   },
   headerRight: { width: 36 },
@@ -383,11 +399,11 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   mainEmergencyButton: {
     marginBottom: 16,
-    shadowColor: '#EF4444',
+    shadowColor: sh.hue('#EF4444'),
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 16,

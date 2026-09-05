@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppSelector } from '../../../../store/hooks';
 import { selectCartItemCount } from '../Cart/cartSlice';
 
@@ -14,12 +15,17 @@ import WishlistScreen from '../Wishlist/WishlistScreen';
 import MyOrdersScreen from '../MyOrders/MyOrdersScreen';
 
 // Shopping orange palette — matches the rest of the shopping module
-const COLORS = {
-  primary: '#E67E22',
-  surface: '#FFFFFF',
-  border: '#F0E4D7',
-  inactive: '#94A3B8',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeCOLORS = (c: ThemeColors) => ({
+  primary: c.accent,
+  surface: c.surface,
+  border: c.accentLine,
+  inactive: c.inkFaint,
+  // The cart badge. Semantic red, so it follows the ramp rather than staying
+  // the light-mode #E74C3C on a dark bar.
+  danger: c.error,
+});
 
 type ShoppingTabParamList = {
   ShopHome: undefined;
@@ -39,6 +45,10 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
 
 const CartIconWithBadge: React.FC<{ focused: boolean; color: string; size: number }> = ({ focused, color, size }) => {
   const count = useAppSelector(selectCartItemCount);
+  const { colors } = useTheme();
+  const COLORS = React.useMemo(() => makeCOLORS(colors), [colors]);
+  const styles = React.useMemo(() => makeStyles(COLORS), [COLORS]);
+
   return (
     <View>
       <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size} color={color} />
@@ -66,6 +76,9 @@ const ShoppingTabsNavigator: React.FC = () => {
   //     under the OS back/home/recents buttons. The inset is now reserved as
   //     real padding instead.
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const COLORS = React.useMemo(() => makeCOLORS(colors), [colors]);
+  const styles = React.useMemo(() => makeStyles(COLORS), [COLORS]);
 
   return (
     <Tab.Navigator
@@ -110,7 +123,7 @@ const ShoppingTabsNavigator: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ReturnType<typeof makeCOLORS>) => StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -4,
@@ -118,7 +131,7 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#E74C3C',
+    backgroundColor: COLORS.danger,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,

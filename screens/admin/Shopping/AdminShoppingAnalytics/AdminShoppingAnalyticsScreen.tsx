@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, TrendingUp } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -38,7 +40,12 @@ const RANGES: { key: AnalyticsRange; label: string }[] = [
 
 // Simple horizontal bar — same approach as the vendor analytics screen,
 // no charting library.
-const Bar: React.FC<{ label: string; value: number; max: number; suffix?: string }> = ({ label, value, max, suffix }) => (
+const Bar: React.FC<{ label: string; value: number; max: number; suffix?: string }> = ({ label, value, max, suffix }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.barRow}>
     <Text style={styles.barLabel} numberOfLines={1}>{label}</Text>
     <View style={styles.barTrack}>
@@ -46,9 +53,13 @@ const Bar: React.FC<{ label: string; value: number; max: number; suffix?: string
     </View>
     <Text style={styles.barValue}>{suffix ? `${value.toLocaleString()}${suffix}` : value.toLocaleString()}</Text>
   </View>
-);
+  );
+};
 
 const AdminShoppingAnalyticsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { range, data, loading, error } = useAppSelector(selectAdminShoppingAnalytics);
@@ -75,7 +86,7 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={COLORS.text} strokeWidth={2} />
@@ -171,7 +182,7 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },

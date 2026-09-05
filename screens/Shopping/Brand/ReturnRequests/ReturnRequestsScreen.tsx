@@ -60,7 +60,7 @@ const getInitials = (name: string) => {
 };
 
 const ReturnRequestsScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const STATUS_STYLES = useMemo(() => statusStyles(colors), [colors]);
   const NEXT_RETURN_ACTIONS = useMemo(() => nextReturnActions(colors), [colors]);
@@ -138,7 +138,7 @@ const ReturnRequestsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.surface} />
 
       <BrandHeader
         title="Return Requests"

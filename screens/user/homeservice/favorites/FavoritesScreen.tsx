@@ -7,7 +7,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
@@ -21,6 +21,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { FavoriteProvider } from '../../../../networks/serviceProviders/favoritesNetwork';
 import { formatRating } from '../../../../utils/homeservice/format';
@@ -43,6 +44,8 @@ export interface FavoritesScreenProps {
 }
 
 export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -59,7 +62,7 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
 
   const renderItem = useCallback(
     ({ item }: { item: FavoriteProvider }) => {
-      const accent = categoryAccent(item.category);
+      const accent = categoryAccent(item.category, mode);
       // A provider with no reviews is new, not badly rated.
       const rating = formatRating(item.rating);
 
@@ -90,7 +93,7 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
               <View style={styles.metaRow}>
                 {rating ? (
                   <>
-                    <Ionicons name="star" size={12} color={C.star} />
+                    <Ionicons name="star" size={12} color={colors.star} />
                     <Text style={styles.metaText}>
                       {rating}
                       {item.reviews ? ` (${item.reviews})` : ''}
@@ -108,7 +111,7 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel={`Remove ${item.name} from saved`}
             >
-              <Ionicons name="heart" size={20} color={C.error} />
+              <Ionicons name="heart" size={20} color={colors.error} />
             </TouchableOpacity>
           </View>
         </Card>
@@ -184,8 +187,8 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
           <RefreshControl
             refreshing={loading && loaded}
             onRefresh={() => dispatch(fetchFavorites())}
-            colors={[HS.accent]}
-            tintColor={HS.accent}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
         ListEmptyComponent={listEmpty}
@@ -194,7 +197,7 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // Kept in step with the Bookings tab — the two are siblings in the same tab
   // bar, so an empty Saved that hugs the top while an empty Bookings sits
   // centred reads as one of them being broken.
@@ -219,11 +222,11 @@ const styles = StyleSheet.create({
   },
   name: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   metaRow: {
@@ -233,7 +236,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: 3,
   },
 });

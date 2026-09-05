@@ -27,9 +27,10 @@ export interface CheckoutPaymentState {
 const initialState: CheckoutPaymentState = {
   paymentMethods: [],
   selectedMethod: null,
-  savedCards: [
-    { id: 'card-1', cardholderName: 'Muhammad Waleed', last4: '4242', expiry: '12/28' },
-  ],
+  // No fabricated cards. This used to seed a fake card ending 4242 (the Stripe
+  // test number) under a real person's name; nothing rendered it, but any
+  // future saved-cards UI would have shown a card that does not exist.
+  savedCards: [],
   loading: false,
   error: null,
   walletBalance: 0,

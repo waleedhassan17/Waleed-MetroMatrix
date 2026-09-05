@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
+import { type AppointmentStatus } from '../../../../constants/HealthcareTheme';
 import {
   View,
   Text,
@@ -17,6 +18,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -56,30 +60,41 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#2A7FFF',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  info: hue('#2A7FFF'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as const,
-    header: ['#1857C0', '#1E6AE1'] as const,
-    success: ['#10B981', '#059669'] as const,
-    warning: ['#F59E0B', '#D97706'] as const,
-    error: ['#EF4444', '#DC2626'] as const,
-    info: ['#2A7FFF', '#1857C0'] as const,
-    accent: ['#5A9FFF', '#1857C0'] as const,
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    success: grad(['#10B981', '#059669']),
+    warning: grad(['#F59E0B', '#D97706']),
+    error: grad(['#EF4444', '#DC2626']),
+    info: grad(['#2A7FFF', '#1857C0']),
+    accent: grad(['#5A9FFF', '#1857C0']),
   },
+  };
 };
 
 // ── Status Config ───────────────────────────
 
-const STATUS_CONFIG: Record<
-  Appointment['status'],
+/**
+ * Per-status presentation. A function of the palette, because its gradients and
+ * colours come from a table that now varies by mode.
+ */
+const makeSTATUS_CONFIG = (
+  THEME: ReturnType<typeof makeTHEME>,
+): Record<
+  AppointmentStatus,
   {
     label: string;
     subtitle: string;
@@ -87,7 +102,7 @@ const STATUS_CONFIG: Record<
     icon: string;
     color: string;
   }
-> = {
+> => ({
   pending: {
     label: 'Pending Confirmation',
     subtitle: 'Waiting for doctor to confirm',
@@ -123,7 +138,9 @@ const STATUS_CONFIG: Record<
     icon: 'alert-circle-outline',
     color: THEME.error,
   },
-};
+});
+
+
 
 // ── Skeleton Component ──────────────────────
 
@@ -180,6 +197,11 @@ const DetailRow: React.FC<{
   onPress?: () => void;
   isLink?: boolean;
 }> = ({ icon, iconBg, iconColor, label, value, onPress, isLink }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const STATUS_CONFIG = useMemo(() => makeSTATUS_CONFIG(THEME), [THEME]);
   const content = (
     <View style={styles.detailRow}>
       <View style={[styles.detailIconBg, { backgroundColor: iconBg }]}>
@@ -209,6 +231,11 @@ const DetailRow: React.FC<{
 // ── Component ───────────────────────────────
 
 const AppointmentDetailScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const STATUS_CONFIG = useMemo(() => makeSTATUS_CONFIG(THEME), [THEME]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -409,7 +436,7 @@ const AppointmentDetailScreen: React.FC = () => {
   if (!appointment) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
         <View style={styles.emptyHeader}>
           <BackButton tone="onSurface" onPress={handleBack} />
           <Text style={styles.emptyHeaderTitle}>Appointment Detail</Text>
@@ -493,7 +520,7 @@ const AppointmentDetailScreen: React.FC = () => {
         {/* Doctor Card */}
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <View style={[styles.cardIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.cardIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <MaterialCommunityIcons name="doctor" size={16} color={THEME.primary} />
             </View>
             <Text style={styles.cardTitle}>Doctor</Text>
@@ -521,7 +548,7 @@ const AppointmentDetailScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.contactButton} activeOpacity={0.7}>
-              <View style={[styles.contactIconBg, { backgroundColor: '#EAF3FF' }]}>
+              <View style={[styles.contactIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                 <Ionicons name="chatbubble" size={16} color={THEME.primary} />
               </View>
               <Text style={styles.contactButtonText}>Message</Text>
@@ -532,7 +559,7 @@ const AppointmentDetailScreen: React.FC = () => {
         {/* Appointment Details Card */}
         <View style={styles.card}>
           <View style={styles.cardTitleRow}>
-            <View style={[styles.cardIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.cardIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="calendar" size={16} color={THEME.accent} />
             </View>
             <Text style={styles.cardTitle}>Appointment Details</Text>
@@ -623,7 +650,7 @@ const AppointmentDetailScreen: React.FC = () => {
           <View style={styles.detailDivider} />
 
           <View style={styles.paymentStatusRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.detailIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="shield-checkmark-outline" size={16} color={THEME.accent} />
             </View>
             <View style={styles.detailContent}>
@@ -910,10 +937,10 @@ const AppointmentDetailScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -939,7 +966,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   timeUntilBadge: {
@@ -954,7 +981,7 @@ const styles = StyleSheet.create({
   timeUntilText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Loading
@@ -973,15 +1000,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   emptyBackButton: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1003,7 +1030,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1048,7 +1075,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   statusSubtitle: {
     fontSize: 13,
@@ -1059,12 +1086,12 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1137,7 +1164,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   contactIconBg: {
     width: 32,
@@ -1186,7 +1213,7 @@ const styles = StyleSheet.create({
   },
   detailDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
 
@@ -1200,7 +1227,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: THEME.primary,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
   },
   invoiceBtnText: {
     fontSize: 14,
@@ -1248,12 +1275,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     borderRadius: 14,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     borderWidth: 1,
-    borderColor: '#C7DEFF',
+    borderColor: sh.hue('#C7DEFF'),
   },
   contactBtnText: {
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
     fontSize: 15,
     fontWeight: '700',
   },
@@ -1262,13 +1289,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2A7FFF',
+    backgroundColor: sh.hue('#2A7FFF'),
     borderRadius: 12,
     paddingVertical: 12,
     marginTop: 12,
   },
   payNowText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1282,7 +1309,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Action Row
@@ -1301,12 +1328,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   cancelButton: {
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FEF2F2',
+    borderColor: sh.ground('#FEE2E2', '#EF4444'),
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
   },
   rescheduleButton: {
     borderColor: THEME.primaryLight,
-    backgroundColor: '#FAFCFF',
+    backgroundColor: sh.n('#FAFCFF', 'surfaceSunken'),
   },
   outlineButtonText: {
     fontSize: 14,
@@ -1322,7 +1349,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 24,
     width: '100%',
@@ -1336,7 +1363,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1364,7 +1391,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     marginBottom: 10,
   },
   reasonOptionSelected: {
@@ -1375,7 +1402,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1397,7 +1424,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: sh.n('#CBD5E1', 'disabled'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1417,7 +1444,7 @@ const styles = StyleSheet.create({
   },
   otherReasonTextInput: {
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     borderRadius: 12,
     padding: 14,
     fontSize: 14,
@@ -1432,7 +1459,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     padding: 12,
     borderRadius: 10,
     marginBottom: 16,
@@ -1455,7 +1482,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   modalOutlineButtonText: {
     fontSize: 14,
@@ -1471,18 +1498,18 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.error,
   },
   modalButtonDisabled: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
   },
   modalDangerButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   loadingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
 });
 

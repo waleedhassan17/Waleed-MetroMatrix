@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   TextInput,
   Keyboard,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
@@ -51,6 +53,9 @@ interface RouteParams {
 }
 
 export default function ResetPasswordOTPScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as RouteParams;
@@ -204,7 +209,7 @@ export default function ResetPasswordOTPScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={Platform.OS === 'android' ? '#FFFFFF' : 'transparent'}
         translucent={Platform.OS !== 'android'}
       />
@@ -344,10 +349,10 @@ export default function ResetPasswordOTPScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   scrollView: {
     flex: 1,
@@ -375,30 +380,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 16,
   },
   emailContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: sh.n('#F5F5F5', 'surfaceSunken'),
     padding: 16,
     borderRadius: 12,
     marginBottom: 32,
     alignItems: 'center',
     borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
+    borderLeftColor: sh.hue('#6366f1'),
   },
   emailText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   otpContainer: {
     marginBottom: 32,
@@ -413,12 +418,12 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.n('#E5E7EB', 'line'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -432,8 +437,8 @@ const styles = StyleSheet.create({
     }),
   },
   otpInputFilled: {
-    borderColor: '#6366f1',
-    backgroundColor: '#F5F3FF',
+    borderColor: sh.hue('#6366f1'),
+    backgroundColor: sh.ground('#F5F3FF', '#8B5CF6'),
   },
   otpInputDisabled: {
     opacity: 0.5,
@@ -447,18 +452,18 @@ const styles = StyleSheet.create({
   },
   attemptsText: {
     fontSize: 13,
-    color: '#F59E0B',
+    color: sh.hue('#F59E0B'),
     fontWeight: '500',
   },
   attemptsTextDanger: {
-    color: '#EF4444',
+    color: sh.hue('#EF4444'),
   },
   buttonContainer: {
     marginBottom: 32,
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     height: 56,
     borderRadius: 12,
     alignItems: 'center',
@@ -478,14 +483,14 @@ const styles = StyleSheet.create({
     }),
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 15,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 2,
-    borderColor: '#6366f1',
+    borderColor: sh.hue('#6366f1'),
     height: 56,
     borderRadius: 12,
     alignItems: 'center',
@@ -494,7 +499,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontSize: 15,
     fontWeight: '600',
   },
@@ -510,7 +515,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '600',
   },
 });

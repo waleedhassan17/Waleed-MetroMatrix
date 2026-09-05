@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 
 /**
  * Shared loading / error-with-retry / empty states for the shopping screens.
@@ -33,14 +35,20 @@ export const LoadingState: React.FC<LoadingProps> = ({
   label = 'Loading...',
   sublabel,
   emoji = '🛍️',
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.container}>
     <Text style={styles.emoji}>{emoji}</Text>
     <ActivityIndicator size="large" color={ShopStateColors.primary} style={{ marginTop: 16 }} />
     <Text style={styles.title}>{label}</Text>
     {!!sublabel && <Text style={styles.message}>{sublabel}</Text>}
   </View>
-);
+  );
+};
 
 interface ErrorProps {
   /** Message from the API/thunk. A generic fallback is used when absent. */
@@ -55,7 +63,12 @@ export const ErrorState: React.FC<ErrorProps> = ({
   title = "Something went wrong",
   onRetry,
   retryLabel = 'Try Again',
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.container}>
     <Text style={styles.emoji}>⚠️</Text>
     <Text style={styles.title}>{title}</Text>
@@ -68,7 +81,8 @@ export const ErrorState: React.FC<ErrorProps> = ({
       </TouchableOpacity>
     )}
   </View>
-);
+  );
+};
 
 interface EmptyProps {
   emoji?: string;
@@ -84,7 +98,12 @@ export const EmptyState: React.FC<EmptyProps> = ({
   message,
   actionLabel,
   onAction,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.container}>
     <Text style={styles.emoji}>{emoji}</Text>
     <Text style={styles.title}>{title}</Text>
@@ -95,9 +114,10 @@ export const EmptyState: React.FC<EmptyProps> = ({
       </TouchableOpacity>
     )}
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

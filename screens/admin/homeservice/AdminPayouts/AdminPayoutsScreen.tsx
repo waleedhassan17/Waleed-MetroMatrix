@@ -3,7 +3,7 @@
 // wallet ledger) or reject with a reason; shows available balance.
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -47,6 +49,9 @@ const STATUS_COLORS: Record<string, string> = {
 const FILTERS = ['pending', 'approved', 'rejected', 'all'];
 
 const AdminPayoutsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [rows, setRows] = useState<AdminPayoutRow[]>([]);
   const [status, setStatus] = useState('pending');
@@ -154,7 +159,7 @@ const AdminPayoutsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -239,7 +244,7 @@ const AdminPayoutsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
@@ -271,7 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E9ECEF' },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: sh.n('#E9ECEF', 'disabled') },
   name: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   chip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   chipText: { fontSize: 10, fontWeight: '700' },
@@ -295,7 +300,7 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,

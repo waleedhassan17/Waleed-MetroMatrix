@@ -49,7 +49,7 @@ const FLAG_LABELS: Record<string, string> = {
 };
 
 const ProductFormScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -122,7 +122,7 @@ const ProductFormScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.surface} />
 
       <BrandHeader
         title={isEdit ? 'Edit Product' : 'New Product'}

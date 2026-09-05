@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Spacing } from '../../constants/Colors';
+import { Colors, Spacing, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 
 interface PriceDisplayProps {
   basePrice: number;
@@ -19,6 +20,9 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
   size = 'md',
   style,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const hasDiscount = !!salePrice && salePrice < basePrice;
   const displayPrice = hasDiscount ? salePrice! : basePrice;
 
@@ -39,7 +43,7 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

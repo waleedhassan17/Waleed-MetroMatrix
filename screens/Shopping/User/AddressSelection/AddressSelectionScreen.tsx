@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, MapPin, Plus, Star, Trash2 } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { validateAddressForm } from '../../../../models/shopping/addressModel';
 import {
@@ -31,7 +32,8 @@ import {
   type CheckoutAddressForm,
 } from '../CheckoutAddress/checkoutAddressSlice';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', danger: '#E74C3C' };
+// A function of the ramp — see the note in constants/Colors.ts.
+const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, danger: c.error });
 
 const FIELDS: { key: keyof CheckoutAddressForm; label: string; placeholder: string }[] = [
   { key: 'name', label: 'Full Name', placeholder: 'e.g. Muhammad Waleed' },
@@ -45,6 +47,10 @@ const FIELDS: { key: keyof CheckoutAddressForm; label: string; placeholder: stri
 ];
 
 const AddressSelectionScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const addresses = useAppSelector(selectCheckoutAddresses);
@@ -87,7 +93,7 @@ const AddressSelectionScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
@@ -185,13 +191,14 @@ const AddressSelectionScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
   title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
-  errorText: { color: '#E74C3C', marginBottom: Spacing.md, textAlign: 'center' },
+  errorText: { color: Colors.error, marginBottom: Spacing.md, textAlign: 'center' },
   empty: { alignItems: 'center', paddingVertical: Spacing.xl },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 2, borderColor: 'transparent', ...Shadows.sm },

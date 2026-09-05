@@ -5,7 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -31,6 +31,7 @@ import {
 } from '../../../../components/ui';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import {
   addUserAddress,
   deleteUserAddress,
@@ -49,6 +50,8 @@ const ICONS: Record<string, string> = {
 };
 
 export default function AddressManagementScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -134,7 +137,7 @@ export default function AddressManagementScreen() {
           <Ionicons
             name={(ICONS[item.icon || 'location'] || 'location-outline') as any}
             size={19}
-            color={C.inkMuted}
+            color={colors.inkMuted}
           />
         </View>
 
@@ -166,14 +169,14 @@ export default function AddressManagementScreen() {
           onPress={() => openEdit(item)}
           accessibilityLabel={`Edit ${item.label}`}
         >
-          <Ionicons name="pencil-outline" size={17} color={C.inkMuted} />
+          <Ionicons name="pencil-outline" size={17} color={colors.inkMuted} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => setPendingDelete(item)}
           accessibilityLabel={`Delete ${item.label}`}
         >
-          <Ionicons name="trash-outline" size={17} color={C.error} />
+          <Ionicons name="trash-outline" size={17} color={colors.error} />
         </TouchableOpacity>
       </View>
     </Card>
@@ -243,7 +246,7 @@ export default function AddressManagementScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="House, street, area"
-                placeholderTextColor={C.inkFaint}
+                placeholderTextColor={colors.inkFaint}
                 value={address}
                 onChangeText={setAddress}
               />
@@ -252,7 +255,7 @@ export default function AddressManagementScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Lahore"
-                placeholderTextColor={C.inkFaint}
+                placeholderTextColor={colors.inkFaint}
                 value={city}
                 onChangeText={setCity}
               />
@@ -297,7 +300,7 @@ export default function AddressManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   list: {
     padding: GUTTER,
     flexGrow: 1,
@@ -320,7 +323,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -334,28 +337,28 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   defaultChip: {
     marginLeft: S.sm,
     paddingHorizontal: S.sm,
     paddingVertical: 2,
     borderRadius: R.chip,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
   defaultChipText: {
     ...T.caption,
-    color: HS.accentDeep,
+    color: c.accentDeep,
     fontFamily: F.semibold,
   },
   cardAddress: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   link: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
     marginTop: S.sm,
   },
   iconButton: {
@@ -367,14 +370,14 @@ const styles = StyleSheet.create({
 
   scrim: {
     flex: 1,
-    backgroundColor: C.scrim,
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheetWrap: {
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: R.sheet,
     borderTopRightRadius: R.sheet,
     paddingHorizontal: GUTTER,
@@ -385,17 +388,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginBottom: S.lg,
   },
   sheetTitle: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
     marginBottom: S.lg,
   },
   fieldLabel: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: S.sm,
     marginTop: S.md,
   },
@@ -407,19 +410,19 @@ const styles = StyleSheet.create({
     paddingVertical: S.sm,
     borderRadius: R.chip,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     marginRight: S.sm,
   },
   chipActive: {
-    backgroundColor: HS.accentSoft,
-    borderColor: HS.accentLine,
+    backgroundColor: c.accentSoft,
+    borderColor: c.accentLine,
   },
   chipText: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   chipTextActive: {
-    color: HS.accentDeep,
+    color: c.accentDeep,
     fontFamily: F.semibold,
   },
   input: {
@@ -427,14 +430,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.md,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   error: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     marginTop: S.md,
   },
   sheetActions: {

@@ -16,7 +16,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   Image,
   Linking,
@@ -44,6 +44,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { RootState } from '../../../../store/store';
 import {
@@ -82,6 +83,8 @@ type RouteParams = {
 };
 
 export default function ProviderProfileScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch();
@@ -192,7 +195,7 @@ export default function ProviderProfileScreen() {
             style={styles.headerIcon}
             accessibilityLabel="Share this provider"
           >
-            <Ionicons name="share-outline" size={20} color={C.ink} />
+            <Ionicons name="share-outline" size={20} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleToggleWishlist}
@@ -202,7 +205,7 @@ export default function ProviderProfileScreen() {
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={isFavorite ? C.error : C.ink}
+              color={isFavorite ? colors.error : colors.ink}
             />
           </TouchableOpacity>
         </View>
@@ -236,7 +239,7 @@ export default function ProviderProfileScreen() {
     );
   }
 
-  const accent = categoryAccent(provider.category ?? category);
+  const accent = categoryAccent(provider.category ?? category, mode);
   const rating = formatRating(provider.rating);
   const reviews = formatReviewCount(provider.reviews);
 
@@ -294,7 +297,7 @@ export default function ProviderProfileScreen() {
           <SectionHeader title="Certifications" />
           {provider.certifications.map((cert, index) => (
             <View key={index} style={styles.bulletRow}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={C.success} />
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
               <Text style={styles.bulletText}>{cert}</Text>
             </View>
           ))}
@@ -371,7 +374,7 @@ export default function ProviderProfileScreen() {
                       key={star}
                       name={star <= review.rating ? 'star' : 'star-outline'}
                       size={12}
-                      color={star <= review.rating ? C.star : C.disabled}
+                      color={star <= review.rating ? colors.star : colors.disabled}
                     />
                   ))}
                 </View>
@@ -491,7 +494,7 @@ export default function ProviderProfileScreen() {
               />
               {provider.verified && (
                 <View style={[styles.verified, { backgroundColor: accent.tint }]}>
-                  <Ionicons name="checkmark" size={11} color={C.inkInverse} />
+                  <Ionicons name="checkmark" size={11} color={colors.inkInverse} />
                 </View>
               )}
             </View>
@@ -511,7 +514,7 @@ export default function ProviderProfileScreen() {
               <View style={styles.heroRating}>
                 {rating ? (
                   <>
-                    <Ionicons name="star" size={14} color={C.star} />
+                    <Ionicons name="star" size={14} color={colors.star} />
                     <Text style={styles.ratingValue}>{rating}</Text>
                     {!!reviews && <Text style={styles.meta}>· {reviews}</Text>}
                   </>
@@ -530,7 +533,7 @@ export default function ProviderProfileScreen() {
 
           {!!provider.address && (
             <View style={styles.heroAddress}>
-              <Ionicons name="location-outline" size={14} color={C.inkFaint} />
+              <Ionicons name="location-outline" size={14} color={colors.inkFaint} />
               <Text style={styles.meta} numberOfLines={1}>
                 {provider.address}
               </Text>
@@ -548,7 +551,7 @@ export default function ProviderProfileScreen() {
               accessibilityRole="button"
             >
               <View style={styles.quickActionIcon}>
-                <Ionicons name={action.icon as any} size={20} color={C.ink} />
+                <Ionicons name={action.icon as any} size={20} color={colors.ink} />
               </View>
               <Text style={styles.quickActionLabel}>{action.label}</Text>
             </TouchableOpacity>
@@ -623,7 +626,7 @@ export default function ProviderProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: 120,
@@ -660,7 +663,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   heroInfo: {
     flex: 1,
@@ -668,7 +671,7 @@ const styles = StyleSheet.create({
   },
   heroName: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   heroRating: {
     flexDirection: 'row',
@@ -677,7 +680,7 @@ const styles = StyleSheet.create({
   },
   ratingValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: 4,
     marginRight: 4,
   },
@@ -685,12 +688,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: C.success,
+    backgroundColor: c.success,
     marginLeft: S.md,
   },
   online: {
     ...T.caption,
-    color: C.success,
+    color: c.success,
     marginLeft: 5,
   },
   heroAddress: {
@@ -699,7 +702,7 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
 
   quickActions: {
@@ -714,15 +717,15 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: R.control,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickActionLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 6,
   },
 
@@ -739,18 +742,18 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   statLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
     textAlign: 'center',
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
 
   tabs: {
@@ -765,23 +768,23 @@ const styles = StyleSheet.create({
   },
   body: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.md,
     maxWidth: PROSE_WIDTH,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   metaFaint: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 2,
   },
   link: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
     marginTop: S.sm,
   },
 
@@ -792,7 +795,7 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.sm,
   },
 
@@ -805,13 +808,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.md,
     paddingVertical: 5,
     borderRadius: R.chip,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     marginRight: S.sm,
     marginBottom: S.sm,
   },
   tagText: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
 
   rowCard: {
@@ -819,7 +822,7 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   serviceRow: {
     flexDirection: 'row',
@@ -832,7 +835,7 @@ const styles = StyleSheet.create({
   },
   servicePrice: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
 
   reviewHeader: {
@@ -848,7 +851,7 @@ const styles = StyleSheet.create({
   },
   reviewBody: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.md,
     maxWidth: PROSE_WIDTH,
   },
@@ -868,7 +871,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: R.card,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
   },
   galleryScrim: {
     position: 'absolute',
@@ -883,7 +886,7 @@ const styles = StyleSheet.create({
   },
   galleryTitle: {
     ...T.label,
-    color: C.inkInverse,
+    color: c.inkInverse,
   },
 
   dayRow: {
@@ -892,19 +895,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: S.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.lineSoft,
+    borderBottomColor: c.lineSoft,
   },
   dayName: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   dayHours: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   dayClosed: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
 
   footer: {
@@ -914,8 +917,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: GUTTER,
     paddingTop: S.md,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.line,
+    borderTopColor: c.line,
   },
 });

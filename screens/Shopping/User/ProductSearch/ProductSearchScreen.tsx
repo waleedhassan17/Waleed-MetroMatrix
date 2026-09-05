@@ -20,7 +20,8 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
 import { ErrorState } from '../../../../components/Shopping/ScreenState';
@@ -47,13 +48,19 @@ import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSli
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
-const ShopColors = {
-  primary: '#E67E22',
-  primaryLight: '#FFF3E6',
-  accent: '#F39C12',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+});
 
 const ProductSearchScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -150,15 +157,7 @@ const ProductSearchScreen: React.FC = () => {
   // ── Render Product Result ─────────────────
 
   const handleToggleWishlist = useCallback((item: Product) => {
-    dispatch(toggleWishlistItem({
-      productId: item.productId,
-      productName: item.name,
-      productImage: item.images?.[0] ?? '',
-      brandId: item.brandId,
-      brandName: item.brandId,
-      price: item.salePrice ?? item.basePrice,
-      originalPrice: item.salePrice ? item.basePrice : undefined,
-    }));
+    dispatch(toggleWishlistItem({ productId: item.productId }));
   }, [dispatch]);
 
   const renderProductResult = ({ item }: { item: Product }) => (
@@ -194,7 +193,7 @@ const ProductSearchScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Search Header ───────────────────── */}
       <View style={styles.header}>
@@ -363,7 +362,8 @@ const ProductSearchScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

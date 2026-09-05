@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ErrorDisplayProps {
@@ -7,6 +9,9 @@ interface ErrorDisplayProps {
 }
 
 const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   if (!message) return null;
 
   return (
@@ -17,13 +22,13 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
+    backgroundColor: sh.hue('#FFEBEE'),
     borderLeftWidth: 4,
-    borderLeftColor: '#D32F2F',
+    borderLeftColor: sh.hue('#D32F2F'),
     padding: 12,
     marginBottom: 20,
     borderRadius: 8,
@@ -31,7 +36,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#D32F2F',
+    color: sh.hue('#D32F2F'),
     fontSize: 14,
   },
 });

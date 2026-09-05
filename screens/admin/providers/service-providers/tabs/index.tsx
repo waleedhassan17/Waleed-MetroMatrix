@@ -1,8 +1,10 @@
 // FILE: screens/admin/providers/service-providers/tabs/index.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, StyleSheet, View } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../../constants/darkShift';
+import { useTheme } from '../../../../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DashboardScreen from './dashboard/dashboard';
 import BookingsScreen from './bookings/bookings';
@@ -22,6 +24,9 @@ const colors = {
 };
 
 export default function ServiceProvidersAdminTabs() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const insets = useSafeAreaInsets();
   
   return (
@@ -85,7 +90,7 @@ export default function ServiceProvidersAdminTabs() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',

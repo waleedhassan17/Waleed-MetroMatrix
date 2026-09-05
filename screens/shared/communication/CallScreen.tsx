@@ -18,7 +18,7 @@
 // the backing booking itself instead of dead-ending.
 // ============================================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import OutgoingCallView from '../../../components/call/OutgoingCallView';
@@ -35,6 +37,9 @@ import { resolveProviderBookingId } from '../../../utils/homeservice/resolveProv
 import { normalizeRoomParams, type RoomParams } from './roomParams';
 
 export default function CallScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const room = normalizeRoomParams(route.params);
@@ -118,13 +123,13 @@ export default function CallScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#0F172A', 'ink') },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  title: { color: '#F1F5F9', fontSize: 20, fontWeight: '700', marginTop: 18, textAlign: 'center' },
-  body: { color: '#94A3B8', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
+  title: { color: sh.n('#F1F5F9', 'lineSoft'), fontSize: 20, fontWeight: '700', marginTop: 18, textAlign: 'center' },
+  body: { color: sh.n('#94A3B8', 'inkFaint'), fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
   btn: { marginTop: 28, paddingHorizontal: 30, paddingVertical: 13, borderRadius: 24 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   linkBtn: { marginTop: 16, padding: 8 },
-  linkText: { color: '#94A3B8', fontSize: 14, fontWeight: '600' },
+  linkText: { color: sh.n('#94A3B8', 'inkFaint'), fontSize: 14, fontWeight: '600' },
 });

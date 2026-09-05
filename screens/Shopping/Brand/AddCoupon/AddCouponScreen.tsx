@@ -26,7 +26,7 @@ import { C, F, T } from '../../../../constants/theme';
 const DAY_MS = 86400000;
 
 const AddCouponScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -95,7 +95,7 @@ const AddCouponScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <BrandHeader title={editing ? 'Edit Coupon' : 'New Coupon'} showBack />
 
       <ScrollView contentContainerStyle={styles.scroll}>

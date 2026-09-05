@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
   selectCurrency,
   fetchWallet,
 } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import { Eye, EyeOff, ArrowUpRight } from 'lucide-react-native';
 import { currencySymbol } from '../../constants/Currency';
 
@@ -31,6 +32,9 @@ const splitMoney = (amount: number) => {
 };
 
 const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const dispatch = useAppDispatch();
   const balance = useAppSelector(selectBalance) as number;
   const currency = useAppSelector(selectCurrency) as string;
@@ -128,7 +132,7 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import { setJobCompletionData } from '../job-completion/jobCompletionSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { checkJobApprovalStatus } from '../../../../networks/serviceProviders/jobNetwork';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
 
 type RootStackParamList = {
@@ -35,6 +37,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const PaymentRequestScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch();
   
@@ -283,7 +289,7 @@ const PaymentRequestScreen: React.FC = () => {
         <View style={styles.invoiceCard}>
           <View style={styles.invoiceHeader}>
             <View style={styles.invoiceIconBg}>
-              <Icon name="receipt" size={22} color={C.success} />
+              <Icon name="receipt" size={22} color={colors.success} />
             </View>
             <View style={styles.invoiceHeaderInfo}>
               <Text style={styles.invoiceTitle}>Invoice</Text>
@@ -361,14 +367,14 @@ const PaymentRequestScreen: React.FC = () => {
             <Text style={styles.paymentMethodsTitle}>Payment Options</Text>
             <View style={styles.paymentMethodsRow}>
               <View style={styles.paymentMethodItem}>
-                <View style={[styles.paymentMethodIcon, { backgroundColor: C.infoSoft }]}>
-                  <Icon name="credit-card-outline" size={22} color={C.info} />
+                <View style={[styles.paymentMethodIcon, { backgroundColor: colors.infoSoft }]}>
+                  <Icon name="credit-card-outline" size={22} color={colors.info} />
                 </View>
                 <Text style={styles.paymentMethodText}>Online Payment</Text>
               </View>
               <View style={styles.paymentMethodItem}>
-                <View style={[styles.paymentMethodIcon, { backgroundColor: C.successSoft }]}>
-                  <Icon name="cash" size={22} color={C.success} />
+                <View style={[styles.paymentMethodIcon, { backgroundColor: colors.successSoft }]}>
+                  <Icon name="cash" size={22} color={colors.success} />
                 </View>
                 <Text style={styles.paymentMethodText}>Cash Payment</Text>
               </View>
@@ -388,7 +394,7 @@ const PaymentRequestScreen: React.FC = () => {
             ]}
           >
             <View style={styles.waitingIconBg}>
-              <Icon name="clock-outline" size={32} color={C.warning} />
+              <Icon name="clock-outline" size={32} color={colors.warning} />
             </View>
             <Text style={styles.waitingTitle}>Payment Requested</Text>
             <Text style={styles.waitingSubtitle}>
@@ -414,7 +420,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleCashPayment}
               activeOpacity={0.85}
             >
-              <Icon name="cash" size={20} color={C.success} />
+              <Icon name="cash" size={20} color={colors.success} />
               <Text style={styles.cashButtonText}>Paid in Cash</Text>
             </TouchableOpacity>
 
@@ -423,7 +429,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleRequestPayment}
               activeOpacity={0.85}
             >
-              <Icon name="send" size={20} color={C.surface} />
+              <Icon name="send" size={20} color={colors.surface} />
               <Text style={styles.requestButtonText}>Request Payment</Text>
             </TouchableOpacity>
           </View>
@@ -439,7 +445,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleCashPayment}
               activeOpacity={0.85}
             >
-              <Icon name="cash" size={20} color={C.success} />
+              <Icon name="cash" size={20} color={colors.success} />
               <Text style={styles.cashButtonText}>Paid in Cash</Text>
             </TouchableOpacity>
 
@@ -448,7 +454,7 @@ const PaymentRequestScreen: React.FC = () => {
               onPress={handleRequestPayment}
               activeOpacity={0.85}
             >
-              <Icon name="send" size={20} color={C.surface} />
+              <Icon name="send" size={20} color={colors.surface} />
               <Text style={styles.requestButtonText}>Send Reminder</Text>
             </TouchableOpacity>
           </View>
@@ -459,7 +465,7 @@ const PaymentRequestScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   flex: { flex: 1 },
   loadingContainer: {
     flex: 1,
@@ -468,7 +474,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...T.subhead,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
   content: {
@@ -478,11 +484,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   invoiceCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -497,7 +503,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: C.successSoft,
+    backgroundColor: c.successSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -507,16 +513,16 @@ const styles = StyleSheet.create({
   invoiceTitle: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: C.ink,
+    color: c.ink,
   },
   invoiceNumber: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   serviceInfo: {
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
@@ -524,17 +530,17 @@ const styles = StyleSheet.create({
   serviceName: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   customerName: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 4,
   },
   invoiceDivider: {
     height: 1,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginBottom: 16,
   },
   breakdownSection: {
@@ -543,7 +549,7 @@ const styles = StyleSheet.create({
   breakdownTitle: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: 12,
   },
   breakdownRow: {
@@ -555,12 +561,12 @@ const styles = StyleSheet.create({
   breakdownLabel: {
     ...T.body,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   breakdownValue: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   editableRow: {
     flexDirection: 'row',
@@ -571,30 +577,30 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   inputPrefix: {
     ...T.body,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginRight: 4,
   },
   amountInput: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
     minWidth: 60,
     textAlign: 'right',
     padding: 0,
   },
   totalDivider: {
     height: 2,
-    backgroundColor: C.success,
+    backgroundColor: c.success,
     marginBottom: 16,
     borderRadius: 1,
   },
@@ -606,19 +612,19 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   totalValue: {
     ...T.heading,
     fontFamily: F.bold,
-    color: C.success,
+    color: c.success,
   },
   paymentMethodsCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -627,7 +633,7 @@ const styles = StyleSheet.create({
   paymentMethodsTitle: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: 14,
   },
   paymentMethodsRow: {
@@ -637,7 +643,7 @@ const styles = StyleSheet.create({
   paymentMethodItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 14,
     padding: 16,
   },
@@ -652,21 +658,21 @@ const styles = StyleSheet.create({
   paymentMethodText: {
     ...T.caption,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   waitingCard: {
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: C.warningSoft,
+    borderColor: c.warningSoft,
   },
   waitingIconBg: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -674,13 +680,13 @@ const styles = StyleSheet.create({
   waitingTitle: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: C.warning,
+    color: c.warning,
     marginBottom: 8,
   },
   waitingSubtitle: {
     ...T.body,
     fontFamily: F.regular,
-    color: C.warning,
+    color: c.warning,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -692,23 +698,23 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   dotActive: {
-    backgroundColor: C.warning,
+    backgroundColor: c.warning,
   },
   bottomContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: C.surfaceSunken,
-    shadowColor: C.ink,
+    borderTopColor: c.surfaceSunken,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -723,16 +729,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.successSoft,
+    backgroundColor: c.successSoft,
     borderRadius: 14,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: C.successSoft,
+    borderColor: c.successSoft,
   },
   cashButtonText: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.success,
+    color: c.success,
     marginLeft: 8,
   },
   requestButton: {
@@ -740,10 +746,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.success,
+    backgroundColor: c.success,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: C.success,
+    shadowColor: c.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -752,7 +758,7 @@ const styles = StyleSheet.create({
   requestButtonText: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.surface,
+    color: c.inkInverse,
     marginLeft: 8,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +52,9 @@ const TAB_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.gl
 
 // ── Animated Tab Icon ───────────────────────
 const TabIcon: React.FC<{ routeName: string; focused: boolean; badgeCount?: number }> = ({ routeName, focused, badgeCount = 0 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const config = TAB_CONFIG[routeName];
 
@@ -89,6 +94,9 @@ const TabIcon: React.FC<{ routeName: string; focused: boolean; badgeCount?: numb
 
 // ── Custom Tab Bar ──────────────────────────
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const insets = useSafeAreaInsets();
 
   // Was a hardcoded literal 3, which contradicted the queue's own header
@@ -150,6 +158,9 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 
 // ── Main Tab Navigator ──────────────────────
 const DoctorTabNavigator: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -164,7 +175,7 @@ const DoctorTabNavigator: React.FC = () => {
 };
 
 // ── Styles ──────────────────────────────────
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   tabBarContainer: {
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
@@ -224,7 +235,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -232,10 +243,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 9,
     fontWeight: '800',
   },

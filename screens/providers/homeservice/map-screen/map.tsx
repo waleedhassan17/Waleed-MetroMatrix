@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ import { emitEvent, joinBooking } from '../../../../services/socket/socketClient
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -46,6 +48,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const NavigationMapScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -318,7 +324,7 @@ const NavigationMapScreen: React.FC = () => {
               ]}
             />
             <View style={styles.destinationMarker}>
-              <Icon name="map-marker" size={32} color={HS.accent} />
+              <Icon name="map-marker" size={32} color={colors.accent} />
             </View>
           </View>
         </Marker>
@@ -330,7 +336,7 @@ const NavigationMapScreen: React.FC = () => {
             destination={destinationCoords}
             apikey={GOOGLE_MAPS_API_KEY}
             strokeWidth={5}
-            strokeColor={HS.accent}
+            strokeColor={colors.accent}
             onReady={onDirectionsReady}
           />
         )}
@@ -342,11 +348,11 @@ const NavigationMapScreen: React.FC = () => {
           style={styles.controlButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="chevron-left" size={24} color={C.ink} />
+          <Icon name="chevron-left" size={24} color={colors.ink} />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.controlButton} onPress={centerOnRoute}>
-          <Icon name="crosshairs-gps" size={22} color={C.ink} />
+          <Icon name="crosshairs-gps" size={22} color={colors.ink} />
         </TouchableOpacity>
       </View>
 
@@ -354,12 +360,12 @@ const NavigationMapScreen: React.FC = () => {
       {distance && duration && (
         <View style={styles.etaBubble}>
           <View style={styles.etaItem}>
-            <Icon name="map-marker-distance" size={18} color={HS.accent} />
+            <Icon name="map-marker-distance" size={18} color={colors.accent} />
             <Text style={styles.etaValue}>{distance}</Text>
           </View>
           <View style={styles.etaDivider} />
           <View style={styles.etaItem}>
-            <Icon name="clock-outline" size={18} color={HS.accent} />
+            <Icon name="clock-outline" size={18} color={colors.accent} />
             <Text style={styles.etaValue}>{duration}</Text>
           </View>
         </View>
@@ -384,14 +390,14 @@ const NavigationMapScreen: React.FC = () => {
             </View>
           </View>
           <TouchableOpacity style={styles.callButton} onPress={handleCallCustomer}>
-            <Icon name="phone" size={20} color={C.surface} />
+            <Icon name="phone" size={20} color={colors.surface} />
           </TouchableOpacity>
         </View>
 
         {/* Location Card */}
         <View style={styles.locationCard}>
           <View style={styles.locationIconBg}>
-            <Icon name="map-marker" size={18} color={C.warning} />
+            <Icon name="map-marker" size={18} color={colors.warning} />
           </View>
           <View style={styles.locationInfo}>
             <Text style={styles.locationAddress} numberOfLines={1}>
@@ -407,7 +413,7 @@ const NavigationMapScreen: React.FC = () => {
             style={styles.openMapsButton}
             onPress={handleOpenInMaps}
           >
-            <Icon name="google-maps" size={20} color={HS.accent} />
+            <Icon name="google-maps" size={20} color={colors.accent} />
             <Text style={styles.openMapsText}>Open in Maps</Text>
           </TouchableOpacity>
 
@@ -420,7 +426,7 @@ const NavigationMapScreen: React.FC = () => {
             disabled={false} // Allow manual arrival for demo
             activeOpacity={0.85}
           >
-            <Icon name="check-circle" size={20} color={C.surface} />
+            <Icon name="check-circle" size={20} color={colors.surface} />
             <Text style={styles.arrivedButtonText}>I've Arrived</Text>
           </TouchableOpacity>
         </View>
@@ -428,7 +434,7 @@ const NavigationMapScreen: React.FC = () => {
         {/* Helper Text */}
         {!isNearDestination && (
           <Text style={styles.helperText}>
-            <Icon name="information-outline" size={14} color={C.inkFaint} />
+            <Icon name="information-outline" size={14} color={colors.inkFaint} />
             {' '}Tap "I've Arrived" when you reach the location
           </Text>
         )}
@@ -437,10 +443,10 @@ const NavigationMapScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: c.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -449,7 +455,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...T.subhead,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
   map: {
@@ -468,10 +474,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -483,11 +489,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 30,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -501,12 +507,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   etaDivider: {
     width: 1,
     height: 20,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginHorizontal: 16,
   },
   destinationMarkerContainer: {
@@ -521,10 +527,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   destinationMarker: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 6,
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -535,13 +541,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 36,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
@@ -550,7 +556,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -570,14 +576,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   customerInitialSmall: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: HS.accent,
+    color: c.accent,
   },
   customerDetails: {
     marginLeft: 12,
@@ -586,26 +592,26 @@ const styles = StyleSheet.create({
   customerNameText: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   serviceTypeText: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   callButton: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.bg,
+    backgroundColor: c.bg,
     borderRadius: 14,
     padding: 12,
     marginBottom: 16,
@@ -614,7 +620,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -625,12 +631,12 @@ const styles = StyleSheet.create({
   locationAddress: {
     ...T.body,
     fontFamily: F.medium,
-    color: C.ink,
+    color: c.ink,
   },
   locationCity: {
     ...T.caption,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   actionRow: {
@@ -642,47 +648,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderRadius: 14,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: HS.accentLine,
+    borderColor: c.accentLine,
   },
   openMapsText: {
     marginLeft: 8,
     ...T.body,
     fontFamily: F.semibold,
-    color: HS.accent,
+    color: c.accent,
   },
   arrivedButton: {
     flex: 0.55,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderRadius: 14,
     paddingVertical: 14,
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   arrivedButtonDisabled: {
-    backgroundColor: HS.accentLine,
+    backgroundColor: c.accentLine,
   },
   arrivedButtonText: {
     marginLeft: 8,
     ...T.body,
     fontFamily: F.semibold,
-    color: C.surface,
+    color: c.inkInverse,
   },
   helperText: {
     textAlign: 'center',
     marginTop: 14,
     ...T.caption,
     fontFamily: F.regular,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
 });
 

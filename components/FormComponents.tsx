@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Fonts } from '../constants/Fonts';
 
@@ -38,6 +40,9 @@ export const InputField: React.FC<InputFieldProps> = ({
   multiline = false,
   numberOfLines = 1,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.inputContainer}>
       <View style={styles.labelContainer}>
@@ -82,6 +87,9 @@ export const PickerField: React.FC<PickerFieldProps> = ({
   placeholder,
   icon,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.inputContainer}>
       <View style={styles.labelContainer}>
@@ -110,6 +118,9 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   totalSteps,
   color = '#10b981',
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.progressContainer}>
       {Array.from({ length: totalSteps }).map((_, index) => (
@@ -142,6 +153,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   fileName,
   hasFile,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.uploadContainer}>
       <View style={styles.uploadHeader}>
@@ -180,6 +194,9 @@ interface InfoBoxProps {
 }
 
 export const InfoBox: React.FC<InfoBoxProps> = ({ message, type = 'info' }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const getColors = () => {
     switch (type) {
       case 'success':
@@ -215,6 +232,9 @@ interface SocialButtonProps {
 }
 
 export const SocialButton: React.FC<SocialButtonProps> = ({ provider, onPress }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <TouchableOpacity
       style={styles.socialButton}
@@ -253,6 +273,9 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   icon,
   color,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const isPrimary = variant === 'primary';
   const buttonColor = color || '#10b981';
 
@@ -283,7 +306,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   // Input Field Styles
   inputContainer: {
     marginBottom: 16,
@@ -297,18 +320,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
     fontWeight: '400',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -326,15 +349,15 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   disabledInput: {
-    backgroundColor: '#f8fafc',
-    color: '#94a3b8',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
 
   // Picker Field Styles
   pickerButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -356,10 +379,10 @@ const styles = StyleSheet.create({
   pickerText: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   placeholderText: {
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
 
   // Progress Indicator Styles
@@ -373,7 +396,7 @@ const styles = StyleSheet.create({
   progressDot: {
     width: 32,
     height: 4,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: sh.n('#e2e8f0', 'line'),
     borderRadius: 2,
   },
   progressDotActive: {
@@ -393,21 +416,21 @@ const styles = StyleSheet.create({
   uploadLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   uploadBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 2,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     borderStyle: 'dashed',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
   },
   uploadBoxSuccess: {
-    borderColor: '#10b981',
+    borderColor: sh.hue('#10b981'),
     borderStyle: 'solid',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: sh.n('#f0fdf4', 'surfaceSunken'),
   },
   uploadContent: {
     alignItems: 'center',
@@ -415,14 +438,14 @@ const styles = StyleSheet.create({
   uploadText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#475569',
+    color: sh.n('#475569', 'inkMuted'),
     marginTop: 8,
     textAlign: 'center',
   },
   uploadSubtext: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginTop: 4,
   },
 
@@ -449,9 +472,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     borderRadius: 12,
     paddingVertical: 12,
     gap: 8,
@@ -470,7 +493,7 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#475569',
+    color: sh.n('#475569', 'inkMuted'),
   },
 
   // Action Button Styles
@@ -484,7 +507,7 @@ const styles = StyleSheet.create({
     gap: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#10b981',
+        shadowColor: sh.hue('#10b981'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -495,12 +518,12 @@ const styles = StyleSheet.create({
     }),
   },
   secondaryButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: sh.hue('#10b981'),
   },
   disabledButton: {
-    backgroundColor: '#cbd5e1',
+    backgroundColor: sh.n('#cbd5e1', 'disabled'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -511,10 +534,10 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
     letterSpacing: 0.3,
   },
   secondaryButtonText: {
-    color: '#10b981',
+    color: sh.hue('#10b981'),
   },
 });

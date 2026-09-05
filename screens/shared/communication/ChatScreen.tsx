@@ -16,7 +16,7 @@
 // — see utils/homeservice/resolveProviderRoom.
 // ============================================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../components/ui';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -36,6 +38,9 @@ import { resolveProviderBookingId } from '../../../utils/homeservice/resolveProv
 import { normalizeRoomParams, type RoomParams } from './roomParams';
 
 export default function ChatScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const room = normalizeRoomParams(route.params);
@@ -154,8 +159,8 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#F9FAFB', 'bg') },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,11 +172,11 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   avatar: { width: 88, height: 88, borderRadius: 44, marginBottom: 20 },
-  avatarFallback: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 19, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  body: { fontSize: 15, color: '#6B7280', lineHeight: 22, textAlign: 'center', marginTop: 10 },
+  avatarFallback: { backgroundColor: sh.n('#E5E7EB', 'line'), alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 19, fontWeight: '700', color: sh.n('#111827', 'ink'), textAlign: 'center' },
+  body: { fontSize: 15, color: sh.n('#6B7280', 'inkMuted'), lineHeight: 22, textAlign: 'center', marginTop: 10 },
   btn: { marginTop: 26, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 24 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   linkBtn: { marginTop: 14, padding: 8 },
-  linkText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+  linkText: { color: sh.n('#6B7280', 'inkMuted'), fontSize: 14, fontWeight: '600' },
 });

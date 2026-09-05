@@ -17,7 +17,7 @@
 // way to find out which layer broke, and it costs nothing at runtime.
 // ============================================================================
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, CheckCircle2, XCircle, CircleDashed } from 'lucide-react-native';
@@ -49,6 +51,9 @@ const INITIAL: Check[] = [
 ];
 
 export default function WebRTCDiagnosticScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [checks, setChecks] = useState<Check[]>(INITIAL);
   const [running, setRunning] = useState(false);
@@ -138,7 +143,7 @@ export default function WebRTCDiagnosticScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -214,38 +219,38 @@ export default function WebRTCDiagnosticScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#F9FAFB', 'bg') },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: sh.n('#E5E7EB', 'line'),
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#111827' },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: sh.n('#111827', 'ink') },
   content: { padding: 20, paddingBottom: 48 },
-  blurb: { fontSize: 13, color: '#6B7280', lineHeight: 19, marginBottom: 16 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, overflow: 'hidden' },
+  blurb: { fontSize: 13, color: sh.n('#6B7280', 'inkMuted'), lineHeight: 19, marginBottom: 16 },
+  card: { backgroundColor: sh.n('#FFFFFF', 'surface'), borderRadius: 14, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: sh.n('#E5E7EB', 'line') },
   rowBody: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '500', color: '#111827' },
-  rowDetail: { fontSize: 12, color: '#6B7280', marginTop: 3 },
-  rowDetailFail: { color: '#EF4444' },
+  rowLabel: { fontSize: 15, fontWeight: '500', color: sh.n('#111827', 'ink') },
+  rowDetail: { fontSize: 12, color: sh.n('#6B7280', 'inkMuted'), marginTop: 3 },
+  rowDetailFail: { color: sh.hue('#EF4444') },
   actions: { flexDirection: 'row', gap: 12, marginTop: 20 },
   btn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  btnPrimary: { backgroundColor: '#10B981' },
-  btnPrimaryText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
+  btnPrimary: { backgroundColor: sh.hue('#10B981') },
+  btnPrimaryText: { color: sh.n('#FFFFFF', 'inkInverse'), fontWeight: '600', fontSize: 15 },
   btnDisabled: { opacity: 0.6 },
-  btnGhost: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
-  btnGhostText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+  btnGhost: { backgroundColor: sh.n('#FFFFFF', 'surface'), borderWidth: 1, borderColor: sh.n('#E5E7EB', 'line') },
+  btnGhostText: { color: sh.hue('#374151'), fontWeight: '600', fontSize: 15 },
   viewBox: { marginTop: 20 },
-  rtcView: { width: '100%', height: 160, backgroundColor: '#000000', borderRadius: 12 },
-  viewNote: { fontSize: 12, color: '#6B7280', marginTop: 8, lineHeight: 17 },
-  platform: { fontSize: 11, color: '#9CA3AF', marginTop: 24, textAlign: 'center' },
+  rtcView: { width: '100%', height: 160, backgroundColor: sh.hue('#000000'), borderRadius: 12 },
+  viewNote: { fontSize: 12, color: sh.n('#6B7280', 'inkMuted'), marginTop: 8, lineHeight: 17 },
+  platform: { fontSize: 11, color: sh.n('#9CA3AF', 'inkFaint'), marginTop: 24, textAlign: 'center' },
 });

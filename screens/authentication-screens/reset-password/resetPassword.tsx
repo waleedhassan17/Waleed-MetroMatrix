@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
@@ -56,6 +58,9 @@ type RootStackParamList = {
 };
 
 export default function ResetPasswordScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as RouteParams;
@@ -190,7 +195,7 @@ export default function ResetPasswordScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={Platform.OS === 'android' ? '#FFFFFF' : 'transparent'}
         translucent={Platform.OS !== 'android'}
       />
@@ -374,10 +379,10 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   scrollView: {
     flex: 1,
@@ -408,34 +413,34 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
   },
   emailContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: sh.n('#F5F5F5', 'surfaceSunken'),
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
     alignItems: 'center',
     borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
+    borderLeftColor: sh.hue('#6366f1'),
   },
   emailLabel: {
     fontSize: 13,
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginBottom: 4,
   },
   emailText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   tokenInputContainer: {
     marginBottom: 16,
@@ -443,12 +448,12 @@ const styles = StyleSheet.create({
   tokenInputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
   },
   tokenHintText: {
     fontSize: 12,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -458,7 +463,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: sh.n('#F9FAFB', 'bg'),
     borderRadius: 8,
     marginBottom: 24,
   },
@@ -468,10 +473,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tokenValid: {
-    color: '#4CAF50',
+    color: sh.hue('#4CAF50'),
   },
   tokenInvalid: {
-    color: '#F44336',
+    color: sh.hue('#F44336'),
   },
   formContainer: {
     marginBottom: 32,
@@ -479,17 +484,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     marginTop: 16,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     paddingHorizontal: 16,
     height: 56,
     ...Platform.select({
@@ -510,7 +515,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#0f172a',
+    color: sh.n('#0f172a', 'ink'),
     paddingVertical: 0,
   },
   eyeIcon: {
@@ -528,11 +533,11 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: 13,
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginLeft: 8,
   },
   requirementMet: {
-    color: '#4CAF50',
+    color: sh.hue('#4CAF50'),
   },
   matchContainer: {
     flexDirection: 'row',
@@ -540,7 +545,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: sh.n('#F9FAFB', 'bg'),
     borderRadius: 8,
   },
   matchText: {
@@ -549,13 +554,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   matchSuccess: {
-    color: '#4CAF50',
+    color: sh.hue('#4CAF50'),
   },
   matchError: {
-    color: '#F44336',
+    color: sh.hue('#F44336'),
   },
   primaryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     height: 56,
     borderRadius: 12,
     alignItems: 'center',
@@ -576,7 +581,7 @@ const styles = StyleSheet.create({
     }),
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 15,
     fontWeight: '600',
   },
@@ -587,7 +592,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonLoading: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     opacity: 0.8,
   },
   footerContainer: {
@@ -596,7 +601,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '600',
   },
 });

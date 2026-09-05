@@ -1,8 +1,8 @@
 // ============================================
 // Shopping Module - Order API (real backend)
 // One checkout = one OrderGroup → N per-brand Orders.
-// Legacy Order-typed functions flatten the group via the serializer;
-// group-typed functions are the preferred surface for new screens.
+// The group-typed functions are the only surface: the parallel set of
+// Order-typed "legacy" wrappers that flattened a group had no call sites left.
 // ============================================
 
 import type {
@@ -16,7 +16,6 @@ import type {
   SingleResponse,
 } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
-import { flattenOrderGroup } from "../../serializers/shopping/orderSerializer";
 
 // Cart + coupon functions live in cartApi; re-exported for compatibility.
 export {
@@ -51,18 +50,6 @@ export const checkoutApi = async (
   }
 };
 
-// Legacy signature — flattens the group into a single Order summary
-export const createOrderApi = async (payload: {
-  shippingAddress: ShippingAddress;
-  paymentMethod: string;
-}): Promise<SingleResponse<Order>> => {
-  const res = await checkoutApi({
-    shippingAddress: payload.shippingAddress,
-    paymentMethod: payload.paymentMethod === "COD" ? "cod" : (payload.paymentMethod as "wallet" | "cod"),
-  });
-  return { success: res.success, data: flattenOrderGroup(res.data) };
-};
-
 // ── My Orders ───────────────────────────────
 
 // GET /orders → order groups (preferred)
@@ -83,16 +70,6 @@ export const fetchOrderGroupsApi = async ({
   }
 };
 
-// Legacy signature — flattened
-export const fetchOrdersApi = async (params: {
-  page?: number;
-  limit?: number;
-  status?: string;
-} = {}): Promise<PaginatedResponse<Order>> => {
-  const res = await fetchOrderGroupsApi(params);
-  return { ...res, data: res.data.map(flattenOrderGroup) };
-};
-
 // GET /orders/:id (accepts groupId or child orderId) → group view
 export const fetchOrderGroupByIdApi = async (
   id: string
@@ -103,14 +80,6 @@ export const fetchOrderGroupByIdApi = async (
   } catch (e) {
     throw new Error(extractShoppingError(e, "Failed to load order"));
   }
-};
-
-// Legacy signature — flattened
-export const fetchOrderByIdApi = async (
-  orderId: string
-): Promise<SingleResponse<Order>> => {
-  const res = await fetchOrderGroupByIdApi(orderId);
-  return { success: res.success, data: flattenOrderGroup(res.data) };
 };
 
 // GET /orders/:orderId/tracking
@@ -199,20 +168,6 @@ export const deleteAddressApi = async (
   }
 };
 
-// ── Brand Owner: Update Order Status ────────
-
-export const updateOrderStatusApi = async (
-  orderId: string,
-  payload: { orderStatus: string; trackingNumber?: string; note?: string }
-): Promise<SingleResponse<Order>> => {
-  try {
-    const res = await ShoppingAxiosInstance.patch(`/vendor/orders/${orderId}/status`, {
-      status: payload.orderStatus,
-      trackingNumber: payload.trackingNumber,
-      note: payload.note,
-    });
-    return res.data;
-  } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to update order status"));
-  }
-};
+// NOTE: no updateOrderStatusApi here. It duplicated vendorApi's
+// updateVendorOrderStatusApi over the same PATCH /vendor/orders/:id/status,
+// and only the vendorApi one was ever called.

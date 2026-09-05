@@ -14,6 +14,9 @@ import {
   Dimensions,
   InteractionManager,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -48,19 +51,24 @@ const DEBOUNCE_MS = 400;
 
 // ── Theme Colors (Consistent with other screens) ─
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
   },
+  };
 };
 
 // ── Popular Search Categories ───────────────
@@ -150,7 +158,13 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const DoctorRowSkeleton: React.FC = () => (
+const DoctorRowSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.resultRow}>
     <SkeletonBox width={56} height={56} borderRadius={16} />
     <View style={{ flex: 1, marginLeft: 14 }}>
@@ -159,11 +173,16 @@ const DoctorRowSkeleton: React.FC = () => (
       <SkeletonBox width="80%" height={10} style={{ marginTop: 8 }} />
     </View>
   </View>
-);
+  );
+};
 
 // ── Main Component ──────────────────────────
 
 const DoctorSearchScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -795,10 +814,10 @@ const DoctorSearchScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -825,7 +844,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
@@ -921,7 +940,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
   },
   clearButtonText: {
     fontSize: 12,
@@ -939,13 +958,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   recentIconBg: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -960,7 +979,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -978,13 +997,13 @@ const styles = StyleSheet.create({
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   suggestionIcon: {
     width: 28,
@@ -1097,12 +1116,12 @@ const styles = StyleSheet.create({
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1134,7 +1153,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: THEME.success,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   resultInfo: {
     flex: 1,
@@ -1165,7 +1184,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1173,13 +1192,13 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#D97706',
+    color: sh.hue('#D97706'),
   },
   metaDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
     marginHorizontal: 8,
   },
   metaText: {
@@ -1196,7 +1215,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1211,7 +1230,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1272,11 +1291,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: sh.ground('#FEE2E2', '#EF4444'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1293,7 +1312,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
   },

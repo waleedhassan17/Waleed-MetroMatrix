@@ -26,7 +26,7 @@ import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';
 
 const BrandReviewsScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -50,7 +50,7 @@ const BrandReviewsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <BrandHeader title="Reviews" showBack />
 
       <View style={styles.filterRow}>

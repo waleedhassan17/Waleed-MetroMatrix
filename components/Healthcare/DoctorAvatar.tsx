@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Image, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC } from '../../constants/HealthcareTheme';
+import { HC, makeHC, type HCPalette } from '../../constants/HealthcareTheme';
+import { useTheme } from '../../theme';
 import { getDoctorInitials } from '../../utils/healthcare/doctorDisplay';
 import type { Doctor } from '../../models/healthcare/types';
 
@@ -25,6 +26,9 @@ const DoctorAvatar: React.FC<DoctorAvatarProps> = ({
   showVerified = false,
   style,
 }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const [imgError, setImgError] = useState(false);
   const radius = size * 0.32;
   const hasImage = !!doctor?.profileImage && !imgError;
@@ -70,7 +74,7 @@ const DoctorAvatar: React.FC<DoctorAvatarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   fallback: { justifyContent: 'center', alignItems: 'center' },
   initials: { fontWeight: '800', letterSpacing: 0.5 },
   onlineDot: {

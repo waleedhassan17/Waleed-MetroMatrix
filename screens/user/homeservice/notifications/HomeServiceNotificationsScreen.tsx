@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
@@ -23,6 +23,7 @@ import {
 } from '../../../../components/ui';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import {
   fetchHSNotifications,
   HSNotification,
@@ -43,6 +44,8 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 export default function HomeServiceNotificationsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const [rows, setRows] = useState<HSNotification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -97,7 +100,7 @@ export default function HomeServiceNotificationsScreen() {
         accessibilityRole="button"
       >
         <View style={[styles.icon, unread && styles.iconUnread]}>
-          <Ionicons name={icon as any} size={18} color={unread ? HS.accentDeep : C.inkMuted} />
+          <Ionicons name={icon as any} size={18} color={unread ? colors.accentDeep : colors.inkMuted} />
         </View>
         <View style={styles.body}>
           <Text style={[styles.title, unread && styles.titleUnread]} numberOfLines={1}>
@@ -146,7 +149,7 @@ export default function HomeServiceNotificationsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => load(true)}
-              tintColor={HS.accent}
+              tintColor={colors.accent}
             />
           }
           ListEmptyComponent={
@@ -162,7 +165,7 @@ export default function HomeServiceNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   list: {
     padding: GUTTER,
     flexGrow: 1,
@@ -180,23 +183,23 @@ const styles = StyleSheet.create({
     padding: S.lg,
     marginBottom: S.sm,
     borderRadius: R.card,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   rowUnread: {
-    borderColor: HS.accentLine,
+    borderColor: c.accentLine,
   },
   icon: {
     width: 40,
     height: 40,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconUnread: {
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
   body: {
     flex: 1,
@@ -204,27 +207,27 @@ const styles = StyleSheet.create({
   },
   title: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   titleUnread: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
   message: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 1,
   },
   time: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 2,
   },
   dot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     marginLeft: S.sm,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   ScrollView,
   Alert
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -63,6 +65,9 @@ interface SubTypeConfig {
 }
 
 export default function ProviderSelectionScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const dispatch = useDispatch<AppDispatch>();
   
@@ -234,7 +239,7 @@ const handleContinue = () => {
       }
     ]}>
       <StatusBar 
-        barStyle="dark-content" 
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} 
         backgroundColor={isAndroid ? '#F8FAFC' : 'transparent'} 
         translucent={!isAndroid} 
       />
@@ -403,7 +408,7 @@ const handleContinue = () => {
       description: "Offer repair and maintenance services",
       icon: "tools",
       iconColor: "#10b981",
-      iconBg: "#f0fdf4",
+      iconBg: sh.ground("#f0fdf4", "#10B981"),
       hasSubTypes: true,
       checkmarkColor: "#10b981"
     },
@@ -413,7 +418,7 @@ const handleContinue = () => {
       description: "Sell products and manage your online store",
       icon: "store",
       iconColor: "#8b5cf6",
-      iconBg: "#f5f3ff",
+      iconBg: sh.ground("#f5f3ff", "#8B5CF6"),
       hasSubTypes: false,
       checkmarkColor: "#8b5cf6"
     }
@@ -496,10 +501,10 @@ const handleContinue = () => {
 }
 
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: sh.n('#F8FAFC', 'surfaceSunken'),
   },
   
   backgroundElements: {
@@ -562,11 +567,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -587,7 +592,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: sh.hue('#8B5CF6'),
     letterSpacing: -0.5,
     marginBottom: 4,
   },
@@ -595,7 +600,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     textAlign: 'center',
     letterSpacing: -0.3,
     marginBottom: 4,
@@ -604,7 +609,7 @@ const styles = StyleSheet.create({
   headerDescription: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -632,10 +637,10 @@ const styles = StyleSheet.create({
   },
   
   providerCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -651,9 +656,9 @@ const styles = StyleSheet.create({
   },
 
   providerCardSelected: {
-    borderColor: '#10b981',
+    borderColor: sh.hue('#10b981'),
     borderWidth: 2,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: sh.n('#f0fdf4', 'surfaceSunken'),
   },
   
   cardTouchable: {
@@ -685,7 +690,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     letterSpacing: -0.3,
     marginBottom: 4,
   },
@@ -693,7 +698,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 13,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     lineHeight: 18,
     letterSpacing: 0.1,
   },
@@ -714,23 +719,23 @@ const styles = StyleSheet.create({
   arrowContainer: {
     width: 32,
     height: 32,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
   },
 
   expandIconContainer: {
     width: 32,
     height: 32,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
   },
 
   // Sub-types styling
@@ -745,16 +750,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
   },
 
   subTypeItemSelected: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#10b981',
+    backgroundColor: sh.n('#f0fdf4', 'surfaceSunken'),
+    borderColor: sh.hue('#10b981'),
   },
 
   subTypeContent: {
@@ -767,26 +772,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
 
   subTypeIconContainerSelected: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: sh.ground('#dcfce7', '#10B981'),
   },
 
   subTypeText: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#334155',
+    color: sh.n('#334155', 'ink'),
     letterSpacing: 0.1,
   },
 
   subTypeTextSelected: {
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
 
   checkmarkContainer: {
@@ -799,12 +804,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: sh.n('#e2e8f0', 'line'),
     zIndex: 2000,
     ...Platform.select({
       ios: {
@@ -821,7 +826,7 @@ const styles = StyleSheet.create({
 
   continueButton: {
     flexDirection: 'row',
-    backgroundColor: '#10b981',
+    backgroundColor: sh.hue('#10b981'),
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 16,
@@ -830,7 +835,7 @@ const styles = StyleSheet.create({
     gap: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#10b981',
+        shadowColor: sh.hue('#10b981'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -842,7 +847,7 @@ const styles = StyleSheet.create({
   },
 
   continueButtonDisabled: {
-    backgroundColor: '#cbd5e1',
+    backgroundColor: sh.n('#cbd5e1', 'disabled'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -854,7 +859,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
     letterSpacing: 0.3,
   },
 });

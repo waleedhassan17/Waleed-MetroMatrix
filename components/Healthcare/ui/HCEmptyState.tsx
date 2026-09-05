@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC } from '../../../constants/HealthcareTheme';
+import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 import HCButton from './HCButton';
 
 interface HCEmptyStateProps {
@@ -22,6 +23,9 @@ const HCEmptyState: React.FC<HCEmptyStateProps> = ({
   onAction,
   tone = 'neutral',
 }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const colors =
     tone === 'error'
       ? ([HC.errorLight, '#FECACA'] as [string, string])
@@ -44,7 +48,7 @@ const HCEmptyState: React.FC<HCEmptyStateProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 48 },
   iconWrap: {
     width: 96,

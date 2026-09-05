@@ -35,7 +35,7 @@ export const BrandHeader: React.FC<BrandHeaderProps> = ({
 }) => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
 
   const handleBack = () => {
     if (onBack) return onBack();
@@ -49,7 +49,7 @@ export const BrandHeader: React.FC<BrandHeaderProps> = ({
         { paddingTop: insets.top + 10, borderBottomColor: colors.accent },
       ]}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.surface} />
 
       {showBack && (
         <TouchableOpacity

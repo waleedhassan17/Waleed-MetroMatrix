@@ -42,6 +42,8 @@ import {
 // screens/providers/homeservice/providerTheme.ts.
 import { theme } from '../../providerTheme';
 import { C, F, T } from '../../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { AppBar, Screen } from '../../../../../components/ui';
 
 const { width } = Dimensions.get('window');
@@ -49,46 +51,49 @@ const { width } = Dimensions.get('window');
 // Design System - Matching reference design
 
 // Status configurations matching reference colors
-const statusConfig: Record<string, { color: string; bg: string; label: string; icon: any }> = {
+// A function of the ramp: the `*Soft` grounds below invert between modes.
+const makeStatusConfig = (
+  c: ThemeColors,
+): Record<string, { color: string; bg: string; label: string; icon: any }> => ({
   upcoming: {
-    color: C.warning,
-    bg: C.warningSoft,
+    color: c.warning,
+    bg: c.warningSoft,
     label: 'Upcoming',
     icon: AlertCircle,
   },
   active: {
-    color: C.info,
-    bg: C.infoSoft,
+    color: c.info,
+    bg: c.infoSoft,
     label: 'In Progress',
     icon: Clock,
   },
   completed: {
-    color: C.success,
-    bg: C.successSoft,
+    color: c.success,
+    bg: c.successSoft,
     label: 'Completed',
     icon: CheckCircle2,
   },
   cancelled: {
-    color: C.error,
-    bg: C.errorSoft,
+    color: c.error,
+    bg: c.errorSoft,
     label: 'Cancelled',
     icon: XCircle,
   },
   available: {
-    color: C.success,
-    bg: C.successSoft,
+    color: c.success,
+    bg: c.successSoft,
     label: 'Available',
     icon: Calendar,
   },
   today: {
     // Was a purple that exists in no palette. 'Available' already owns success,
     // so 'Today' takes info — the remaining semantic slot, not a new hue.
-    color: C.info,
-    bg: C.infoSoft,
+    color: c.info,
+    bg: c.infoSoft,
     label: 'Today',
     icon: Calendar,
   },
-};
+});
 
 // Service images mapping
 const serviceImages: Record<string, string> = {
@@ -103,6 +108,11 @@ const serviceImages: Record<string, string> = {
 };
 
 const JobsScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+  const statusConfig = useMemo(() => makeStatusConfig(colors), [colors]);
+
   const dispatch = useAppDispatch();
   const navigation = useNavigation<any>();
   const filteredJobs = useAppSelector(selectFilteredJobs);
@@ -299,7 +309,7 @@ const JobsScreen: React.FC = () => {
               {/* Show rating for completed, actions for active */}
               {job.status === 'completed' ? (
                 <View style={styles.ratingBadge}>
-                  <Star size={14} color={C.warning} fill={C.warning} />
+                  <Star size={14} color={colors.warning} fill={colors.warning} />
                   <Text style={styles.ratingText}>{job.customer.rating?.toFixed(1) || '5.0'}</Text>
                 </View>
               ) : job.status === 'active' || job.status === 'upcoming' ? (
@@ -353,7 +363,7 @@ const JobsScreen: React.FC = () => {
         hideBack
         right={
           <TouchableOpacity style={styles.filterButton} accessibilityRole="button">
-            <Sliders size={20} color={C.inkInverse} />
+            <Sliders size={20} color={colors.inkInverse} />
           </TouchableOpacity>
         }
       />
@@ -455,7 +465,7 @@ const JobsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   headerSubtitle: {
     ...T.body,
 
@@ -505,7 +515,7 @@ const styles = StyleSheet.create({
     fontFamily: F.semibold,
   },
   filterCount: {
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -559,7 +569,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.lg,
     overflow: 'hidden',
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -584,7 +594,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 130,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
   },
   categoryTag: {
     position: 'absolute',
@@ -681,7 +691,7 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -690,7 +700,7 @@ const styles = StyleSheet.create({
   ratingText: {
     ...T.label,
     fontFamily: F.semibold,
-    color: C.warning,
+    color: c.warning,
   },
   actionButtons: {
     flexDirection: 'row',

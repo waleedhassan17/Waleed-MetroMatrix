@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   FlatList,
   TextInput,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp, RouteProp } from '@react-navigation/native';
@@ -152,6 +154,9 @@ type RootStackParamList = {
 type PersonalInfoRouteProp = RouteProp<{ PersonalInfo: undefined }, 'PersonalInfo'>;
 
 export default function PersonalInfoScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<PersonalInfoRouteProp>();
   const dispatch = useDispatch<AppDispatch>();
@@ -470,7 +475,7 @@ export default function PersonalInfoScreen() {
       ]}
     >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={isAndroid ? '#F8FAFC' : 'transparent'}
         translucent={!isAndroid}
       />
@@ -1065,10 +1070,10 @@ export default function PersonalInfoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: sh.n('#F8FAFC', 'surfaceSunken'),
   },
 
   backgroundElements: {
@@ -1117,11 +1122,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1154,7 +1159,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: sh.hue('#8B5CF6'),
     letterSpacing: -0.5,
     marginBottom: 4,
   },
@@ -1162,7 +1167,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     textAlign: 'center',
     letterSpacing: -0.3,
     marginBottom: 4,
@@ -1171,7 +1176,7 @@ const styles = StyleSheet.create({
   headerDescription: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1205,14 +1210,14 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 4,
   },
 
   stepSubtitle: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginBottom: 24,
   },
 
@@ -1230,12 +1235,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: sh.n('#e2e8f0', 'line'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1264,13 +1269,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
 
   pickerButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -1293,11 +1298,11 @@ const styles = StyleSheet.create({
   pickerText: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
 
   placeholderText: {
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
   },
 
   // Modal Styles
@@ -1308,7 +1313,7 @@ const styles = StyleSheet.create({
   },
 
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
@@ -1327,13 +1332,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
 
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 16,
@@ -1345,7 +1350,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     fontWeight: '400',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
 
   modalItem: {
@@ -1355,25 +1360,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     gap: 12,
   },
 
   modalItemSelected: {
-    backgroundColor: '#f5f3ff',
+    backgroundColor: sh.ground('#f5f3ff', '#8B5CF6'),
     borderWidth: 1.5,
-    borderColor: '#8b5cf6',
+    borderColor: sh.hue('#8b5cf6'),
   },
 
   modalItemText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '400',
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
 
   modalItemTextSelected: {
-    color: '#8b5cf6',
+    color: sh.hue('#8b5cf6'),
     fontWeight: '500',
   },
 });

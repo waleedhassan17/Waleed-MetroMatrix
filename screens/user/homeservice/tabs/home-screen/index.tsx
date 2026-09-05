@@ -9,7 +9,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   Image,
   RefreshControl,
@@ -31,6 +31,7 @@ import {
 } from '../../../../../components/ui';
 import { categoryAccent, HS } from '../../../../../constants/HomeServiceTheme';
 import { C, GUTTER, S, T } from '../../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../../theme';
 import { RootState } from '../../../../../store/store';
 import {
   fetchHomeData,
@@ -40,7 +41,11 @@ import {
 } from './homeSlice';
 
 // Mirrors the real card's dimensions so nothing jumps when data lands.
-const ServiceCardSkeleton: React.FC = () => (
+const ServiceCardSkeleton: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
   <Card padded={false} style={styles.card}>
     <Skeleton height={140} radius={0} />
     <View style={styles.cardBody}>
@@ -48,7 +53,8 @@ const ServiceCardSkeleton: React.FC = () => (
       <Skeleton width="80%" height={11} style={styles.skeletonGap} />
     </View>
   </Card>
-);
+  );
+};
 
 interface ServiceCardProps {
   service: {
@@ -66,7 +72,9 @@ interface ServiceCardProps {
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
-  const category = categoryAccent(service.id);
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const category = categoryAccent(service.id, mode);
 
   // The server's image wins when it sends one, so this screen does not have to
   // change for the backend to take the content back. `/user/home` returns
@@ -121,13 +129,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
             <Text style={styles.cardCount}>{service.providerCount}</Text>
           )}
         </View>
-        <Ionicons name="chevron-forward" size={18} color={C.inkFaint} />
+        <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
       </View>
     </Card>
   );
 };
 
 export default function HomeScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useDispatch();
 
@@ -171,8 +181,8 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={[HS.accent]}
-            tintColor={HS.accent}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
       >
@@ -219,7 +229,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     paddingHorizontal: GUTTER,
     paddingTop: S.lg,
@@ -234,7 +244,7 @@ const styles = StyleSheet.create({
   },
   media: {
     height: 140,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     justifyContent: 'flex-end',
   },
   image: {
@@ -249,7 +259,7 @@ const styles = StyleSheet.create({
   },
   mediaTitle: {
     ...T.heading,
-    color: C.inkInverse,
+    color: c.inkInverse,
     paddingHorizontal: S.lg,
     paddingBottom: S.md,
   },
@@ -265,16 +275,16 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     marginBottom: 2,
   },
   cardDescription: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   cardCount: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: S.xs,
   },
 

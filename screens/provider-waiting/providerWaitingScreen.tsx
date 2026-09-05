@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -48,6 +50,9 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 export default function ProviderWaitingScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const dispatch = useAppDispatch();
   
@@ -232,7 +237,7 @@ export default function ProviderWaitingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
         translucent={!isAndroid}
       />
@@ -452,10 +457,10 @@ export default function ProviderWaitingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   scrollView: {
     flex: 1,
@@ -525,13 +530,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -547,7 +552,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   infoCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: sh.n('#F9FAFB', 'bg'),
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
@@ -564,13 +569,13 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     textAlign: 'center',
   },
   infoText: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 8,
@@ -581,7 +586,7 @@ const styles = StyleSheet.create({
   timelineTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 16,
   },
   timelineStep: {
@@ -598,13 +603,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   stepCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
   },
   stepInProgress: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: sh.hue('#F59E0B'),
   },
   stepPending: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
   },
   stepContent: {
     flex: 1,
@@ -612,7 +617,7 @@ const styles = StyleSheet.create({
   stepTitleCompleted: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     marginBottom: 4,
   },
   stepTitleInProgress: {
@@ -623,16 +628,16 @@ const styles = StyleSheet.create({
   stepTitlePending: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginBottom: 4,
   },
   stepDescription: {
     fontSize: 13,
-    color: '#666666',
+    color: sh.hue('#666666'),
     lineHeight: 18,
   },
   nextStepsCard: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: sh.n('#F0F9FF', 'surfaceSunken'),
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
@@ -640,7 +645,7 @@ const styles = StyleSheet.create({
   nextStepsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 16,
   },
   nextStep: {
@@ -651,14 +656,14 @@ const styles = StyleSheet.create({
   nextStepText: {
     flex: 1,
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginLeft: 12,
     lineHeight: 20,
   },
   estimateCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: sh.n('#EEF2FF', 'lineSoft'),
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -669,21 +674,21 @@ const styles = StyleSheet.create({
   },
   estimateText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '600',
     marginBottom: 4,
   },
   lastCheckText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     fontWeight: '400',
   },
   refreshButton: {
     height: 48,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.n('#E5E7EB', 'line'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -717,7 +722,7 @@ const styles = StyleSheet.create({
     }),
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 16,
     fontWeight: '600',
   },
@@ -725,15 +730,15 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#6366f1',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.hue('#6366f1'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontSize: 16,
     fontWeight: '600',
   },

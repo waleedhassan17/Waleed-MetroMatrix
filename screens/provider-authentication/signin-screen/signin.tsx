@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -49,6 +51,9 @@ type RootStackParamList = {
 };
 
 export default function ProviderSignInScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -207,7 +212,7 @@ const handleBackPress = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
         translucent={!isAndroid}
       />
@@ -334,10 +339,10 @@ const handleBackPress = () => {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   keyboardView: {
     flex: 1,
@@ -356,38 +361,38 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: sh.hue('#8B5CF6'),
     marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
   },
   providerBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: sh.ground('#dcfce7', '#10B981'),
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#86efac',
+    borderColor: sh.hue('#86efac'),
   },
   providerBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#15803d',
+    color: sh.hue('#15803d'),
     letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: sh.n('#F5F5F5', 'surfaceSunken'),
     borderRadius: 8,
     padding: 4,
     marginBottom: 24,
@@ -403,7 +408,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -413,19 +418,19 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
   tabTextActive: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B5CF6',
+    color: sh.hue('#8B5CF6'),
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
+    backgroundColor: sh.n('#FFEBEE', 'surfaceSunken'),
     borderLeftWidth: 4,
-    borderLeftColor: '#D32F2F',
+    borderLeftColor: sh.hue('#D32F2F'),
     padding: 12,
     marginBottom: 20,
     borderRadius: 8,
@@ -433,7 +438,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#D32F2F',
+    color: sh.hue('#D32F2F'),
     fontSize: 14,
   },
   formContainer: {
@@ -442,17 +447,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
     marginTop: 16,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     paddingHorizontal: 16,
     height: 56,
     ...Platform.select({
@@ -473,7 +478,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#0f172a',
+    color: sh.n('#0f172a', 'ink'),
     paddingVertical: 0,
   },
   eyeIcon: {
@@ -487,6 +492,6 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8B5CF6',
+    color: sh.hue('#8B5CF6'),
   },
 });

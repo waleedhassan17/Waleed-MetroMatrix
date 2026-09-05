@@ -11,7 +11,7 @@
 // rather than repeated here as if they worked.
 // ============================================================================
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,8 @@ import { contactSupport } from '../../../../utils/support/contactSupport';
 // screens/providers/homeservice/providerTheme.ts.
 import { flatTheme as theme } from '../providerTheme';
 import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
 
 
@@ -48,6 +50,9 @@ const PRIVACY_URL = 'https://metromatrix.com/privacy';
 const TERMS_URL = 'https://metromatrix.com/terms';
 
 export default function ProviderSettingsScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeFlatProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -92,8 +97,8 @@ export default function ProviderSettingsScreen() {
       title: 'Privacy Policy',
       subtitle: 'How we handle your data',
       icon: Lock,
-      color: C.info,
-      bg: C.infoSoft,
+      color: colors.info,
+      bg: colors.infoSoft,
       onPress: () => openExternal(PRIVACY_URL, 'Privacy Policy'),
     },
     {
@@ -101,8 +106,8 @@ export default function ProviderSettingsScreen() {
       title: 'Terms of Service',
       subtitle: 'Your agreement with MetroMatrix',
       icon: FileText,
-      color: C.warning,
-      bg: C.warningSoft,
+      color: colors.warning,
+      bg: colors.warningSoft,
       onPress: () => openExternal(TERMS_URL, 'Terms of Service'),
     },
   ];
@@ -129,14 +134,14 @@ export default function ProviderSettingsScreen() {
               onValueChange={(next) => {
                 dispatch(updateAvailability({ isOnline: next }));
               }}
-              trackColor={{ false: C.disabled, true: theme.primaryLight }}
-              thumbColor={isAvailable ? theme.primary : C.lineSoft}
-              ios_backgroundColor={C.disabled}
+              trackColor={{ false: colors.disabled, true: theme.primaryLight }}
+              thumbColor={isAvailable ? theme.primary : colors.lineSoft}
+              ios_backgroundColor={colors.disabled}
             />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.iconBox, { backgroundColor: C.errorSoft }]}>
+            <View style={[styles.iconBox, { backgroundColor: colors.errorSoft }]}>
               <Bell size={20} color={theme.error} />
             </View>
             <View style={styles.rowContent}>
@@ -148,9 +153,9 @@ export default function ProviderSettingsScreen() {
               onValueChange={() => {
                 dispatch(toggleNotifications());
               }}
-              trackColor={{ false: C.disabled, true: theme.primaryLight }}
-              thumbColor={notificationsEnabled ? theme.primary : C.lineSoft}
-              ios_backgroundColor={C.disabled}
+              trackColor={{ false: colors.disabled, true: theme.primaryLight }}
+              thumbColor={notificationsEnabled ? theme.primary : colors.lineSoft}
+              ios_backgroundColor={colors.disabled}
             />
           </View>
         </View>
@@ -171,7 +176,7 @@ export default function ProviderSettingsScreen() {
                 <Text style={styles.rowTitle}>{link.title}</Text>
                 <Text style={styles.rowSubtitle}>{link.subtitle}</Text>
               </View>
-              <ChevronRight size={18} color={C.inkFaint} />
+              <ChevronRight size={18} color={colors.inkFaint} />
             </TouchableOpacity>
           ))}
         </View>
@@ -185,7 +190,7 @@ export default function ProviderSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: FlatProviderTheme) => StyleSheet.create({
   content: { padding: GUTTER, paddingBottom: 48 },
   sectionTitle: {
     ...T.label,

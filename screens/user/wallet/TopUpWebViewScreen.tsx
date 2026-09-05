@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,16 @@ import { WebView } from 'react-native-webview';
 import { ChevronLeft, Check, X, Lock } from 'lucide-react-native';
 import { useAppDispatch } from '../../../store/hooks';
 import { fetchWallet, clearWalletError } from '../../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { useTheme } from '../../../theme';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
 
 const TopUpWebViewScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -170,7 +175,7 @@ const TopUpWebViewScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -298,7 +303,7 @@ const TopUpWebViewScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
 
   header: {

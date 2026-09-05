@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -76,6 +78,9 @@ const getStatusConfig = (status: WaitingStatus) => {
 // ── Component ─────────────────────────────────
 
 const VideoWaitingRoomScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -228,7 +233,7 @@ const VideoWaitingRoomScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={DARK.bg} />
         <View style={styles.errorScreen}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="wifi-outline" size={40} color="#EF4444" />
           </LinearGradient>
           <Text style={styles.errorTitle}>Connection Error</Text>
@@ -288,7 +293,7 @@ const VideoWaitingRoomScreen: React.FC = () => {
               {doctor.profileImage ? (
                 <Image source={{ uri: doctor.profileImage }} style={styles.doctorImage} />
               ) : (
-                <LinearGradient colors={['#1E3A5F', '#1E2D4F']} style={styles.doctorAvatarPlaceholder}>
+                <LinearGradient colors={sh.grad(['#1E3A5F', '#1E2D4F'])} style={styles.doctorAvatarPlaceholder}>
                   <Text style={styles.doctorAvatarInitial}>
                     {(doctor.bio?.[0] ?? 'D').toUpperCase()}
                   </Text>
@@ -393,7 +398,7 @@ const VideoWaitingRoomScreen: React.FC = () => {
         {/* ── Tips ── */}
         <View style={styles.tipsCard}>
           <View style={styles.tipsHeader}>
-            <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.tipsIconWrap}>
+            <LinearGradient colors={sh.grad(['#F59E0B', '#D97706'])} style={styles.tipsIconWrap}>
               <Ionicons name="bulb-outline" size={14} color="#FFFFFF" />
             </LinearGradient>
             <Text style={styles.tipsTitle}>Preparation Tip</Text>
@@ -421,7 +426,7 @@ const VideoWaitingRoomScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DARK.bg,
@@ -448,7 +453,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
   headerSubtitle: {
@@ -471,7 +476,7 @@ const styles = StyleSheet.create({
   leaveBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FCA5A5',
+    color: sh.hue('#FCA5A5'),
   },
 
   body: {
@@ -580,13 +585,13 @@ const styles = StyleSheet.create({
   },
   previewFeed: {
     height: 180,
-    backgroundColor: '#111827',
+    backgroundColor: sh.n('#111827', 'ink'),
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   previewFeedOff: {
-    backgroundColor: '#0A0F1E',
+    backgroundColor: sh.hue('#0A0F1E'),
   },
   previewPlaceholderText: {
     fontSize: 13,
@@ -620,7 +625,7 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FCA5A5',
+    color: sh.hue('#FCA5A5'),
   },
   permissionText: {
     fontSize: 12,
@@ -638,7 +643,7 @@ const styles = StyleSheet.create({
   permissionBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FCA5A5',
+    color: sh.hue('#FCA5A5'),
   },
 
   // Status card
@@ -767,7 +772,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   goBackLink: {
     marginTop: 8,

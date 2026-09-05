@@ -16,6 +16,8 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -98,7 +100,14 @@ const TimePicker: React.FC<{
   value: string;
   onSelect: (time: string) => void;
   onClose: () => void;
-}> = ({ visible, title, value, onSelect, onClose }) => (
+}> = ({ visible, title, value, onSelect, onClose }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
+
+  return (
   <Modal visible={visible} transparent animationType="slide">
     <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
       <View style={styles.modalSheet}>
@@ -141,7 +150,8 @@ const TimePicker: React.FC<{
       </View>
     </TouchableOpacity>
   </Modal>
-);
+  );
+};
 
 // ── Day Schedule Row ──────────────────────────
 
@@ -171,6 +181,11 @@ const DayScheduleRow: React.FC<{
   clinics,
   onPickClinic,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
   const dc = DAY_COLORS[schedule.day];
   const pressAnim = useRef(new Animated.Value(1)).current;
 
@@ -319,7 +334,7 @@ const DayScheduleRow: React.FC<{
   );
 };
 
-const modeStyles = StyleSheet.create({
+const makeModeStyles = (sh: DarkShift) => StyleSheet.create({
   clinicChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -329,34 +344,34 @@ const modeStyles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     alignSelf: 'flex-start',
     maxWidth: '92%',
   },
   clinicChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
+    color: sh.n('#334155', 'ink'),
     flexShrink: 1,
   },
   modeBlock: { marginTop: 8 },
   rangeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 2 },
   rangeRemove: {
     marginLeft: 8, width: 24, height: 24, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEF2F2',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
   },
   breakRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, paddingLeft: 2 },
-  breakText: { fontSize: 11, fontWeight: '600', color: '#94A3B8', fontStyle: 'italic' },
+  breakText: { fontSize: 11, fontWeight: '600', color: sh.n('#94A3B8', 'inkFaint'), fontStyle: 'italic' },
   addRangeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, paddingVertical: 4 },
   addRangeText: { fontSize: 12, fontWeight: '700' },
   dayRowCol: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
   dayHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   modesWrap: { gap: 8, paddingLeft: 4 },
   modeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  modeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  modeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: sh.n('#E2E8F0', 'line'), backgroundColor: sh.n('#F8FAFC', 'surfaceSunken') },
   modeTagText: { fontSize: 12, fontWeight: '700' },
   modeTimes: { flexDirection: 'row', alignItems: 'center' },
-  modeOff: { fontSize: 12, color: '#94A3B8', fontStyle: 'italic' },
+  modeOff: { fontSize: 12, color: sh.n('#94A3B8', 'inkFaint'), fontStyle: 'italic' },
 });
 
 // ── Vacation Card ─────────────────────────────
@@ -365,6 +380,11 @@ const VacationCard: React.FC<{
   vacation: VacationDate;
   onRemove: () => void;
 }> = ({ vacation, onRemove }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
   const isSingleDay = vacation.startDate === vacation.endDate;
   const dateLabel = isSingleDay
     ? formatVacationDate(vacation.startDate)
@@ -402,6 +422,11 @@ const AddVacationModal: React.FC<{
   onAdd: (v: { startDate: string; endDate: string; reason: string }) => void;
   onClose: () => void;
 }> = ({ visible, onAdd, onClose }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
   const todayISO = todayLocalISODate();
   const [startDate, setStartDate] = useState(todayISO);
   const [endDate, setEndDate] = useState(todayISO);
@@ -511,7 +536,14 @@ const ToggleCard: React.FC<{
   value: boolean;
   onToggle: () => void;
   gradient?: [string, string];
-}> = ({ icon, iconBg, iconColor, label, description, value, onToggle, gradient }) => (
+}> = ({ icon, iconBg, iconColor, label, description, value, onToggle, gradient }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
+
+  return (
   <View style={[styles.toggleCard, value && styles.toggleCardActive]}>
     <View style={styles.toggleLeft}>
       <View style={[styles.toggleIconWrap, { backgroundColor: iconBg }]}>
@@ -538,11 +570,17 @@ const ToggleCard: React.FC<{
       ios_backgroundColor="#E2E8F0"
     />
   </View>
-);
+  );
+};
 
 // ── Main Component ────────────────────────────
 
 const AvailabilitySettingsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const modeStyles = useMemo(() => makeModeStyles(sh), [sh]);
+  const pickerStyles = useMemo(() => makePickerStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -781,7 +819,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
           <View style={styles.backButton} />
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load settings</Text>
@@ -835,7 +873,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
           opacity: sectionAnims[0],
           transform: [{ translateY: sectionAnims[0].interpolate({ inputRange: [0,1], outputRange: [20,0] }) }],
         }]}>
-          <LinearGradient colors={['#F0F7FF', '#EAF3FF']} style={styles.statsStrip}>
+          <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.statsStrip}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{workingDays}</Text>
               <Text style={styles.statLabel}>Work Days</Text>
@@ -945,7 +983,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
 
             {vacationDates.length === 0 ? (
               <View style={styles.emptyVacation}>
-                <LinearGradient colors={['#FFFBEB', '#FEF3C7']} style={styles.emptyVacationIconWrap}>
+                <LinearGradient colors={sh.grad(['#FFFBEB', '#FEF3C7'])} style={styles.emptyVacationIconWrap}>
                   <Ionicons name="sunny-outline" size={28} color={THEME.warning} />
                 </LinearGradient>
                 <Text style={styles.emptyVacationTitle}>No leaves scheduled</Text>
@@ -1035,7 +1073,7 @@ const AvailabilitySettingsScreen: React.FC = () => {
           {saving ? (
             <View style={styles.saveButtonGradient}>
               <ActivityIndicator size="small" color="#94A3B8" />
-              <Text style={[styles.saveButtonText, { color: '#94A3B8' }]}>Saving…</Text>
+              <Text style={[styles.saveButtonText, { color: sh.n('#94A3B8', 'inkFaint') }]}>Saving…</Text>
             </View>
           ) : (
             <LinearGradient
@@ -1116,7 +1154,7 @@ export default AvailabilitySettingsScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   emptyWeek: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
   emptyWeekTitle: { fontSize: 15, fontWeight: '800', color: THEME.textDark, marginTop: 10 },
   emptyWeekText: { fontSize: 13, color: THEME.textLight, textAlign: 'center', marginTop: 6, lineHeight: 19 },
@@ -1124,10 +1162,10 @@ const styles = StyleSheet.create({
     marginTop: 16, paddingHorizontal: 22, paddingVertical: 11,
     borderRadius: 22, backgroundColor: THEME.primary,
   },
-  emptyWeekBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13.5 },
+  emptyWeekBtnText: { color: sh.n('#FFFFFF', 'inkInverse'), fontWeight: '700', fontSize: 13.5 },
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -1153,7 +1191,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -1180,11 +1218,11 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1210,7 +1248,7 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
@@ -1218,13 +1256,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#D6E8FF',
+    borderColor: sh.ground('#D6E8FF', '#5A9FFF'),
   },
   copyScheduleText: {
     fontSize: 11,
@@ -1232,7 +1270,7 @@ const styles = StyleSheet.create({
     color: THEME.primary,
   },
   workingDaysBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -1240,7 +1278,7 @@ const styles = StyleSheet.create({
   workingDaysBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#16A34A',
+    color: sh.hue('#16A34A'),
   },
 
   // Stats strip
@@ -1249,7 +1287,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
     alignItems: 'center',
   },
   statItem: {
@@ -1260,13 +1298,13 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.5,
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     textAlign: 'center',
@@ -1274,7 +1312,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#B8D4FF',
+    backgroundColor: sh.hue('#B8D4FF'),
   },
   statStatusDot: {
     width: 10,
@@ -1289,11 +1327,11 @@ const styles = StyleSheet.create({
   dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 10,
   },
   dayRowOff: {
@@ -1314,21 +1352,21 @@ const styles = StyleSheet.create({
     width: 50,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   dayLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   dayLabelActive: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   dayTimes: {
     flex: 1,
@@ -1342,12 +1380,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#EAF3FF',
+    borderColor: sh.ground('#EAF3FF', '#2A7FFF'),
   },
   timeChipText: {
     fontSize: 12,
@@ -1357,7 +1395,7 @@ const styles = StyleSheet.create({
   timeDash: {
     width: 10,
     height: 1.5,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
     borderRadius: 1,
   },
   dayOffContainer: {
@@ -1370,7 +1408,7 @@ const styles = StyleSheet.create({
   dayOffText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#CBD5E1',
+    color: sh.n('#CBD5E1', 'disabled'),
     fontStyle: 'italic',
   },
 
@@ -1389,7 +1427,7 @@ const styles = StyleSheet.create({
   addLeaveBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   emptyVacation: {
     alignItems: 'center',
@@ -1407,12 +1445,12 @@ const styles = StyleSheet.create({
   emptyVacationTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptyVacationSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
   },
   vacationList: {
@@ -1421,12 +1459,12 @@ const styles = StyleSheet.create({
   vacationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     borderRadius: 14,
     padding: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: sh.hue('#FDE68A'),
   },
   vacationIconWrap: {
     borderRadius: 12,
@@ -1444,19 +1482,19 @@ const styles = StyleSheet.create({
   vacationDate: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   vacationReason: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#92400E',
+    color: sh.hue('#92400E'),
     marginTop: 2,
   },
   vacationRemove: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1466,15 +1504,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   toggleCardActive: {
-    backgroundColor: '#FAFEFF',
-    borderColor: '#BFDBFE',
+    backgroundColor: sh.n('#FAFEFF', 'surfaceSunken'),
+    borderColor: sh.hue('#BFDBFE'),
   },
   toggleLeft: {
     flex: 1,
@@ -1497,25 +1535,25 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     marginBottom: 2,
   },
   toggleDesc: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   toggleDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 10,
   },
 
   // Bottom bar
   bottomBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
@@ -1544,7 +1582,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   saveButton: {
     borderRadius: 10,
@@ -1560,7 +1598,7 @@ const styles = StyleSheet.create({
     }),
   },
   saveButtonDisabled: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     shadowColor: 'transparent',
     elevation: 0,
   },
@@ -1574,7 +1612,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 
@@ -1590,7 +1628,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -1598,7 +1636,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -1611,12 +1649,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -1635,7 +1673,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Modals
@@ -1645,7 +1683,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 20,
@@ -1660,7 +1698,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginTop: 12,
     marginBottom: 16,
   },
@@ -1673,7 +1711,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
     flex: 1,
   },
@@ -1681,7 +1719,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1704,10 +1742,10 @@ const styles = StyleSheet.create({
   timeOptionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   timeOptionTextSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontWeight: '700',
   },
 
@@ -1730,7 +1768,7 @@ const styles = StyleSheet.create({
   vacFormLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 8,
@@ -1738,10 +1776,10 @@ const styles = StyleSheet.create({
   vacInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     paddingHorizontal: 12,
     gap: 10,
   },
@@ -1757,7 +1795,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     paddingVertical: 12,
   },
   modalActions: {
@@ -1770,14 +1808,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   modalCancelText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   modalAddBtn: {
     flex: 1.5,
@@ -1794,11 +1832,11 @@ const styles = StyleSheet.create({
   modalAddText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 
-const pickerStyles = StyleSheet.create({
+const makePickerStyles = (sh: DarkShift) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(15,23,42,0.45)',
@@ -1812,16 +1850,16 @@ const pickerStyles = StyleSheet.create({
     paddingBottom: 32,
     gap: 4,
   },
-  title: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
-  subtitle: { fontSize: 13, color: '#64748B', marginBottom: 10 },
+  title: { fontSize: 17, fontWeight: '800', color: sh.n('#0F172A', 'ink') },
+  subtitle: { fontSize: 13, color: sh.n('#64748B', 'inkMuted'), marginBottom: 10 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: sh.n('#E2E8F0', 'line'),
   },
-  optionName: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
-  optionAddress: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  optionName: { fontSize: 15, fontWeight: '600', color: sh.n('#0F172A', 'ink') },
+  optionAddress: { fontSize: 12, color: sh.n('#64748B', 'inkMuted'), marginTop: 2 },
 });

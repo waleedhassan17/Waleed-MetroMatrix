@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 
 interface NavigationButtonsProps {
   currentStep: number;
@@ -24,6 +26,9 @@ const NavigationButtons: React.FC<NavigationButtonsProps> = ({
   onComplete,
   onSkip,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const isLastStep = currentStep === totalSteps;
 
   const handleContinue = () => {
@@ -74,7 +79,7 @@ const NavigationButtons: React.FC<NavigationButtonsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -87,26 +92,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: sh.hue('#E0E0E0'),
   },
   backButtonText: {
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     fontSize: 16,
     fontWeight: '600',
   },
   continueButton: {
     flex: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: sh.hue('#E0E0E0'),
     height: 50,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueButtonActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 16,
     fontWeight: '600',
   },

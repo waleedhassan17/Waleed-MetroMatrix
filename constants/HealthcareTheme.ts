@@ -17,6 +17,9 @@
 
 import { Platform } from 'react-native';
 
+import { darkShift } from './darkShift';
+import { type ThemeMode } from './theme';
+
 export const HC = {
   // ── Brand (clinical blue) ──────────────────
   primary: '#2A7FFF',
@@ -97,6 +100,80 @@ export const HC = {
     sky: ['#1E6AE1', '#2A7FFF', '#5A9FFF'] as [string, string, string],
   },
 } as const;
+
+
+// ── Mode-aware HC ───────────────────────────────────────────────────────────
+//
+// `HC` above stays exactly as it was and remains the LIGHT palette, so every
+// unmigrated file compiles and renders identically. `makeHC(mode)` returns the
+// same keys with dark derived by role — see constants/darkShift.ts for why the
+// dark values are computed rather than hand-picked.
+//
+// Note what happens to the SLATE COMPATIBILITY BLOCK in dark: its cool-slate
+// neutrals resolve from the shared ramp (`n(...)`), so in dark there is only
+// one grey story already. The light half is what still waits on the screens.
+export const makeHC = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+
+  return {
+    primary: hue(HC.primary),
+    primaryDark: hue(HC.primaryDark),
+    primaryDarker: hue(HC.primaryDarker),
+    primaryLight: ground(HC.primaryLight, HC.primary),
+    primarySoft: ground(HC.primarySoft, HC.primary),
+    accent: hue(HC.accent),
+    accentLight: ground(HC.accentLight, HC.accent),
+
+    success: hue(HC.success),
+    successDark: hue(HC.successDark),
+    successLight: ground(HC.successLight, HC.success),
+    warning: hue(HC.warning),
+    warningDark: hue(HC.warningDark),
+    warningLight: ground(HC.warningLight, HC.warning),
+    error: hue(HC.error),
+    errorDark: hue(HC.errorDark),
+    errorLight: ground(HC.errorLight, HC.error),
+    info: hue(HC.info),
+    infoLight: ground(HC.infoLight, HC.info),
+
+    pageBg: n(HC.pageBg, 'bg'),
+    card: n(HC.card, 'surface'),
+    cardAlt: n(HC.cardAlt, 'surfaceSunken'),
+
+    textDark: n(HC.textDark, 'ink'),
+    textHeading: n(HC.textHeading, 'ink'),
+    textBody: n(HC.textBody, 'ink'),
+    textMedium: n(HC.textMedium, 'inkMuted'),
+    textLight: n(HC.textLight, 'inkMuted'),
+    textMuted: n(HC.textMuted, 'inkFaint'),
+    // Ink painted ON the clinical blue. Still white: the dark blue fill is a
+    // lifted mid-tone, not a pale one.
+    textInverse: HC.textInverse,
+
+    border: n(HC.border, 'line'),
+    borderLight: n(HC.borderLight, 'lineSoft'),
+    divider: n(HC.divider, 'lineSoft'),
+
+    star: hue(HC.star),
+    overlay: mode === 'dark' ? 'rgba(0, 0, 0, 0.6)' : HC.overlay,
+
+    gradient: {
+      primary: grad(HC.gradient.primary),
+      accent: grad(HC.gradient.accent),
+      soft: mode === 'dark'
+        ? ([ground(HC.primaryLight, HC.primary), ground(HC.accentLight, HC.accent)] as [string, string])
+        : HC.gradient.soft,
+      success: grad(HC.gradient.success),
+      warm: grad(HC.gradient.warm),
+      video: grad(HC.gradient.video),
+      sky: (mode === 'dark'
+        ? [hue(HC.primaryDark), hue(HC.primary), hue(HC.accent)]
+        : HC.gradient.sky) as [string, string, string],
+    },
+  };
+};
+
+export type HCPalette = ReturnType<typeof makeHC>;
 
 // ── Spacing scale ────────────────────────────
 export const HCSpace = {

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ChevronLeft,
@@ -73,6 +75,9 @@ const COLOR_PRESETS = [
 ];
 
 const OutletDetailScreen: React.FC<Props> = ({ route }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const { outletId } = route.params;
   const navigation = useNavigation<NativeStackNavigationProp<AdminShoppingParamList>>();
   const dispatch = useAppDispatch();
@@ -412,7 +417,7 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: outlet.colorScheme?.primaryColor || COLORS.primary }]}>
@@ -450,14 +455,20 @@ const OutletDetailScreen: React.FC<Props> = ({ route }) => {
   );
 };
 
-const InfoRow = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
+const InfoRow = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.infoRow}>
     <Icon size={14} stroke={COLORS.textLight} strokeWidth={2} />
     <Text style={styles.infoRowText}>{label}</Text>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',

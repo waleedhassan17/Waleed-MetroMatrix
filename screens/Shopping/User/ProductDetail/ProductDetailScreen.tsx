@@ -25,7 +25,8 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { ProductVariant } from '../../../../types/shopping';
 import {
@@ -57,16 +58,22 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // full-length garment you could not see the item you were buying.
 const IMAGE_HEIGHT = Math.round(SCREEN_WIDTH * (4 / 3));
 
-const ShopColors = {
-  primary: '#E67E22',
-  primaryDark: '#D35400',
-  primaryLight: '#FFF3E6',
-  accent: '#F39C12',
-  badge: '#E74C3C',
-  success: '#27AE60',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryDark: c.accentDeep,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+  badge: c.error,
+  success: c.success,
+});
 
 const ProductDetailScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -175,7 +182,7 @@ const ProductDetailScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* ── Image Gallery ────────────────── */}
@@ -515,7 +522,8 @@ const ProductDetailScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

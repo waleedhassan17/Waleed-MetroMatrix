@@ -12,6 +12,9 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
@@ -38,16 +41,21 @@ import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ─────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    video: ['#5A9FFF', '#1E6AE1'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
+    video: grad(['#5A9FFF', '#1E6AE1']) as [string, string],
   },
+  };
 };
 
 // ── Route / Nav Types ─────────────────────────
@@ -96,6 +104,10 @@ const formatTime12 = (time24: string): string => {
 // ── Component ─────────────────────────────────
 
 const SlotSelectionScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const dispatch = useAppDispatch();
   const bottomBarPadding = useBottomBarPadding();
   const navigation = useNavigation<Nav>();
@@ -605,7 +617,7 @@ const SlotSelectionScreen: React.FC = () => {
           ) : totalSlots === 0 ? (
             <View style={styles.centered}>
               <View style={styles.emptyIconWrap}>
-                <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconGradient}>
+                <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconGradient}>
                   <Ionicons name="calendar-outline" size={36} color={THEME.primary} />
                 </LinearGradient>
               </View>
@@ -661,10 +673,10 @@ export default SlotSelectionScreen;
 
 // ── Styles ────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -690,7 +702,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -712,10 +724,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E3ECFB',
+    borderColor: sh.n('#E3ECFB', 'disabled'),
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
@@ -723,13 +735,13 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockedTypeTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
-  lockedTypeSub: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
-  lockedTypeChange: { fontSize: 13, fontWeight: '700', color: '#2A7FFF' },
+  lockedTypeTitle: { fontSize: 15, fontWeight: '800', color: sh.n('#0F172A', 'ink') },
+  lockedTypeSub: { fontSize: 12.5, color: sh.n('#64748B', 'inkMuted'), marginTop: 2 },
+  lockedTypeChange: { fontSize: 13, fontWeight: '700', color: sh.hue('#2A7FFF') },
   toggleWrapper: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -738,18 +750,18 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 10,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     position: 'relative',
     overflow: 'hidden',
     height: 52,
@@ -783,10 +795,10 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   toggleTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Date Section
@@ -803,13 +815,13 @@ const styles = StyleSheet.create({
   dateSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
   },
   dateSectionSubtitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   dateList: {
     paddingHorizontal: 20,
@@ -820,9 +832,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     minWidth: 72,
     position: 'relative',
     overflow: 'hidden',
@@ -851,19 +863,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: sh.ground('#EFF6FF', '#3B82F6'),
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
   },
   nextAvailableText: {
     flex: 1,
     fontSize: 13,
-    color: '#1D4ED8',
+    color: sh.hue('#1D4ED8'),
     fontWeight: '600',
   },
   nextAvailableAction: {
     fontSize: 13,
-    color: '#1D4ED8',
+    color: sh.hue('#1D4ED8'),
     fontWeight: '800',
   },
   dateChipSelected: {
@@ -881,7 +893,7 @@ const styles = StyleSheet.create({
   dateChipDay: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 4,
@@ -892,10 +904,10 @@ const styles = StyleSheet.create({
   dateChipDate: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   dateChipDateSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Slots Section
@@ -912,14 +924,14 @@ const styles = StyleSheet.create({
   slotsSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
   },
   totalSlotsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -927,7 +939,7 @@ const styles = StyleSheet.create({
   totalSlotsText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#16A34A',
+    color: sh.hue('#16A34A'),
   },
 
   // Section (period)
@@ -953,7 +965,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     flex: 1,
   },
   sectionCountBadge: {
@@ -980,9 +992,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
     minWidth: 90,
     justifyContent: 'center',
@@ -1011,10 +1023,10 @@ const styles = StyleSheet.create({
   slotChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   slotChipTextSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontWeight: '700',
   },
 
@@ -1029,7 +1041,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1037,19 +1049,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   loadingSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 4,
   },
   errorIconWrap: {
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1057,13 +1069,13 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     marginBottom: 4,
   },
   errorText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#EF4444',
+    color: sh.hue('#EF4444'),
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -1081,7 +1093,7 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   emptyIconWrap: {
     marginBottom: 16,
@@ -1097,13 +1109,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: sh.n('#9CA3AF', 'inkFaint'),
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -1116,12 +1128,12 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 16,
     ...Platform.select({
       ios: {
@@ -1139,7 +1151,7 @@ const styles = StyleSheet.create({
   selectedLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 1,
@@ -1147,13 +1159,13 @@ const styles = StyleSheet.create({
   selectedValue: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
   },
   selectedDate: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     marginTop: 1,
   },
   continueBtn: {
@@ -1179,7 +1191,7 @@ const styles = StyleSheet.create({
   continueBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 });

@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { saveData, KeyForStorage } from '../../utils/storage_utils/storageUtils';
 
@@ -19,6 +21,9 @@ interface RouteParams {
  * Backend redirects to: metromatrix://verify-success?verified=true&accessToken=xxx&refreshToken=xxx&userType=provider&userId=xxx&email=xxx&fullName=xxx
  */
 export default function VerifySuccessScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as RouteParams;
@@ -91,16 +96,16 @@ export default function VerifySuccessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   text: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
 });

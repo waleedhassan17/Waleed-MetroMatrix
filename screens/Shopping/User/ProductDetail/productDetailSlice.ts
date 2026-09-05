@@ -1,9 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import type { Product, ProductVariant, ProductReview } from '../../../../types/shopping';
 import { fetchProductByIdApi, fetchProductReviewsApi } from '../../../../networks/shopping/productApi';
-import { addToCartApi } from '../../../../networks/shopping/orderApi';
-import { addItem, type CartItemState } from '../Cart/cartSlice';
-import { toggleWishlistItem, type WishlistItemState } from '../Wishlist/wishlistSlice';
+import { addItem } from '../Cart/cartSlice';
+import { toggleWishlistItem } from '../Wishlist/wishlistSlice';
 
 // ── State Interface ─────────────────────────
 
@@ -67,49 +66,39 @@ export const fetchProductDetail = createAsyncThunk(
   }
 );
 
+/**
+ * Add the selected variant to the cart.
+ *
+ * This used to POST /cart/items itself AND dispatch cart/addItem, which POSTs
+ * the same line again — and the server merges by addition
+ * (requestedTotal = quantity + existing.quantity), so every add put double the
+ * chosen quantity in the cart. There is exactly one write now: cart/addItem,
+ * whose fulfilled handler applies the server's cart response as authoritative,
+ * which also means the row carries the real brandName rather than a brand id.
+ */
 export const addToCart = createAsyncThunk(
   'productDetail/addToCart',
   async (_, { getState, dispatch, rejectWithValue }) => {
+    const state = getState() as { productDetail: ProductDetailState };
+    const { product, selectedVariant, quantity } = state.productDetail;
+
+    if (!product || !selectedVariant) {
+      return rejectWithValue('Please select a variant');
+    }
+
     try {
-      const state = getState() as { productDetail: ProductDetailState };
-      const { product, selectedVariant, quantity } = state.productDetail;
-
-      if (!product || !selectedVariant) {
-        return rejectWithValue('Please select a variant');
-      }
-
-      const res = await addToCartApi({
-        productId: product.productId,
-        brandId: product.brandId,
-        variantId: selectedVariant.variantId,
-        quantity,
-      });
-
-      if (!res.success) {
-        return rejectWithValue('Failed to add to cart');
-      }
-
-      // Sync item into the local persisted cart slice
-      const cartItem: CartItemState = {
-        itemId: `${product.productId}-${selectedVariant.variantId}`,
-        productId: product.productId,
-        brandId: product.brandId,
-        brandName: product.brandId, // best available; replace if brand name is on Product type
-        variantId: selectedVariant.variantId,
-        quantity,
-        unitPrice: product.salePrice ?? product.basePrice + (selectedVariant.additionalPrice || 0),
-        totalPrice: (product.salePrice ?? product.basePrice + (selectedVariant.additionalPrice || 0)) * quantity,
-        productName: product.name,
-        productImage: product.images?.[0] ?? '',
-        size: selectedVariant.size ?? undefined,
-        color: selectedVariant.color ?? undefined,
-        colorCode: selectedVariant.colorCode ?? undefined,
-      };
-      dispatch(addItem(cartItem));
-
-      return res;
+      return await dispatch(
+        addItem({
+          productId: product.productId,
+          brandId: product.brandId,
+          variantId: selectedVariant.variantId,
+          quantity,
+        })
+      ).unwrap();
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to add to cart.');
+      return rejectWithValue(
+        typeof error === 'string' ? error : error?.message || 'Failed to add to cart.'
+      );
     }
   }
 );
@@ -122,16 +111,7 @@ export const toggleWishlistWithPersist = createAsyncThunk(
     const { product } = state.productDetail;
     if (!product) return;
 
-    const wishlistItem: WishlistItemState = {
-      productId: product.productId,
-      productName: product.name,
-      productImage: product.images?.[0] ?? '',
-      brandId: product.brandId,
-      brandName: product.brandId,
-      price: product.salePrice ?? product.basePrice,
-      originalPrice: product.salePrice ? product.basePrice : undefined,
-    };
-    dispatch(toggleWishlistItem(wishlistItem));
+    dispatch(toggleWishlistItem({ productId: product.productId }));
   }
 );
 

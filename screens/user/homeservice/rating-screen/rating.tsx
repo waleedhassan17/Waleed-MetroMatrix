@@ -44,6 +44,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -69,6 +70,8 @@ type ReviewRouteParams = {
 };
 
 export default function ReviewRatingScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: ReviewRouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -76,7 +79,7 @@ export default function ReviewRatingScreen() {
   const reducedMotion = useReducedMotion();
 
   const { bookingId = 'default', category = 'ac-repairers' } = route.params || {};
-  const accent = categoryAccent(category);
+  const accent = categoryAccent(category, mode);
 
   const provider = useSelector((state: RootState) => state.reviewRating?.provider);
   const serviceDetails = useSelector((state: RootState) => state.reviewRating?.serviceDetails);
@@ -288,7 +291,7 @@ export default function ReviewRatingScreen() {
                       <Ionicons
                         name={isSelected ? 'star' : 'star-outline'}
                         size={38}
-                        color={isSelected ? C.star : C.disabled}
+                        color={isSelected ? colors.star : colors.disabled}
                       />
                     </Animated.View>
                   </TouchableOpacity>
@@ -317,7 +320,7 @@ export default function ReviewRatingScreen() {
                         <Ionicons
                           name="checkmark"
                           size={13}
-                          color={HS.accentDeep}
+                          color={colors.accentDeep}
                           style={styles.tagCheck}
                         />
                       )}
@@ -336,7 +339,7 @@ export default function ReviewRatingScreen() {
             <TextInput
               style={styles.feedback}
               placeholder="What went well, what didn't — whatever would help the next person."
-              placeholderTextColor={C.inkFaint}
+              placeholderTextColor={colors.inkFaint}
               value={localFeedback}
               onChangeText={(text) => {
                 setLocalFeedback(text);
@@ -363,12 +366,12 @@ export default function ReviewRatingScreen() {
                 <Ionicons
                   name={review?.wouldRecommend === true ? 'thumbs-up' : 'thumbs-up-outline'}
                   size={20}
-                  color={review?.wouldRecommend === true ? C.success : C.inkMuted}
+                  color={review?.wouldRecommend === true ? colors.success : colors.inkMuted}
                 />
                 <Text
                   style={[
                     styles.recommendText,
-                    review?.wouldRecommend === true && { color: C.success, fontFamily: F.semibold },
+                    review?.wouldRecommend === true && { color: colors.success, fontFamily: F.semibold },
                   ]}
                 >
                   Yes
@@ -385,12 +388,12 @@ export default function ReviewRatingScreen() {
                 <Ionicons
                   name={review?.wouldRecommend === false ? 'thumbs-down' : 'thumbs-down-outline'}
                   size={20}
-                  color={review?.wouldRecommend === false ? C.error : C.inkMuted}
+                  color={review?.wouldRecommend === false ? colors.error : colors.inkMuted}
                 />
                 <Text
                   style={[
                     styles.recommendText,
-                    review?.wouldRecommend === false && { color: C.error, fontFamily: F.semibold },
+                    review?.wouldRecommend === false && { color: colors.error, fontFamily: F.semibold },
                   ]}
                 >
                   No
@@ -420,7 +423,7 @@ export default function ReviewRatingScreen() {
                 <Text
                   style={[
                     styles.summaryValue,
-                    { color: serviceDetails?.paymentStatus === 'paid' ? C.success : C.warning },
+                    { color: serviceDetails?.paymentStatus === 'paid' ? colors.success : colors.warning },
                   ]}
                 >
                   {serviceDetails?.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
@@ -477,7 +480,7 @@ export default function ReviewRatingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   flex: { flex: 1 },
   content: {
     padding: GUTTER,
@@ -499,16 +502,16 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   metaFaint: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 2,
   },
 
@@ -526,7 +529,7 @@ const styles = StyleSheet.create({
   },
   ratingLabel: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     textAlign: 'center',
     marginTop: S.md,
   },
@@ -543,24 +546,24 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: R.chip,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     marginRight: S.sm,
     marginBottom: S.sm,
   },
   tagSelected: {
-    backgroundColor: HS.accentSoft,
-    borderColor: HS.accentLine,
+    backgroundColor: c.accentSoft,
+    borderColor: c.accentLine,
   },
   tagCheck: {
     marginRight: 4,
   },
   tagText: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   tagTextSelected: {
-    color: HS.accentDeep,
+    color: c.accentDeep,
     fontFamily: F.semibold,
   },
 
@@ -569,15 +572,15 @@ const styles = StyleSheet.create({
     minHeight: 108,
     padding: S.md,
     borderRadius: R.control,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   charCount: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     textAlign: 'right',
     marginTop: S.xs,
   },
@@ -594,21 +597,21 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     marginHorizontal: S.xs,
   },
   recommendYes: {
-    backgroundColor: C.successSoft,
-    borderColor: C.success,
+    backgroundColor: c.successSoft,
+    borderColor: c.success,
   },
   recommendNo: {
-    backgroundColor: C.errorSoft,
-    borderColor: C.error,
+    backgroundColor: c.errorSoft,
+    borderColor: c.error,
   },
   recommendText: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: S.sm,
   },
 
@@ -617,7 +620,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: S.md,
     maxWidth: PROSE_WIDTH,
   },
@@ -631,15 +634,15 @@ const styles = StyleSheet.create({
     marginTop: S.sm,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   summaryKey: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   summaryValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.lg,
     flexShrink: 1,
     textAlign: 'right',
@@ -648,25 +651,25 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: GUTTER,
     paddingTop: S.md,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.line,
+    borderTopColor: c.line,
   },
   track: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     marginBottom: S.md,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   footerHint: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: S.sm,
   },

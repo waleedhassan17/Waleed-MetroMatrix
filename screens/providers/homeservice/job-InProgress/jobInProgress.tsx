@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import { startWorkAsync, completeWorkAsync } from './jobInProgressSlice';
 import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBar, Screen } from '../../../../components/ui';
 
@@ -32,6 +34,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const JobInProgressScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -234,7 +240,7 @@ const JobInProgressScreen: React.FC = () => {
               style={[
                 styles.statusIndicator,
                 {
-                  backgroundColor: workStarted ? HS.accent : C.warning,
+                  backgroundColor: workStarted ? colors.accent : colors.warning,
                   transform: [{ scale: pulseAnim }],
                 },
               ]}
@@ -246,7 +252,7 @@ const JobInProgressScreen: React.FC = () => {
 
           {/* Timer */}
           <View style={styles.timerContainer}>
-            <Icon name="clock-outline" size={24} color={C.inkMuted} />
+            <Icon name="clock-outline" size={24} color={colors.inkMuted} />
             <Text style={styles.timerText}>
               {workStarted ? formatTime(elapsedTime) : '00:00:00'}
             </Text>
@@ -268,7 +274,7 @@ const JobInProgressScreen: React.FC = () => {
             <View style={styles.progressSteps}>
               <View style={styles.progressStep}>
                 <View style={[styles.stepDot, styles.stepCompleted]}>
-                  <Icon name="check" size={12} color={C.surface} />
+                  <Icon name="check" size={12} color={colors.surface} />
                 </View>
                 <Text style={styles.stepLabel}>Arrived</Text>
               </View>
@@ -279,7 +285,7 @@ const JobInProgressScreen: React.FC = () => {
                     workStarted ? styles.stepActive : styles.stepPending,
                   ]}
                 >
-                  {workStarted && <Icon name="wrench" size={12} color={C.surface} />}
+                  {workStarted && <Icon name="wrench" size={12} color={colors.surface} />}
                 </View>
                 <Text style={[styles.stepLabel, workStarted && styles.stepLabelActive]}>
                   Working
@@ -298,8 +304,8 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Job Details</Text>
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconBg, { backgroundColor: HS.accentSoft }]}>
-                <Icon name="wrench" size={18} color={HS.accent} />
+              <View style={[styles.detailIconBg, { backgroundColor: colors.accentSoft }]}>
+                <Icon name="wrench" size={18} color={colors.accent} />
               </View>
               <View style={styles.detailInfo}>
                 <Text style={styles.detailTitle}>{serviceType}</Text>
@@ -339,7 +345,7 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Location</Text>
           <View style={styles.locationCard}>
             <View style={styles.locationIconBg}>
-              <Icon name="map-marker" size={18} color={C.warning} />
+              <Icon name="map-marker" size={18} color={colors.warning} />
             </View>
             <View style={styles.locationInfo}>
               <Text style={styles.locationAddress}>{address}</Text>
@@ -353,7 +359,7 @@ const JobInProgressScreen: React.FC = () => {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionLabel}>Special Instructions</Text>
             <View style={styles.instructionsCard}>
-              <Icon name="information-outline" size={18} color={C.warning} />
+              <Icon name="information-outline" size={18} color={colors.warning} />
               <Text style={styles.instructionsText}>
                 {specialInstructions}
               </Text>
@@ -366,20 +372,20 @@ const JobInProgressScreen: React.FC = () => {
           <Text style={styles.sectionLabel}>Quick Actions</Text>
           <View style={styles.quickActionsRow}>
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleCallCustomer}>
-              <View style={[styles.quickActionIcon, { backgroundColor: HS.accentSoft }]}>
-                <Icon name="phone" size={20} color={HS.accent} />
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.accentSoft }]}>
+                <Icon name="phone" size={20} color={colors.accent} />
               </View>
               <Text style={styles.quickActionLabel}>Call</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleMessageCustomer}>
-              <View style={[styles.quickActionIcon, { backgroundColor: C.infoSoft }]}>
-                <Icon name="message-text-outline" size={20} color={C.info} />
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.infoSoft }]}>
+                <Icon name="message-text-outline" size={20} color={colors.info} />
               </View>
               <Text style={styles.quickActionLabel}>Message</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionBtn} onPress={openDirections}>
-              <View style={[styles.quickActionIcon, { backgroundColor: C.warningSoft }]}>
-                <Icon name="navigation-variant" size={20} color={C.warning} />
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.warningSoft }]}>
+                <Icon name="navigation-variant" size={20} color={colors.warning} />
               </View>
               <Text style={styles.quickActionLabel}>Directions</Text>
             </TouchableOpacity>
@@ -397,7 +403,7 @@ const JobInProgressScreen: React.FC = () => {
             onPress={handleStartWork}
             activeOpacity={0.85}
           >
-            <Icon name="play-circle" size={22} color={C.surface} />
+            <Icon name="play-circle" size={22} color={colors.surface} />
             <Text style={styles.startButtonText}>Start Work</Text>
           </TouchableOpacity>
         ) : (
@@ -406,7 +412,7 @@ const JobInProgressScreen: React.FC = () => {
             onPress={handleCompleteWork}
             activeOpacity={0.85}
           >
-            <Icon name="check-circle" size={22} color={C.surface} />
+            <Icon name="check-circle" size={22} color={colors.surface} />
             <Text style={styles.completeButtonText}>Mark as Complete</Text>
           </TouchableOpacity>
         )}
@@ -415,7 +421,7 @@ const JobInProgressScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -423,7 +429,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...T.subhead,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
   content: {
@@ -433,11 +439,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   statusCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -457,25 +463,25 @@ const styles = StyleSheet.create({
   statusTitle: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   timerContainer: {
     alignItems: 'center',
     paddingVertical: 20,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: C.lineSoft,
+    borderColor: c.lineSoft,
   },
   timerText: {
     ...T.display,
     fontFamily: F.bold,
-    color: C.ink,
+    color: c.ink,
     marginTop: 8,
   },
   timerLabel: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 4,
   },
   progressContainer: {
@@ -483,13 +489,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     borderRadius: 2,
     marginBottom: 16,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderRadius: 2,
   },
   progressSteps: {
@@ -509,21 +515,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   stepCompleted: {
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   stepActive: {
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   stepPending: {
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   stepLabel: {
     ...T.caption,
     fontFamily: F.medium,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
   stepLabelActive: {
-    color: HS.accent,
+    color: c.accent,
   },
   sectionContainer: {
     marginBottom: 16,
@@ -531,7 +537,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...T.label,
     fontFamily: F.semibold,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: 10,
     marginLeft: 2,
   },
@@ -539,10 +545,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -567,16 +573,16 @@ const styles = StyleSheet.create({
   detailTitle: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   detailSubtitle: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   priceTag: {
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -584,15 +590,15 @@ const styles = StyleSheet.create({
   priceText: {
     ...T.body,
     fontFamily: F.semibold,
-    color: HS.accent,
+    color: c.accent,
   },
   customerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -605,14 +611,14 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   customerInitial: {
     ...T.heading,
     fontFamily: F.bold,
-    color: HS.accent,
+    color: c.accent,
   },
   customerInfo: {
     flex: 1,
@@ -621,21 +627,21 @@ const styles = StyleSheet.create({
   customerNameText: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   customerPhoneText: {
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -645,7 +651,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -656,29 +662,29 @@ const styles = StyleSheet.create({
   locationAddress: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   locationCity: {
     ...T.caption,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   instructionsCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: C.warningSoft,
+    borderColor: c.warningSoft,
   },
   instructionsText: {
     flex: 1,
     marginLeft: 10,
     ...T.body,
     fontFamily: F.regular,
-    color: C.warning,
+    color: c.warning,
     lineHeight: 20,
   },
   quickActionsRow: {
@@ -689,10 +695,10 @@ const styles = StyleSheet.create({
   quickActionBtn: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -709,20 +715,20 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     ...T.caption,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   bottomContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: C.lineSoft,
-    shadowColor: C.ink,
+    borderTopColor: c.lineSoft,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -732,10 +738,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.warning,
+    backgroundColor: c.warning,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: C.warning,
+    shadowColor: c.warning,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -744,17 +750,17 @@ const styles = StyleSheet.create({
   startButtonText: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.surface,
+    color: c.inkInverse,
     marginLeft: 8,
   },
   completeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -763,7 +769,7 @@ const styles = StyleSheet.create({
   completeButtonText: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.surface,
+    color: c.inkInverse,
     marginLeft: 8,
   },
 });

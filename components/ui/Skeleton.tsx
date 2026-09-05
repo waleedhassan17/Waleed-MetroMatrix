@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DimensionValue, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
-import { C, R, S } from '../../constants/theme';
+import { R, S } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 
 /**
  * Loading placeholder.
@@ -23,14 +24,25 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height = 12,
   radius = R.chip,
   style,
-}) => (
-  <View
-    style={[{ width, height, borderRadius: radius, backgroundColor: C.surfaceSunken }, style]}
-  />
-);
+}) => {
+  const { colors } = useTheme();
+
+  return (
+    <View
+      style={[
+        { width, height, borderRadius: radius, backgroundColor: colors.surfaceSunken },
+        style,
+      ]}
+    />
+  );
+};
 
 /** A stand-in for one list card, so a loading list keeps the list's rhythm. */
-export const SkeletonCard: React.FC<{ lines?: number }> = ({ lines = 3 }) => (
+export const SkeletonCard: React.FC<{ lines?: number }> = ({ lines = 3 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
   <View style={styles.card}>
     <View style={styles.row}>
       <Skeleton width={36} height={36} radius={18} />
@@ -48,14 +60,15 @@ export const SkeletonCard: React.FC<{ lines?: number }> = ({ lines = 3 }) => (
       />
     ))}
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: R.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     padding: S.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center' },

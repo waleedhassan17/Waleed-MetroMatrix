@@ -18,9 +18,9 @@
 
 import { HC } from '../constants/HealthcareTheme';
 import { HS } from '../constants/HomeServiceTheme';
-import { C } from '../constants/theme';
+import { C, DARK_C, ThemeMode } from '../constants/theme';
 import { B } from '../screens/Shopping/Brand/theme';
-import { textOn, tint } from './contrast';
+import { AA_BODY, AA_LARGE, lift, mix, textOn, tint } from './contrast';
 
 export type ModuleName = 'neutral' | 'healthcare' | 'homeservice' | 'shopping';
 
@@ -108,6 +108,94 @@ export const MODULE_PALETTES: Record<ModuleName, ModulePalette> = {
   shopping,
 };
 
+// ── Dark ────────────────────────────────────────────────────────────────────
+//
+// THE ROLES INVERT — THEY ARE NOT JUST DARKER VERSIONS
+// ----------------------------------------------------
+// `accentDeep` exists because an accent picked to read AS text on white is too
+// light to sit BEHIND text (see the light `homeservice` note above). On a dark
+// ground that relationship flips: accent-coloured TEXT now has to be LIGHTER
+// than the accent, not darker. So `accentDeep` is the lighter tone here. That
+// sounds wrong until you remember what the name means — "the deep end of the
+// contrast range against this mode's ground", which is up, not down.
+//
+// Consequently every accent below is a light tone whose readable ink is DARK,
+// and `onAccent` is computed by `textOn()` rather than assumed to be white.
+// A migrated screen must paint accent buttons with `colors.onAccent`; a
+// hardcoded '#FFFFFF' on one of these fills measures ~2:1 and is unreadable.
+//
+// Measured against `DARK_C.surface`:
+//
+//                accent (icon)   accentDeep (text)   onAccent (on accent)
+//   healthcare       6.74              9.38                 7.04
+//   homeservice      8.72             11.00                 9.10
+//   shopping         7.88             10.26                 8.22
+//   neutral         15.14             16.76                15.80
+//
+// WHY EVERY barTone IS 'surface' HERE
+// -----------------------------------
+// A full-bleed saturated bar that works on a light app reads as a slab of
+// colour on a dark one, and home services' `accentDeep` is now a LIGHT green —
+// painting the bar with it would put a bright band across the top of a dark
+// screen and force the status icons back to dark. The module still announces
+// itself through accented content; AppBar keeps a quieter tinted option for
+// screens that ask for `tone="accent"` explicitly.
+
+const neutralDark: ModulePalette = {
+  accent: DARK_C.ink,
+  accentDeep: '#FFFFFF',
+  accentSoft: DARK_C.lineSoft,
+  accentLine: '#3A3532',
+  onAccent: textOn(DARK_C.ink),
+  barTone: 'surface',
+};
+
+const healthcareDark: ModulePalette = {
+  accent: '#6BA5FF',
+  accentDeep: '#9CC4FF',
+  accentSoft: '#16263C',
+  accentLine: '#294C77',
+  onAccent: textOn('#6BA5FF'),
+  barTone: 'surface',
+};
+
+const homeserviceDark: ModulePalette = {
+  accent: '#34D399',
+  accentDeep: '#6EE7B7',
+  accentSoft: '#0F2C23',
+  accentLine: '#1E5546',
+  onAccent: textOn('#34D399'),
+  barTone: 'surface',
+};
+
+const shoppingDark: ModulePalette = {
+  accent: '#F59E4B',
+  accentDeep: '#FBBF7D',
+  accentSoft: '#33210F',
+  accentLine: '#6B421C',
+  onAccent: textOn('#F59E4B'),
+  barTone: 'surface',
+};
+
+export const MODULE_PALETTES_DARK: Record<ModuleName, ModulePalette> = {
+  neutral: neutralDark,
+  healthcare: healthcareDark,
+  homeservice: homeserviceDark,
+  shopping: shoppingDark,
+};
+
+/**
+ * The palette for a module in a mode. Falls back to neutral for an unknown
+ * name, the way the provider always has.
+ *
+ * `MODULE_PALETTES` stays exported unchanged so the three files importing it
+ * directly keep compiling; they get the light set, which is what they were
+ * already getting.
+ */
+export const modulePalette = (name: ModuleName, mode: ThemeMode): ModulePalette =>
+  (mode === 'dark' ? MODULE_PALETTES_DARK : MODULE_PALETTES)[name] ??
+  (mode === 'dark' ? neutralDark : neutral);
+
 /**
  * A brand's three stored colours, resolved into the same five-slot shape every
  * other layer uses — which is the whole point: shared components read
@@ -124,8 +212,29 @@ export const brandPalette = (
   secondaryColor?: string | null,
   accentColor?: string | null,
   barTone: ModulePalette['barTone'] = 'surface',
+  mode: ThemeMode = 'light',
 ): ModulePalette | null => {
   if (!primaryColor) return null;
+
+  // A vendor picked their colour against a white store, so on dark it may be
+  // anything from perfect to invisible (#1A1A2E measures 1.02:1). `lift` raises
+  // it only as far as legibility needs and leaves a working brand untouched —
+  // the shopping default #E67E22 already measures 5.88 and comes back
+  // byte-identical. The tinted grounds composite against the real dark surface
+  // rather than relying on alpha, which would otherwise wash out to nothing.
+  if (mode === 'dark') {
+    const ground = DARK_C.surface;
+    const accent = lift(primaryColor, AA_LARGE, ground);
+
+    return {
+      accent,
+      accentDeep: lift(secondaryColor || primaryColor, AA_BODY, ground),
+      accentSoft: mix(ground, accent, 0.14),
+      accentLine: mix(ground, accent, 0.32),
+      onAccent: textOn(accent),
+      barTone,
+    };
+  }
 
   return {
     accent: primaryColor,

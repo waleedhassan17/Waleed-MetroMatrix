@@ -151,13 +151,21 @@ import adminShoppingOrdersReducer from '../screens/admin/Shopping/AdminShoppingO
 import adminShoppingOrderDetailReducer from '../screens/admin/Shopping/AdminShoppingOrderDetail/adminShoppingOrderDetailSlice';
 import adminShoppingAnalyticsReducer from '../screens/admin/Shopping/AdminShoppingAnalytics/adminShoppingAnalyticsSlice';
 import adminShoppingSettingsReducer from '../screens/admin/Shopping/AdminShoppingSettings/adminShoppingSettingsSlice';
+import bannerManagementReducer from '../screens/admin/Shopping/BannerManagement/bannerManagementSlice';
 import unreadReducer from './unreadSlice';
+import themeReducer from './themeSlice';
 
 // ── Redux Persist Config ────────────────────
+//
+// `theme` is whitelisted because an appearance preference that resets on every
+// launch is worse than no preference at all — the user re-picks dark every
+// morning. It is also listed in SHELL_SLICES below; it needs BOTH, because
+// persistence survives a restart and SHELL_SLICES survives a logout, and a
+// theme has to survive both.
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['cart', 'wishlist'],
+  whitelist: ['cart', 'wishlist', 'theme'],
 };
 
 // ============================================================================
@@ -189,7 +197,12 @@ export const RESET_ALL_STATE = 'auth/resetAll' as const;
 // performLogout dispatches. That is the right split: the slice decides which
 // of its own fields are account-scoped, instead of an outside allowlist
 // guessing all-or-nothing.
-const SHELL_SLICES = ['appContainer'] as const;
+//
+// `theme` is here for the same reason: the display preference belongs to the
+// device, not the account. Without it, signing out — or signing in — would
+// flip a user who chose dark back to light, which is precisely the bug that
+// made the old `userProfileSlice.darkMode` field useless.
+const SHELL_SLICES = ['appContainer', 'theme'] as const;
 
 // Slices carrying an IN-FLIGHT SIGN-IN. Preserved on login only: the sign-in
 // screens hold their email/password fields in Redux, so clearing these
@@ -333,8 +346,12 @@ const appReducer = combineReducers({
   adminShoppingOrderDetail: adminShoppingOrderDetailReducer,
   adminShoppingAnalytics: adminShoppingAnalyticsReducer,
   adminShoppingSettings: adminShoppingSettingsReducer,
+  bannerManagement: bannerManagementReducer,
   // App-wide unread message counts, so a badge can exist outside the chat screen.
   unread: unreadReducer,
+  // Light / dark / follow-the-system. A device preference, not account state —
+  // see persistConfig and SHELL_SLICES above.
+  theme: themeReducer,
 });
 
 // Handing `undefined` state to combineReducers makes every slice rebuild from

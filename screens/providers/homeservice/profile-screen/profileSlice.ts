@@ -32,7 +32,6 @@ export interface ProviderProfileState {
   provider: Provider;
   isAvailable: boolean;
   notificationsEnabled: boolean;
-  isDarkMode: boolean;
   isUrdu: boolean;
   loading: boolean;
   error: string | null;
@@ -59,7 +58,6 @@ const initialState: ProviderProfileState = {
   },
   isAvailable: false,
   notificationsEnabled: true,
-  isDarkMode: false,
   isUrdu: false,
   loading: false,
   error: null,
@@ -202,14 +200,6 @@ const providerProfileSlice = createAppSlice({
       state.notificationsEnabled = action.payload;
     }),
 
-    toggleDarkMode: create.reducer((state) => {
-      state.isDarkMode = !state.isDarkMode;
-    }),
-
-    setDarkMode: create.reducer((state, action: PayloadAction<boolean>) => {
-      state.isDarkMode = action.payload;
-    }),
-
     toggleLanguage: create.reducer((state) => {
       state.isUrdu = !state.isUrdu;
     }),
@@ -258,7 +248,6 @@ const providerProfileSlice = createAppSlice({
     selectProvider: (state) => state.provider,
     selectIsAvailable: (state) => state.isAvailable,
     selectNotificationsEnabled: (state) => state.notificationsEnabled,
-    selectIsDarkMode: (state) => state.isDarkMode,
     selectIsUrdu: (state) => state.isUrdu,
     selectLoading: (state) => state.loading,
     selectError: (state) => state.error,
@@ -276,8 +265,6 @@ export const {
   setAvailability,
   toggleNotifications,
   setNotifications,
-  toggleDarkMode,
-  setDarkMode,
   toggleLanguage,
   setLanguage,
   updateJobStats,
@@ -291,7 +278,6 @@ export const {
   selectProvider,
   selectIsAvailable,
   selectNotificationsEnabled,
-  selectIsDarkMode,
   selectIsUrdu,
   selectLoading,
   selectError,

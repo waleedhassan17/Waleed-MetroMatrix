@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSelection, Service } from './userhomeSlice';
 import { LinearGradient } from 'expo-linear-gradient';
+import { makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import SlideOutSidebar from '../../components/SlideOutSidebar/SlideOutSidebar';
 
 const { width } = Dimensions.get('window');
@@ -37,6 +39,10 @@ const SERVICE_IMAGES: Record<string, ImageSourcePropType> = {
 // const SERVICE_IMAGES = { shopping: ShoppingImage, healthcare: HealthImage, homeServices: HomeServicesImage };
 
 const UserHomeScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { services } = useAppSelector((state) => state.userHome);
@@ -162,7 +168,7 @@ const UserHomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       <ScrollView
         style={styles.scrollView}
@@ -177,7 +183,7 @@ const UserHomeScreen: React.FC = () => {
             onPress={() => setSidebarVisible(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="menu" size={24} color="#1F2937" />
+            <Ionicons name="menu" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
 
           {/* Center - Brand */}
@@ -235,10 +241,10 @@ const UserHomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
   },
   scrollView: {
     flex: 1,
@@ -259,7 +265,7 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 40,
     height: 40,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.backgroundAlt,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -270,12 +276,12 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#10B981',
+    color: Colors.primary,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
     fontSize: 14,
-    color: '#666666',
+    color: Colors.text.secondary,
     fontWeight: '400',
     marginTop: 2,
   },
@@ -293,7 +299,7 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: Colors.primaryMuted,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -301,14 +307,14 @@ const styles = StyleSheet.create({
   liveDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#EF4444', // Red dot as in design
+    backgroundColor: Colors.error, // Red dot as in design
     borderRadius: 4,
     marginRight: 8,
   },
   liveText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#059669',
+    color: Colors.primaryDark,
     letterSpacing: 0.5,
   },
 
@@ -323,17 +329,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.text.primary,
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: Colors.text.tertiary,
     marginTop: 2,
     fontWeight: '400',
   },
   countBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.borderLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -341,7 +347,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4B5563',
+    color: Colors.text.secondary,
   },
 
   // ============ CARDS ============
@@ -350,7 +356,7 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -385,7 +391,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: Colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -398,7 +404,7 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#374151',
+    color: Colors.text.secondary,
     letterSpacing: 0.5,
   },
 
@@ -407,7 +413,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -415,7 +421,7 @@ const styles = StyleSheet.create({
   statsText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     letterSpacing: 0.3,
   },
 
@@ -429,7 +435,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
@@ -441,7 +447,7 @@ const styles = StyleSheet.create({
   cardContent: {
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
   },
   contentRow: {
     flexDirection: 'row',
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     flex: 1,
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     lineHeight: 18,
     marginRight: 12,
   },
@@ -461,7 +467,7 @@ const styles = StyleSheet.create({
   exploreButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.borderLight,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -470,12 +476,12 @@ const styles = StyleSheet.create({
   exploreText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.text.secondary,
   },
   exploreArrow: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.text.secondary,
   },
 
   // ============ BOTTOM CONTAINER ============
@@ -487,7 +493,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
   },
   homeIndicator: {
     display: 'none',

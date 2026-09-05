@@ -58,7 +58,6 @@ export interface UserProfile {
   isPremium: boolean;
   isVerified: boolean;
   language: 'en' | 'ur';
-  darkMode: boolean;
   stats: UserStats;
   notificationPreferences: NotificationPreferences;
   healthcareProvider?: HealthcareProviderInfo;
@@ -128,7 +127,6 @@ const mapUserResponse = (raw: any): UserProfile => ({
   isPremium: raw?.isPremium ?? false,
   isVerified: raw?.isVerified ?? raw?.emailVerified === 'active',
   language: raw?.preferences?.language === 'ur' ? 'ur' : 'en',
-  darkMode: raw?.preferences?.theme === 'dark',
   stats: {
     ...emptyStats,
     totalBookings: raw?.stats?.totalBookings ?? 0,
@@ -257,12 +255,6 @@ const userProfileSlice = createAppSlice({
       }
     ),
 
-    toggleDarkMode: create.reducer((state) => {
-      if (state.user) {
-        state.user.darkMode = !state.user.darkMode;
-      }
-    }),
-
     toggleProviderAvailability: create.reducer((state) => {
       if (state.user?.healthcareProvider) {
         state.user.healthcareProvider.isAvailable = !state.user.healthcareProvider.isAvailable;
@@ -386,7 +378,6 @@ export const {
   setDefaultAddress,
   toggleNotificationPreference,
   updateNotificationPreferences,
-  toggleDarkMode,
   toggleProviderAvailability,
   setLanguage,
   clearProfileError,

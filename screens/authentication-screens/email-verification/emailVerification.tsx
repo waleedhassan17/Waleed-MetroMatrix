@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
@@ -66,6 +68,9 @@ interface ExtendedVerificationResult {
 }
 
 export default function EmailVerificationScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as RouteParams;
@@ -486,7 +491,7 @@ export default function EmailVerificationScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={Platform.OS === 'android' ? '#FFFFFF' : 'transparent'}
         translucent={Platform.OS !== 'android'}
       />
@@ -637,10 +642,10 @@ export default function EmailVerificationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   scrollView: {
     flex: 1,
@@ -671,41 +676,41 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 16,
   },
   emailContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: sh.n('#F5F5F5', 'surfaceSunken'),
     padding: 16,
     borderRadius: 12,
     marginBottom: 32,
     alignItems: 'center',
     borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
+    borderLeftColor: sh.hue('#6366f1'),
   },
   emailLabel: {
     fontSize: 13,
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginBottom: 4,
   },
   emailText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
   },
   autoLoginContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: sh.n('#EEF2FF', 'lineSoft'),
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -713,7 +718,7 @@ const styles = StyleSheet.create({
   },
   autoLoginText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '500',
   },
   buttonContainer: {
@@ -721,7 +726,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     height: 56,
     borderRadius: 12,
     alignItems: 'center',
@@ -741,17 +746,17 @@ const styles = StyleSheet.create({
     }),
   },
   verifiedButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: sh.hue('#4CAF50'),
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 15,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 2,
-    borderColor: '#6366f1',
+    borderColor: sh.hue('#6366f1'),
     height: 56,
     borderRadius: 12,
     alignItems: 'center',
@@ -760,7 +765,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontSize: 15,
     fontWeight: '600',
   },
@@ -771,7 +776,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   instructionsContainer: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: sh.n('#F9FAFB', 'bg'),
     padding: 20,
     borderRadius: 12,
     marginBottom: 32,
@@ -779,7 +784,7 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 16,
   },
   instructionItem: {
@@ -790,18 +795,18 @@ const styles = StyleSheet.create({
   instructionNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     width: 24,
   },
   instructionText: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     marginLeft: 8,
     flex: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
     marginVertical: 16,
   },
   footerContainer: {
@@ -810,7 +815,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '600',
   },
 });

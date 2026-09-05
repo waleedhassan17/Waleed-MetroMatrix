@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,28 +12,43 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, MapPin, CreditCard, PackageX, Truck, Star, RotateCcw } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { AA_BODY, lift } from '../../../../theme/contrast';
+import { DARK_C, type ThemeMode } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { cancelSubOrder, clearOrderDetail, fetchOrderDetail, selectOrderDetail } from './orderDetailSlice';
 import type { Order, OrderStatus } from '../../../../types/shopping';
 
-const ShopColors = { primary: '#E67E22', primaryLight: '#FFF3E6', success: '#27AE60', danger: '#E74C3C' };
+// A function of the ramp — see the note in constants/Colors.ts.
+const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, success: c.success, danger: c.error });
 const CURRENCY = 'PKR';
 
-const STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: '#F59E0B',
-  confirmed: '#3B82F6',
-  processing: '#8B5CF6',
-  shipped: '#0EA5E9',
-  out_for_delivery: '#06B6D4',
-  delivered: '#27AE60',
-  cancelled: '#E74C3C',
-  returned: '#F97316',
-  refunded: '#6B7280',
+// Per-status hues: identity, not chrome, so dark LIFTS each one rather
+// than collapsing nine states onto four semantic tokens.
+const makeStatusColors = (mode: ThemeMode) => {
+  const onDark = (hex: string) =>
+    mode === 'dark' ? lift(hex, AA_BODY, DARK_C.surface) : hex;
+  return {
+  pending: onDark('#F59E0B'),
+  confirmed: onDark('#3B82F6'),
+  processing: onDark('#8B5CF6'),
+  shipped: onDark('#0EA5E9'),
+  out_for_delivery: onDark('#06B6D4'),
+  delivered: onDark('#27AE60'),
+  cancelled: onDark('#E74C3C'),
+  returned: onDark('#F97316'),
+  refunded: onDark('#6B7280'),
+  };
 };
 
 const OrderDetailScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const STATUS_COLORS = useMemo(() => makeStatusColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -70,7 +85,7 @@ const OrderDetailScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
@@ -235,7 +250,8 @@ const OrderDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },

@@ -23,12 +23,12 @@
 
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import Screen from '../../../components/ui/Screen';
 import useReducedMotion from '../../../hooks/useReducedMotion';
-import { C, MODULE_PALETTES, S, T, tint } from '../../../theme';
+import { MODULE_PALETTES, modulePalette, S, T, ThemeColors, tint, useTheme } from '../../../theme';
 
 const RULE_WIDTH = 72;
 
@@ -40,6 +40,8 @@ const SPECTRUM: [string, string, string] = [
 ];
 
 const SplashScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const s = useMemo(() => makeSheet(colors), [colors]);
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
 
@@ -93,7 +95,7 @@ const SplashScreen: React.FC = () => {
   }, [navigation, reduced, ruleOpacity, ruleScale, tagOpacity, tagY, wordOpacity, wordY]);
 
   return (
-    <Screen background={C.bg} barStyle="dark-content" edges={['top', 'bottom']}>
+    <Screen background={colors.bg} barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} edges={['top', 'bottom']}>
       {/* Static geometry. It gives the ground some depth without asking for
           attention, so nothing here moves. */}
       <View style={s.decorRing} />
@@ -130,7 +132,7 @@ const SplashScreen: React.FC = () => {
 
 export default SplashScreen;
 
-const s = StyleSheet.create({
+const makeSheet = (c: ThemeColors) => StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   decorRing: {
@@ -141,7 +143,7 @@ const s = StyleSheet.create({
     height: 160,
     borderRadius: 80,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   decorDisc: {
     position: 'absolute',
@@ -150,7 +152,7 @@ const s = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: tint(C.ink, 0.02),
+    backgroundColor: tint(c.ink, 0.02),
   },
 
   rule: {
@@ -162,6 +164,6 @@ const s = StyleSheet.create({
   },
   ruleFill: { flex: 1 },
 
-  wordmark: { ...T.display, color: C.ink, marginBottom: S.sm },
-  tagline: { ...T.body, color: C.inkMuted },
+  wordmark: { ...T.display, color: c.ink, marginBottom: S.sm },
+  tagline: { ...T.body, color: c.inkMuted },
 });

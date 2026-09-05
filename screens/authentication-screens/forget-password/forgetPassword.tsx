@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
@@ -55,6 +57,9 @@ type RootStackParamList = {
 };
 
 export default function ForgotPasswordScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute();
   const params = route.params as RouteParams;
@@ -166,7 +171,7 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle="dark-content"
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={isAndroid ? '#FFFFFF' : 'transparent'}
         translucent={!isAndroid}
       />
@@ -289,10 +294,10 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   keyboardView: {
     flex: 1,
@@ -320,28 +325,28 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
     textAlign: 'center',
   },
   userTypeBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: sh.ground('#dcfce7', '#10B981'),
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#86efac',
+    borderColor: sh.hue('#86efac'),
   },
   userTypeBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#15803d',
+    color: sh.hue('#15803d'),
     letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: 15,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 16,
@@ -352,16 +357,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 12,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     paddingHorizontal: 16,
     height: 56,
     ...Platform.select({
@@ -382,11 +387,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#0f172a',
+    color: sh.n('#0f172a', 'ink'),
     paddingVertical: 0,
   },
   primaryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -407,15 +412,15 @@ const styles = StyleSheet.create({
     }),
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontSize: 15,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: sh.n('#ffffff', 'surface'),
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#6366f1',
+    borderColor: sh.hue('#6366f1'),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -424,7 +429,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   secondaryButtonText: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontSize: 15,
     fontWeight: '600',
   },
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonLoading: {
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     opacity: 0.8,
   },
   divider: {
@@ -446,11 +451,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: sh.n('#e2e8f0', 'line'),
   },
   dividerText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginHorizontal: 16,
   },
   footerContainer: {
@@ -458,11 +463,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
     textAlign: 'center',
   },
   footerLink: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
     fontWeight: '600',
   },
 });

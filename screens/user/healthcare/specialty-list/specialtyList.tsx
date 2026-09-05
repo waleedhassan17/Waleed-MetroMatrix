@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -38,11 +41,16 @@ const CARD_WIDTH = (width - HORIZONTAL_PAD * 2 - CARD_GAP * (NUM_COLUMNS - 1)) /
 
 // ── Theme ─────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
   },
+  };
 };
 
 // ── Specialty icon + gradient palette ─────────
@@ -82,12 +90,16 @@ const getSpecialtyConfig = (icon: string, index: number) => {
 // ── Skeleton ──────────────────────────────────
 
 const SkeletonCard: React.FC<{ anim: Animated.Value }> = ({ anim }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
   return (
     <Animated.View style={[styles.card, { opacity }]}>
-      <View style={[styles.cardIconContainer, { backgroundColor: '#E2E8F0' }]} />
-      <View style={{ width: CARD_WIDTH - 24, height: 12, backgroundColor: '#E2E8F0', borderRadius: 6, marginTop: 10 }} />
-      <View style={{ width: (CARD_WIDTH - 24) * 0.6, height: 10, backgroundColor: '#E2E8F0', borderRadius: 5, marginTop: 6 }} />
+      <View style={[styles.cardIconContainer, { backgroundColor: sh.n('#E2E8F0', 'line') }]} />
+      <View style={{ width: CARD_WIDTH - 24, height: 12, backgroundColor: sh.n('#E2E8F0', 'line'), borderRadius: 6, marginTop: 10 }} />
+      <View style={{ width: (CARD_WIDTH - 24) * 0.6, height: 10, backgroundColor: sh.n('#E2E8F0', 'line'), borderRadius: 5, marginTop: 6 }} />
     </Animated.View>
   );
 };
@@ -105,6 +117,10 @@ const SpecialtyCard: React.FC<{
   index: number;
   onPress: (specialty: Specialty) => void;
 }> = ({ item, index, onPress }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const config = getSpecialtyConfig(item.icon, index);
   const delay = (index % 9) * 50;
 
@@ -155,6 +171,10 @@ const SpecialtyCard: React.FC<{
 };
 
 const SpecialtyListScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { searchQuery, loading, error } = useAppSelector((state) => state.specialtyList);
@@ -209,7 +229,7 @@ const SpecialtyListScreen: React.FC = () => {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+        <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
           <Ionicons name="search-outline" size={36} color={THEME.primary} />
         </LinearGradient>
         <Text style={styles.emptyTitle}>
@@ -240,7 +260,7 @@ const SpecialtyListScreen: React.FC = () => {
           </View>
         </LinearGradient>
         <View style={styles.errorContainer}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
           </LinearGradient>
           <Text style={styles.errorTitle}>Something went wrong</Text>
@@ -353,10 +373,10 @@ const SpecialtyListScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -383,7 +403,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -397,7 +417,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     paddingHorizontal: 14,
     height: 48,
@@ -422,7 +442,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   searchClear: {
     padding: 2,
@@ -443,12 +463,12 @@ const styles = StyleSheet.create({
   // Card
   card: {
     width: CARD_WIDTH,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -479,7 +499,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 6,
@@ -514,12 +534,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   emptySubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
   },
 
@@ -542,12 +562,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorMessage: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -566,7 +586,7 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

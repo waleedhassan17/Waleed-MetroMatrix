@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { useAppSelector, useAppDispatch } from '../hooks/useReduxHooks';
 import {
   selectStreetAddress,
@@ -13,6 +15,9 @@ import {
 import CustomInput from './CustomInput';
 
 const Step2LocationInfo = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   
   const streetAddress = useAppSelector(selectStreetAddress);
@@ -65,14 +70,14 @@ const Step2LocationInfo = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   formContainer: {
     flex: 1,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
     marginTop: 16,
   },

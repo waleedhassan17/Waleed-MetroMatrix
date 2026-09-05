@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MODULE_PALETTES } from '../../theme/palettes';
+import { makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 import { performLogout } from '../../services/auth/logout';
 import { contactSupport } from '../../utils/support/contactSupport';
 import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
@@ -68,6 +70,9 @@ interface SlideOutSidebarProps {
 }
 
 const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const userData = useAppSelector(selectSidebarUserData);
@@ -246,7 +251,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
   const settingsMenuItems: MenuItem[] = [
     { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'settings', icon: Settings, label: 'App Settings' },
-    { id: 'help', icon: HelpCircle, label: 'Help & Support', badge: 'Online', badgeColor: '#10B981' },
+    { id: 'help', icon: HelpCircle, label: 'Help & Support', badge: 'Online', badgeColor: Colors.primary },
   ];
 
   const legalMenuItems: MenuItem[] = [
@@ -291,7 +296,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
           onPress={() => handleMenuItemPress(item)}
         >
           <View style={styles.menuIconContainer}>
-            <Icon size={20} color="#6B7280" strokeWidth={2} />
+            <Icon size={20} color={Colors.text.secondary} strokeWidth={2} />
           </View>
           <Text style={styles.menuLabel}>{item.label}</Text>
           {item.badge && (
@@ -299,7 +304,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
               <Text style={[styles.badgeText, { color: item.badgeColor }]}>{item.badge}</Text>
             </View>
           )}
-          <ChevronRight size={18} color="#D1D5DB" />
+          <ChevronRight size={18} color={Colors.text.light} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -354,7 +359,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <X size={24} color="#FFFFFF" />
+              <X size={24} color={Colors.text.inverse} />
             </TouchableOpacity>
 
             {/* User Info */}
@@ -369,7 +374,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
                 )}
                 {userData.isVerified && (
                   <View style={styles.verifiedBadge}>
-                    <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                    <Check size={10} color={Colors.text.inverse} strokeWidth={3} />
                   </View>
                 )}
               </View>
@@ -381,7 +386,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
 
               {userData.isPremium && (
                 <View style={styles.premiumBadge}>
-                  <Crown size={14} color="#F59E0B" />
+                  <Crown size={14} color={Colors.accent} />
                   <Text style={styles.premiumText}>Premium</Text>
                 </View>
               )}
@@ -452,7 +457,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
               onPress={handleLogout}
             >
               <View style={styles.logoutIconContainer}>
-                <LogOut size={20} color="#EF4444" />
+                <LogOut size={20} color={Colors.error} />
               </View>
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -463,7 +468,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
               activeOpacity={0.7}
               onPress={handleDeleteAccount}
             >
-              <Trash2 size={16} color="#EF4444" />
+              <Trash2 size={16} color={Colors.error} />
               <Text style={styles.deleteAccountText}>Delete Account</Text>
             </TouchableOpacity>
 
@@ -478,7 +483,7 @@ const SlideOutSidebar: React.FC<SlideOutSidebarProps> = ({ isVisible, onClose })
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   overlay: {
     flex: 1,
     flexDirection: 'row',
@@ -488,12 +493,12 @@ const styles = StyleSheet.create({
   },
   backdropView: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: Colors.overlayDark,
   },
   sidebar: {
     width: SIDEBAR_WIDTH,
     height: '100%',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.background,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.15,
@@ -532,7 +537,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     letterSpacing: 0.5,
   },
   verifiedBadge: {
@@ -542,11 +547,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: Colors.surface,
   },
   userTextContainer: {
     alignItems: 'center',
@@ -554,7 +559,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     marginBottom: 4,
   },
   userEmail: {
@@ -574,7 +579,7 @@ const styles = StyleSheet.create({
   premiumText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FEF3C7',
+    color: Colors.accentLight,
   },
   quickStats: {
     flexDirection: 'row',
@@ -595,7 +600,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
   },
   statLabel: {
     fontSize: 12,
@@ -612,14 +617,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.text.secondary,
     marginBottom: 8,
     marginLeft: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   menuCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -638,7 +643,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -647,7 +652,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
-    color: '#1F2937',
+    color: Colors.text.primary,
   },
   badge: {
     paddingHorizontal: 8,
@@ -665,7 +670,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginHorizontal: 16,
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -677,7 +682,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: Colors.errorLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -685,7 +690,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#EF4444',
+    color: Colors.error,
   },
   deleteAccount: {
     flexDirection: 'row',
@@ -697,11 +702,11 @@ const styles = StyleSheet.create({
   deleteAccountText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#EF4444',
+    color: Colors.error,
   },
   versionText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: Colors.text.tertiary,
     textAlign: 'center',
     marginTop: 24,
   },

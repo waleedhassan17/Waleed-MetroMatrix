@@ -58,7 +58,13 @@ import {
   C,
   E,
   GUTTER,
+  DARK_C,
   MODULE_PALETTES,
+  modulePalette,
+  type ModuleName,
+  type ThemeMode,
+  type ThemeColors,
+  useTheme,
   ModulePalette,
   PROSE_WIDTH,
   R,
@@ -86,7 +92,7 @@ interface CardRow {
 
 interface Slide {
   key: string;
-  palette: ModulePalette;
+  paletteKey: ModuleName;
   eyebrow: string;
   title: string;
   titleAccent: string;
@@ -95,6 +101,21 @@ interface Slide {
   badges: [{ value: string; label: string }, { value: string; label: string }];
 }
 
+// The slides advertise the three verticals, so each carries its module's
+// accent. Resolved per mode: the light `accentSoft` grounds are near-white and
+// would be glare panels on the dark onboarding canvas.
+const paletteFor = (name: ModuleName, mode: ThemeMode) => modulePalette(name, mode);
+
+/**
+ * The primary-action green, shared with the sign-in and sign-up buttons.
+ *
+ * It measures 6.61:1 against the dark card, so white sits on it comfortably and
+ * it needs no lifting — the brand green is the same green in both modes.
+ */
+const BRAND_GREEN = '#10B981';
+
+// The row dots are the accent itself, which is legible in both modes, so these
+// stay simple lookups rather than becoming another per-mode table.
 const HS = MODULE_PALETTES.homeservice;
 const HC = MODULE_PALETTES.healthcare;
 const SH = MODULE_PALETTES.shopping;
@@ -104,7 +125,7 @@ const SLIDES: Slide[] = [
     key: 'overview',
     // Neutral is ink: nothing has claimed the app yet, so the overview slide
     // stays monochrome and the colour arrives with the verticals.
-    palette: MODULE_PALETTES.neutral,
+    paletteKey: 'neutral' as ModuleName,
     eyebrow: 'MetroMatrix',
     title: 'Your city,',
     titleAccent: 'one app.',
@@ -126,7 +147,7 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'homeservice',
-    palette: HS,
+    paletteKey: 'homeservice' as ModuleName,
     eyebrow: 'Home services',
     title: 'Verified pros,',
     titleAccent: 'booked in minutes.',
@@ -157,7 +178,7 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'healthcare',
-    palette: HC,
+    paletteKey: 'healthcare' as ModuleName,
     eyebrow: 'Healthcare',
     title: 'Care, without',
     titleAccent: 'the waiting room.',
@@ -189,7 +210,7 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'shopping',
-    palette: SH,
+    paletteKey: 'shopping' as ModuleName,
     eyebrow: 'Shopping',
     title: 'Trusted brands,',
     titleAccent: 'secure checkout.',
@@ -227,6 +248,8 @@ const TRACK = WORM + PITCH * (SLIDES.length - 1);
 // ============================================================================
 
 const Onboarding: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const s = useMemo(() => makeSheet(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { width } = useWindowDimensions();
@@ -340,7 +363,7 @@ const Onboarding: React.FC = () => {
               width: width * 0.9,
               height: width * 0.9,
               borderRadius: width * 0.45,
-              backgroundColor: item.palette.accentSoft,
+              backgroundColor: paletteFor(item.paletteKey, mode).accentSoft,
             },
           ]}
         />
@@ -349,14 +372,14 @@ const Onboarding: React.FC = () => {
           <PreviewCard slide={item} />
 
           <View style={s.eyebrow}>
-            <View style={[s.eyebrowDot, { backgroundColor: item.palette.accent }]} />
+            <View style={[s.eyebrowDot, { backgroundColor: paletteFor(item.paletteKey, mode).accent }]} />
             <Text style={s.eyebrowText}>{item.eyebrow}</Text>
           </View>
 
           <Text style={s.title}>
             {item.title}
             {'\n'}
-            <Text style={{ color: item.palette.accentDeep }}>{item.titleAccent}</Text>
+            <Text style={{ color: paletteFor(item.paletteKey, mode).accentDeep }}>{item.titleAccent}</Text>
           </Text>
 
           <Text style={s.subtitle}>{item.subtitle}</Text>
@@ -367,7 +390,7 @@ const Onboarding: React.FC = () => {
   );
 
   return (
-    <Screen background={C.bg} barStyle="dark-content" edges={['top', 'bottom']}>
+    <Screen background={colors.bg} barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} edges={['top', 'bottom']}>
       <Animated.FlatList
         ref={listRef as any}
         style={s.list}
@@ -410,7 +433,7 @@ const Onboarding: React.FC = () => {
               index === i ? (
                 <View
                   key={`worm-${slide.key}`}
-                  style={[s.worm, { left: i * PITCH, backgroundColor: slide.palette.accent }]}
+                  style={[s.worm, { left: i * PITCH, backgroundColor: paletteFor(slide.paletteKey, mode).accent }]}
                 />
               ) : null
             ) : (
@@ -419,7 +442,7 @@ const Onboarding: React.FC = () => {
                 style={[
                   s.worm,
                   {
-                    backgroundColor: slide.palette.accent,
+                    backgroundColor: paletteFor(slide.paletteKey, mode).accent,
                     opacity: fades[i],
                     transform: [{ translateX: wormX }],
                   },
@@ -475,7 +498,10 @@ const Onboarding: React.FC = () => {
 // ── Preview card ────────────────────────────────────────────────────────────
 
 const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
-  const { palette, card, badges } = slide;
+  const { colors, mode } = useTheme();
+  const s = useMemo(() => makeSheet(colors), [colors]);
+  const { paletteKey, card, badges } = slide;
+  const palette = paletteFor(paletteKey, mode);
 
   return (
     <View style={s.cardWrap}>
@@ -523,7 +549,7 @@ const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
                   <Ionicons
                     name={row.trailingIcon}
                     size={11}
-                    color={C.star}
+                    color={colors.star}
                     style={s.rowTrailIcon}
                   />
                 )}
@@ -552,7 +578,7 @@ export default Onboarding;
 
 // ============================================================================
 
-const s = StyleSheet.create({
+const makeSheet = (c: ThemeColors) => StyleSheet.create({
   list: { flex: 1 },
   slide: { flex: 1, justifyContent: 'center' },
   slideBody: { paddingHorizontal: S.xxxl, alignItems: 'center' },
@@ -562,9 +588,9 @@ const s = StyleSheet.create({
   // ── Card ──
   cardWrap: { width: '100%', maxWidth: 300, marginBottom: S.xxxl },
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     borderRadius: R.sheet,
     padding: S.lg,
     ...E.raised,
@@ -575,14 +601,14 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: S.md,
   },
-  cardTitle: { ...T.label, color: C.ink },
+  cardTitle: { ...T.label, color: c.ink },
   cardChip: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.chip },
-  cardChipText: { ...T.caption, color: C.ink },
+  cardChipText: { ...T.caption, color: c.ink },
 
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: S.sm },
   rowRuled: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
     marginTop: S.xs,
     paddingTop: S.md,
   },
@@ -590,16 +616,16 @@ const s = StyleSheet.create({
   rowIcon: { height: 26, borderRadius: R.chip },
   rowDot: { width: 8, height: 8, borderRadius: 4 },
   rowText: { flex: 1, marginLeft: S.md },
-  rowPrimary: { ...T.caption, color: C.ink },
-  rowSecondary: { ...T.caption, color: C.inkMuted, marginTop: 1 },
+  rowPrimary: { ...T.caption, color: c.ink },
+  rowSecondary: { ...T.caption, color: c.inkMuted, marginTop: 1 },
   rowTrail: { flexDirection: 'row', alignItems: 'center' },
   rowTrailIcon: { marginRight: 3 },
-  rowTrailText: { ...T.caption, color: C.ink },
+  rowTrailText: { ...T.caption, color: c.ink },
 
   // ── Floating stat pills ──
   badge: {
     position: 'absolute',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: R.card,
     paddingVertical: S.sm,
@@ -608,17 +634,17 @@ const s = StyleSheet.create({
   },
   badgeTop: { top: -14, right: -10 },
   badgeBottom: { bottom: -14, left: -10 },
-  badgeValue: { ...T.bodyStrong, color: C.ink },
-  badgeLabel: { ...T.caption, color: C.inkMuted, marginTop: 1 },
+  badgeValue: { ...T.bodyStrong, color: c.ink },
+  badgeLabel: { ...T.caption, color: c.inkMuted, marginTop: 1 },
 
   // ── Copy ──
   eyebrow: { flexDirection: 'row', alignItems: 'center', marginBottom: S.lg },
   eyebrowDot: { width: 6, height: 6, borderRadius: 3, marginRight: S.sm },
-  eyebrowText: { ...T.label, color: C.inkMuted },
-  title: { ...T.title, color: C.ink, textAlign: 'center', marginBottom: S.md },
+  eyebrowText: { ...T.label, color: c.inkMuted },
+  title: { ...T.title, color: c.ink, textAlign: 'center', marginBottom: S.md },
   subtitle: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     maxWidth: PROSE_WIDTH,
   },
@@ -631,7 +657,7 @@ const s = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
-    backgroundColor: C.disabled,
+    backgroundColor: c.disabled,
   },
   worm: {
     position: 'absolute',
@@ -644,15 +670,23 @@ const s = StyleSheet.create({
     alignSelf: 'stretch',
     height: 52,
     borderRadius: R.control,
-    backgroundColor: C.ink,
+    // Light keeps the ink-black slab it has always had. Dark does NOT invert it
+    // to a near-white one: a full-width white pill is the brightest thing on a
+    // dark screen and pulls the eye off the copy it is meant to follow. It gets
+    // the brand emerald instead — the same green the sign-in CTA uses, so the
+    // primary action looks like one action across the whole entry flow.
+    backgroundColor: c.bg === DARK_C.bg ? BRAND_GREEN : c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaText: { ...T.subhead, color: C.inkInverse },
+  ctaText: {
+    ...T.subhead,
+    color: c.bg === DARK_C.bg ? '#FFFFFF' : c.onAccent,
+  },
   link: { paddingVertical: S.md },
-  linkText: { ...T.body, color: C.inkMuted },
-  linkSep: { color: C.disabled },
-  linkStrong: { ...T.bodyStrong, color: C.ink },
+  linkText: { ...T.body, color: c.inkMuted },
+  linkSep: { color: c.disabled },
+  linkStrong: { ...T.bodyStrong, color: c.ink },
   skipSlot: { height: 36, justifyContent: 'center' },
-  skipText: { ...T.body, color: C.inkMuted },
+  skipText: { ...T.body, color: c.inkMuted },
 });

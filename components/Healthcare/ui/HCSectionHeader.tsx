@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HC } from '../../../constants/HealthcareTheme';
+import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 
 interface HCSectionHeaderProps {
   title: string;
@@ -15,7 +16,12 @@ const HCSectionHeader: React.FC<HCSectionHeaderProps> = ({
   subtitle,
   actionLabel = 'See All',
   onAction,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
+
+  return (
   <View style={styles.row}>
     <View style={{ flex: 1 }}>
       <Text style={styles.title}>{title}</Text>
@@ -28,9 +34,10 @@ const HCSectionHeader: React.FC<HCSectionHeaderProps> = ({
       </TouchableOpacity>
     )}
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

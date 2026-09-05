@@ -12,11 +12,16 @@
 // land on a working call instead of a blank WebView.
 // ============================================================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function DoctorVideoConsultationScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const appointmentId = route.params?.appointmentId ?? '';
@@ -42,6 +47,6 @@ export default function DoctorVideoConsultationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A' },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: sh.n('#0F172A', 'ink') },
 });

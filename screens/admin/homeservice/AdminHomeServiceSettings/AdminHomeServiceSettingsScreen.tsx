@@ -4,7 +4,7 @@
 // These are the SAME values HS2/HS4 read at runtime (one source of truth).
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -34,6 +36,9 @@ const COLORS = {
 };
 
 const AdminHomeServiceSettingsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -99,7 +104,7 @@ const AdminHomeServiceSettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -177,6 +182,9 @@ function Field({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -190,7 +198,7 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
@@ -203,12 +211,12 @@ const styles = StyleSheet.create({
   liveBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
   },
-  liveText: { color: '#92400E', fontSize: 12, marginLeft: 8, flex: 1, lineHeight: 17 },
+  liveText: { color: sh.hue('#92400E'), fontSize: 12, marginLeft: 8, flex: 1, lineHeight: 17 },
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 6 },
   input: {

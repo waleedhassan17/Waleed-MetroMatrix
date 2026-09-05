@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 
 interface ProgressIndicatorProps {
   currentStep: number;
@@ -10,6 +12,9 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   currentStep,
   totalSteps,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
@@ -34,19 +39,19 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   progressContainer: {
     marginBottom: 32,
   },
   progressBarContainer: {
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: sh.hue('#E0E0E0'),
     borderRadius: 2,
     marginBottom: 12,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     borderRadius: 2,
   },
   progressDots: {
@@ -58,10 +63,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: sh.hue('#E0E0E0'),
   },
   dotActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
   },
 });
 

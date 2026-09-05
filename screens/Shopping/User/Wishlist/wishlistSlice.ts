@@ -74,9 +74,15 @@ export const removeWishlistItem = createAsyncThunk(
   }
 );
 
+/**
+ * Takes only the productId: the server owns every display field, and the
+ * response replaces the list wholesale. Callers used to hand over a whole
+ * WishlistItemState — including a `brandName` some of them filled with a brand
+ * *id* — all of which was discarded here.
+ */
 export const toggleWishlistItem = createAsyncThunk(
   'wishlist/toggle',
-  async (item: WishlistItemState, { getState, rejectWithValue }) => {
+  async (item: Pick<WishlistItemState, 'productId'>, { getState, rejectWithValue }) => {
     try {
       const { wishlist } = getState() as { wishlist: WishlistState };
       const exists = wishlist.items.some((i) => i.productId === item.productId);

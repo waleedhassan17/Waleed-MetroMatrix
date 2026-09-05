@@ -12,6 +12,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,17 +30,22 @@ import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Theme ─────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    video: ['#5A9FFF', '#1E6AE1'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
+    video: grad(['#5A9FFF', '#1E6AE1']) as [string, string],
   },
+  };
 };
 
 // ── Status Config ─────────────────────────────
@@ -61,6 +69,10 @@ const TABS = [
 // ── Component ─────────────────────────────────
 
 const MyAppointmentsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -438,10 +450,10 @@ const MyAppointmentsScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -471,7 +483,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -497,7 +509,7 @@ const styles = StyleSheet.create({
     top: 4,
     bottom: 4,
     width: '47%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     zIndex: 0,
   },
@@ -529,14 +541,14 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   listWrapper: {
     flex: 1,
@@ -549,12 +561,12 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingLeft: 18,
     ...Platform.select({
       ios: {
@@ -594,13 +606,13 @@ const styles = StyleSheet.create({
   cardDoctorName: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
   },
   cardType: {
     fontSize: 12.5,
     fontWeight: '600',
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
     marginTop: 1,
   },
   cardTypeRow: {
@@ -614,7 +626,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 999,
@@ -622,12 +634,12 @@ const styles = StyleSheet.create({
   typeTagText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#475569',
+    color: sh.n('#475569', 'inkMuted'),
   },
   cardId: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 1,
   },
 
@@ -656,7 +668,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
     marginBottom: 10,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 10,
     padding: 10,
   },
@@ -670,12 +682,12 @@ const styles = StyleSheet.create({
   detailChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: sh.n('#475569', 'inkMuted'),
   },
   detailDivider: {
     width: 1,
     height: 14,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     marginHorizontal: 8,
   },
   symptomsRow: {
@@ -689,7 +701,7 @@ const styles = StyleSheet.create({
   symptomsText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     flex: 1,
   },
 
@@ -701,17 +713,17 @@ const styles = StyleSheet.create({
     marginRight: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   paymentLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   paymentAmount: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
   },
 
@@ -731,8 +743,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#FECACA',
-    backgroundColor: '#FEF2F2',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
   },
   actionCancelText: {
     fontSize: 12,
@@ -747,8 +759,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#BFDBFE',
-    backgroundColor: '#F0F7FF',
+    borderColor: sh.hue('#BFDBFE'),
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
   },
   actionRescheduleText: {
     fontSize: 12,
@@ -779,7 +791,7 @@ const styles = StyleSheet.create({
   actionJoinText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Empty
@@ -802,13 +814,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 8,
@@ -837,7 +849,7 @@ const styles = StyleSheet.create({
   emptyActionBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

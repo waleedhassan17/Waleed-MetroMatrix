@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,17 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
+import {
+  selectThemePreference,
+  setThemePreference,
+  type ThemePreference,
+} from '../../../store/themeSlice';
 import {
   getSettingsAsync,
   updateGeneralSettingsAsync,
@@ -36,7 +43,12 @@ import {
 type IconName = keyof typeof Ionicons.glyphMap;
 type SettingsSection = 'general' | 'notifications' | 'security' | 'appearance';
 
-const SectionHeader = ({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) => (
+const SectionHeader = ({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.sectionHeader}>
     <View style={styles.sectionIconContainer}>
       <Ionicons name={icon} size={22} color="#6366f1" />
@@ -46,7 +58,8 @@ const SectionHeader = ({ icon, title, subtitle }: { icon: IconName; title: strin
       <Text style={styles.sectionSubtitle}>{subtitle}</Text>
     </View>
   </View>
-);
+  );
+};
 
 const SettingRow = ({
   icon,
@@ -58,7 +71,12 @@ const SettingRow = ({
   label: string;
   description?: string;
   children: React.ReactNode;
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.settingRow}>
     <View style={styles.settingRowLeft}>
       <View style={styles.settingIcon}>
@@ -71,13 +89,19 @@ const SettingRow = ({
     </View>
     <View style={styles.settingRowRight}>{children}</View>
   </View>
-);
+  );
+};
 
 const SettingsScreen = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
   const settings = useAppSelector(selectSettings);
+  // The device preference is the one that paints the app — see themeSlice.
+  const themePreference = useAppSelector(selectThemePreference);
   const isSaving = useAppSelector(selectIsSaving);
   const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
 
@@ -379,8 +403,8 @@ const SettingsScreen = () => {
 
   const renderAppearanceSettings = () => {
     const themes = [
-      { key: 'light', label: 'Light', icon: 'sunny-outline' as IconName, color: '#f8fafc' },
-      { key: 'dark', label: 'Dark', icon: 'moon-outline' as IconName, color: '#1e293b' },
+      { key: 'light', label: 'Light', icon: 'sunny-outline' as IconName, color: sh.n('#f8fafc', 'surfaceSunken') },
+      { key: 'dark', label: 'Dark', icon: 'moon-outline' as IconName, color: sh.n('#1e293b', 'ink') },
       { key: 'system', label: 'System', icon: 'phone-portrait-outline' as IconName, color: '#6366f1' },
     ];
 
@@ -399,9 +423,16 @@ const SettingsScreen = () => {
               key={theme.key}
               style={[
                 styles.themeCard,
-                settings.appearance?.theme === theme.key && styles.themeCardActive,
+                themePreference === theme.key && styles.themeCardActive,
               ]}
               onPress={() => {
+                // Two writes on purpose. The device slice is what actually
+                // paints the app; the settings slice keeps the server's
+                // `appearance.theme` in step so an admin's stored preference
+                // does not silently disagree with what they are looking at.
+                // The device wins if they ever differ — a theme belongs to the
+                // screen in your hand, not to the account.
+                dispatch(setThemePreference(theme.key as ThemePreference));
                 dispatch(updateLocalAppearanceSettings({ theme: theme.key as 'light' | 'dark' | 'system' }));
               }}
             >
@@ -409,7 +440,7 @@ const SettingsScreen = () => {
                 <Ionicons name={theme.icon} size={24} color={theme.key === 'light' ? '#1e293b' : '#FFFFFF'} />
               </View>
               <Text style={styles.themeLabel}>{theme.label}</Text>
-              {settings.appearance?.theme === theme.key && (
+              {themePreference === theme.key && (
                 <View style={styles.themeCheck}>
                   <Ionicons name="checkmark-circle" size={20} color="#6366f1" />
                 </View>
@@ -484,10 +515,10 @@ const SettingsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 0 : 20,
@@ -511,7 +542,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   tabsContainer: {
     paddingHorizontal: 16,
@@ -528,7 +559,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   tabActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   tabText: {
     fontSize: 14,
@@ -536,7 +567,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
   tabTextActive: {
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
   },
   content: {
     flex: 1,
@@ -554,7 +585,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#eef2ff',
+    backgroundColor: sh.n('#eef2ff', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -565,15 +596,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     marginTop: 2,
   },
   settingsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     marginBottom: 16,
     ...Platform.select({
@@ -593,7 +624,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
+    borderBottomColor: sh.n('#f8fafc', 'surfaceSunken'),
   },
   settingRowLeft: {
     flexDirection: 'row',
@@ -605,7 +636,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -616,25 +647,25 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   settingDescription: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginTop: 2,
   },
   settingRowRight: {
     alignItems: 'flex-end',
   },
   textInput: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: sh.n('#f8fafc', 'surfaceSunken'),
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     minWidth: 140,
   },
   saveButton: {
@@ -642,7 +673,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#6366f1',
+    backgroundColor: sh.hue('#6366f1'),
     paddingVertical: 16,
     borderRadius: 14,
     marginTop: 8,
@@ -650,7 +681,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   themeGrid: {
     flexDirection: 'row',
@@ -659,12 +690,12 @@ const styles = StyleSheet.create({
   },
   themeCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -676,7 +707,7 @@ const styles = StyleSheet.create({
     }),
   },
   themeCardActive: {
-    borderColor: '#6366f1',
+    borderColor: sh.hue('#6366f1'),
   },
   themePreview: {
     width: 56,
@@ -689,7 +720,7 @@ const styles = StyleSheet.create({
   themeLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   themeCheck: {
     position: 'absolute',
@@ -710,7 +741,7 @@ const styles = StyleSheet.create({
   },
   colorOptionActive: {
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',

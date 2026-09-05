@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ProfileHeaderProps {
@@ -8,6 +10,9 @@ interface ProfileHeaderProps {
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({ title, subtitle }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={styles.headerContainer}>
       <View style={styles.profileIconContainer}>
@@ -20,7 +25,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ title, subtitle }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
     marginBottom: 32,
@@ -29,7 +34,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -37,18 +42,18 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     marginBottom: 12,
   },
   title: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: sh.hue('#1A1A1A'),
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666666',
+    color: sh.hue('#666666'),
   },
 });
 

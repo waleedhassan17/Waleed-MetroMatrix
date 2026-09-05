@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   StyleProp,
@@ -11,8 +11,9 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { HS } from '../../constants/HomeServiceTheme';
-import { C, R, S, T } from '../../constants/theme';
+import { R, S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
+import { uiAccent } from './accentCompat';
 
 /**
  * Buttons.
@@ -47,11 +48,17 @@ export interface ButtonProps {
 const HEIGHT: Record<ButtonSize, number> = { sm: 36, md: 46, lg: 52 };
 const ICON: Record<ButtonSize, number> = { sm: 15, md: 17, lg: 18 };
 
-const FILL: Record<ButtonVariant, { bg: string; fg: string; border?: string }> = {
-  primary: { bg: HS.accent, fg: C.inkInverse },
-  secondary: { bg: C.surface, fg: C.ink, border: C.line },
-  ghost: { bg: 'transparent', fg: HS.accentDeep },
-  destructive: { bg: C.errorSoft, fg: C.error, border: C.errorLine },
+const fills = (
+  c: ThemeColors,
+  isDark: boolean,
+): Record<ButtonVariant, { bg: string; fg: string; border?: string }> => {
+  const a = uiAccent(c, isDark);
+  return {
+    primary: { bg: a.accent, fg: a.onAccent },
+    secondary: { bg: c.surface, fg: c.ink, border: c.line },
+    ghost: { bg: 'transparent', fg: a.accentDeep },
+    destructive: { bg: c.errorSoft, fg: c.error, border: c.errorLine },
+  };
 };
 
 const Button: React.FC<ButtonProps> = ({
@@ -68,9 +75,11 @@ const Button: React.FC<ButtonProps> = ({
   textStyle,
   accessibilityLabel,
 }) => {
+  const { colors, isDark } = useTheme();
+  const fill = useMemo(() => fills(colors, isDark)[variant], [colors, isDark, variant]);
+
   const inert = disabled || loading;
-  const fill = FILL[variant];
-  const fg = inert ? C.inkFaint : fill.fg;
+  const fg = inert ? colors.inkFaint : fill.fg;
 
   return (
     <TouchableOpacity
@@ -84,12 +93,12 @@ const Button: React.FC<ButtonProps> = ({
         styles.base,
         {
           height: HEIGHT[size],
-          backgroundColor: inert && variant !== 'ghost' ? C.surfaceSunken : fill.bg,
+          backgroundColor: inert && variant !== 'ghost' ? colors.surfaceSunken : fill.bg,
           paddingHorizontal: size === 'sm' ? S.md : S.xl,
         },
         !!fill.border && {
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: inert ? C.line : fill.border,
+          borderColor: inert ? colors.line : fill.border,
         },
         fullWidth ? styles.full : styles.hug,
         style,

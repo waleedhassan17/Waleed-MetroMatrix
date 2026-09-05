@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Switch,
   Alert,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,7 +45,12 @@ const InfoRow: React.FC<{
   value: string;
   iconLib?: 'ion' | 'mci';
   accent?: string;
-}> = ({ icon, label, value, iconLib = 'ion', accent = THEME.primary }) => (
+}> = ({ icon, label, value, iconLib = 'ion', accent = THEME.primary }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.infoRow}>
     <View style={[styles.infoIconWrap, { backgroundColor: `${accent}18` }]}>
       {iconLib === 'mci' ? (
@@ -57,7 +64,8 @@ const InfoRow: React.FC<{
       <Text style={styles.infoValue}>{value}</Text>
     </View>
   </View>
-);
+  );
+};
 
 // ── Stat Box ──────────────────────────────────
 
@@ -65,17 +73,26 @@ const StatBox: React.FC<{
   icon: string;
   value: string;
   label: string;
-}> = ({ icon, value, label }) => (
+}> = ({ icon, value, label }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.statBox}>
     <MaterialCommunityIcons name={icon as any} size={20} color="rgba(255,255,255,0.8)" />
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </View>
-);
+  );
+};
 
 // ── Main Component ────────────────────────────
 
 const DoctorProfileScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -157,7 +174,7 @@ const DoctorProfileScreen: React.FC = () => {
           <Text style={styles.headerTitle}>My Profile</Text>
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load profile</Text>
@@ -446,10 +463,10 @@ export default DoctorProfileScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading / Error
@@ -471,12 +488,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
   },
-  loadingText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  loadingText: { fontSize: 15, fontWeight: '600', color: sh.n('#64748B', 'inkMuted') },
   errorIconWrap: {
     width: 88,
     height: 88,
@@ -485,11 +502,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  errorSubtext: { fontSize: 14, fontWeight: '500', color: '#94A3B8', textAlign: 'center', marginBottom: 6 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
+  errorSubtext: { fontSize: 14, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint'), textAlign: 'center', marginBottom: 6 },
   retryBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
   retryBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 14 },
-  retryBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  retryBtnText: { fontSize: 15, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
 
   scrollContent: { paddingBottom: 40 },
 
@@ -516,7 +533,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   profileCenter: {
@@ -539,7 +556,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
@@ -554,14 +571,14 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   profileName: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.5,
     textAlign: 'center',
   },
@@ -588,7 +605,7 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Stats strip
@@ -601,7 +618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statBox: { flex: 1, alignItems: 'center', gap: 3 },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.4 },
+  statValue: { fontSize: 20, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.4 },
   statLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.3 },
   statsDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.2)' },
 
@@ -624,7 +641,7 @@ const styles = StyleSheet.create({
   completenessPercent: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   progressBarTrack: {
     height: 6,
@@ -634,7 +651,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#10B981', // green for completeness
+    backgroundColor: sh.hue('#10B981'), // green for completeness
     borderRadius: 3,
   },
 
@@ -648,19 +665,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
       android: { elevation: 5 },
     }),
   },
   availCardActive: {
-    borderColor: '#BBF7D0',
-    backgroundColor: '#F0FDF4',
+    borderColor: sh.hue('#BBF7D0'),
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
   },
   availLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   availIconWrap: {
@@ -671,7 +688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   availInfo: { flex: 1 },
-  availTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  availTitle: { fontSize: 15, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
   availStatus: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 
   // Sections
@@ -692,29 +709,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
   },
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
     }),
   },
   aboutCard: {
-    backgroundColor: '#FAFBFF',
+    backgroundColor: sh.n('#FAFBFF', 'surfaceSunken'),
   },
   bioText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: sh.hue('#374151'),
     lineHeight: 22,
   },
 
@@ -735,7 +752,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 2,
@@ -743,11 +760,11 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   infoDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginVertical: 14,
   },
 
@@ -766,7 +783,7 @@ const styles = StyleSheet.create({
   feeCardAmount: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.4,
   },
   feeCardLabel: {
@@ -792,7 +809,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
   },
   signOutBtn: {
     flexDirection: 'row',
@@ -803,11 +820,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
-  signOutText: { color: '#DC2626', fontWeight: '800', fontSize: 15 },
+  signOutText: { color: sh.hue('#DC2626'), fontWeight: '800', fontSize: 15 },
   langChipText: {
     fontSize: 13,
     fontWeight: '700',

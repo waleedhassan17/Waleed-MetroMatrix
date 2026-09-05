@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ import { resetAwaitingApproval } from '../awaiting-screen/awaitingScreenSlice';
 import { resetPaymentRequest } from '../payment-screen/paymentRequestSlice';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -32,6 +34,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const JobCompletionScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -244,7 +250,7 @@ const JobCompletionScreen: React.FC = () => {
               { transform: [{ scale: checkScaleAnim }] },
             ]}
           >
-            <Icon name="check" size={60} color={C.surface} />
+            <Icon name="check" size={60} color={colors.surface} />
           </Animated.View>
         </View>
 
@@ -260,7 +266,7 @@ const JobCompletionScreen: React.FC = () => {
         <Animated.View style={[styles.summaryCard, { opacity: contentFade }]}>
           {/* Service Icon */}
           <View style={styles.serviceIconBg}>
-            <Icon name="wrench-outline" size={28} color={HS.accent} />
+            <Icon name="wrench-outline" size={28} color={colors.accent} />
           </View>
 
           {/* Service Name */}
@@ -270,7 +276,7 @@ const JobCompletionScreen: React.FC = () => {
 
           {/* Duration */}
           <View style={styles.durationRow}>
-            <Icon name="clock-outline" size={18} color={C.inkMuted} />
+            <Icon name="clock-outline" size={18} color={colors.inkMuted} />
             <Text style={styles.durationText}>
               Duration: {formatDuration(actualDuration)}
             </Text>
@@ -297,7 +303,7 @@ const JobCompletionScreen: React.FC = () => {
             <Icon
               name={paymentMethod === 'cash' ? 'cash' : 'credit-card-outline'}
               size={16}
-              color={paymentMethod === 'cash' ? HS.accent : C.info}
+              color={paymentMethod === 'cash' ? colors.accent : colors.info}
             />
             <Text
               style={[
@@ -315,8 +321,8 @@ const JobCompletionScreen: React.FC = () => {
         {/* Stats Row */}
         <Animated.View style={[styles.statsRow, { opacity: contentFade }]}>
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: C.warningSoft }]}>
-              <Icon name="star" size={20} color={C.warning} />
+            <View style={[styles.statIconBg, { backgroundColor: colors.warningSoft }]}>
+              <Icon name="star" size={20} color={colors.warning} />
             </View>
             <Text style={styles.statValue}>4.8</Text>
             <Text style={styles.statLabel}>Rating</Text>
@@ -325,8 +331,8 @@ const JobCompletionScreen: React.FC = () => {
           <View style={styles.statDivider} />
 
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: HS.accentSoft }]}>
-              <Icon name="briefcase-check" size={20} color={HS.accent} />
+            <View style={[styles.statIconBg, { backgroundColor: colors.accentSoft }]}>
+              <Icon name="briefcase-check" size={20} color={colors.accent} />
             </View>
             <Text style={styles.statValue}>+1</Text>
             <Text style={styles.statLabel}>Jobs Done</Text>
@@ -335,8 +341,8 @@ const JobCompletionScreen: React.FC = () => {
           <View style={styles.statDivider} />
 
           <View style={styles.statItem}>
-            <View style={[styles.statIconBg, { backgroundColor: C.infoSoft }]}>
-              <Icon name="trending-up" size={20} color={C.info} />
+            <View style={[styles.statIconBg, { backgroundColor: colors.infoSoft }]}>
+              <Icon name="trending-up" size={20} color={colors.info} />
             </View>
             <Text style={styles.statValue}>85%</Text>
             <Text style={styles.statLabel}>Level Up</Text>
@@ -352,7 +358,7 @@ const JobCompletionScreen: React.FC = () => {
             onPress={handleViewJobs}
             activeOpacity={0.85}
           >
-            <Icon name="clipboard-list-outline" size={20} color={HS.accent} />
+            <Icon name="clipboard-list-outline" size={20} color={colors.accent} />
             <Text style={styles.secondaryButtonText}>View All Jobs</Text>
           </TouchableOpacity>
 
@@ -361,7 +367,7 @@ const JobCompletionScreen: React.FC = () => {
             onPress={handleGoHome}
             activeOpacity={0.85}
           >
-            <Icon name="home-outline" size={20} color={C.surface} />
+            <Icon name="home-outline" size={20} color={colors.surface} />
             <Text style={styles.primaryButtonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
@@ -374,10 +380,10 @@ const JobCompletionScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: c.bg,
   },
   gradientBg: {
     position: 'absolute',
@@ -385,7 +391,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: height * 0.45,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
@@ -408,16 +414,16 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   checkCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
@@ -430,7 +436,7 @@ const styles = StyleSheet.create({
   successTitle: {
     ...T.title,
     fontFamily: F.bold,
-    color: C.surface,
+    color: c.inkInverse,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -443,12 +449,12 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     width: '100%',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -458,7 +464,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 16,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -466,7 +472,7 @@ const styles = StyleSheet.create({
   serviceName: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
     marginBottom: 8,
   },
   durationRow: {
@@ -478,12 +484,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     ...T.body,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   cardDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: C.lineSoft,
+    backgroundColor: c.lineSoft,
     marginBottom: 20,
   },
   earningsContainer: {
@@ -493,13 +499,13 @@ const styles = StyleSheet.create({
   earningsLabel: {
     ...T.label,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: 4,
   },
   earningsValue: {
     ...T.display,
     fontFamily: F.bold,
-    color: HS.accent,
+    color: c.accent,
   },
   paymentBadge: {
     flexDirection: 'row',
@@ -509,10 +515,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   cashBadge: {
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
   onlineBadge: {
-    backgroundColor: C.infoSoft,
+    backgroundColor: c.infoSoft,
   },
   paymentBadgeText: {
     marginLeft: 6,
@@ -520,18 +526,18 @@ const styles = StyleSheet.create({
     fontFamily: F.medium,
   },
   cashBadgeText: {
-    color: HS.accent,
+    color: c.accent,
   },
   onlineBadgeText: {
-    color: C.info,
+    color: c.info,
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     paddingVertical: 20,
     paddingHorizontal: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -552,18 +558,18 @@ const styles = StyleSheet.create({
   statValue: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: C.ink,
+    color: c.ink,
     marginBottom: 2,
   },
   statLabel: {
     ...T.caption,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   statDivider: {
     width: 1,
     height: '70%',
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     alignSelf: 'center',
   },
   bottomContainer: {
@@ -581,16 +587,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderRadius: 14,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: HS.accentLine,
+    borderColor: c.accentLine,
   },
   secondaryButtonText: {
     ...T.body,
     fontFamily: F.semibold,
-    color: HS.accent,
+    color: c.accent,
     marginLeft: 8,
   },
   primaryButton: {
@@ -598,10 +604,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -610,14 +616,14 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.surface,
+    color: c.inkInverse,
     marginLeft: 8,
   },
   autoRedirectText: {
     textAlign: 'center',
     ...T.caption,
     fontFamily: F.regular,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
 });
 

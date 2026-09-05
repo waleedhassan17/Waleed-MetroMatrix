@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -70,6 +72,9 @@ const formatFileSize = (bytes: number) => {
 // ── Component ─────────────────────────────────
 
 const InCallChatScreen: React.FC<InCallChatScreenProps> = ({ visible, onClose }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const { messages, inputText, sending, error } = useAppSelector(
     (state) => state.inCallChat,
@@ -363,7 +368,7 @@ const InCallChatScreen: React.FC<InCallChatScreenProps> = ({ visible, onClose })
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   overlay: {
     position: 'absolute',
     bottom: 0,
@@ -443,12 +448,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
   },
   headerStatusText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#10B981',
+    color: sh.hue('#10B981'),
   },
   headerActions: {
     flexDirection: 'row',
@@ -552,7 +557,7 @@ const styles = StyleSheet.create({
   senderName: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#38BDF8',
+    color: sh.hue('#38BDF8'),
     marginBottom: 4,
     letterSpacing: 0.2,
   },
@@ -563,7 +568,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bubbleTextMe: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   timestamp: {
     fontSize: 10,
@@ -655,7 +660,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FCA5A5',
+    color: sh.hue('#FCA5A5'),
     flex: 1,
   },
 

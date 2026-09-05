@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Search, ClipboardList } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -49,6 +51,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const AdminShoppingOrdersScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { orders, statusFilter, paymentFilter, search, loading, error } =
@@ -85,7 +90,7 @@ const AdminShoppingOrdersScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={20} stroke={COLORS.text} strokeWidth={2} />
@@ -158,7 +163,7 @@ const AdminShoppingOrdersScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },
@@ -167,7 +172,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: COLORS.text },
   filterRow: { paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
   filterChip: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.card },
-  filterChipOn: { backgroundColor: '#FFF3E6', borderColor: COLORS.primary },
+  filterChipOn: { backgroundColor: sh.n('#FFF3E6', 'surfaceSunken'), borderColor: COLORS.primary },
   filterText: { fontSize: 12, fontWeight: '600', color: COLORS.textLight, textTransform: 'capitalize' },
   filterTextOn: { color: COLORS.primary },
   list: { padding: 16, paddingBottom: 40 },

@@ -1,5 +1,5 @@
 // FILE: screens/admin/providers/service-providers/tabs/bookings/bookings.tsx
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../../../constants/darkShift';
+import { useTheme } from '../../../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../../../../hooks/useReduxHooks';
 import {
@@ -57,6 +59,9 @@ const statusColors = {
 };
 
 export default function BookingsScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const { filteredBookings, searchQuery, filterStatus } = useAppSelector(
     (state) => state.adminSPBookings
@@ -203,7 +208,7 @@ export default function BookingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.surface} />
       
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View style={styles.headerContent}>
@@ -312,7 +317,7 @@ export default function BookingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -561,7 +566,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -569,7 +574,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: sh.ground('#ECFDF5', '#10B981'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -588,7 +593,7 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -598,7 +603,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F59E0B',
+    color: sh.hue('#F59E0B'),
   },
   emptyState: {
     alignItems: 'center',

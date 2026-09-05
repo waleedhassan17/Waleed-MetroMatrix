@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,17 +32,22 @@ import {
 
 // ── Theme ─────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    success: ['#10B981', '#059669'] as [string, string],
-    warm: ['#F59E0B', '#EF4444'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
+    success: grad(['#10B981', '#059669']) as [string, string],
+    warm: grad(['#F59E0B', '#EF4444']) as [string, string],
   },
+  };
 };
 
 type PrescriptionViewParams = {
@@ -47,6 +55,10 @@ type PrescriptionViewParams = {
 };
 
 const PrescriptionViewScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<PrescriptionViewParams, 'PrescriptionView'>>();
   const dispatch = useAppDispatch();
@@ -106,7 +118,7 @@ const PrescriptionViewScreen: React.FC = () => {
       <SafeAreaView style={styles.centered}>
         <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
         <View style={styles.errorIconWrap}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconGradient}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconGradient}>
             <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
           </LinearGradient>
         </View>
@@ -196,7 +208,7 @@ const PrescriptionViewScreen: React.FC = () => {
           opacity: cardAnims[1],
           transform: [{ translateY: cardAnims[1].interpolate({ inputRange: [0,1], outputRange: [20,0] }) }],
         }]}>
-          <LinearGradient colors={['#F0F7FF', '#EAF3FF']} style={styles.patientStrip}>
+          <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.patientStrip}>
             <View style={styles.patientItem}>
               <Text style={styles.patientItemLabel}>Patient</Text>
               <Text style={styles.patientItemValue}>{prescription.patient.name}</Text>
@@ -221,7 +233,7 @@ const PrescriptionViewScreen: React.FC = () => {
         }]}>
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconBadge, { backgroundColor: '#F0F7FF' }]}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: sh.ground('#F0F7FF', '#2A7FFF') }]}>
                 <MaterialCommunityIcons name="stethoscope" size={16} color={THEME.primary} />
               </View>
               <Text style={styles.sectionTitle}>Diagnosis</Text>
@@ -239,7 +251,7 @@ const PrescriptionViewScreen: React.FC = () => {
         }]}>
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconBadge, { backgroundColor: '#EAF3FF' }]}>
+              <View style={[styles.sectionIconBadge, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
                 <MaterialCommunityIcons name="pill" size={16} color={THEME.accent} />
               </View>
               <Text style={styles.sectionTitle}>Medications</Text>
@@ -266,7 +278,7 @@ const PrescriptionViewScreen: React.FC = () => {
                 <View style={styles.medContent}>
                   <Text style={styles.medName}>{med.name}</Text>
                   <View style={styles.medTagRow}>
-                    <View style={[styles.medTag, { backgroundColor: '#F0F7FF' }]}>
+                    <View style={[styles.medTag, { backgroundColor: sh.ground('#F0F7FF', '#2A7FFF') }]}>
                       <MaterialCommunityIcons name="flask-outline" size={11} color={THEME.primary} />
                       <Text style={[styles.medTagText, { color: THEME.primary }]}>{med.dosage}</Text>
                     </View>
@@ -274,7 +286,7 @@ const PrescriptionViewScreen: React.FC = () => {
                       <Ionicons name="time-outline" size={11} color={THEME.success} />
                       <Text style={[styles.medTagText, { color: THEME.success }]}>{med.frequency}</Text>
                     </View>
-                    <View style={[styles.medTag, { backgroundColor: '#FFFBEB' }]}>
+                    <View style={[styles.medTag, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
                       <MaterialCommunityIcons name="timer-outline" size={11} color={THEME.warning} />
                       <Text style={[styles.medTagText, { color: THEME.warning }]}>{med.duration}</Text>
                     </View>
@@ -330,7 +342,7 @@ const PrescriptionViewScreen: React.FC = () => {
           }]}>
             <View style={styles.card}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.sectionIconBadge, { backgroundColor: '#FFFBEB' }]}>
+                <View style={[styles.sectionIconBadge, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
                   <Ionicons name="information-circle-outline" size={16} color={THEME.warning} />
                 </View>
                 <Text style={styles.sectionTitle}>Special Instructions</Text>
@@ -348,7 +360,7 @@ const PrescriptionViewScreen: React.FC = () => {
             opacity: cardAnims[5],
             transform: [{ translateY: cardAnims[5].interpolate({ inputRange: [0,1], outputRange: [20,0] }) }],
           }]}>
-            <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.followUpCard}>
+            <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.followUpCard}>
               <LinearGradient colors={THEME.gradient.primary} style={styles.followUpIconWrap}>
                 <Ionicons name="calendar" size={20} color="#FFFFFF" />
               </LinearGradient>
@@ -411,10 +423,10 @@ const PrescriptionViewScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Center / loading / error
@@ -422,7 +434,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     padding: 40,
     gap: 8,
   },
@@ -430,7 +442,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -438,12 +450,12 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   loadingSubtext: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   errorIconWrap: {
     marginBottom: 8,
@@ -459,12 +471,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -483,7 +495,7 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Header
@@ -509,7 +521,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -536,11 +548,11 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -578,20 +590,20 @@ const styles = StyleSheet.create({
   doctorName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   doctorSpecialty: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
   },
   doctorQuals: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   verifiedBadge: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     width: 32,
     height: 32,
     borderRadius: 10,
@@ -604,7 +616,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   issuedLeft: {
     flexDirection: 'row',
@@ -614,12 +626,12 @@ const styles = StyleSheet.create({
   issuedLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   issuedDate: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
 
   // Patient strip
@@ -628,7 +640,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
   },
   patientItem: {
     flex: 1,
@@ -638,18 +650,18 @@ const styles = StyleSheet.create({
   patientItemLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   patientItemValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   patientDivider: {
     width: 1,
-    backgroundColor: '#B8D4FF',
+    backgroundColor: sh.hue('#B8D4FF'),
     alignSelf: 'stretch',
   },
 
@@ -670,7 +682,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     flex: 1,
     letterSpacing: -0.2,
   },
@@ -678,28 +690,28 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
   },
   medCountText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
   },
 
   // Diagnosis
   diagnosisBlock: {
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     borderRadius: 12,
     padding: 14,
     borderLeftWidth: 3,
-    borderLeftColor: '#2A7FFF',
+    borderLeftColor: sh.hue('#2A7FFF'),
   },
   diagnosisText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: sh.hue('#374151'),
     lineHeight: 20,
   },
 
@@ -712,7 +724,7 @@ const styles = StyleSheet.create({
   },
   medicationBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   medNumberBadge: {
     width: 28,
@@ -725,7 +737,7 @@ const styles = StyleSheet.create({
   medNumberText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   medContent: {
     flex: 1,
@@ -734,7 +746,7 @@ const styles = StyleSheet.create({
   medName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   medTagRow: {
     flexDirection: 'row',
@@ -762,7 +774,7 @@ const styles = StyleSheet.create({
   medInstructions: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     flex: 1,
     lineHeight: 16,
   },
@@ -782,22 +794,22 @@ const styles = StyleSheet.create({
   testText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: sh.hue('#374151'),
     flex: 1,
   },
 
   // Instructions
   instructionsBlock: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     borderRadius: 12,
     padding: 14,
     borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: sh.hue('#F59E0B'),
   },
   instructionsText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: sh.hue('#374151'),
     lineHeight: 22,
   },
 
@@ -809,7 +821,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
   },
   followUpIconWrap: {
     width: 44,
@@ -824,7 +836,7 @@ const styles = StyleSheet.create({
   followUpLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 3,
@@ -832,7 +844,7 @@ const styles = StyleSheet.create({
   followUpDate: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E40AF',
+    color: sh.hue('#1E40AF'),
     letterSpacing: -0.3,
   },
 
@@ -842,9 +854,9 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -861,7 +873,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#2A7FFF',
+        shadowColor: sh.hue('#2A7FFF'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 10,
@@ -879,7 +891,7 @@ const styles = StyleSheet.create({
   downloadButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
   shareButton: {
@@ -888,15 +900,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
   },
   shareButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
   },
 });
 

@@ -65,7 +65,7 @@ const NEXT_ACTIONS: Record<string, { status: NextStatus; label: string; color: s
 };
 
 const ProcessOrderScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -119,7 +119,7 @@ const ProcessOrderScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.surface} />
 
       <BrandHeader
         title="Process Order"

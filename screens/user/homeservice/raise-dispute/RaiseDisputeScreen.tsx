@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Image,
   ScrollView,
@@ -25,6 +25,7 @@ import {
 import { AppBar, Button, EmptyState, Screen, SectionHeader } from '../../../../components/ui';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { raiseDispute } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 
 type Params = { bookingId: string };
@@ -41,6 +42,8 @@ const REASONS = [
 const MAX_PHOTOS = 4;
 
 export default function RaiseDisputeScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
   const { bookingId } = route.params || ({} as Params);
@@ -125,7 +128,7 @@ export default function RaiseDisputeScreen() {
         <TextInput
           style={styles.textArea}
           placeholder="Dates, what was agreed, what was actually done."
-          placeholderTextColor={C.inkFaint}
+          placeholderTextColor={colors.inkFaint}
           value={description}
           onChangeText={setDescription}
           multiline
@@ -147,20 +150,20 @@ export default function RaiseDisputeScreen() {
                 onPress={() => setPhotos((prev) => prev.filter((p) => p !== uri))}
                 accessibilityLabel="Remove photo"
               >
-                <Ionicons name="close" size={12} color={C.inkInverse} />
+                <Ionicons name="close" size={12} color={colors.inkInverse} />
               </TouchableOpacity>
             </View>
           ))}
           {photos.length < MAX_PHOTOS && (
             <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto} activeOpacity={0.7}>
-              <Ionicons name="camera-outline" size={20} color={C.inkFaint} />
+              <Ionicons name="camera-outline" size={20} color={colors.inkFaint} />
               <Text style={styles.photoAddText}>Add</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.note}>
-          <Ionicons name="information-circle-outline" size={17} color={C.inkMuted} />
+          <Ionicons name="information-circle-outline" size={17} color={colors.inkMuted} />
           <Text style={styles.noteText}>
             A person on the MetroMatrix team reads every dispute. Outcomes range from a wallet
             refund to action against the provider.
@@ -183,7 +186,7 @@ export default function RaiseDisputeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: S.huge,
@@ -200,21 +203,21 @@ const styles = StyleSheet.create({
     paddingVertical: S.md,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     marginBottom: S.sm,
   },
   reasonSelected: {
-    borderColor: HS.accent,
-    backgroundColor: HS.accentSoft,
+    borderColor: c.accent,
+    backgroundColor: c.accentSoft,
   },
   reasonText: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   reasonTextSelected: {
     ...T.bodyStrong,
-    color: HS.accentDeep,
+    color: c.accentDeep,
   },
 
   textArea: {
@@ -223,10 +226,10 @@ const styles = StyleSheet.create({
     padding: S.md,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
 
   photos: {
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: R.chip,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
   },
   photoRemove: {
     position: 'absolute',
@@ -253,7 +256,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: C.ink,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -263,13 +266,13 @@ const styles = StyleSheet.create({
     borderRadius: R.chip,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: C.line,
+    borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoAddText: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 3,
   },
 
@@ -278,18 +281,18 @@ const styles = StyleSheet.create({
     marginTop: SECTION,
     padding: S.lg,
     borderRadius: R.card,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
   },
   noteText: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     flex: 1,
     marginLeft: S.sm,
     maxWidth: PROSE_WIDTH,
   },
   error: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     marginTop: S.lg,
   },
   submit: {
@@ -297,7 +300,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: S.sm,
   },

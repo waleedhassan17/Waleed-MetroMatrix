@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
 import { Typography } from '../../constants/Fonts';
@@ -11,6 +13,9 @@ interface ClinicCardProps {
 }
 
 const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, onPress }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const openDays = clinic.timings.filter((t) => t.isOpen);
 
   const handleCall = () => Linking.openURL(`tel:${clinic.phone}`);
@@ -79,7 +84,7 @@ const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,

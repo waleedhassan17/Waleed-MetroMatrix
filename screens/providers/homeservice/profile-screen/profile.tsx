@@ -44,7 +44,6 @@ import {
   fetchProfile,
   updateAvailability,
   toggleNotifications,
-  toggleDarkMode,
   toggleLanguage,
 } from './profileSlice';
 import { selectBalance, selectCurrency, fetchWallet } from '../../../../services/wallet';
@@ -56,7 +55,10 @@ import { currencySymbol } from '../../../../constants/Currency';
 import { theme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { HS } from '../../../../constants/HomeServiceTheme';
+import ThemeModeSelector from '../../../../components/ui/ThemeModeSelector';
 
 const { width } = Dimensions.get('window');
 
@@ -69,6 +71,9 @@ const getInitials = (name?: string) => {
 };
 
 export default function ProviderProfileScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const navigation = useNavigation();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -83,7 +88,6 @@ export default function ProviderProfileScreen() {
     provider,
     isAvailable,
     notificationsEnabled,
-    isDarkMode,
     isUrdu,
     loading,
     error,
@@ -137,22 +141,22 @@ export default function ProviderProfileScreen() {
       value: String(provider.jobsDone ?? 0),
       label: 'Jobs Done',
       icon: Calendar,
-      bgColor: HS.accentSoft,
-      iconColor: HS.accentDeep,
+      bgColor: colors.accentSoft,
+      iconColor: colors.accentDeep,
     },
     {
       value: String(provider.reviews ?? 0),
       label: 'Reviews',
       icon: Star,
-      bgColor: C.warningSoft,
-      iconColor: C.warning,
+      bgColor: colors.warningSoft,
+      iconColor: colors.warning,
     },
     {
       value: String(provider.points ?? 0),
       label: 'Points',
       icon: Gift,
-      bgColor: C.successSoft,
-      iconColor: C.success,
+      bgColor: colors.successSoft,
+      iconColor: colors.success,
     },
   ];
 
@@ -165,8 +169,8 @@ export default function ProviderProfileScreen() {
       title: 'Edit Profile',
       subtitle: 'Update your personal info',
       icon: User,
-      color: C.success,
-      bgColor: C.successSoft,
+      color: colors.success,
+      bgColor: colors.successSoft,
       onPress: () => (navigation as any).navigate('ProviderEditProfile'),
     },
     {
@@ -174,8 +178,8 @@ export default function ProviderProfileScreen() {
       title: 'Payment Methods',
       subtitle: 'Manage your wallet & payouts',
       icon: CreditCard,
-      color: C.success,
-      bgColor: C.successSoft,
+      color: colors.success,
+      bgColor: colors.successSoft,
       // The wallet is where payouts and balance actually live; a separate
       // card-management screen has no backend behind it yet.
       onPress: () => (navigation as any).navigate('WalletScreen'),
@@ -185,8 +189,8 @@ export default function ProviderProfileScreen() {
       title: 'My Addresses',
       subtitle: 'Manage saved locations',
       icon: MapPin,
-      color: C.error,
-      bgColor: C.errorSoft,
+      color: colors.error,
+      bgColor: colors.errorSoft,
       onPress: () => (navigation as any).navigate('AddressManagement'),
     },
     {
@@ -194,8 +198,8 @@ export default function ProviderProfileScreen() {
       title: 'Favorites',
       subtitle: 'Providers you saved',
       icon: Heart,
-      color: C.info,
-      bgColor: C.infoSoft,
+      color: colors.info,
+      bgColor: colors.infoSoft,
       onPress: () => (navigation as any).navigate('Favorites'),
     },
   ];
@@ -314,7 +318,7 @@ export default function ProviderProfileScreen() {
             )}
             {provider.rating > 0 && (
               <View style={styles.ratingRow}>
-                <Star size={13} color={C.star} fill={C.star} />
+                <Star size={13} color={colors.star} fill={colors.star} />
                 <Text style={styles.ratingValue}>{provider.rating.toFixed(1)}</Text>
               </View>
             )}
@@ -322,7 +326,7 @@ export default function ProviderProfileScreen() {
             {/* Member Badge — only shown once we actually know something */}
             {(!!provider.membershipLevel || !!provider.category || !!memberSince) && (
               <View style={styles.memberBadge}>
-                <Award size={14} color={C.star} />
+                <Award size={14} color={colors.star} />
                 {!!(provider.membershipLevel || provider.category) && (
                   <Text style={styles.memberBadgeText}>
                     {provider.membershipLevel || provider.category}
@@ -369,7 +373,7 @@ export default function ProviderProfileScreen() {
           disabled
         >
           <View style={styles.rewardsIconContainer}>
-            <Gift size={24} color={C.warning} />
+            <Gift size={24} color={colors.warning} />
           </View>
           <View style={styles.rewardsContent}>
             <Text style={styles.rewardsTitle}>Earn Rewards</Text>
@@ -377,7 +381,7 @@ export default function ProviderProfileScreen() {
               Complete bookings to earn points
             </Text>
           </View>
-          <ChevronRight size={22} color={C.warning} />
+          <ChevronRight size={22} color={colors.warning} />
         </TouchableOpacity>
 
         {/* Wallet & Earnings Card */}
@@ -389,7 +393,7 @@ export default function ProviderProfileScreen() {
           <View style={styles.walletGradient}>
             <View style={styles.walletLeft}>
               <View style={styles.walletIconContainer}>
-                <Wallet size={22} color={C.surface} />
+                <Wallet size={22} color={colors.surface} />
               </View>
               <View style={styles.walletInfo}>
                 <Text style={styles.walletLabel}>Wallet Balance</Text>
@@ -452,16 +456,16 @@ export default function ProviderProfileScreen() {
                 onValueChange={(next) => {
                   dispatch(updateAvailability({ isOnline: next }));
                 }}
-                trackColor={{ false: C.line, true: theme.colors.primaryLight }}
-                thumbColor={isAvailable ? theme.colors.primary : C.surfaceSunken}
-                ios_backgroundColor={C.line}
+                trackColor={{ false: colors.line, true: theme.colors.primaryLight }}
+                thumbColor={isAvailable ? theme.colors.primary : colors.surfaceSunken}
+                ios_backgroundColor={colors.line}
               />
             </View>
 
             {/* Notifications */}
             <View style={[styles.menuItem, styles.menuItemBorder]}>
-              <View style={[styles.menuIconContainer, { backgroundColor: C.errorSoft }]}>
-                <Bell size={20} color={C.error} />
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.errorSoft }]}>
+                <Bell size={20} color={colors.error} />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Notifications</Text>
@@ -472,39 +476,37 @@ export default function ProviderProfileScreen() {
                 onValueChange={() => {
                   dispatch(toggleNotifications());
                 }}
-                trackColor={{ false: C.line, true: theme.colors.primaryLight }}
-                thumbColor={notificationsEnabled ? theme.colors.primary : C.surfaceSunken}
-                ios_backgroundColor={C.line}
+                trackColor={{ false: colors.line, true: theme.colors.primaryLight }}
+                thumbColor={notificationsEnabled ? theme.colors.primary : colors.surfaceSunken}
+                ios_backgroundColor={colors.line}
               />
             </View>
 
-            {/* Dark Mode and Language are shown DISABLED on purpose.
-                Their switches were wired to Redux, but nothing in the app
-                consumes those values. There is a ThemeProvider now, but no
-                dark palette behind it and no i18n layer at all, so neither
-                switch would change anything. A control that flips and does
-                nothing reads as broken; these say so plainly instead. */}
-            <View style={[styles.menuItem, styles.menuItemBorder, styles.menuItemDisabled]}>
-              <View style={[styles.menuIconContainer, { backgroundColor: C.surfaceSunken }]}>
-                <Moon size={20} color={C.inkFaint} />
+            {/* Appearance. This row said "Coming soon" for as long as there
+                was no dark palette behind the ThemeProvider; there is one now,
+                so it is a real control — the same one the customer and admin
+                settings render, reading the same device-level preference.
+
+                Language below is still disabled, and still honestly so: there
+                is no i18n layer at all. A control that flips and does nothing
+                reads as broken. */}
+            <View style={[styles.menuItem, styles.menuItemBorder]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.surfaceSunken }]}>
+                <Moon size={20} color={theme.colors.primary} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Dark Mode</Text>
-                <Text style={styles.menuSubtitle}>Coming soon</Text>
+                <Text style={styles.menuTitle}>Appearance</Text>
+                <Text style={styles.menuSubtitle}>Follow the system, or choose one</Text>
               </View>
-              <Switch
-                value={false}
-                disabled
-                trackColor={{ false: C.line, true: theme.colors.primaryLight }}
-                thumbColor={C.surfaceSunken}
-                ios_backgroundColor={C.line}
-              />
+            </View>
+            <View style={styles.appearanceControl}>
+              <ThemeModeSelector />
             </View>
 
             {/* Language */}
             <View style={[styles.menuItem, styles.menuItemDisabled]}>
-              <View style={[styles.menuIconContainer, { backgroundColor: C.surfaceSunken }]}>
-                <Globe size={20} color={C.inkFaint} />
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.surfaceSunken }]}>
+                <Globe size={20} color={colors.inkFaint} />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Language</Text>
@@ -515,9 +517,9 @@ export default function ProviderProfileScreen() {
                 <Switch
                   value={false}
                   disabled
-                  trackColor={{ false: C.line, true: theme.colors.primaryLight }}
-                  thumbColor={C.surfaceSunken}
-                  ios_backgroundColor={C.line}
+                  trackColor={{ false: colors.line, true: theme.colors.primaryLight }}
+                  thumbColor={colors.surfaceSunken}
+                  ios_backgroundColor={colors.line}
                   style={styles.langSwitch}
                 />
                 <Text style={styles.langText}>اردو</Text>
@@ -534,7 +536,7 @@ export default function ProviderProfileScreen() {
               onPress={handleLogout}
               activeOpacity={0.7}
             >
-              <View style={[styles.menuIconContainer, { backgroundColor: C.errorSoft }]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.errorSoft }]}>
                 <LogOut size={20} color={theme.colors.error} />
               </View>
               <View style={styles.menuContent}>
@@ -550,7 +552,7 @@ export default function ProviderProfileScreen() {
               onPress={handleDeleteAccount}
               activeOpacity={0.7}
             >
-              <View style={[styles.menuIconContainer, { backgroundColor: C.errorSoft }]}>
+              <View style={[styles.menuIconContainer, { backgroundColor: colors.errorSoft }]}>
                 <Trash2 size={20} color={theme.colors.error} />
               </View>
               <View style={styles.menuContent}>
@@ -569,7 +571,7 @@ export default function ProviderProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   menuItemDisabled: {
     opacity: 0.5,
   },
@@ -582,7 +584,7 @@ const styles = StyleSheet.create({
   },
   header: {
     // primaryDark, not primary: this carries the provider's name and their
-    // stats in white. White measures 3.77:1 on HS.accent and fails AA; on
+    // stats in white. White measures 3.77:1 on c.accent and fails AA; on
     // accentDeep it measures 5.48:1. Same call AppBar makes.
     backgroundColor: theme.colors.primaryDark,
     paddingTop: Platform.OS === 'ios' ? 60 : 45,
@@ -637,9 +639,9 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     borderWidth: 1,
-    borderColor: C.errorSoft,
+    borderColor: c.errorSoft,
     marginHorizontal: theme.spacing.xl,
     marginTop: theme.spacing.lg,
     padding: theme.spacing.md,
@@ -651,7 +653,7 @@ const styles = StyleSheet.create({
     ...T.label,
     fontFamily: F.regular,
 
-    color: C.error,
+    color: c.error,
   },
   retryBtn: {
     paddingHorizontal: theme.spacing.md,
@@ -739,7 +741,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     paddingVertical: theme.spacing.lg,
     alignItems: 'center',
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -767,7 +769,7 @@ const styles = StyleSheet.create({
   rewardsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     marginHorizontal: theme.spacing.xl,
     marginBottom: theme.spacing.xxl,
     padding: theme.spacing.lg,
@@ -776,7 +778,7 @@ const styles = StyleSheet.create({
   rewardsIconContainer: {
     width: 50,
     height: 50,
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -788,14 +790,14 @@ const styles = StyleSheet.create({
   rewardsTitle: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: C.warning,
+    color: c.warning,
     marginBottom: 3,
   },
   rewardsSubtitle: {
     ...T.label,
     fontFamily: F.regular,
 
-    color: C.warning,
+    color: c.warning,
   },
 
   // Wallet Card
@@ -804,13 +806,13 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxl,
     borderRadius: 18,
     overflow: 'hidden',
-    shadowColor: C.success,
+    shadowColor: c.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 5,
   },
-  // Was a hardcoded [C.success,C.success] gradient that matched neither the
+  // Was a hardcoded [c.success,c.success] gradient that matched neither the
   // theme nor the header above it. A solid accent panel says the same thing.
   walletGradient: {
     flexDirection: 'row' as const,
@@ -842,7 +844,7 @@ const styles = StyleSheet.create({
   walletBalance: {
     ...T.heading,
     fontFamily: F.bold,
-    color: C.surface,
+    color: c.inkInverse,
     marginTop: 2,
   },
   walletAction: {
@@ -869,7 +871,7 @@ const styles = StyleSheet.create({
   menuCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -885,7 +887,15 @@ const styles = StyleSheet.create({
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: C.surfaceSunken,
+    borderBottomColor: c.surfaceSunken,
+  },
+  // The appearance picker is three segments wide — too wide for the trailing
+  // slot of a menu row, so it sits on its own line beneath one, indented to
+  // the row's label rather than its icon.
+  appearanceControl: {
+    paddingLeft: 42 + theme.spacing.md,
+    paddingRight: theme.spacing.lg,
+    paddingBottom: theme.spacing.lg,
   },
   menuIconContainer: {
     width: 42,
@@ -946,7 +956,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: C.errorSoft,
+    borderColor: c.errorSoft,
     overflow: 'hidden',
   },
   dangerItem: {

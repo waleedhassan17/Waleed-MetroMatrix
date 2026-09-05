@@ -10,12 +10,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ThemeProvider } from '../../../../theme';
 import UserProfileScreen from '../../shared/profile/UserProfileScreen';
 import FavoritesScreen from '../favorites/FavoritesScreen';
@@ -43,6 +44,8 @@ const SavedTab: React.FC = () => <FavoritesScreen asTab />;
 
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, S.sm) }]}>
@@ -50,7 +53,7 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
         const { options } = descriptors[route.key];
         const focused = state.index === index;
         const glyph = ICONS[route.name] ?? ICONS.index;
-        const color = focused ? HS.accentDeep : C.inkFaint;
+        const color = focused ? colors.accentDeep : colors.inkFaint;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -118,16 +121,16 @@ const TabLayout: React.FC = () => (
   </ThemeProvider>
 );
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     paddingTop: S.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.line,
+    borderTopColor: c.line,
     ...Platform.select({
       ios: {
-        shadowColor: C.ink,
+        shadowColor: c.ink,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,
@@ -145,7 +148,7 @@ const styles = StyleSheet.create({
     borderRadius: R.pill,
   },
   pillActive: {
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
   },
   label: {
     ...T.caption,

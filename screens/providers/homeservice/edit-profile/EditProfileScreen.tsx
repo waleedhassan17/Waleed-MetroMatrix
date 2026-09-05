@@ -11,7 +11,7 @@
 // separate piece of work; the field is shown read-only rather than pretending.
 // ============================================================================
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import { updateProfile, fetchProfile } from '../profile-screen/profileSlice';
 // screens/providers/homeservice/providerTheme.ts.
 import { flatTheme as theme } from '../providerTheme';
 import { C, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
 
 
@@ -52,6 +54,9 @@ const FIELDS: {
 ];
 
 export default function EditProfileScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeFlatProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -188,7 +193,7 @@ export default function EditProfileScreen() {
                 disabled={!isDirty || saving}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color={C.surface} />
+                  <ActivityIndicator size="small" color={colors.surface} />
                 ) : (
                   <Text style={styles.saveBtnText}>Save changes</Text>
                 )}
@@ -201,7 +206,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: FlatProviderTheme) => StyleSheet.create({
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerBtnDisabled: { opacity: 0.4 },
   content: { padding: 20, paddingBottom: 48 },
@@ -219,7 +224,7 @@ const styles = StyleSheet.create({
     color: theme.text,
   },
   inputMultiline: { minHeight: 100, textAlignVertical: 'top' },
-  inputReadOnly: { backgroundColor: C.surfaceSunken, justifyContent: 'center' },
+  inputReadOnly: { backgroundColor: c.surfaceSunken, justifyContent: 'center' },
   readOnlyText: { ...T.body, color: theme.textSecondary },
   hint: { ...T.caption, color: theme.textTertiary, marginTop: 6 },
   saveBtn: {
@@ -230,5 +235,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnDisabled: { backgroundColor: theme.textTertiary },
-  saveBtnText: { ...T.subhead, color: C.inkInverse },
+  saveBtnText: { ...T.subhead, color: c.inkInverse },
 });

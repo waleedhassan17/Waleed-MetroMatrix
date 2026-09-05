@@ -22,7 +22,7 @@ import { C, F, T } from '../../../../constants/theme';
 const CURRENCY = 'PKR';
 
 const BrandCouponsScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -34,7 +34,7 @@ const BrandCouponsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <BrandHeader
         title="My Coupons"
         showBack

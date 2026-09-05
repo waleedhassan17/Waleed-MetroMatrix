@@ -63,6 +63,7 @@ export const AdminShoppingRouteNames = {
   AdminOutletList: 'AdminOutletList',
   AdminAddOutlet: 'AdminAddOutlet',
   AdminOutletDetail: 'AdminOutletDetail',
+  AdminBannerList: 'AdminBannerList',
 } as const;
 
 export type ShoppingRouteName = typeof ShoppingRouteNames[keyof typeof ShoppingRouteNames];

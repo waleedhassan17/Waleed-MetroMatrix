@@ -4,7 +4,7 @@
 // at all; this screen is its home.
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +15,16 @@ import {
 } from '../../../../networks/serviceProviders/providerNetwork';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Card, Chip, Screen } from '../../../../components/ui';
 
 const RADIUS_OPTIONS = [5, 10, 15, 20, 30];
 
 export default function AvailabilityScreen() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const navigation = useNavigation<any>();
 
   const [loading, setLoading] = useState(true);
@@ -86,14 +91,14 @@ export default function AvailabilityScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={HS.accent} />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.stateText}>Loading availability…</Text>
         </View>
       ) : (
         <View style={styles.body}>
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="warning-outline" size={16} color={C.error} />
+              <Ionicons name="warning-outline" size={16} color={colors.error} />
               <Text style={styles.errorText}>{error}</Text>
               <Text style={styles.retryText} onPress={load}>
                 Retry
@@ -102,7 +107,7 @@ export default function AvailabilityScreen() {
           )}
           {savedMsg && (
             <View style={styles.savedBanner}>
-              <Ionicons name="checkmark-circle" size={16} color={HS.accentDeep} />
+              <Ionicons name="checkmark-circle" size={16} color={colors.accentDeep} />
               <Text style={styles.savedText}>{savedMsg}</Text>
             </View>
           )}
@@ -111,7 +116,7 @@ export default function AvailabilityScreen() {
               first, so it is the only raised one. */}
           <Card elevation="raised" style={styles.card}>
             <View style={styles.cardRow}>
-              <View style={[styles.dot, { backgroundColor: isOnline ? HS.accent : C.inkFaint }]} />
+              <View style={[styles.dot, { backgroundColor: isOnline ? colors.accent : colors.inkFaint }]} />
               <View style={styles.grow}>
                 <Text style={styles.cardTitle}>
                   {isOnline ? 'You are Online' : 'You are Offline'}
@@ -125,8 +130,8 @@ export default function AvailabilityScreen() {
               <Switch
                 value={isOnline}
                 onValueChange={toggleOnline}
-                trackColor={{ false: C.disabled, true: HS.accentLine }}
-                thumbColor={isOnline ? HS.accent : C.lineSoft}
+                trackColor={{ false: colors.disabled, true: colors.accentLine }}
+                thumbColor={isOnline ? colors.accent : colors.lineSoft}
                 disabled={saving}
               />
             </View>
@@ -154,7 +159,7 @@ export default function AvailabilityScreen() {
           </Card>
 
           <View style={styles.hintBox}>
-            <Ionicons name="information-circle-outline" size={16} color={C.inkMuted} />
+            <Ionicons name="information-circle-outline" size={16} color={colors.inkMuted} />
             <Text style={styles.hintText}>
               Being online adds an availability bonus to your matching score, so you
               appear higher when customers search.
@@ -166,37 +171,37 @@ export default function AvailabilityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   body: { padding: GUTTER },
   grow: { flex: 1 },
   card: { marginBottom: S.md },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: S.md },
-  cardTitle: { ...T.subhead, color: C.ink },
-  cardSub: { ...T.body, color: C.inkMuted, marginTop: S.xs },
+  cardTitle: { ...T.subhead, color: c.ink },
+  cardSub: { ...T.body, color: c.inkMuted, marginTop: S.xs },
   radiusRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: S.md },
   radiusChip: { marginRight: S.sm, marginBottom: S.sm },
   hintBox: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: S.xs },
-  hintText: { ...T.caption, color: C.inkMuted, marginLeft: 6, flex: 1 },
+  hintText: { ...T.caption, color: c.inkMuted, marginLeft: 6, flex: 1 },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     borderRadius: R.control,
     padding: S.sm + 2,
     marginBottom: S.md,
   },
-  errorText: { ...T.body, color: C.error, flex: 1, marginLeft: 6 },
-  retryText: { ...T.bodyStrong, color: C.error },
+  errorText: { ...T.body, color: c.error, flex: 1, marginLeft: 6 },
+  retryText: { ...T.bodyStrong, color: c.error },
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderRadius: R.control,
     padding: S.sm + 2,
     marginBottom: S.md,
   },
-  savedText: { ...T.body, color: HS.accentDeep, marginLeft: 6 },
+  savedText: { ...T.body, color: c.accentDeep, marginLeft: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxl },
-  stateText: { ...T.body, marginTop: S.sm, color: C.inkMuted },
+  stateText: { ...T.body, marginTop: S.sm, color: c.inkMuted },
 });

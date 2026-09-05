@@ -4,7 +4,7 @@
 // mandatory) and manual refund, both behind confirmation dialogs.
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import {
@@ -42,6 +44,9 @@ const FORCE_TARGETS = ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS', 'COMPLE
 type Params = { bookingId: string };
 
 const AdminBookingDetailScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
   const { bookingId } = route.params || ({} as Params);
@@ -114,7 +119,7 @@ const AdminBookingDetailScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -311,7 +316,7 @@ const AdminBookingDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
@@ -383,7 +388,7 @@ const styles = StyleSheet.create({
   targetText: { fontSize: 11, fontWeight: '700', color: COLORS.textLight },
   targetTextActive: { color: '#fff' },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,

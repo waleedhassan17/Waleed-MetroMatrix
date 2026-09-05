@@ -16,7 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingCart, Wallet } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
 import {
@@ -28,6 +29,7 @@ import {
   selectShoppingHomeLoading,
   selectShoppingHome,
 } from './shoppingHomeSlice';
+import type { Banner } from './shoppingHomeSlice';
 import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectCartItemCount } from '../Cart/cartSlice';
@@ -37,38 +39,40 @@ import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
-// Only sections that actually exist in the seeded catalogue (both brands tag
-// products with their gender section — see brands.seed.js — Kids exists on
-// Cougar only, so it stays in the list even though Outfitters has none).
-// Represented with real apparel photography rather than glyph icons — a
+// Department tiles are derived from live data, not a hardcoded list: the names
+// come from the brands' own `categories`, and the artwork is a real product
+// photo carrying that gender tag. They used to be three fixed rows of Unsplash
+// stock, which meant a new department was invisible until someone shipped a
+// build. Represented with product photography rather than glyph icons — a
 // gendered symbol (Mars/Venus/Baby) reads as clinical next to product photos.
 interface CategoryDef {
   id: string;
   name: string;
-  image: string;
+  image?: string;
 }
-const CATEGORIES: CategoryDef[] = [
-  { id: 'men', name: 'Men', image: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?w=300&q=70' },
-  { id: 'women', name: 'Women', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=300&q=70' },
-  { id: 'kids', name: 'Kids', image: 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=300&q=70' },
-];
 
 const BANNER_HEIGHT = 180;
 
 // ── Shopping Colors ─────────────────────────
-const ShopColors = {
-  primary: '#E67E22',
-  primaryDark: '#D35400',
-  primaryLight: '#FFF8F0',
-  accent: '#F39C12',
-  badge: '#E74C3C',
-  gradientStart: '#F97316',
-  gradientEnd: '#EA580C',
-  success: '#10B981',
-  surfaceElevated: '#FFFFFF',
-};
+// A function of the ramp, not a frozen table: every ground below is a
+// light surface, and a frozen one is a white card on a dark page.
+const makeShopColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  primaryDark: c.accentDeep,
+  primaryLight: c.accentSoft,
+  accent: c.star,
+  badge: c.error,
+  gradientStart: c.accent,
+  gradientEnd: c.accentDeep,
+  success: c.success,
+  surfaceElevated: c.surface,
+});
 
 const ShoppingHomeScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -96,9 +100,13 @@ const ShoppingHomeScreen: React.FC = () => {
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
 
+  // Keyed on the storefront, not just on mount. Entering a second brand
+  // navigates back to an already-mounted ShoppingTabs with new params rather
+  // than remounting it, so a mount-only fetch left the previous brand's
+  // products on screen.
   useEffect(() => {
     dispatch(fetchHomeData());
-  }, [dispatch]);
+  }, [dispatch, activeBrand?.brandId]);
 
   // Auto-scroll banners
   useEffect(() => {
@@ -122,32 +130,16 @@ const ShoppingHomeScreen: React.FC = () => {
   };
 
   /**
-   * Banners carry only a brandId, and the seeded fixtures carry a placeholder
-   * one (`brand_outfitters_001`) that is not a Mongo id — sending it to
-   * `/brands/:brandId` produced a CastError surfaced as "Invalid brand ID" on a
-   * full-screen error. Resolve against the brands actually loaded, and refuse
-   * to navigate on anything that cannot be a real id.
+   * A banner may deep-link to a brand. The server validates the target on
+   * write and drops banners whose brand is no longer live, so a brandId that
+   * arrives here is real — an undecorated banner just does nothing.
    */
   const openBannerBrand = useCallback(
-    (brandId?: string) => {
+    (brandId?: string | null) => {
       if (!brandId) return;
-
-      const match = featuredBrands.find((b) => b.brandId === brandId);
-      if (match) {
-        navigateToBrandStore(match.brandId);
-        return;
-      }
-
-      if (/^[a-f\d]{24}$/i.test(brandId)) {
-        navigateToBrandStore(brandId);
-        return;
-      }
-
-      // Unresolvable placeholder — send the shopper somewhere useful instead of
-      // into an error screen.
-      navigation.navigate(ShoppingRouteNames.BrandList);
+      navigateToBrandStore(brandId);
     },
-    [featuredBrands, navigation]
+    [navigation]
   );
 
   const navigateToProductDetail = (productId: string, brandId: string) => {
@@ -178,7 +170,7 @@ const ShoppingHomeScreen: React.FC = () => {
 
   // ── Render Helpers ────────────────────────
 
-  const renderBanner = ({ item }: { item: any }) => (
+  const renderBanner = ({ item }: { item: Banner }) => (
     <TouchableOpacity
       style={[styles.bannerCard, { width: BANNER_WIDTH }]}
       activeOpacity={0.9}
@@ -195,15 +187,7 @@ const ShoppingHomeScreen: React.FC = () => {
 
 
   const handleToggleWishlist = useCallback((item: Product) => {
-    dispatch(toggleWishlistItem({
-      productId: item.productId,
-      productName: item.name,
-      productImage: item.images?.[0] ?? '',
-      brandId: item.brandId,
-      brandName: item.brandId,
-      price: item.salePrice ?? item.basePrice,
-      originalPrice: item.salePrice ? item.basePrice : undefined,
-    }));
+    dispatch(toggleWishlistItem({ productId: item.productId }));
   }, [dispatch]);
 
   const toProductCardData = (item: Product) => ({
@@ -226,18 +210,40 @@ const ShoppingHomeScreen: React.FC = () => {
       onPress={() => navigation.navigate(ShoppingRouteNames.ProductList as never, { gender: item.id } as never)}
     >
       <View style={styles.categoryImageWrap}>
-        <Image source={{ uri: item.image }} style={styles.categoryImage} />
+        {!!item.image && <Image source={{ uri: item.image }} style={styles.categoryImage} />}
       </View>
       <Text style={styles.categoryName} numberOfLines={1}>{item.name}</Text>
     </TouchableOpacity>
   );
 
-  // ── Dummy banners if none from API ────────
-  const displayBanners = banners.length > 0 ? banners : [
-    { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800', title: 'New Arrivals', subtitle: 'Discover the latest trends' },
-    { id: '2', image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800', title: 'Flash Sale', subtitle: 'Up to 50% off' },
-    { id: '3', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', title: 'Top Brands', subtitle: 'Shop from the best' },
-  ];
+  /**
+   * Departments the catalogue actually has. Names come from the brands on
+   * screen; the tile image is the first product photo tagged with that name,
+   * so the artwork is always real merchandise from a real brand.
+   */
+  const categories = useMemo<CategoryDef[]>(() => {
+    // Inside a storefront these are that brand's departments; on the brand
+    // chooser, every brand's. Same rule the featured products follow, so a
+    // shopper is never offered a department the storefront cannot fill.
+    const source = activeBrand
+      ? featuredBrands.filter((b) => b.brandId === activeBrand.brandId)
+      : featuredBrands;
+    const names: string[] = [];
+    source.forEach((b) => {
+      (b.categories ?? []).forEach((name) => {
+        if (name && !names.some((n) => n.toLowerCase() === name.toLowerCase())) {
+          names.push(name);
+        }
+      });
+    });
+    return names.map((name) => {
+      const id = name.toLowerCase();
+      const match = featuredProducts.find((p) =>
+        (p.tags ?? []).some((t) => String(t).toLowerCase() === id)
+      );
+      return { id, name, image: match?.images?.[0] };
+    });
+  }, [featuredBrands, featuredProducts, activeBrand]);
 
   // Trending Now is bounded to 6 items and rendered as explicit two-item
   // rows (not flexWrap, not a nested vertical FlatList inside this
@@ -290,7 +296,7 @@ const ShoppingHomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Header ──────────────────────────── */}
       <ShoppingHeader
@@ -347,9 +353,9 @@ const ShoppingHomeScreen: React.FC = () => {
         <View style={styles.bannerSection}>
           <FlatList
             ref={bannerRef}
-            data={displayBanners}
+            data={banners}
             renderItem={renderBanner}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.bannerId}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -362,9 +368,9 @@ const ShoppingHomeScreen: React.FC = () => {
               setBannerIndex(idx);
             }}
           />
-          {displayBanners.length > 1 && (
+          {banners.length > 1 && (
             <View style={styles.dotsRow}>
-              {displayBanners.map((_, i) => (
+              {banners.map((_, i) => (
                 <View
                   key={i}
                   style={[styles.dot, i === bannerIndex ? styles.dotActive : {}]}
@@ -388,7 +394,7 @@ const ShoppingHomeScreen: React.FC = () => {
             </View>
           </View>
           <FlatList
-            data={CATEGORIES}
+            data={categories}
             renderItem={renderCategoryCard}
             keyExtractor={(item) => item.id}
             horizontal
@@ -475,7 +481,8 @@ const ShoppingHomeScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -12,7 +12,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
@@ -28,6 +28,7 @@ import {
 } from '../../../../components/ui';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { fetchBookingDetail } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 import { cancelBooking } from '../../../../networks/serviceProviders/bookingNetwork';
 import { isCallingSupported } from '../../../../services/call/usePeerConnection';
@@ -56,6 +57,8 @@ const humaniseStatus = (status?: string) =>
     .replace(/^./, (c) => c.toUpperCase());
 
 export default function BookingDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
   const { bookingId } = route.params || ({} as Params);
@@ -186,7 +189,7 @@ export default function BookingDetailScreen() {
 
             <View style={styles.details}>
               <View style={styles.detailRow}>
-                <Ionicons name="calendar-outline" size={15} color={C.inkFaint} />
+                <Ionicons name="calendar-outline" size={15} color={colors.inkFaint} />
                 <Text style={styles.detailText}>
                   {formatBookingWhen(
                     data.bookingDetails?.selectedDate,
@@ -195,14 +198,14 @@ export default function BookingDetailScreen() {
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Ionicons name="location-outline" size={15} color={C.inkFaint} />
+                <Ionicons name="location-outline" size={15} color={colors.inkFaint} />
                 <Text style={styles.detailText}>
                   {data.bookingDetails?.selectedAddress?.address || 'No address on file'}
                 </Text>
               </View>
               {!!data.bookingDetails?.instructions && (
                 <View style={styles.detailRow}>
-                  <Ionicons name="document-text-outline" size={15} color={C.inkFaint} />
+                  <Ionicons name="document-text-outline" size={15} color={colors.inkFaint} />
                   <Text style={styles.detailText}>{data.bookingDetails.instructions}</Text>
                 </View>
               )}
@@ -223,7 +226,7 @@ export default function BookingDetailScreen() {
                     <Ionicons
                       name={action.icon as any}
                       size={19}
-                      color={action.destructive ? C.error : C.ink}
+                      color={action.destructive ? colors.error : colors.ink}
                     />
                   </View>
                   <Text style={[styles.actionLabel, action.destructive && styles.actionLabelDanger]}>
@@ -267,7 +270,7 @@ export default function BookingDetailScreen() {
             </View>
             <View style={styles.payRow}>
               <Text style={styles.payLabel}>Status</Text>
-              <Text style={[styles.payValue, { color: paid ? C.success : C.warning }]}>
+              <Text style={[styles.payValue, { color: paid ? colors.success : colors.warning }]}>
                 {humaniseStatus(data.payment?.status) || 'Not settled'}
               </Text>
             </View>
@@ -300,7 +303,7 @@ export default function BookingDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: S.huge,
@@ -321,11 +324,11 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
 
@@ -333,7 +336,7 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   detailRow: {
     flexDirection: 'row',
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: S.sm,
     flex: 1,
   },
@@ -361,27 +364,27 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: R.control,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionIconDanger: {
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     borderColor: 'transparent',
   },
   actionLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 5,
   },
   actionLabelDanger: {
-    color: C.error,
+    color: c.error,
   },
   error: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     marginTop: S.sm,
   },
 
@@ -402,15 +405,15 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginTop: 5,
-    backgroundColor: C.disabled,
+    backgroundColor: c.disabled,
   },
   timelineDotCurrent: {
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   timelineLine: {
     flex: 1,
     width: StyleSheet.hairlineWidth,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginVertical: 3,
   },
   timelineBody: {
@@ -420,11 +423,11 @@ const styles = StyleSheet.create({
   },
   timelineStatus: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
   timelineNote: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xs,
   },
 
@@ -436,10 +439,10 @@ const styles = StyleSheet.create({
   },
   payLabel: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   payValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
 });

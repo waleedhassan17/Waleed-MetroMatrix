@@ -14,6 +14,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -34,79 +37,91 @@ const DOCTOR_CARD_HEIGHT = 140;
 
 // ── Theme Colors ────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    accent: ['#5A9FFF', '#2A7FFF'],
-    warm: ['#F59E0B', '#EF4444'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
+    warm: grad(['#F59E0B', '#EF4444']),
   },
+  };
 };
 
 // ── Specialty Icon Map ──────────────────────
 
-const SPECIALTY_ICONS: Record<string, { icon: string; gradient: string[] }> = {
-  'stethoscope': { icon: 'stethoscope', gradient: ['#2A7FFF', '#1E6AE1'] },
-  'heart-pulse': { icon: 'heart-pulse', gradient: ['#EF4444', '#DC2626'] },
-  'hand': { icon: 'hand-heart', gradient: ['#2A7FFF', '#1E6AE1'] },
-  'bone': { icon: 'bone', gradient: ['#5A9FFF', '#1E6AE1'] },
-  'baby': { icon: 'baby-face-outline', gradient: ['#5A9FFF', '#2A7FFF'] },
-  'smile': { icon: 'emoticon-happy-outline', gradient: ['#10B981', '#059669'] },
-  'ear': { icon: 'ear-hearing', gradient: ['#06B6D4', '#0891B2'] },
-  'brain': { icon: 'brain', gradient: ['#1857C0', '#0D4299'] },
-};
+// Gradients per specialty. A function of the mode: a ramp tuned for a white
+// page is a lamp on a dark one, so `grad` walks it down toward the surface.
+const makeSpecialtyIcons = (
+  sh: DarkShift,
+): Record<string, { icon: string; gradient: string[] }> => ({
+  'stethoscope': { icon: 'stethoscope', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) },
+  'heart-pulse': { icon: 'heart-pulse', gradient: sh.grad(['#EF4444', '#DC2626']) },
+  'hand': { icon: 'hand-heart', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) },
+  'bone': { icon: 'bone', gradient: sh.grad(['#5A9FFF', '#1E6AE1']) },
+  'baby': { icon: 'baby-face-outline', gradient: sh.grad(['#5A9FFF', '#2A7FFF']) },
+  'smile': { icon: 'emoticon-happy-outline', gradient: sh.grad(['#10B981', '#059669']) },
+  'ear': { icon: 'ear-hearing', gradient: sh.grad(['#06B6D4', '#0891B2']) },
+  'brain': { icon: 'brain', gradient: sh.grad(['#1857C0', '#0D4299']) },
+});
 
-const getSpecialtyConfig = (icon: string) => {
-  return SPECIALTY_ICONS[icon] || { icon: 'stethoscope', gradient: ['#2A7FFF', '#1E6AE1'] };
+const getSpecialtyConfig = (icon: string, sh: DarkShift) => {
+  const icons = makeSpecialtyIcons(sh);
+  return icons[icon] || { icon: 'stethoscope', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) };
 };
 
 // ── Quick Action Data ───────────────────────
 
-const QUICK_ACTIONS = [
+// The tiles' pale grounds are the thing that reads as white plates on a dark
+// page, so the table varies with the mode like every other palette here.
+const makeQuickActions = (sh: DarkShift) => [
   {
     id: 'appointments',
     label: 'Appointments',
     icon: 'clipboard-list-outline',
     route: HealthcareRouteNames.MyAppointments,
-    color: '#2A7FFF',
-    bg: '#EAF3FF',
+    color: sh.hue('#2A7FFF'),
+    bg: sh.ground('#EAF3FF', '#2A7FFF'),
   },
   {
     id: 'records',
     label: 'Records',
     icon: 'file-document-outline',
     route: HealthcareRouteNames.HealthRecords,
-    color: '#10B981',
-    bg: '#ECFDF5',
+    color: sh.hue('#10B981'),
+    bg: sh.ground('#ECFDF5', '#10B981'),
   },
   {
     id: 'emergency',
     label: 'Emergency',
     icon: 'ambulance',
     route: HealthcareRouteNames.Emergency,
-    color: '#EF4444',
-    bg: '#FEF2F2',
+    color: sh.hue('#EF4444'),
+    bg: sh.ground('#FEF2F2', '#EF4444'),
   },
   {
     id: 'prescriptions',
     label: 'Prescriptions',
     icon: 'pill',
     route: HealthcareRouteNames.MyPrescriptions,
-    color: '#8B5CF6',
-    bg: '#EDE9FE',
+    color: sh.hue('#8B5CF6'),
+    bg: sh.ground('#EDE9FE', '#8B5CF6'),
   },
   {
     id: 'symptom-checker',
     label: 'Symptom Check',
     icon: 'stethoscope',
     route: HealthcareRouteNames.SymptomChecker,
-    color: '#F59E0B',
-    bg: '#FEF3C7',
+    color: sh.hue('#F59E0B'),
+    bg: sh.ground('#FEF3C7', '#F59E0B'),
   },
 ];
 
@@ -160,15 +175,30 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const SpecialtyCardSkeleton: React.FC = () => (
+const SpecialtyCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
+
+  return (
   <View style={styles.specialtyCard}>
     <SkeletonBox width={60} height={60} borderRadius={20} />
     <SkeletonBox width={60} height={12} style={{ marginTop: 10 }} />
     <SkeletonBox width={45} height={10} style={{ marginTop: 6 }} />
   </View>
-);
+  );
+};
 
-const DoctorCardSkeleton: React.FC = () => (
+const DoctorCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
+
+  return (
   <View style={styles.doctorCard}>
     <SkeletonBox width={64} height={64} borderRadius={20} />
     <View style={{ flex: 1, marginLeft: 16 }}>
@@ -180,11 +210,17 @@ const DoctorCardSkeleton: React.FC = () => (
       <SkeletonBox width={60} height={24} borderRadius={12} />
     </View>
   </View>
-);
+  );
+};
 
 // ── Main Component ──────────────────────────
 
 const HealthcareHomeScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { featuredDoctors, specialties, nextAppointment, loading, error } = useAppSelector(
@@ -320,7 +356,7 @@ const HealthcareHomeScreen: React.FC = () => {
 
   const renderSpecialtyCard = useCallback(
     ({ item, index }: { item: Specialty; index: number }) => {
-      const config = getSpecialtyConfig(item.icon);
+      const config = getSpecialtyConfig(item.icon, sh);
 
       return (
         <Animated.View
@@ -429,10 +465,10 @@ const HealthcareHomeScreen: React.FC = () => {
   if (error && !loading && specialties.length === 0) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
         <View style={[styles.errorContainer, { paddingTop: STATUS_BAR_HEIGHT }]}>
           <LinearGradient
-            colors={['#FEE2E2', '#FECACA']}
+            colors={sh.grad(['#FEE2E2', '#FECACA'])}
             style={styles.errorIconContainer}
           >
             <Ionicons name="cloud-offline-outline" size={48} color="#EF4444" />
@@ -516,7 +552,7 @@ const HealthcareHomeScreen: React.FC = () => {
         {/* ── Header Section ──────────────────── */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <LinearGradient
-            colors={['#2A7FFF', '#1857C0']}
+            colors={sh.grad(['#2A7FFF', '#1857C0'])}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
@@ -597,7 +633,7 @@ const HealthcareHomeScreen: React.FC = () => {
         {/* ── Trust Stats Bar ──────────────────── */}
         <View style={styles.trustBar}>
           <View style={styles.trustItem}>
-            <View style={[styles.trustIconBg, { backgroundColor: '#EAF3FF' }]}>
+            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
               <Ionicons name="people" size={16} color="#2A7FFF" />
             </View>
             <View>
@@ -607,7 +643,7 @@ const HealthcareHomeScreen: React.FC = () => {
           </View>
           <View style={styles.trustDivider} />
           <View style={styles.trustItem}>
-            <View style={[styles.trustIconBg, { backgroundColor: '#ECFDF5' }]}>
+            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#ECFDF5', '#10B981') }]}>
               <MaterialCommunityIcons name="doctor" size={16} color="#10B981" />
             </View>
             <View>
@@ -617,7 +653,7 @@ const HealthcareHomeScreen: React.FC = () => {
           </View>
           <View style={styles.trustDivider} />
           <View style={styles.trustItem}>
-            <View style={[styles.trustIconBg, { backgroundColor: '#FFFBEB' }]}>
+            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
               <Ionicons name="star" size={16} color="#F59E0B" />
             </View>
             <View>
@@ -811,7 +847,7 @@ const HealthcareHomeScreen: React.FC = () => {
           <View style={styles.healthTipsSection}>
             <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
               <LinearGradient
-                colors={['#ECFDF5', '#D1FAE5']}
+                colors={sh.grad(['#ECFDF5', '#D1FAE5'])}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.healthTipGradient}
@@ -827,7 +863,7 @@ const HealthcareHomeScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
               <LinearGradient
-                colors={['#EFF6FF', '#DBEAFE']}
+                colors={sh.grad(['#EFF6FF', '#DBEAFE'])}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.healthTipGradient}
@@ -855,10 +891,10 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight |
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
   scrollView: {
     flex: 1,
@@ -875,12 +911,12 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: STATUS_BAR_HEIGHT,
     height: 60 + STATUS_BAR_HEIGHT,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     zIndex: 100,
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -925,7 +961,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.5,
     marginBottom: 4,
   },
@@ -950,20 +986,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingHorizontal: 16,
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
       android: { elevation: 4 },
     }),
   },
   searchContainerFocused: {
     borderColor: THEME.primary,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     ...Platform.select({
       ios: {
         shadowColor: THEME.primary,
@@ -1011,15 +1047,15 @@ const styles = StyleSheet.create({
     // Fixed rather than flex:1 — identical cards regardless of label length.
     width: 104,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingVertical: 18,
     paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
+      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
       android: { elevation: 3 },
     }),
   },
@@ -1034,7 +1070,7 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: sh.n('#1E293B', 'ink'),
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -1047,12 +1083,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 24,
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 2 },
     }),
   },
@@ -1073,19 +1109,19 @@ const styles = StyleSheet.create({
   trustValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
   },
   trustLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 1,
   },
   trustDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
   },
 
   // Upcoming Appointment Card
@@ -1096,7 +1132,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#2A7FFF',
+        shadowColor: sh.hue('#2A7FFF'),
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.25,
         shadowRadius: 12,
@@ -1127,7 +1163,7 @@ const styles = StyleSheet.create({
   upcomingBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   upcomingDate: {
     fontSize: 12,
@@ -1137,7 +1173,7 @@ const styles = StyleSheet.create({
   upcomingTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 6,
   },
   upcomingTimeRow: {
@@ -1160,7 +1196,7 @@ const styles = StyleSheet.create({
   upcomingViewText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Sections
@@ -1177,13 +1213,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 19,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.4,
   },
   sectionSubtitle: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 3,
   },
   seeAllButton: {
@@ -1193,7 +1229,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#EAF3FF',
+    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
   },
   seeAllText: {
     fontSize: 13,
@@ -1220,7 +1256,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#2A7FFF',
+        shadowColor: sh.hue('#2A7FFF'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.18,
         shadowRadius: 10,
@@ -1233,13 +1269,13 @@ const styles = StyleSheet.create({
   specialtyName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: sh.n('#1E293B', 'ink'),
     textAlign: 'center',
     marginBottom: 4,
     lineHeight: 16,
   },
   specialtyCountBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -1258,7 +1294,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#2A7FFF',
+        shadowColor: sh.hue('#2A7FFF'),
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.25,
         shadowRadius: 16,
@@ -1294,13 +1330,13 @@ const styles = StyleSheet.create({
   bannerBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: 0.5,
   },
   bannerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 6,
   },
   bannerSubtitle: {
@@ -1323,13 +1359,13 @@ const styles = StyleSheet.create({
   bannerFeatureText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#A5F3FC',
+    color: sh.hue('#A5F3FC'),
   },
   bannerCTA: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
@@ -1338,7 +1374,7 @@ const styles = StyleSheet.create({
   bannerCTAText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1857C0',
+    color: sh.hue('#1857C0'),
   },
   bannerIllustration: {
     marginLeft: 16,
@@ -1356,16 +1392,16 @@ const styles = StyleSheet.create({
   doctorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 20,
     marginBottom: 14,
     padding: 16,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#EEF2FF',
+    borderColor: sh.n('#EEF2FF', 'lineSoft'),
     ...Platform.select({
       ios: {
-        shadowColor: '#64748B',
+        shadowColor: sh.n('#64748B', 'inkMuted'),
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -1392,11 +1428,11 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   availabilityDot: {
     width: 8,
@@ -1408,7 +1444,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
   },
   doctorInfo: {
@@ -1439,7 +1475,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1447,13 +1483,13 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#D97706',
+    color: sh.hue('#D97706'),
   },
   metaDivider: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
     marginHorizontal: 8,
   },
   experienceBadge: {
@@ -1505,7 +1541,7 @@ const styles = StyleSheet.create({
   bookButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Health Tips
@@ -1519,7 +1555,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
       android: { elevation: 2 },
     }),
   },
@@ -1540,13 +1576,13 @@ const styles = StyleSheet.create({
   healthTipTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     marginBottom: 6,
   },
   healthTipText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#475569',
+    color: sh.n('#475569', 'inkMuted'),
     lineHeight: 16,
   },
 
@@ -1593,7 +1629,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +59,9 @@ const FilterChip = ({
   count?: number;
   color?: string;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -97,7 +102,12 @@ const FilterChip = ({
 // STATS SUMMARY COMPONENT
 // ============================================
 
-const StatsSummary = ({ total, active, inactive }: { total: number; active: number; inactive: number }) => (
+const StatsSummary = ({ total, active, inactive }: { total: number; active: number; inactive: number }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
+
+  return (
   <View style={styles.statsSummary}>
     <View style={styles.statItem}>
       <Text style={styles.statLabel}>Total</Text>
@@ -114,7 +124,8 @@ const StatsSummary = ({ total, active, inactive }: { total: number; active: numb
       <Text style={[styles.statValue, { color: '#ef4444' }]}>{inactive}</Text>
     </View>
   </View>
-);
+  );
+};
 
 // ============================================
 // USER CARD COMPONENT
@@ -131,6 +142,9 @@ const UserCard = ({
   onToggleStatus: () => void;
   isLoading: boolean;
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -238,6 +252,9 @@ const UserCard = ({
 // ============================================
 
 const UserManagementScreen = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   
@@ -474,10 +491,10 @@ const UserManagementScreen = () => {
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
   },
 
   // Header
@@ -511,7 +528,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   headerSubtitle: {
     fontSize: 14,
@@ -523,7 +540,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 48,
@@ -534,7 +551,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   searchClear: {
     padding: 4,
@@ -553,10 +570,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     marginRight: 8,
     gap: 6,
   },
@@ -568,13 +585,13 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   filterChipBadge: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: sh.n('#f1f5f9', 'lineSoft'),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -582,13 +599,13 @@ const styles = StyleSheet.create({
   filterChipBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
 
   // Stats Summary
   statsSummary: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 16,
     borderRadius: 12,
     paddingVertical: 16,
@@ -611,22 +628,22 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginBottom: 4,
   },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: sh.n('#e2e8f0', 'line'),
   },
 
   // User Card
   userCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 16,
@@ -664,7 +681,7 @@ const styles = StyleSheet.create({
   userAvatarText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   onlineIndicator: {
     position: 'absolute',
@@ -674,7 +691,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
   },
   userInfo: {
     flex: 1,
@@ -687,11 +704,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   userEmail: {
     fontSize: 13,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     marginTop: 2,
   },
   userPhoneRow: {
@@ -702,7 +719,7 @@ const styles = StyleSheet.create({
   },
   userPhone: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: sh.n('#9ca3af', 'inkFaint'),
   },
   userMetaRow: {
     flexDirection: 'row',
@@ -712,7 +729,7 @@ const styles = StyleSheet.create({
   },
   userMetaText: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: sh.n('#9ca3af', 'inkFaint'),
   },
   statusToggleBtn: {
     paddingHorizontal: 14,
@@ -740,7 +757,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
   },
 
   // Empty State
@@ -762,12 +779,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -786,10 +803,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: sh.n('#e2e8f0', 'line'),
     gap: 4,
   },
   paginationBtnDisabled: {
@@ -798,10 +815,10 @@ const styles = StyleSheet.create({
   paginationBtnText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6366f1',
+    color: sh.hue('#6366f1'),
   },
   paginationBtnTextDisabled: {
-    color: '#cbd5e1',
+    color: sh.n('#cbd5e1', 'disabled'),
   },
   paginationInfo: {
     alignItems: 'center',
@@ -809,11 +826,11 @@ const styles = StyleSheet.create({
   paginationText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: sh.n('#1e293b', 'ink'),
   },
   paginationTotal: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: sh.n('#94a3b8', 'inkFaint'),
     marginTop: 2,
   },
 });

@@ -410,4 +410,5 @@ export type AdminShoppingParamList = {
   AdminOutletList: undefined;
   AdminAddOutlet: { outletId?: string };
   AdminOutletDetail: { outletId: string };
+  AdminBannerList: undefined;
 };

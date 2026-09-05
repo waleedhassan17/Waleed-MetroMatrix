@@ -33,7 +33,8 @@ import {
   selectHistoryError,
 } from '../../../services/wallet';
 import type { WalletTransaction, TransactionModule } from '../../../models/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { useTheme } from '../../../theme';
 import {
   splitMoney,
   getDateBucket,
@@ -60,6 +61,10 @@ const STATUS_COLOR_MAP = {
 };
 
 export default function TransactionHistoryScreen() {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -170,7 +175,7 @@ export default function TransactionHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
       <View style={[styles.header, { paddingTop: STATUS_BAR_HEIGHT + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <ChevronLeft size={24} color={Colors.text.primary} />
@@ -361,6 +366,9 @@ export default function TransactionHistoryScreen() {
 }
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   if (!value) return null;
   return (
     <View style={styles.detailRow}>
@@ -370,7 +378,7 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   header: {
     flexDirection: 'row',

@@ -14,6 +14,7 @@ import AdminShoppingOrdersScreen from '../screens/admin/Shopping/AdminShoppingOr
 import AdminShoppingOrderDetailScreen from '../screens/admin/Shopping/AdminShoppingOrderDetail/AdminShoppingOrderDetailScreen';
 import AdminShoppingAnalyticsScreen from '../screens/admin/Shopping/AdminShoppingAnalytics/AdminShoppingAnalyticsScreen';
 import AdminShoppingSettingsScreen from '../screens/admin/Shopping/AdminShoppingSettings/AdminShoppingSettingsScreen';
+import BannerManagementScreen from '../screens/admin/Shopping/BannerManagement/BannerManagementScreen';
 import { ThemeProvider } from '../theme';
 
 const Stack = createNativeStackNavigator<AdminShoppingParamList>();
@@ -77,6 +78,12 @@ const AdminShoppingStack: React.FC = () => {
         <Stack.Screen
           name={AdminShoppingRouteNames.AdminOutletDetail}
           component={OutletDetailScreen}
+        />
+
+        {/* Storefront promo banners */}
+        <Stack.Screen
+          name={AdminShoppingRouteNames.AdminBannerList}
+          component={BannerManagementScreen}
         />
       </Stack.Navigator>
     </ThemeProvider>

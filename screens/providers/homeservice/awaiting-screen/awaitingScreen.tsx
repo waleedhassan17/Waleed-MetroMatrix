@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { setPaymentRequestData } from '../payment-screen/paymentRequestSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
@@ -26,6 +28,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const AwaitingApprovalScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -200,7 +206,7 @@ const AwaitingApprovalScreen: React.FC = () => {
                 ]}
               />
               <View style={styles.innerCircle}>
-                <Icon name="clock-outline" size={48} color={HS.accent} />
+                <Icon name="clock-outline" size={48} color={colors.accent} />
               </View>
             </>
           ) : (
@@ -210,7 +216,7 @@ const AwaitingApprovalScreen: React.FC = () => {
                 { transform: [{ scale: checkScaleAnim }] },
               ]}
             >
-              <Icon name="check" size={56} color={C.surface} />
+              <Icon name="check" size={56} color={colors.surface} />
             </Animated.View>
           )}
         </View>
@@ -228,7 +234,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Waiting Timer */}
         {!approved && (
           <View style={styles.waitingTimer}>
-            <Icon name="timer-sand" size={18} color={C.inkMuted} />
+            <Icon name="timer-sand" size={18} color={colors.inkMuted} />
             <Text style={styles.waitingTimeText}>
               Waiting: {formatWaitingTime(waitingTime)}
             </Text>
@@ -238,7 +244,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Job Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <Icon name="clipboard-check-outline" size={20} color={HS.accent} />
+            <Icon name="clipboard-check-outline" size={20} color={colors.accent} />
             <Text style={styles.summaryTitle}>Job Summary</Text>
           </View>
 
@@ -277,14 +283,14 @@ const AwaitingApprovalScreen: React.FC = () => {
         <View style={styles.progressIndicators}>
           <View style={styles.progressItem}>
             <View style={[styles.progressDot, styles.progressCompleted]}>
-              <Icon name="check" size={12} color={C.surface} />
+              <Icon name="check" size={12} color={colors.surface} />
             </View>
             <Text style={styles.progressLabel}>Arrived</Text>
           </View>
           <View style={styles.progressLine} />
           <View style={styles.progressItem}>
             <View style={[styles.progressDot, styles.progressCompleted]}>
-              <Icon name="check" size={12} color={C.surface} />
+              <Icon name="check" size={12} color={colors.surface} />
             </View>
             <Text style={styles.progressLabel}>Worked</Text>
           </View>
@@ -297,7 +303,7 @@ const AwaitingApprovalScreen: React.FC = () => {
               ]}
             >
               {approved ? (
-                <Icon name="check" size={12} color={C.surface} />
+                <Icon name="check" size={12} color={colors.surface} />
               ) : (
                 <Animated.View
                   style={[
@@ -321,7 +327,7 @@ const AwaitingApprovalScreen: React.FC = () => {
         {/* Info Note */}
         {!approved && (
           <View style={styles.infoNote}>
-            <Icon name="information-outline" size={18} color={C.inkMuted} />
+            <Icon name="information-outline" size={18} color={colors.inkMuted} />
             <Text style={styles.infoText}>
               The customer has been notified and will approve your work shortly.
             </Text>
@@ -349,10 +355,10 @@ const AwaitingApprovalScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: c.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -361,7 +367,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...T.subhead,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
   gradientTop: {
@@ -370,7 +376,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 200,
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
@@ -394,8 +400,8 @@ const styles = StyleSheet.create({
     borderRadius: 80,
     borderWidth: 4,
     borderColor: 'transparent',
-    borderTopColor: HS.accent,
-    borderRightColor: HS.accent,
+    borderTopColor: c.accent,
+    borderRightColor: c.accent,
   },
   middleRing: {
     position: 'absolute',
@@ -408,10 +414,10 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -421,10 +427,10 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 16,
@@ -433,26 +439,26 @@ const styles = StyleSheet.create({
   statusTitle: {
     ...T.heading,
     fontFamily: F.bold,
-    color: C.ink,
+    color: c.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   statusSubtitle: {
     ...T.body,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginBottom: 16,
   },
   waitingTimer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginBottom: 24,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -462,15 +468,15 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     ...T.body,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   summaryCard: {
     width: '100%',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -485,7 +491,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -496,18 +502,18 @@ const styles = StyleSheet.create({
   summaryLabel: {
     ...T.body,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   summaryValue: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
     maxWidth: '60%',
     textAlign: 'right',
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: C.lineSoft,
+    backgroundColor: c.lineSoft,
   },
   progressIndicators: {
     flexDirection: 'row',
@@ -528,43 +534,43 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   progressCompleted: {
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   progressActive: {
-    backgroundColor: C.warning,
+    backgroundColor: c.warning,
   },
   progressPending: {
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   progressPulse: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
   },
   progressLabel: {
     ...T.caption,
     fontFamily: F.medium,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
   progressLabelActive: {
-    color: C.warning,
+    color: c.warning,
   },
   progressLine: {
     width: 30,
     height: 3,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     marginHorizontal: 4,
     marginBottom: 20,
     borderRadius: 2,
   },
   progressLinePending: {
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   infoNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: C.lineSoft,
+    backgroundColor: c.lineSoft,
     borderRadius: 14,
     padding: 14,
     width: '100%',
@@ -574,7 +580,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     ...T.label,
     fontFamily: F.regular,
-    color: C.inkMuted,
+    color: c.inkMuted,
     lineHeight: 18,
   },
   bottomContainer: {
@@ -583,7 +589,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   manualApproveBtn: {
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -591,12 +597,12 @@ const styles = StyleSheet.create({
   manualApproveBtnText: {
     ...T.body,
     fontFamily: F.medium,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   checkFailedText: {
     ...T.caption,
     fontFamily: F.regular,
-    color: C.error,
+    color: c.error,
     textAlign: 'center',
     marginBottom: 8,
   },

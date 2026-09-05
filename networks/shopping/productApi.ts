@@ -9,14 +9,6 @@ import type {
   SingleResponse,
 } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError, toShoppingError } from "./shoppingAxios";
-import { USE_SHOPPING_DUMMY_DATA } from "../../config/env";
-import {
-  OUTFITTERS_PRODUCTS,
-  PRODUCT_REVIEWS,
-  simulateDelay,
-  paginateArray,
-  singleResponse,
-} from "./dummyData";
 
 // ── Fetch Products ──────────────────────────
 
@@ -38,11 +30,6 @@ export interface FetchProductsParams {
 export const fetchProductsApi = async (
   params: FetchProductsParams = {}
 ): Promise<PaginatedResponse<Product>> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(350);
-    const { page = 1, limit = 20 } = params;
-    return paginateArray(OUTFITTERS_PRODUCTS, page, limit);
-  }
   try {
     const res = await ShoppingAxiosInstance.get("/products", { params });
     return res.data;
@@ -56,12 +43,6 @@ export const fetchProductsApi = async (
 export const fetchProductByIdApi = async (
   productId: string
 ): Promise<SingleResponse<Product>> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(200);
-    const product = OUTFITTERS_PRODUCTS.find((p) => p.productId === productId);
-    if (!product) throw new Error("Product not found");
-    return singleResponse(product);
-  }
   try {
     const res = await ShoppingAxiosInstance.get(`/products/${productId}`);
     return res.data;
@@ -76,10 +57,6 @@ export const fetchProductReviewsApi = async (
   productId: string,
   { page = 1, limit = 20 }: { page?: number; limit?: number } = {}
 ): Promise<PaginatedResponse<ProductReview>> => {
-  if (USE_SHOPPING_DUMMY_DATA) {
-    await simulateDelay(200);
-    return paginateArray(PRODUCT_REVIEWS.filter((r) => r.productId === productId), page, limit);
-  }
   try {
     const res = await ShoppingAxiosInstance.get(`/products/${productId}/reviews`, {
       params: { page, limit },

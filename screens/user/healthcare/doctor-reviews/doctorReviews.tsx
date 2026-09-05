@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,20 +38,25 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Theme Colors (Consistent) ───────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  star: '#FBBF24',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  star: hue('#FBBF24'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'],
-    header: ['#1857C0', '#1E6AE1'],
-    accent: ['#5A9FFF', '#2A7FFF'],
+    primary: grad(['#2A7FFF', '#1857C0']),
+    header: grad(['#1857C0', '#1E6AE1']),
+    accent: grad(['#5A9FFF', '#2A7FFF']),
   },
+  };
 };
 
 // ── Rating filter chips ─────────────────────
@@ -113,7 +121,13 @@ const SkeletonBox: React.FC<{
   );
 };
 
-const ReviewCardSkeleton: React.FC = () => (
+const ReviewCardSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+
+  return (
   <View style={styles.reviewCard}>
     <View style={styles.reviewHeader}>
       <SkeletonBox width={44} height={44} borderRadius={14} />
@@ -126,7 +140,8 @@ const ReviewCardSkeleton: React.FC = () => (
     <SkeletonBox width="100%" height={14} style={{ marginTop: 14 }} />
     <SkeletonBox width="80%" height={14} style={{ marginTop: 6 }} />
   </View>
-);
+  );
+};
 
 // ── Star Rating Display ─────────────────────
 
@@ -134,6 +149,10 @@ const StarRating: React.FC<{ rating: number; size?: number }> = ({
   rating,
   size = 14,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   return (
     <View style={styles.starsRow}>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -157,6 +176,10 @@ const RatingBar: React.FC<{
   isActive: boolean;
   onPress: () => void;
 }> = ({ stars, count, total, isActive, onPress }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const percentage = total > 0 ? (count / total) * 100 : 0;
   const animatedWidth = useRef(new Animated.Value(0)).current;
 
@@ -199,6 +222,10 @@ const RatingBar: React.FC<{
 // ── Main Component ──────────────────────────
 
 const DoctorReviewsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -317,7 +344,7 @@ const DoctorReviewsScreen: React.FC = () => {
       </View>
 
       <View style={styles.statCard}>
-        <View style={[styles.statIconBg, { backgroundColor: '#FEF3C7' }]}>
+        <View style={[styles.statIconBg, { backgroundColor: sh.ground('#FEF3C7', '#F59E0B') }]}>
           <Ionicons name="chatbubble-ellipses" size={16} color={THEME.warning} />
         </View>
         <Text style={styles.statValue}>{stats.withComments}</Text>
@@ -325,7 +352,7 @@ const DoctorReviewsScreen: React.FC = () => {
       </View>
 
       <View style={styles.statCard}>
-        <View style={[styles.statIconBg, { backgroundColor: '#D6E8FF' }]}>
+        <View style={[styles.statIconBg, { backgroundColor: sh.ground('#D6E8FF', '#5A9FFF') }]}>
           <MaterialCommunityIcons name="reply" size={16} color={THEME.accent} />
         </View>
         <Text style={styles.statValue}>{stats.withResponses}</Text>
@@ -414,7 +441,7 @@ const DoctorReviewsScreen: React.FC = () => {
           <View style={styles.reviewHeader}>
             <View style={styles.reviewAvatar}>
               <LinearGradient
-                colors={['#F1F5F9', '#E2E8F0']}
+                colors={sh.grad(['#F1F5F9', '#E2E8F0'])}
                 style={styles.reviewAvatarGradient}
               >
                 <Text style={styles.reviewAvatarText}>
@@ -596,7 +623,7 @@ const DoctorReviewsScreen: React.FC = () => {
   if (error && !loading && reviews.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={sh.n('#FFFFFF', 'surface')} />
         <View style={styles.errorHeader}>
           <BackButton tone="onSurface" onPress={() => navigation.goBack()} />
           <Text style={styles.errorHeaderTitle}>Reviews</Text>
@@ -715,10 +742,10 @@ const DoctorReviewsScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -745,7 +772,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -772,13 +799,13 @@ const styles = StyleSheet.create({
   // Summary Card
   summaryCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 20,
     marginTop: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -824,7 +851,7 @@ const styles = StyleSheet.create({
   },
   summaryDivider: {
     width: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     marginHorizontal: 10,
   },
   summaryRight: {
@@ -843,7 +870,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   ratingBarRowActive: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
   },
   ratingBarLabel: {
     fontSize: 12,
@@ -856,7 +883,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     overflow: 'hidden',
   },
   ratingBarFill: {
@@ -865,7 +892,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.star,
   },
   ratingBarFillActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: sh.hue('#F59E0B'),
   },
   ratingBarCount: {
     fontSize: 11,
@@ -883,12 +910,12 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 14,
     padding: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   statIconBg: {
     width: 36,
@@ -927,9 +954,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
   },
   filterChipActive: {
     backgroundColor: THEME.primary,
@@ -941,7 +968,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   sortButton: {
     width: 42,
@@ -973,12 +1000,12 @@ const styles = StyleSheet.create({
 
   // Review Card
   reviewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1037,7 +1064,7 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
   },
   recentBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1051,7 +1078,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -1059,7 +1086,7 @@ const styles = StyleSheet.create({
   reviewRatingText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#D97706',
+    color: sh.hue('#D97706'),
   },
   reviewComment: {
     fontSize: 14,
@@ -1074,7 +1101,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   reviewTag: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1132,7 +1159,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   helpfulButton: {
     flexDirection: 'row',
@@ -1184,7 +1211,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1222,13 +1249,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   backButtonError: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1249,7 +1276,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -1281,7 +1308,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
 

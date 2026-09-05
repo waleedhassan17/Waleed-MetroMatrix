@@ -15,6 +15,8 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -313,6 +315,9 @@ const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   admin,
   onNavigate,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
@@ -528,6 +533,9 @@ const StatCard: React.FC<StatCardProps> = ({
   delay = 0,
   onPress,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const displayValue = useAnimatedCounter(value, 800, delay + 200);
@@ -656,6 +664,9 @@ const DonutChart: React.FC<DonutChartProps> = ({
   strokeWidth = 18,
   total 
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
@@ -799,6 +810,9 @@ interface ProviderDistributionProps {
 }
 
 const ProviderDistribution: React.FC<ProviderDistributionProps> = ({ data, total }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(30)).current;
 
@@ -902,6 +916,9 @@ interface RegistrationItemProps {
 }
 
 const RegistrationItem: React.FC<RegistrationItemProps> = ({ registration, index, isLast }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const translateX = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -980,6 +997,9 @@ interface RecentRegistrationsProps {
 }
 
 const RecentRegistrations: React.FC<RecentRegistrationsProps> = ({ registrations, onViewAll }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(30)).current;
 
@@ -1050,6 +1070,9 @@ interface QuickStatsBarProps {
 }
 
 const QuickStatsBar: React.FC<QuickStatsBarProps> = ({ online, pending }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -1110,6 +1133,9 @@ const QuickStatsBar: React.FC<QuickStatsBarProps> = ({ online, pending }) => {
 // ============================================
 
 const LoadingSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const pulseAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -1131,7 +1157,7 @@ const LoadingSkeleton: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.surface} />
       
       {/* Header Skeleton */}
       <View style={styles.header}>
@@ -1174,6 +1200,9 @@ const LoadingSkeleton: React.FC = () => {
 // ============================================
 
 const AdminDashboardScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   
@@ -1278,7 +1307,7 @@ const AdminDashboardScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.surface} />
       
       {/* Sidebar Drawer */}
       <SidebarDrawer
@@ -1443,7 +1472,7 @@ const AdminDashboardScreen: React.FC = () => {
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -1514,7 +1543,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#6366F1',
+        shadowColor: sh.hue('#6366F1'),
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
@@ -1533,16 +1562,16 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#6366F1',
+    backgroundColor: sh.hue('#6366F1'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#818CF8',
+    borderColor: sh.hue('#818CF8'),
   },
   profileInitials: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
     textTransform: 'uppercase',
   },
   headerIconBtn: {
@@ -1562,7 +1591,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -1692,7 +1721,7 @@ const styles = StyleSheet.create({
   drawerAvatarText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
   },
   drawerProfileInfo: {
     flex: 1,
@@ -1701,7 +1730,7 @@ const styles = StyleSheet.create({
   drawerProfileName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: sh.n('#ffffff', 'surface'),
     marginBottom: 4,
   },
   drawerProfileEmail: {

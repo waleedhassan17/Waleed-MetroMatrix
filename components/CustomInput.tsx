@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ViewStyle, TextInputProps } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CustomInputProps extends Omit<TextInputProps, 'style'> {
@@ -36,6 +38,9 @@ const CustomInput: React.FC<CustomInputProps> = ({
   style,
   ...props
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   return (
     <View style={[styles.container, style]}>
       <TextInput
@@ -82,14 +87,14 @@ const CustomInput: React.FC<CustomInputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: sh.hue('#E0E0E0'),
     marginBottom: 16,
   },
   input: {

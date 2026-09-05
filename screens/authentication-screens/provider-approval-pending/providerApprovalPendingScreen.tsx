@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Easing,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
@@ -33,6 +35,9 @@ interface RouteParams {
 }
 
 const ProviderApprovalPendingScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation();
   const route = useRoute();
   const dispatch = useAppDispatch();
@@ -414,10 +419,10 @@ const ProviderApprovalPendingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: sh.hue('#000000'),
   },
   scrollView: {
     flex: 1,
@@ -429,19 +434,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 30,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: sh.hue('#1a1a1a'),
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: sh.hue('#333333'),
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 8,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#888888',
+    color: sh.hue('#888888'),
   },
   content: {
     paddingHorizontal: 20,
@@ -462,7 +467,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     textAlign: 'center',
     marginBottom: 15,
   },
@@ -475,7 +480,7 @@ const styles = StyleSheet.create({
   },
   checkingText: {
     marginLeft: 10,
-    color: '#00D4FF',
+    color: sh.hue('#00D4FF'),
     fontSize: 14,
     fontWeight: '500',
   },
@@ -486,34 +491,34 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: sh.hue('#1a1a1a'),
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: sh.hue('#333333'),
     alignItems: 'center',
   },
   statLabel: {
     fontSize: 11,
-    color: '#888888',
+    color: sh.hue('#888888'),
     marginBottom: 5,
   },
   statValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#00D4FF',
+    color: sh.hue('#00D4FF'),
   },
   infoSection: {
     marginBottom: 30,
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: sh.hue('#1a1a1a'),
     borderRadius: 12,
     padding: 15,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: sh.hue('#333333'),
   },
   infoText: {
     flex: 1,
@@ -522,12 +527,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 3,
   },
   infoDescription: {
     fontSize: 12,
-    color: '#888888',
+    color: sh.hue('#888888'),
     lineHeight: 18,
   },
   buttonSection: {
@@ -536,7 +541,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flexDirection: 'row',
-    backgroundColor: '#00D4FF',
+    backgroundColor: sh.hue('#00D4FF'),
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -547,11 +552,11 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: sh.hue('#000000'),
   },
   secondaryButton: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: sh.hue('#1a1a1a'),
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -559,22 +564,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#00D4FF',
+    borderColor: sh.hue('#00D4FF'),
   },
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#00D4FF',
+    color: sh.hue('#00D4FF'),
   },
   timelineSection: {
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#333333',
+    borderTopColor: sh.hue('#333333'),
   },
   timelineTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 20,
   },
   timelineItem: {
@@ -594,17 +599,17 @@ const styles = StyleSheet.create({
   timelineLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     marginBottom: 3,
   },
   timelineTime: {
     fontSize: 12,
-    color: '#888888',
+    color: sh.hue('#888888'),
   },
   timelineLine: {
     width: 2,
     height: 20,
-    backgroundColor: '#333333',
+    backgroundColor: sh.hue('#333333'),
     marginLeft: 5,
     marginBottom: 5,
   },

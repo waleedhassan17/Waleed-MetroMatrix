@@ -1072,6 +1072,25 @@ export const BaseRoutes: IRoute[] = [
 // under screens/admin, have not been migrated, and would change appearance for
 // no one's benefit.
 // ============================================================================
+// ============================================================================
+// Routes held back from dark mode.
+//
+// This started as the opposite — an opt-IN list, because dark was delivered in
+// phases and a screen whose colours were still hardcoded would render
+// half-dark: dark chrome from the shared components, a white body underneath,
+// invisible borders between them. Every route earned its place here only once
+// its screens actually read `useTheme()`.
+//
+// It is EMPTY now: customer, provider, doctor, vendor and admin surfaces all
+// resolve their colour from the theme, so the whole app follows the user's
+// preference. The mechanism stays because it is the cheap way to hold one
+// route back if a future screen lands with hardcoded colour — add it here,
+// ship, and migrate it properly afterwards.
+//
+// A route listed here renders light for everyone, whatever they chose.
+// ============================================================================
+export const LightOnlyRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([]);
+
 export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping'>> = {
   // Customer
   [BaseRouteNames.HomeServiceLayout]: 'homeservice',

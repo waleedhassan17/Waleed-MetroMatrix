@@ -1,5 +1,5 @@
 // FILE: screens/admin/providers/service-providers/tabs/analytics/analytics.tsx
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Dimensions,
   RefreshControl,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../../../constants/darkShift';
+import { useTheme } from '../../../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../../../../hooks/useReduxHooks';
 import {
@@ -58,6 +60,9 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function AnalyticsScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const {
     revenueData,
@@ -111,7 +116,7 @@ export default function AnalyticsScreen() {
 
   const renderHeader = () => (
     <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.surface} />
       
       <View style={styles.headerContent}>
         <View style={styles.titleContainer}>
@@ -399,7 +404,7 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -485,7 +490,7 @@ const styles = StyleSheet.create({
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 10,
@@ -666,7 +671,7 @@ const styles = StyleSheet.create({
   },
   categoryProgressContainer: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -696,7 +701,7 @@ const styles = StyleSheet.create({
   cityGrowth: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: sh.n('#F0FDF4', 'surfaceSunken'),
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 10,

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,23 +10,31 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ── Theme ───────────────────────────────────
-const THEME = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  surface: '#FFFFFF',
-  bg: '#F7F9FC',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#64748B',
-  border: '#E5E7EB',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  surface: n('#FFFFFF', 'surface'),
+  bg: n('#F7F9FC', 'surfaceSunken'),
+  textPrimary: hue('#1A1A1A'),
+  textSecondary: n('#64748B', 'inkMuted'),
+  border: n('#E5E7EB', 'line'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
+  };
 };
 
 // ── Notification Types ──────────────────────
@@ -50,7 +58,11 @@ interface Notification {
   actionParams?: Record<string, string>;
 }
 
-const TYPE_CONFIG: Record<NotifType, { icon: string; color: string; bg: string }> = {
+// The table reads the palette, which now varies by mode, so it becomes
+// a function of it — every reference below is otherwise unchanged.
+const makeTYPE_CONFIG = (
+  THEME: ReturnType<typeof makeTHEME>,
+): Record<NotifType, { icon: string; color: string; bg: string }> => ({
   appointment_confirmed: { icon: 'calendar-check', color: THEME.success, bg: '#ECFDF5' },
   appointment_reminder: { icon: 'clock-alert', color: THEME.warning, bg: '#FFFBEB' },
   appointment_cancelled: { icon: 'calendar-remove', color: THEME.error, bg: '#FEF2F2' },
@@ -58,7 +70,8 @@ const TYPE_CONFIG: Record<NotifType, { icon: string; color: string; bg: string }
   lab_result: { icon: 'test-tube', color: '#7C3AED', bg: '#F5F3FF' },
   video_call: { icon: 'video', color: '#06B6D4', bg: '#ECFEFF' },
   general: { icon: 'bell', color: THEME.textSecondary, bg: '#F1F5F9' },
-};
+});
+
 
 // ── Sample Notifications (until API) ────────
 const SAMPLE_NOTIFICATIONS: Notification[] = [
@@ -124,6 +137,11 @@ type FilterType = 'all' | 'unread';
 
 // ── Main Screen ─────────────────────────────
 const HealthcareNotificationsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const TYPE_CONFIG = useMemo(() => makeTYPE_CONFIG(THEME), [THEME]);
   const navigation = useNavigation<any>();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [notifications, setNotifications] = useState<Notification[]>(SAMPLE_NOTIFICATIONS);
@@ -196,7 +214,7 @@ const HealthcareNotificationsScreen: React.FC = () => {
 
       {/* Header */}
       <LinearGradient
-        colors={['#2A7FFF', '#1857C0']}
+        colors={sh.grad(['#2A7FFF', '#1857C0'])}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -266,7 +284,7 @@ const HealthcareNotificationsScreen: React.FC = () => {
 // ── Styles ──────────────────────────────────
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight ?? 24 : 0;
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: THEME.bg },
   header: {
     flexDirection: 'row',
@@ -288,9 +306,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
   unreadBadge: {
-    backgroundColor: '#EF4444',
+    backgroundColor: sh.hue('#EF4444'),
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -298,13 +316,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
-  unreadBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  unreadBadgeText: { fontSize: 11, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
   markAllButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
   },
-  markAllText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
+  markAllText: { fontSize: 12, color: sh.n('#FFFFFF', 'inkInverse'), fontWeight: '600' },
   headerRight: { width: 60 },
 
   // Filter
@@ -321,7 +339,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   filterTabActive: { backgroundColor: THEME.primaryLight },
   filterTabText: { fontSize: 13, fontWeight: '500', color: THEME.textSecondary },
@@ -406,7 +424,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   toLocalISODate,
@@ -20,6 +20,8 @@ import {
   Dimensions,
   Share,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +76,9 @@ const formatTime = (iso: string) => {
 // ── Bar Chart ─────────────────────────────────
 
 const BarChart: React.FC<{ data: ChartDataPoint[]; currency: string }> = ({ data, currency }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const maxVal = Math.max(...data.map((d) => d.value), 1);
   const barAnims = useRef(data.map(() => new Animated.Value(0))).current;
 
@@ -133,6 +138,9 @@ const BarChart: React.FC<{ data: ChartDataPoint[]; currency: string }> = ({ data
 // ── Component ─────────────────────────────────
 
 const DoctorEarningsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -273,7 +281,7 @@ const DoctorEarningsScreen: React.FC = () => {
           {!isInTab && <View style={styles.backButton} />}
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load earnings</Text>
@@ -501,7 +509,7 @@ const DoctorEarningsScreen: React.FC = () => {
             /* A failed request used to fall through to "No transactions yet",
                stating as fact that the doctor had earned nothing. */
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.emptyIconWrap}>
                 <Ionicons name="cloud-offline-outline" size={30} color={THEME.error} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>Couldn't load transactions</Text>
@@ -519,7 +527,7 @@ const DoctorEarningsScreen: React.FC = () => {
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                 <MaterialCommunityIcons name="receipt" size={32} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>No transactions yet</Text>
@@ -550,10 +558,10 @@ const DoctorEarningsScreen: React.FC = () => {
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading/Error
@@ -575,7 +583,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -583,7 +591,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -596,12 +604,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -620,7 +628,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   scrollContent: {
@@ -653,7 +661,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
     flex: 1,
     textAlign: 'center',
@@ -674,7 +682,7 @@ const styles = StyleSheet.create({
   heroAmount: {
     fontSize: 38,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -1,
     marginBottom: 10,
   },
@@ -689,7 +697,7 @@ const styles = StyleSheet.create({
   heroTrendText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Period filter
@@ -706,7 +714,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   periodTabActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   periodTabText: {
     fontSize: 12,
@@ -741,7 +749,7 @@ const styles = StyleSheet.create({
   withdrawBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Section
@@ -758,12 +766,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
     flex: 1,
   },
   sectionBadge: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -776,11 +784,11 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
       android: { elevation: 3 },
@@ -805,12 +813,12 @@ const styles = StyleSheet.create({
   chartBarValue: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     marginBottom: 6,
   },
   chartBarTrack: {
     width: '68%',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     borderRadius: 6,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -823,7 +831,7 @@ const styles = StyleSheet.create({
   chartBarLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     marginTop: 6,
     position: 'absolute',
     bottom: 0,
@@ -836,11 +844,11 @@ const styles = StyleSheet.create({
   },
   breakdownCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
@@ -857,19 +865,19 @@ const styles = StyleSheet.create({
   breakdownTypeLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     marginBottom: 4,
   },
   breakdownAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.4,
     marginBottom: 10,
   },
   breakdownBarTrack: {
     height: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     borderRadius: 3,
     marginBottom: 8,
     overflow: 'hidden',
@@ -881,7 +889,7 @@ const styles = StyleSheet.create({
   breakdownMeta: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
 
   // Transactions
@@ -891,12 +899,12 @@ const styles = StyleSheet.create({
   txnCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
       android: { elevation: 2 },
@@ -916,7 +924,7 @@ const styles = StyleSheet.create({
   txnPatientName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   txnMetaRow: {
     flexDirection: 'row',
@@ -927,7 +935,7 @@ const styles = StyleSheet.create({
   txnDate: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   txnStatusBadge: {
     flexDirection: 'row',
@@ -958,7 +966,7 @@ const styles = StyleSheet.create({
   txnMethod: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'capitalize',
   },
   txnLoadingWrap: {
@@ -971,18 +979,18 @@ const styles = StyleSheet.create({
   txnLoadingText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // Empty
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 32,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   emptyIconWrap: {
     width: 72,
@@ -995,12 +1003,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
   },
 });

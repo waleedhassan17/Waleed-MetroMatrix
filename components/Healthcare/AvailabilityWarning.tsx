@@ -19,8 +19,10 @@
 // noise is what gets ignored.
 // ============================================================================
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { darkShift, type DarkShift } from '../../constants/darkShift';
+import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -62,6 +64,9 @@ const COPY: Record<
 };
 
 export const AvailabilityWarning: React.FC<Props> = ({ onSetAvailability }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const [status, setStatus] = useState<AvailabilityStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -141,7 +146,7 @@ export const AvailabilityWarning: React.FC<Props> = ({ onSetAvailability }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     gap: 12,
@@ -151,27 +156,27 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  wrapError: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  wrapWarn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+  wrapError: { backgroundColor: sh.ground('#FEF2F2', '#EF4444'), borderColor: sh.ground('#FECACA', '#EF4444') },
+  wrapWarn: { backgroundColor: sh.ground('#FFFBEB', '#F59E0B'), borderColor: sh.hue('#FDE68A') },
   title: { fontSize: 15, fontWeight: '800' },
-  body: { fontSize: 13, color: '#475569', marginTop: 4, lineHeight: 19 },
+  body: { fontSize: 13, color: sh.n('#475569', 'inkMuted'), marginTop: 4, lineHeight: 19 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   cta: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 20,
-    backgroundColor: '#2A7FFF',
+    backgroundColor: sh.hue('#2A7FFF'),
   },
   ctaText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   secondary: {
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 20,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: sh.n('#E2E8F0', 'line'),
     minWidth: 92,
     alignItems: 'center',
   },
-  secondaryText: { color: '#334155', fontWeight: '700', fontSize: 13 },
+  secondaryText: { color: sh.n('#334155', 'ink'), fontWeight: '700', fontSize: 13 },
 });
 
 export default AvailabilityWarning;

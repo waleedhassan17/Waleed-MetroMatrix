@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { C, GUTTER, PROSE_WIDTH, R, S, T } from '../../constants/theme';
+import { GUTTER, PROSE_WIDTH, R, S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 import Button from './Button';
 
 /**
@@ -32,13 +33,16 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   tone = 'neutral',
   style,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const error = tone === 'error';
 
   return (
     <View style={[styles.wrap, style]}>
       {!!icon && (
-        <View style={[styles.icon, error && { backgroundColor: C.errorSoft }]}>
-          <Ionicons name={icon as any} size={26} color={error ? C.error : C.inkFaint} />
+        <View style={[styles.icon, error && { backgroundColor: colors.errorSoft }]}>
+          <Ionicons name={icon as any} size={26} color={error ? colors.error : colors.inkFaint} />
         </View>
       )}
       <Text style={styles.title}>{title}</Text>
@@ -75,7 +79,7 @@ export const ErrorState: React.FC<{
   />
 );
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   wrap: {
     alignItems: 'center',
     paddingVertical: S.huge,
@@ -85,19 +89,19 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: R.card,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: S.lg,
   },
   title: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     textAlign: 'center',
   },
   message: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: S.sm,
     maxWidth: PROSE_WIDTH,

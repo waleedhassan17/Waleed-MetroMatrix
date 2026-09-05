@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 
 export interface ColorOption {
   name: string;
@@ -25,6 +26,9 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
   showLabels = true,
   style,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   return (
     <View style={[styles.container, style]}>
       {colors.map(({ name, code }) => {
@@ -61,7 +65,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',

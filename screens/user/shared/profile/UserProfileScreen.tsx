@@ -48,8 +48,10 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 // Route names are string literals here rather than `BaseRouteNames`: that lives
 // in navigation-maps/Base, which imports this screen, and importing it back
 // would close the cycle.
-import { C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
+import { C, DARK_C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
+import { AA_BODY, lift, mix } from '../../../../theme/contrast';
 import { BackButton, BackButtonSpacer } from '../../../../components/ui';
+import ThemeModeSelector from '../../../../components/ui/ThemeModeSelector';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
 import {
@@ -60,7 +62,6 @@ import {
   selectUserStats,
   saveUserProfile,
   toggleNotificationPreference,
-  toggleDarkMode,
   setLanguage,
   fetchUserProfile,
   selectProfileLoading,
@@ -106,16 +107,37 @@ const { width } = Dimensions.get('window');
  * one that follows the module, and it is used only by the rows that belong to
  * that module.
  */
-const ROW_TINT = {
-  violet: { bg: '#EDE9FE', fg: '#8B5CF6' },
-  blue: { bg: '#DBEAFE', fg: '#2563EB' },
-  sky: { bg: '#DBEAFE', fg: '#3B82F6' },
-  rose: { bg: '#FCE7F3', fg: '#EC4899' },
-  amber: { bg: '#FEF3C7', fg: '#F59E0B' },
-  red: { bg: C.errorSoft, fg: C.error },
-  ink: { bg: C.ink, fg: C.surface },
-  grey: { bg: C.surfaceSunken, fg: C.inkMuted },
-} as const;
+const makeRowTint = (c: ThemeColors) => {
+  const dark = c.bg === DARK_C.bg;
+  // The hue is the identity and survives both modes; only its GROUND changes.
+  // A pale #EDE9FE chip is right on white and a lamp on a dark card, so in dark
+  // the ground is mixed from the hue itself and the hue is lifted to stay
+  // readable on it.
+  const tint = (fg: string) =>
+    dark
+      ? { bg: mix(c.surface, fg, 0.18), fg: lift(fg, AA_BODY, c.surface) }
+      : { bg: LIGHT_ROW_GROUND[fg], fg };
+
+  return {
+  violet: tint('#8B5CF6'),
+  blue: tint('#2563EB'),
+  sky: tint('#3B82F6'),
+  rose: tint('#EC4899'),
+  amber: tint('#F59E0B'),
+  red: { bg: c.errorSoft, fg: c.error },
+  ink: { bg: c.ink, fg: c.surface },
+  grey: { bg: c.surfaceSunken, fg: c.inkMuted },
+  } as const;
+};
+
+/** The exact light grounds these rows have always had. */
+const LIGHT_ROW_GROUND: Record<string, string> = {
+  '#8B5CF6': '#EDE9FE',
+  '#2563EB': '#DBEAFE',
+  '#3B82F6': '#DBEAFE',
+  '#EC4899': '#FCE7F3',
+  '#F59E0B': '#FEF3C7',
+};
 
 type ProfileTab = 'overview' | 'addresses' | 'settings';
 
@@ -154,6 +176,14 @@ interface MenuItem {
   toggleValue?: boolean;
   onToggle?: () => void;
   onPress?: () => void;
+  /**
+   * A control too wide to sit beside the label — the appearance picker needs
+   * three states, which neither a boolean switch nor a 40pt slot can express.
+   * It renders on its OWN LINE beneath the row, still inside the same card,
+   * and suppresses both the switch and the chevron: a row carrying its own
+   * control is not also a link.
+   */
+  control?: React.ReactNode;
 }
 
 const MenuItemComponent: React.FC<{ 
@@ -161,11 +191,14 @@ const MenuItemComponent: React.FC<{
   index: number;
   onPress: () => void;
 }> = ({ item, index, onPress }) => {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const ROW_TINT = useMemo(() => makeRowTint(colors), [colors]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const ItemIcon = item.icon;
-  // The one accented thing in a row: a switch that is ON reads as the module's
-  // colour, the same way a selected chip does everywhere else.
-  const { colors } = useTheme();
+  // A row carrying its own control is not itself pressable, so it must not
+  // animate a press either.
+  const inert = item.hasToggle || !!item.control;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -189,10 +222,11 @@ const MenuItemComponent: React.FC<{
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
         style={styles.menuItem}
-        activeOpacity={item.hasToggle ? 1 : 0.7}
-        onPressIn={!item.hasToggle ? handlePressIn : undefined}
-        onPressOut={!item.hasToggle ? handlePressOut : undefined}
-        onPress={onPress}
+        activeOpacity={inert ? 1 : 0.7}
+        onPressIn={!inert ? handlePressIn : undefined}
+        onPressOut={!inert ? handlePressOut : undefined}
+        onPress={item.control ? undefined : onPress}
+        disabled={!!item.control}
       >
         <View style={[styles.menuIconContainer, { backgroundColor: item.iconBg }]}>
           <ItemIcon size={18} color={item.iconColor} strokeWidth={2} />
@@ -206,17 +240,18 @@ const MenuItemComponent: React.FC<{
             <Text style={[styles.badgeText, { color: item.badgeColor }]}>{item.badge}</Text>
           </View>
         )}
-        {item.hasToggle && (
+        {!item.control && item.hasToggle && (
           <Switch
             value={item.toggleValue}
             onValueChange={item.onToggle}
-            trackColor={{ false: C.line, true: colors.accentSoft }}
-            thumbColor={item.toggleValue ? colors.accent : C.inkFaint}
-            ios_backgroundColor={C.line}
+            trackColor={{ false: colors.line, true: colors.accentSoft }}
+            thumbColor={item.toggleValue ? colors.accent : colors.inkFaint}
+            ios_backgroundColor={colors.line}
           />
         )}
-        {!item.hasToggle && <ChevronRight size={18} color={C.disabled} />}
+        {!item.control && !item.hasToggle && <ChevronRight size={18} color={colors.disabled} />}
       </TouchableOpacity>
+      {item.control && <View style={styles.menuControl}>{item.control}</View>}
     </Animated.View>
   );
 };
@@ -229,6 +264,9 @@ const StatsCard: React.FC<{
   color: string;
   bgColor: string;
 }> = ({ icon: Icon, value, label, color, bgColor }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const ROW_TINT = useMemo(() => makeRowTint(colors), [colors]);
   return (
     <View style={styles.statsCard}>
       <View style={[styles.statsIconContainer, { backgroundColor: bgColor }]}>
@@ -266,8 +304,10 @@ export default function UserProfileScreen() {
 
 function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: ProfileTab }) {
   const navigation = useNavigation<any>();
-  const { colors, module } = useTheme();
+  const { colors, isDark, mode, module } = useTheme();
   const accent = useMemo(() => makeAccentStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const ROW_TINT = useMemo(() => makeRowTint(colors), [colors]);
   const dispatch = useAppDispatch();
   const unreadTotal = useAppSelector(selectTotalUnread);
   const user = useAppSelector(selectUser);
@@ -349,7 +389,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       iconColor: ROW_TINT.blue.fg,
       // Live unread count — the menu already renders a `badge` field.
       ...(unreadTotal > 0
-        ? { badge: unreadTotal > 99 ? '99+' : String(unreadTotal), badgeColor: C.error }
+        ? { badge: unreadTotal > 99 ? '99+' : String(unreadTotal), badgeColor: colors.error }
         : {}),
       // The list paints its header from `roomType`, which defaults to
       // homeservice — so opening it from healthcare gave a green Messages
@@ -472,15 +512,16 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       onToggle: () => dispatch(toggleNotificationPreference('pushEnabled')),
     },
     {
-      id: 'dark-mode',
+      id: 'appearance',
       icon: Moon,
-      label: 'Dark Mode',
-      subtitle: 'Switch theme appearance',
+      label: 'Appearance',
+      // Was a switch bound to `user.darkMode`, which nothing in the app read
+      // and which a logout reset. The preference now lives in its own persisted
+      // slice — see store/themeSlice.ts.
       iconBg: ROW_TINT.ink.bg,
       iconColor: ROW_TINT.ink.fg,
-      hasToggle: true,
-      toggleValue: user?.darkMode ?? false,
-      onToggle: () => dispatch(toggleDarkMode()),
+      subtitle: 'Follow the system, or choose one',
+      control: <ThemeModeSelector />,
     },
     {
       id: 'language',
@@ -511,9 +552,9 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       // "Online" is a status, not a brand moment — it stays semantic green in
       // every module rather than turning orange inside shopping.
       badge: 'Online',
-      badgeColor: C.success,
-      iconBg: C.successSoft,
-      iconColor: C.success,
+      badgeColor: colors.success,
+      iconBg: colors.successSoft,
+      iconColor: colors.success,
       onPress: () => {},
     },
   ];
@@ -656,14 +697,14 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       {/* Logout */}
       <TouchableOpacity style={styles.logoutButton}>
         <View style={styles.logoutIconContainer}>
-          <LogOut size={20} color={C.error} />
+          <LogOut size={20} color={colors.error} />
         </View>
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
 
       {/* Delete Account */}
       <TouchableOpacity style={styles.deleteAccountButton}>
-        <Trash2 size={16} color={C.error} />
+        <Trash2 size={16} color={colors.error} />
         <Text style={styles.deleteAccountText}>Delete Account</Text>
       </TouchableOpacity>
 
@@ -700,7 +741,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
         accessibilityLabel="Manage your addresses"
       >
         <View style={styles.addAddressIcon}>
-          <Plus size={20} color={C.inkInverse} />
+          <Plus size={20} color={colors.inkInverse} />
         </View>
         <Text style={styles.addAddressText}>Add or edit addresses</Text>
       </TouchableOpacity>
@@ -761,7 +802,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   if (!user) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.surface} />
         {isLoading ? (
           <ActivityIndicator size="large" color={colors.accent} />
         ) : (
@@ -796,8 +837,18 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
         scrollEventThrottle={16}
       >
         {/* Hero Profile Header */}
+        {/* The hero keeps a DARK ground in dark mode rather than inverting to
+            the light accent: everything painted on it — the name, the avatar
+            ring, the decorative circles, the member-since line — is white or a
+            white alpha, and a light gradient would make all of it disappear at
+            once. `accentLine`/`accentSoft` are the module's deep tints, so the
+            vertical still announces itself. */}
         <LinearGradient
-          colors={[colors.accent, colors.accentDeep]}
+          colors={
+            isDark
+              ? [colors.accentLine, colors.accentSoft]
+              : [colors.accent, colors.accentDeep]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.hero, { paddingTop: STATUS_BAR_HEIGHT + 12 }]}
@@ -824,7 +875,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
               accessibilityRole="button"
               accessibilityLabel="Settings"
             >
-              <Settings size={20} color={C.inkInverse} strokeWidth={2} />
+              <Settings size={20} color={colors.inkInverse} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -843,7 +894,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
               </TouchableOpacity>
               {isPremium && (
                 <View style={[styles.verifiedBadge, accent.solid]}>
-                  <Check size={10} color={C.inkInverse} strokeWidth={3} />
+                  <Check size={10} color={colors.inkInverse} strokeWidth={3} />
                 </View>
               )}
             </View>
@@ -932,7 +983,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
                 style={styles.modalCloseBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={20} color={C.inkMuted} strokeWidth={2} />
+                <X size={20} color={colors.inkMuted} strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
@@ -980,10 +1031,10 @@ const makeAccentStyles = (c: ThemeColors) =>
     text: { color: c.accentDeep },
   });
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: c.bg,
   },
   centered: {
     justifyContent: 'center',
@@ -993,11 +1044,11 @@ const styles = StyleSheet.create({
   stateTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: C.ink,
+    color: c.ink,
   },
   stateMessage: {
     fontSize: 14,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
@@ -1009,7 +1060,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   stateRetryText: {
-    color: C.surface,
+    color: c.onAccent,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1066,7 +1117,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontSize: 30,
     fontWeight: '700',
-    color: C.inkInverse,
+    color: c.inkInverse,
     letterSpacing: 0.5,
   },
   avatarContainer: {
@@ -1087,11 +1138,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   verifiedBadge: {
     position: 'absolute',
@@ -1103,12 +1154,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   userName: {
     fontSize: 20,
     fontWeight: '700',
-    color: C.surface,
+    color: c.inkInverse,
     letterSpacing: -0.3,
     marginBottom: 3,
   },
@@ -1138,7 +1189,7 @@ const styles = StyleSheet.create({
   premiumText: {
     fontSize: 12,
     fontWeight: '700',
-    color: ROW_TINT.amber.bg,
+    color: '#FEF3C7',
     letterSpacing: 0.2,
   },
   memberSince: {
@@ -1150,7 +1201,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 20,
     marginTop: 16,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 10,
     padding: 3,
   },
@@ -1160,7 +1211,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
@@ -1170,7 +1221,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: C.inkFaint,
+    color: c.inkFaint,
     textAlign: 'center',
     letterSpacing: -0.1,
   },
@@ -1189,7 +1240,7 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     flex: 1,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 8,
@@ -1211,13 +1262,13 @@ const styles = StyleSheet.create({
   statsValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: C.ink,
+    color: c.ink,
     letterSpacing: -0.3,
     fontVariant: ['tabular-nums'],
   },
   statsLabel: {
     fontSize: 11,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 3,
     fontWeight: '500',
     letterSpacing: 0.2,
@@ -1229,13 +1280,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   menuCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -1249,6 +1300,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 13,
     paddingHorizontal: 14,
+  },
+  // A row's own control, on the line below it. Indented to the label rather
+  // than the icon so it reads as belonging to that row and not to the card.
+  menuControl: {
+    paddingLeft: 14 + 36 + 12,
+    paddingRight: 14,
+    paddingBottom: 13,
   },
   menuIconContainer: {
     width: 36,
@@ -1264,18 +1322,18 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: C.ink,
+    color: c.ink,
     letterSpacing: -0.1,
   },
   menuSubtitle: {
     fontSize: 12,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 1,
     fontWeight: '500',
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     marginLeft: 62,
     marginRight: 14,
   },
@@ -1296,7 +1354,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     paddingVertical: 13,
     paddingHorizontal: 14,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1308,7 +1366,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1316,7 +1374,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 14,
     fontWeight: '600',
-    color: C.error,
+    color: c.error,
     letterSpacing: -0.1,
   },
   deleteAccountButton: {
@@ -1329,11 +1387,11 @@ const styles = StyleSheet.create({
   deleteAccountText: {
     fontSize: 12,
     fontWeight: '500',
-    color: C.error,
+    color: c.error,
   },
   versionText: {
     fontSize: 11,
-    color: C.disabled,
+    color: c.disabled,
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 40,
@@ -1377,12 +1435,12 @@ const styles = StyleSheet.create({
   addressEmptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: C.ink,
+    color: c.ink,
     textAlign: 'center',
   },
   addressEmptyBody: {
     fontSize: 14,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginTop: 6,
@@ -1390,11 +1448,11 @@ const styles = StyleSheet.create({
   addAddressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: C.surface,
+    color: c.onAccent,
     letterSpacing: -0.1,
   },
   addressCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -1433,13 +1491,13 @@ const styles = StyleSheet.create({
   addressText: {
     fontSize: 14,
     fontWeight: '500',
-    color: C.ink,
+    color: c.ink,
     marginBottom: 3,
     letterSpacing: -0.1,
   },
   addressCity: {
     fontSize: 12,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginBottom: 10,
     fontWeight: '500',
   },
@@ -1451,13 +1509,13 @@ const styles = StyleSheet.create({
   setDefaultButton: {
     paddingVertical: 5,
     paddingHorizontal: 10,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: 6,
   },
   setDefaultText: {
     fontSize: 11,
     fontWeight: '600',
-    color: C.inkMuted,
+    color: c.inkMuted,
     letterSpacing: 0.1,
   },
   deleteButton: {
@@ -1468,7 +1526,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
     marginBottom: 14,
     marginTop: 4,
   },
@@ -1476,7 +1534,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1486,7 +1544,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -1502,26 +1560,26 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: C.ink,
+    color: c.ink,
     letterSpacing: -0.3,
   },
   modalBody: {},
   inputLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginBottom: 6,
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   textInput: {
     borderWidth: 1,
-    borderColor: C.line,
+    borderColor: c.line,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: C.ink,
+    color: c.ink,
     marginBottom: 14,
     fontWeight: '500',
   },
@@ -1534,7 +1592,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: C.surface,
+    color: c.onAccent,
     letterSpacing: -0.1,
   },
 });

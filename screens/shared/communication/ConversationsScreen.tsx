@@ -24,6 +24,8 @@ import {
   RefreshControl,
   StatusBar,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../constants/darkShift';
+import { useTheme } from '../../../theme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../components/ui';
 import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
@@ -139,6 +141,9 @@ function timeAgo(iso: string): string {
 }
 
 export default function ConversationsScreen() {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RoomParams }, 'params'>>();
   const theme = normalizeRoomParams(route.params);
@@ -349,8 +354,8 @@ export default function ConversationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: sh.n('#F9FAFB', 'bg') },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -370,11 +375,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: sh.n('#E5E7EB', 'line'),
     gap: 12,
   },
   avatar: { width: 48, height: 48, borderRadius: 24 },
-  avatarFallback: { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
+  avatarFallback: { backgroundColor: sh.n('#E5E7EB', 'line'), alignItems: 'center', justifyContent: 'center' },
   presenceDot: {
     position: 'absolute',
     right: 0,
@@ -382,16 +387,16 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     borderRadius: 7,
-    backgroundColor: '#22C55E',
+    backgroundColor: sh.hue('#22C55E'),
     borderWidth: 2,
     borderColor: '#fff',
   },
   rowBody: { flex: 1, gap: 4 },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { fontSize: 15, fontWeight: '700', color: '#111827', flex: 1 },
-  time: { fontSize: 12, color: '#9CA3AF' },
-  preview: { fontSize: 13, color: '#6B7280', flex: 1 },
-  previewUnread: { color: '#111827', fontWeight: '600' },
+  name: { fontSize: 15, fontWeight: '700', color: sh.n('#111827', 'ink'), flex: 1 },
+  time: { fontSize: 12, color: sh.n('#9CA3AF', 'inkFaint') },
+  preview: { fontSize: 13, color: sh.n('#6B7280', 'inkMuted'), flex: 1 },
+  previewUnread: { color: sh.n('#111827', 'ink'), fontWeight: '600' },
   badge: {
     minWidth: 20,
     height: 20,
@@ -402,8 +407,8 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   callBtn: { padding: 8 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginTop: 14 },
-  stateText: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: sh.n('#111827', 'ink'), marginTop: 14 },
+  stateText: { fontSize: 14, color: sh.n('#6B7280', 'inkMuted'), textAlign: 'center', marginTop: 8, lineHeight: 20 },
   retryBtn: { marginTop: 18, paddingHorizontal: 26, paddingVertical: 11, borderRadius: 22 },
   retryText: { color: '#fff', fontWeight: '700' },
 });

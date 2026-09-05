@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -39,6 +41,9 @@ const FIELDS: { key: keyof Omit<HealthcareSettingsView, 'autoApproveDoctors'>; l
 ];
 
 const AdminHealthcareSettingsScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [form, setForm] = useState<Record<string, string>>({});
   const [autoApprove, setAutoApprove] = useState(false);
@@ -92,7 +97,7 @@ const AdminHealthcareSettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
@@ -157,7 +162,7 @@ const AdminHealthcareSettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
@@ -167,8 +172,8 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   scroll: { padding: 16, paddingBottom: 40 },
-  warnBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, marginBottom: 14 },
-  warnText: { flex: 1, fontSize: 12, color: '#92400E' },
+  warnBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: sh.ground('#FEF3C7', '#F59E0B'), borderRadius: 12, padding: 12, marginBottom: 14 },
+  warnText: { flex: 1, fontSize: 12, color: sh.hue('#92400E') },
   card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   field: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },

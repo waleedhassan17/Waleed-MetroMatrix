@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -54,6 +56,9 @@ const VisitCard: React.FC<{
   onPress: () => void;
   isSelected: boolean;
 }> = ({ visit, index, onPress, isSelected }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const gradient = VISIT_ACCENTS[index % VISIT_ACCENTS.length];
   const isVideo = visit.type === 'video';
   const anim = useRef(new Animated.Value(0)).current;
@@ -154,6 +159,9 @@ const VisitCard: React.FC<{
 // ── Main Component ────────────────────────────
 
 const PatientHistoryScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteParams>();
   const dispatch = useAppDispatch();
@@ -223,7 +231,7 @@ const PatientHistoryScreen: React.FC = () => {
           <View style={styles.backBtn} />
         </LinearGradient>
         <View style={styles.centered}>
-          <LinearGradient colors={['#FEE2E2', '#FECACA']} style={styles.errorIconWrap}>
+          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
           </LinearGradient>
           <Text style={styles.errorTitle}>Failed to load history</Text>
@@ -351,7 +359,7 @@ const PatientHistoryScreen: React.FC = () => {
 
           {patient.visits.length === 0 ? (
             <View style={styles.emptyCard}>
-              <LinearGradient colors={['#F0F7FF', '#D6E8FF']} style={styles.emptyIconWrap}>
+              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
                 <MaterialCommunityIcons name="history" size={36} color={THEME.primary} />
               </LinearGradient>
               <Text style={styles.emptyTitle}>No Visit History</Text>
@@ -382,10 +390,10 @@ export default PatientHistoryScreen;
 
 // ── Styles ─────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Loading / Error
@@ -400,7 +408,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -408,7 +416,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   errorIconWrap: {
     width: 88,
@@ -421,12 +429,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   errorSubtext: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -445,7 +453,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
 
   // Header
@@ -472,7 +480,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -496,12 +504,12 @@ const styles = StyleSheet.create({
 
   // Patient card
   patientCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
       android: { elevation: 3 },
@@ -526,27 +534,27 @@ const styles = StyleSheet.create({
   patientName: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
   },
   patientMeta: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   patientPhone: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   visitCountBadge: {
     alignItems: 'center',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: sh.hue('#BFDBFE'),
   },
   visitCountNum: {
     fontSize: 20,
@@ -557,19 +565,19 @@ const styles = StyleSheet.create({
   visitCountLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#93C5FD',
+    color: sh.hue('#93C5FD'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
 
   // Alerts card
   alertsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 14,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
@@ -597,7 +605,7 @@ const styles = StyleSheet.create({
   },
   alertsDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   chipRow: {
     flexDirection: 'row',
@@ -608,12 +616,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: sh.ground('#FECACA', '#EF4444'),
   },
   allergyChipText: {
     fontSize: 11,
@@ -624,12 +632,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: sh.hue('#FDE68A'),
   },
   conditionChipText: {
     fontSize: 11,
@@ -655,7 +663,7 @@ const styles = StyleSheet.create({
   visitsSectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
     flex: 1,
   },
@@ -680,19 +688,19 @@ const styles = StyleSheet.create({
   // Visit card
   visitCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
       android: { elevation: 3 },
     }),
   },
   visitCardSelected: {
-    borderColor: '#BFDBFE',
-    backgroundColor: '#FAFEFF',
+    borderColor: sh.hue('#BFDBFE'),
+    backgroundColor: sh.n('#FAFEFF', 'surfaceSunken'),
   },
   visitStripe: {
     width: 5,
@@ -723,12 +731,12 @@ const styles = StyleSheet.create({
   visitDateText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   visitDiagnosis: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.2,
   },
   symptomsRow: {
@@ -738,7 +746,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   symptomTag: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
@@ -746,17 +754,17 @@ const styles = StyleSheet.create({
   symptomText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   moreText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   visitNotes: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     lineHeight: 17,
   },
   visitFooter: {
@@ -764,7 +772,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     gap: 8,
   },
   rxBadge: {
@@ -785,12 +793,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: sh.hue('#FDE68A'),
   },
   followUpText: {
     fontSize: 10,
@@ -800,13 +808,13 @@ const styles = StyleSheet.create({
 
   // Empty
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 10,
     padding: 36,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   emptyIconWrap: {
     width: 72,
@@ -819,12 +827,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   emptySubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textAlign: 'center',
   },
 });

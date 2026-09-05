@@ -1,20 +1,34 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const Colors = {
-  primary: '#E67E22',
-  surface: '#FFFFFF',
-  backgroundAlt: '#F8F9FA',
-  textPrimary: '#1A1A2E',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#F3F4F6',
-  borderDark: '#E5E7EB',
-};
+import { C } from '../../constants/theme';
+import { MODULE_PALETTES, ThemeColors, useTheme } from '../../theme';
+
+/**
+ * The header's own palette, as a function of the ramp.
+ *
+ * This block is why the Explore header stayed white on a dark page: the screen
+ * body below it had been migrated, but the header carried its own frozen
+ * surface. Nothing else imports these values, so making it a function is
+ * contained to this file.
+ */
+const makeColors = (c: ThemeColors) => ({
+  primary: c.accent,
+  surface: c.surface,
+  backgroundAlt: c.surfaceSunken,
+  textPrimary: c.ink,
+  textSecondary: c.inkMuted,
+  textMuted: c.inkFaint,
+  border: c.lineSoft,
+  borderDark: c.line,
+});
+
+/** The light instance, for anything reading it outside a component. */
+export const Colors = makeColors({ ...C, ...MODULE_PALETTES.shopping });
 
 interface ShoppingHeaderProps {
   title: string;
@@ -45,6 +59,9 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
   onSearchPress,
   onClearSearch,
 }) => {
+  const { colors } = useTheme();
+  const Colors = useMemo(() => makeColors(colors), [colors]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -121,7 +138,7 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ReturnType<typeof makeColors>) => StyleSheet.create({
   headerWrapper: {
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,

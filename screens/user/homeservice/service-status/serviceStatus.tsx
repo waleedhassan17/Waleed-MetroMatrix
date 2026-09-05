@@ -46,6 +46,7 @@ import {
 } from '../../../../components/ui';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';
 import { contactSupport } from '../../../../utils/support/contactSupport';
@@ -65,6 +66,8 @@ type RouteParams = {
 };
 
 export default function ServiceStatusScreen() {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -73,7 +76,7 @@ export default function ServiceStatusScreen() {
   const validCategory = (['electricians', 'plumbers', 'ac-repairers'].includes(category)
     ? category
     : 'ac-repairers') as 'electricians' | 'plumbers' | 'ac-repairers';
-  const accent = categoryAccent(validCategory);
+  const accent = categoryAccent(validCategory, mode);
 
   // `counterpartPresence` is the server's word on whether the provider has a
   // live socket — the reachability half of the Call gate in the contact sheet.
@@ -278,7 +281,7 @@ export default function ServiceStatusScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={HS.accent} />
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
         >
           <Card accentRule={accent.tint}>
@@ -325,7 +328,7 @@ export default function ServiceStatusScreen() {
                     <View style={styles.stepRail}>
                       <View style={[styles.stepDot, step.completed && styles.stepDotDone]}>
                         {step.completed && (
-                          <Ionicons name="checkmark" size={11} color={C.inkInverse} />
+                          <Ionicons name="checkmark" size={11} color={colors.inkInverse} />
                         )}
                       </View>
                       {!last && <View style={[styles.stepLine, step.completed && styles.stepLineDone]} />}
@@ -361,7 +364,7 @@ export default function ServiceStatusScreen() {
             <View style={styles.section}>
               <Card elevation="raised">
                 <View style={styles.completedRow}>
-                  <Ionicons name="checkmark-circle" size={22} color={C.success} />
+                  <Ionicons name="checkmark-circle" size={22} color={colors.success} />
                   <Text style={styles.completedTitle}>Service completed</Text>
                 </View>
                 <Text style={styles.body}>
@@ -415,7 +418,7 @@ export default function ServiceStatusScreen() {
                     value={manualAmount}
                     onChangeText={handleAmountChange}
                     placeholder="0"
-                    placeholderTextColor={C.inkFaint}
+                    placeholderTextColor={colors.inkFaint}
                     keyboardType="number-pad"
                     accessibilityLabel="Payment amount"
                   />
@@ -474,7 +477,7 @@ export default function ServiceStatusScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.supportText}>Something wrong with this job? Contact support</Text>
-            <Ionicons name="chevron-forward" size={15} color={C.inkFaint} />
+            <Ionicons name="chevron-forward" size={15} color={colors.inkFaint} />
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -532,7 +535,7 @@ export default function ServiceStatusScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   flex: { flex: 1 },
   content: {
     padding: GUTTER,
@@ -554,16 +557,16 @@ const styles = StyleSheet.create({
   },
   providerName: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   meta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   metaFaint: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 2,
   },
 
@@ -585,42 +588,42 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepDotDone: {
-    backgroundColor: HS.accent,
-    borderColor: HS.accent,
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   stepLine: {
     width: StyleSheet.hairlineWidth,
     height: 26,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   stepLineDone: {
-    backgroundColor: HS.accentLine,
+    backgroundColor: c.accentLine,
   },
   stepLabel: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginLeft: S.md,
     marginTop: -1,
   },
   stepLabelDone: {
-    color: C.ink,
+    color: c.ink,
     fontFamily: F.semibold,
   },
 
   cardTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   body: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xs,
     maxWidth: PROSE_WIDTH,
   },
@@ -629,7 +632,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     marginTop: S.md,
   },
 
@@ -639,7 +642,7 @@ const styles = StyleSheet.create({
   },
   completedTitle: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.sm,
   },
 
@@ -653,13 +656,13 @@ const styles = StyleSheet.create({
   },
   invoice: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
   },
   rows: {
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   row: {
     flexDirection: 'row',
@@ -669,11 +672,11 @@ const styles = StyleSheet.create({
   },
   rowKey: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
   },
   rowValue: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
     marginLeft: S.lg,
     flexShrink: 1,
     textAlign: 'right',
@@ -681,7 +684,7 @@ const styles = StyleSheet.create({
 
   amountLabel: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.xl,
     marginBottom: S.sm,
   },
@@ -692,18 +695,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: S.md,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
-    backgroundColor: C.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
   },
   currency: {
     ...T.bodyStrong,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginRight: S.sm,
   },
   amountInput: {
     flex: 1,
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
     padding: 0,
   },
   suggested: {
@@ -712,7 +715,7 @@ const styles = StyleSheet.create({
   },
   suggestedText: {
     ...T.label,
-    color: HS.accentDeep,
+    color: c.accentDeep,
   },
   total: {
     flexDirection: 'row',
@@ -721,15 +724,15 @@ const styles = StyleSheet.create({
     marginTop: S.xl,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   totalLabel: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   totalValue: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
 
   blockButton: {
@@ -740,7 +743,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     textAlign: 'center',
     marginTop: S.sm,
   },
@@ -753,7 +756,7 @@ const styles = StyleSheet.create({
   },
   supportText: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginRight: 4,
   },
 });

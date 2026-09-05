@@ -13,7 +13,7 @@
 // alone rather than surfaced as fields with nothing behind them.
 // ============================================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
 import type { DoctorProfileData } from '../../../../models/healthcare/types';
@@ -72,6 +74,9 @@ const EditDoctorProfileModal: React.FC<EditDoctorProfileModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const [form, setForm] = useState<FormState>(() => toForm(profile));
   const [touched, setTouched] = useState(false);
 
@@ -204,10 +209,10 @@ const EditDoctorProfileModal: React.FC<EditDoctorProfileModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     maxHeight: '90%',
@@ -243,7 +248,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
     borderRadius: 10,
     padding: 11,
     marginBottom: 8,
@@ -265,7 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveText: { color: sh.n('#FFFFFF', 'inkInverse'), fontSize: 15, fontWeight: '700' },
 });
 
 export default EditDoctorProfileModal;

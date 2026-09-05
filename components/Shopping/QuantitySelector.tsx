@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '../../constants/Colors';
+import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../constants/Colors';
+import { useTheme } from '../../theme';
 
 interface QuantitySelectorProps {
   value: number;
@@ -18,6 +19,9 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
   onChange,
   style,
 }) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const handleDecrement = useCallback(() => {
     if (value > min) onChange(value - 1);
   }, [value, min, onChange]);
@@ -49,7 +53,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

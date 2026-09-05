@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View,
@@ -23,6 +23,8 @@ import { setJobDetail, startNavigation, startJobAsync, JobData } from './jobDeta
 import { setNavigationData } from '../map-screen/mapSlice';
 import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
 import { C, F, T } from '../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBar, Screen } from '../../../../components/ui';
 
@@ -45,6 +47,10 @@ type JobDetailScreenRouteProp = RouteProp<RootStackParamList, 'JobDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const JobDetailScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
   const navigation = useNavigation<NavigationProp>();
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
@@ -67,7 +73,7 @@ const JobDetailScreen: React.FC = () => {
   if (!currentJob || isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={HS.accent} />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.loadingText}>Loading job details...</Text>
       </View>
     );
@@ -176,9 +182,9 @@ const JobDetailScreen: React.FC = () => {
   // slug ('electricians', 'plumbers', 'ac-repairers'), so neither map ever
   // matched and every job silently rendered the 'default' wrench in grey.
   //
-  // categoryAccent() is the single source of truth for a category's tint and
+  // categoryAccent(, mode) is the single source of truth for a category's tint and
   // glyph, and it degrades an unknown one to a readable neutral by design.
-  const accent = categoryAccent(currentJob.category);
+  const accent = categoryAccent(currentJob.category, mode);
   const categoryColors = { bg: accent.tintSoft, text: accent.tint, border: accent.tint };
 
 
@@ -213,7 +219,7 @@ const JobDetailScreen: React.FC = () => {
             <View style={styles.customerInfo}>
               <View style={styles.customerNameRow}>
                 <Text style={styles.customerName}>{currentJob.customerName}</Text>
-                <Icon name="check-decagram" size={18} color={HS.accent} />
+                <Icon name="check-decagram" size={18} color={colors.accent} />
               </View>
               <Text style={styles.serviceTypeText}>{currentJob.serviceType}</Text>
               <View style={styles.badgesRow}>
@@ -235,8 +241,8 @@ const JobDetailScreen: React.FC = () => {
               style={styles.contactButton}
               onPress={handleCallCustomer}
             >
-              <View style={[styles.contactIconBg, { backgroundColor: HS.accentSoft }]}>
-                <Icon name="phone" size={20} color={HS.accent} />
+              <View style={[styles.contactIconBg, { backgroundColor: colors.accentSoft }]}>
+                <Icon name="phone" size={20} color={colors.accent} />
               </View>
               <Text style={styles.contactButtonText}>Call</Text>
             </TouchableOpacity>
@@ -244,8 +250,8 @@ const JobDetailScreen: React.FC = () => {
               style={styles.contactButton}
               onPress={handleMessageCustomer}
             >
-              <View style={[styles.contactIconBg, { backgroundColor: C.infoSoft }]}>
-                <Icon name="message-text" size={20} color={C.info} />
+              <View style={[styles.contactIconBg, { backgroundColor: colors.infoSoft }]}>
+                <Icon name="message-text" size={20} color={colors.info} />
               </View>
               <Text style={styles.contactButtonText}>Message</Text>
             </TouchableOpacity>
@@ -253,8 +259,8 @@ const JobDetailScreen: React.FC = () => {
               style={styles.contactButton}
               onPress={openInMaps}
             >
-              <View style={[styles.contactIconBg, { backgroundColor: C.warningSoft }]}>
-                <Icon name="directions" size={20} color={C.warning} />
+              <View style={[styles.contactIconBg, { backgroundColor: colors.warningSoft }]}>
+                <Icon name="directions" size={20} color={colors.warning} />
               </View>
               <Text style={styles.contactButtonText}>Directions</Text>
             </TouchableOpacity>
@@ -264,21 +270,21 @@ const JobDetailScreen: React.FC = () => {
         {/* Service Location Section */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: C.warningSoft }]}>
-              <Icon name="map-marker" size={20} color={C.warning} />
+            <View style={[styles.sectionIconBg, { backgroundColor: colors.warningSoft }]}>
+              <Icon name="map-marker" size={20} color={colors.warning} />
             </View>
             <Text style={styles.sectionTitle}>Service Location</Text>
           </View>
           <TouchableOpacity style={styles.locationCard} onPress={openInMaps} activeOpacity={0.7}>
             <View style={styles.locationIconContainer}>
-              <Icon name="navigation-variant" size={20} color={C.warning} />
+              <Icon name="navigation-variant" size={20} color={colors.warning} />
             </View>
             <View style={styles.locationDetails}>
               <Text style={styles.locationLabel}>Selected Address</Text>
               <Text style={styles.locationAddress}>{currentJob.address}</Text>
               <Text style={styles.locationCity}>{currentJob.city}</Text>
             </View>
-            <Icon name="chevron-right" size={24} color={C.inkFaint} />
+            <Icon name="chevron-right" size={24} color={colors.inkFaint} />
           </TouchableOpacity>
         </View>
 
@@ -306,12 +312,12 @@ const JobDetailScreen: React.FC = () => {
               }}
             >
               <View style={styles.mapMarker}>
-                <Icon name="map-marker" size={36} color={HS.accent} />
+                <Icon name="map-marker" size={36} color={colors.accent} />
               </View>
             </Marker>
           </MapView>
           <TouchableOpacity style={styles.mapOverlay} onPress={openInMaps}>
-            <Icon name="google-maps" size={16} color={C.surface} />
+            <Icon name="google-maps" size={16} color={colors.surface} />
             <Text style={styles.mapOverlayText}>Open in Maps</Text>
           </TouchableOpacity>
         </View>
@@ -319,14 +325,14 @@ const JobDetailScreen: React.FC = () => {
         {/* Schedule Section */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: C.infoSoft }]}>
-              <Icon name="calendar-month" size={20} color={C.info} />
+            <View style={[styles.sectionIconBg, { backgroundColor: colors.infoSoft }]}>
+              <Icon name="calendar-month" size={20} color={colors.info} />
             </View>
             <Text style={styles.sectionTitle}>Scheduled Date</Text>
           </View>
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleIconContainer}>
-              <Icon name="calendar-check" size={22} color={C.info} />
+              <Icon name="calendar-check" size={22} color={colors.info} />
             </View>
             <View style={styles.scheduleDetails}>
               <Text style={styles.scheduleLabel}>Appointment Date</Text>
@@ -338,18 +344,18 @@ const JobDetailScreen: React.FC = () => {
         {/* Time Section */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: HS.accentSoft }]}>
-              <Icon name="clock-outline" size={20} color={HS.accent} />
+            <View style={[styles.sectionIconBg, { backgroundColor: colors.accentSoft }]}>
+              <Icon name="clock-outline" size={20} color={colors.accent} />
             </View>
             <Text style={styles.sectionTitle}>Scheduled Time</Text>
           </View>
           <View style={styles.timeContainer}>
             <Text style={styles.timeOfDayLabel}>
-              <Icon name={getTimeIcon(currentJob.time)} size={16} color={C.inkMuted} />
+              <Icon name={getTimeIcon(currentJob.time)} size={16} color={colors.inkMuted} />
               {'  '}{getTimeOfDay(currentJob.time)}
             </Text>
             <View style={styles.selectedTimeCard}>
-              <Icon name="clock-check" size={22} color={HS.accent} />
+              <Icon name="clock-check" size={22} color={colors.accent} />
               <Text style={styles.selectedTimeText}>{currentJob.time}</Text>
             </View>
           </View>
@@ -359,8 +365,8 @@ const JobDetailScreen: React.FC = () => {
         {currentJob.specialInstructions && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconBg, { backgroundColor: C.warningSoft }]}>
-                <Icon name="message-text-outline" size={20} color={C.warning} />
+              <View style={[styles.sectionIconBg, { backgroundColor: colors.warningSoft }]}>
+                <Icon name="message-text-outline" size={20} color={colors.warning} />
               </View>
               <Text style={styles.sectionTitle}>Special Instructions</Text>
             </View>
@@ -373,8 +379,8 @@ const JobDetailScreen: React.FC = () => {
         {/* Booking Summary */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBg, { backgroundColor: C.warningSoft }]}>
-              <Icon name="file-document-outline" size={20} color={C.warning} />
+            <View style={[styles.sectionIconBg, { backgroundColor: colors.warningSoft }]}>
+              <Icon name="file-document-outline" size={20} color={colors.warning} />
             </View>
             <Text style={styles.sectionTitle}>Booking Summary</Text>
           </View>
@@ -414,7 +420,7 @@ const JobDetailScreen: React.FC = () => {
         {currentJob.estimatedPrice && (
           <View style={styles.earningsCard}>
             <View style={styles.earningsInfo}>
-              <Icon name="cash-multiple" size={24} color={HS.accent} />
+              <Icon name="cash-multiple" size={24} color={colors.accent} />
               <View style={styles.earningsTextContainer}>
                 <Text style={styles.earningsLabel}>Estimated Earnings</Text>
                 <Text style={styles.earningsSubtext}>After platform fee (10%)</Text>
@@ -437,27 +443,27 @@ const JobDetailScreen: React.FC = () => {
           onPress={handleStartNavigation}
           activeOpacity={0.85}
         >
-          <Icon name="navigation" size={22} color={C.surface} />
+          <Icon name="navigation" size={22} color={colors.surface} />
           <Text style={styles.navigateButtonText}>Start Navigation</Text>
-          <Icon name="chevron-right" size={22} color={C.surface} />
+          <Icon name="chevron-right" size={22} color={colors.surface} />
         </TouchableOpacity>
       </View>
     </Screen>
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: C.lineSoft,
+    backgroundColor: c.lineSoft,
   },
   loadingText: {
     marginTop: 12,
     ...T.body,
 
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
   content: {
@@ -469,12 +475,12 @@ const styles = StyleSheet.create({
   
   // Customer Card Styles
   customerCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderTopWidth: 4,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -510,9 +516,9 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderWidth: 3,
-    borderColor: C.surface,
+    borderColor: c.surface,
   },
   customerInfo: {
     flex: 1,
@@ -527,13 +533,13 @@ const styles = StyleSheet.create({
   customerName: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: C.ink,
+    color: c.ink,
     marginRight: 6,
   },
   serviceTypeText: {
     ...T.body,
 
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.regular,
     marginBottom: 8,
   },
@@ -559,7 +565,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
@@ -568,13 +574,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     marginRight: 6,
   },
   statusText: {
     ...T.caption,
 
-    color: HS.accent,
+    color: c.accent,
     fontFamily: F.semibold,
   },
   contactActions: {
@@ -582,7 +588,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   contactButton: {
     alignItems: 'center',
@@ -598,7 +604,7 @@ const styles = StyleSheet.create({
   contactButtonText: {
     ...T.caption,
 
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
   },
 
@@ -622,17 +628,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...T.subhead,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
 
   // Location Card
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -642,7 +648,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -653,18 +659,18 @@ const styles = StyleSheet.create({
   locationLabel: {
     ...T.caption,
 
-    color: C.inkFaint,
+    color: c.inkFaint,
     fontFamily: F.medium,
     marginBottom: 2,
   },
   locationAddress: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
   locationCity: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.regular,
     marginTop: 2,
   },
@@ -675,7 +681,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
   map: {
     width: '100%',
@@ -697,7 +703,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   mapOverlayText: {
-    color: C.surface,
+    color: c.inkInverse,
     ...T.caption,
     fontFamily: F.semibold,
     marginLeft: 6,
@@ -707,10 +713,10 @@ const styles = StyleSheet.create({
   scheduleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -720,7 +726,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: C.infoSoft,
+    backgroundColor: c.infoSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -731,22 +737,22 @@ const styles = StyleSheet.create({
   scheduleLabel: {
     ...T.caption,
 
-    color: C.inkFaint,
+    color: c.inkFaint,
     fontFamily: F.medium,
     marginBottom: 2,
   },
   scheduleValue: {
     ...T.body,
     fontFamily: F.semibold,
-    color: C.ink,
+    color: c.ink,
   },
 
   // Time Container
   timeContainer: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -754,48 +760,48 @@ const styles = StyleSheet.create({
   },
   timeOfDayLabel: {
     ...T.label,
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.medium,
     marginBottom: 12,
   },
   selectedTimeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderRadius: 12,
     padding: 14,
     borderWidth: 2,
-    borderColor: HS.accent,
+    borderColor: c.accent,
   },
   selectedTimeText: {
     ...T.subhead,
     fontFamily: F.bold,
-    color: HS.accent,
+    color: c.accent,
     marginLeft: 10,
   },
 
   // Instructions Card
   instructionsCard: {
-    backgroundColor: C.warningSoft,
+    backgroundColor: c.warningSoft,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: C.warningSoft,
+    borderColor: c.warningSoft,
   },
   instructionsText: {
     ...T.body,
 
-    color: C.warning,
+    color: c.warning,
     fontFamily: F.regular,
     lineHeight: 22,
   },
 
   // Summary Card
   summaryCard: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.ink,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -810,13 +816,13 @@ const styles = StyleSheet.create({
   summaryLabel: {
     ...T.body,
 
-    color: C.inkMuted,
+    color: c.inkMuted,
     fontFamily: F.regular,
   },
   summaryValue: {
     ...T.body,
 
-    color: C.ink,
+    color: c.ink,
     fontFamily: F.semibold,
     maxWidth: '60%',
     textAlign: 'right',
@@ -824,12 +830,12 @@ const styles = StyleSheet.create({
   summaryPriceValue: {
     ...T.body,
 
-    color: HS.accent,
+    color: c.accent,
     fontFamily: F.bold,
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: C.lineSoft,
+    backgroundColor: c.lineSoft,
   },
 
   // Earnings Card
@@ -837,12 +843,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: HS.accentSoft,
+    backgroundColor: c.accentSoft,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: HS.accentLine,
+    borderColor: c.accentLine,
   },
   earningsInfo: {
     flexDirection: 'row',
@@ -854,19 +860,19 @@ const styles = StyleSheet.create({
   earningsLabel: {
     ...T.body,
 
-    color: HS.accentDeep,
+    color: c.accentDeep,
     fontFamily: F.semibold,
   },
   earningsSubtext: {
     ...T.caption,
 
-    color: HS.accent,
+    color: c.accent,
     fontFamily: F.regular,
     marginTop: 2,
   },
   earningsValue: {
     ...T.heading,
-    color: HS.accent,
+    color: c.accent,
     fontFamily: F.bold,
   },
 
@@ -876,13 +882,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: C.line,
-    shadowColor: C.ink,
+    borderTopColor: c.line,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -892,10 +898,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: HS.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -903,7 +909,7 @@ const styles = StyleSheet.create({
   },
   navigateButtonText: {
     ...T.subhead,
-    color: C.surface,
+    color: c.inkInverse,
     fontFamily: F.semibold,
     marginHorizontal: 10,
   },

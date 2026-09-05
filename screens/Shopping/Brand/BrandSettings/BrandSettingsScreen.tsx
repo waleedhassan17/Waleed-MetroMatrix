@@ -21,11 +21,13 @@ import BrandHeader from '../BrandHeader';
 import BrandThemeEditor, { BrandThemeValue } from '../../../../components/Shopping/BrandThemeEditor';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';
+import { SHOPPING_PAYMENT_VALUES, paymentMethodLabel } from '../../../../constants/shopping';
 
-const PAYMENT_OPTIONS = ['wallet', 'cod'];
+// Same two rails, same values, one definition — see constants/shopping.ts.
+const PAYMENT_OPTIONS = SHOPPING_PAYMENT_VALUES;
 
 const BrandSettingsScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -90,7 +92,7 @@ const BrandSettingsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
       <BrandHeader title="Brand Settings" showBack />
 
       {loading && !brand ? (
@@ -131,9 +133,7 @@ const BrandSettingsScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Accepted Payment Methods</Text>
             {PAYMENT_OPTIONS.map((method) => (
               <View key={method} style={styles.switchRow}>
-                <Text style={styles.switchLabel}>
-                  {method === 'wallet' ? 'MetroMatrix Wallet' : 'Cash on Delivery'}
-                </Text>
+                <Text style={styles.switchLabel}>{paymentMethodLabel(method)}</Text>
                 <Switch
                   value={paymentMethods.includes(method)}
                   onValueChange={() => togglePayment(method)}

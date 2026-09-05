@@ -12,6 +12,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { type ThemeMode } from '../../../../constants/theme';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -31,17 +34,22 @@ import { toLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Theme ────────────────────────────────────
 
-const THEME = {
-  primary: '#2A7FFF',
-  primaryDark: '#1E6AE1',
-  primaryLight: '#EAF3FF',
-  accent: '#5A9FFF',
-  success: '#10B981',
-  warning: '#F59E0B',
+// A function of the mode. Light returns exactly the literals this block
+// always held; dark is derived by role — see constants/darkShift.ts.
+const makeTHEME = (mode: ThemeMode) => {
+  const { hue, ground, n, grad } = darkShift(mode);
+  return {
+  primary: hue('#2A7FFF'),
+  primaryDark: hue('#1E6AE1'),
+  primaryLight: ground('#EAF3FF', '#2A7FFF'),
+  accent: hue('#5A9FFF'),
+  success: hue('#10B981'),
+  warning: hue('#F59E0B'),
   gradient: {
-    primary: ['#2A7FFF', '#1857C0'] as [string, string],
-    soft: ['#EAF3FF', '#F0F7FF'] as [string, string],
+    primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
+    soft: grad(['#EAF3FF', '#F0F7FF']) as [string, string],
   },
+  };
 };
 
 // ── Date Helpers ─────────────────────────────
@@ -100,6 +108,10 @@ const formatTime12 = (time24: string): string => {
 // ── Component ────────────────────────────────
 
 const RescheduleAppointmentScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const THEME = useMemo(() => makeTHEME(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -224,7 +236,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
           <View style={styles.headerSpacer} />
         </LinearGradient>
         <View style={styles.emptyContainer}>
-          <LinearGradient colors={['#EAF3FF', '#B8D4FF']} style={styles.emptyIconWrap}>
+          <LinearGradient colors={sh.grad(['#EAF3FF', '#B8D4FF'])} style={styles.emptyIconWrap}>
             <Ionicons name="calendar-outline" size={40} color={THEME.primary} />
           </LinearGradient>
           <Text style={styles.emptyTitle}>No appointment selected</Text>
@@ -274,7 +286,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
               <Text style={styles.cardLabel}>Current Appointment</Text>
             </View>
 
-            <LinearGradient colors={['#F8FBFF', '#F1F5F9']} style={styles.currentAppointmentBlock}>
+            <LinearGradient colors={sh.grad(['#F8FBFF', '#F1F5F9'])} style={styles.currentAppointmentBlock}>
               <View style={[styles.consultTypeIcon, isVideo ? styles.consultTypeIconVideo : styles.consultTypeIconClinic]}>
                 <LinearGradient
                   colors={isVideo ? ['#5A9FFF', '#1857C0'] : THEME.gradient.primary}
@@ -405,7 +417,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
               transform: [{ translateY: cardAnims[3].interpolate({ inputRange: [0,1], outputRange: [16,0] }) }],
             }}
           >
-            <LinearGradient colors={['#F0F7FF', '#EAF3FF']} style={styles.summaryCard}>
+            <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.summaryCard}>
               <View style={styles.summaryIconWrap}>
                 <LinearGradient colors={THEME.gradient.primary} style={styles.summaryIconGradient}>
                   <Ionicons name="swap-horizontal" size={18} color="#FFFFFF" />
@@ -466,7 +478,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
           ) : (
             <View style={styles.confirmBtnGradient}>
               <Ionicons name="checkmark-circle-outline" size={20} color="#94A3B8" />
-              <Text style={[styles.confirmBtnText, { color: '#94A3B8' }]}>
+              <Text style={[styles.confirmBtnText, { color: sh.n('#94A3B8', 'inkFaint') }]}>
                 Select a date & slot
               </Text>
             </View>
@@ -479,10 +491,10 @@ const RescheduleAppointmentScreen: React.FC = () => {
 
 // ── Styles ────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
   },
 
   // Header
@@ -508,7 +520,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.3,
   },
   headerSubtitle: {
@@ -527,12 +539,12 @@ const styles = StyleSheet.create({
 
   // Card
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -558,13 +570,13 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     flex: 1,
   },
   totalSlotsBadge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -572,7 +584,7 @@ const styles = StyleSheet.create({
   totalSlotsText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#16A34A',
+    color: sh.hue('#16A34A'),
   },
 
   // Current Appointment
@@ -602,13 +614,13 @@ const styles = StyleSheet.create({
   currentType: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
     marginBottom: 2,
   },
   currentMeta: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -616,12 +628,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusBadgeConfirmed: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
   },
   statusBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#16A34A',
+    color: sh.hue('#16A34A'),
   },
 
   // Date Picker
@@ -633,11 +645,11 @@ const styles = StyleSheet.create({
     width: 68,
     paddingVertical: 14,
     borderRadius: 10,
-    backgroundColor: '#F8FBFF',
+    backgroundColor: sh.n('#F8FBFF', 'bg'),
     alignItems: 'center',
     gap: 3,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: sh.n('#E2E8F0', 'line'),
     overflow: 'hidden',
   },
   dateCardSelected: {
@@ -646,7 +658,7 @@ const styles = StyleSheet.create({
   dateDayLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -656,15 +668,15 @@ const styles = StyleSheet.create({
   dateDayNum: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   dateDayNumSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   dateMonth: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   dateMonthSelected: {
     color: 'rgba(255,255,255,0.8)',
@@ -679,7 +691,7 @@ const styles = StyleSheet.create({
   slotLoadingText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
   },
 
   // No Slots
@@ -692,7 +704,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
@@ -700,12 +712,12 @@ const styles = StyleSheet.create({
   noSlotsTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   noSlotsSubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#9CA3AF',
+    color: sh.n('#9CA3AF', 'inkFaint'),
   },
 
   // Period Sections
@@ -728,7 +740,7 @@ const styles = StyleSheet.create({
   periodTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#374151',
+    color: sh.hue('#374151'),
     flex: 1,
   },
   slotCountBadge: {
@@ -752,8 +764,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: sh.n('#E2E8F0', 'line'),
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     overflow: 'hidden',
     minWidth: 90,
     alignItems: 'center',
@@ -773,10 +785,10 @@ const styles = StyleSheet.create({
   slotChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: sh.hue('#374151'),
   },
   slotChipTextSelected: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     fontWeight: '700',
   },
 
@@ -788,7 +800,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#B8D4FF',
+    borderColor: sh.hue('#B8D4FF'),
     gap: 14,
   },
   summaryIconWrap: {
@@ -807,7 +819,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 2,
@@ -815,12 +827,12 @@ const styles = StyleSheet.create({
   summaryDate: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E40AF',
+    color: sh.hue('#1E40AF'),
   },
   summaryTime: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2A7FFF',
+    color: sh.hue('#2A7FFF'),
     marginTop: 1,
   },
   summaryClear: {
@@ -846,21 +858,21 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: sh.n('#0F172A', 'ink'),
   },
   emptySubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: sh.n('#64748B', 'inkMuted'),
     textAlign: 'center',
     lineHeight: 20,
   },
 
   // Footer
   footer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     gap: 10,
@@ -883,7 +895,7 @@ const styles = StyleSheet.create({
   footerSummaryLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#94A3B8',
+    color: sh.n('#94A3B8', 'inkFaint'),
   },
   footerSummaryValue: {
     fontSize: 13,
@@ -895,7 +907,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   confirmBtnDisabled: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
   },
   confirmBtnGradient: {
     flexDirection: 'row',
@@ -908,7 +920,7 @@ const styles = StyleSheet.create({
   confirmBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
     letterSpacing: -0.2,
   },
 });

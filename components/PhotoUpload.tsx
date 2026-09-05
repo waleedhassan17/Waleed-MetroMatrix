@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../constants/darkShift';
+import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -35,6 +37,9 @@ const UPLOAD_ERROR_CODES = {
 };
 
 const Step3PhotoUpload = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const dispatch = useAppDispatch();
   const profilePhoto = useAppSelector(selectProfilePhoto);
   const photoFileSize = useAppSelector(selectPhotoFileSize);
@@ -426,12 +431,12 @@ const Step3PhotoUpload = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
   },
   loadingOverlay: {
     justifyContent: 'center',
@@ -440,7 +445,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#64748b',
+    color: sh.n('#64748b', 'inkMuted'),
     fontWeight: '500',
   },
   photoSection: {
@@ -457,12 +462,12 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: sh.n('#F8F9FA', 'surfaceSunken'),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#E8E8E8',
+    borderColor: sh.hue('#E8E8E8'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -482,7 +487,7 @@ const styles = StyleSheet.create({
   placeholderContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: sh.n('#F8F9FA', 'surfaceSunken'),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -493,11 +498,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -517,11 +522,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F44336',
+    backgroundColor: sh.hue('#F44336'),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: sh.n('#FFFFFF', 'surface'),
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -537,19 +542,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: sh.n('#1F2937', 'ink'),
     marginBottom: 6,
     textAlign: 'center',
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
+    color: sh.n('#6B7280', 'inkMuted'),
     marginBottom: 3,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: sh.n('#9CA3AF', 'inkFaint'),
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -572,19 +577,19 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: sh.n('#E5E7EB', 'line'),
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: sh.hue('#10B981'),
     borderRadius: 3,
   },
   progressText: {
     marginLeft: 8,
     fontSize: 12,
-    color: '#10B981',
+    color: sh.hue('#10B981'),
     fontWeight: '600',
   },
 });

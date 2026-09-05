@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState} from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { CheckCircle2, Circle, ChevronLeft, MapPin, Plus, Pencil, Trash2, ArrowRight } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import {
   validateAddressForm,
@@ -40,6 +41,9 @@ import {
 const CURRENCY_NOTE = 'Step 1 of 4';
 
 const CheckoutAddressScreen: React.FC = () => {
+  const { colors, mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors, colors), [Colors, colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -133,7 +137,7 @@ const CheckoutAddressScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.surface} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -255,8 +259,8 @@ const CheckoutAddressScreen: React.FC = () => {
             <Switch
               value={form.isDefault}
               onValueChange={(value) => handleFieldChange('isDefault', value)}
-              trackColor={{ false: '#E5E7EB', true: '#FDEAD7' }}
-              thumbColor={form.isDefault ? Colors.primary : '#FFFFFF'}
+              trackColor={{ false: Colors.border, true: colors.accentSoft }}
+              thumbColor={form.isDefault ? Colors.primary : Colors.surface}
             />
           </View>
 
@@ -287,19 +291,19 @@ const CheckoutAddressScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType, c: ThemeColors) => StyleSheet.create({
   fieldWrap: {
     width: '100%',
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: Colors.error,
   },
   fieldErrorText: {
     marginTop: 6,
     marginLeft: 4,
     fontSize: 12,
     fontWeight: '500',
-    color: '#EF4444',
+    color: Colors.error,
   },
   saveBtnDisabled: {
     opacity: 0.6,
@@ -336,7 +340,7 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   stepLabel: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   stepLabelMuted: { fontSize: 12, color: Colors.text.tertiary },
-  progressBar: { height: 8, borderRadius: 999, backgroundColor: '#F4F4F5', overflow: 'hidden' },
+  progressBar: { height: 8, borderRadius: 999, backgroundColor: Colors.backgroundAlt, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 999 },
   scrollContent: { padding: Spacing.lg, paddingBottom: 120 },
   section: {
@@ -352,22 +356,22 @@ const styles = StyleSheet.create({
   inlineBtnText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   addressCard: {
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: Colors.backgroundAlt,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     backgroundColor: '#FFF',
   },
-  addressCardSelected: { borderColor: Colors.primary, backgroundColor: '#FFF8F2' },
+  addressCardSelected: { borderColor: Colors.primary, backgroundColor: c.accentSoft },
   addressCardTop: { flexDirection: 'row', gap: Spacing.sm },
   radioWrap: { paddingTop: 2 },
   addressBody: { flex: 1 },
   addressTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   addressName: { fontSize: 15, fontWeight: '800', color: Colors.text.primary },
-  defaultBadge: { fontSize: 11, fontWeight: '700', color: Colors.primary, backgroundColor: '#FDEAD7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  defaultBadge: { fontSize: 11, fontWeight: '700', color: Colors.primary, backgroundColor: c.accentSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
   addressText: { fontSize: 13, color: Colors.text.secondary, marginBottom: 2 },
   addressTextMuted: { fontSize: 12, color: Colors.text.tertiary },
-  cardActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  cardActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.backgroundAlt },
   cardActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardActionText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   helperText: { fontSize: 12, color: Colors.text.tertiary, marginTop: Spacing.xs },
@@ -375,7 +379,7 @@ const styles = StyleSheet.create({
   formGrid: { gap: Spacing.sm, marginTop: Spacing.md },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
@@ -388,9 +392,9 @@ const styles = StyleSheet.create({
   toggleSubtitle: { marginTop: 4, fontSize: 12, color: Colors.text.tertiary },
   saveBtn: { marginTop: Spacing.md, backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: BorderRadius.lg, alignItems: 'center' },
   saveBtnText: { color: '#FFF', fontSize: 14, fontWeight: '800' },
-  noteCard: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: '#FFF8F2' },
+  noteCard: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: c.accentSoft },
   noteText: { flex: 1, fontSize: 12, color: Colors.text.secondary, lineHeight: 18 },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, backgroundColor: 'rgba(255,255,255,0.96)', borderTopWidth: 1, borderTopColor: Colors.backgroundAlt },
   continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: BorderRadius.xl },
   continueBtnDisabled: { opacity: 0.45 },
   continueBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },

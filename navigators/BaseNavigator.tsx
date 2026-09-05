@@ -1,6 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { BaseRoutes, BaseRouteName, RouteModules, RootStackParamList } from "../navigation-maps/Base";
+import { BaseRoutes, BaseRouteName, LightOnlyRoutes, RouteModules, RootStackParamList } from "../navigation-maps/Base";
 import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { ThemeProvider } from "../theme";
 
@@ -17,25 +17,35 @@ type BaseNavigatorProps = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
- * Wrap a route's screen in its module's theme, per RouteModules.
+ * Wrap a route's screen in its module's theme, per RouteModules — and hold it
+ * at light if it is in LightOnlyRoutes.
+ *
+ * The mode is set ONCE, at the root, and inherited. What happens here is the
+ * escape hatch: an explicit `mode="light"` overriding the inherited value for
+ * a screen whose colours are still hardcoded. That set is empty today, because
+ * every screen was migrated — it stays as the cheap way to hold one back.
  *
  * Memoised by route name because `component` identity has to be stable: a fresh
  * component type on every render makes React Navigation remount the screen, and
  * a screen that remounts loses its scroll position and refetches on every
- * parent render.
+ * parent render. The cache stays keyed by name alone — both inputs below are
+ * static properties of the route, so a wrapper never needs rebuilding when the
+ * theme changes; the ThemeProvider inside it re-renders on its own.
  */
 const themedCache = new Map<string, React.ComponentType<any>>();
 
 const themed = (route: BaseRoute): React.ComponentType<any> => {
   const moduleName = RouteModules[route.title];
-  if (!moduleName) return route.component;
+  // Empty today — see LightOnlyRoutes.
+  const pinLight = LightOnlyRoutes.has(route.title);
+  if (!moduleName && !pinLight) return route.component;
 
   const cached = themedCache.get(route.title);
   if (cached) return cached;
 
   const Screen = route.component;
   const Themed: React.ComponentType<any> = (props) => (
-    <ThemeProvider module={moduleName}>
+    <ThemeProvider module={moduleName} mode={pinLight ? 'light' : undefined}>
       <Screen {...props} />
     </ThemeProvider>
   );

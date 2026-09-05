@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { C, E, R, S } from '../../constants/theme';
+import { E, R, S } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 
 /**
  * The content container.
@@ -34,6 +35,9 @@ const Card: React.FC<CardProps> = ({
   style,
   accessibilityLabel,
 }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const body = (
     <>
       {!!accentRule && <View style={[styles.rule, { backgroundColor: accentRule }]} />}
@@ -45,6 +49,10 @@ const Card: React.FC<CardProps> = ({
     styles.card,
     E[elevation],
     elevation === 'flat' && styles.bordered,
+    // A shadow does nothing against a dark ground, so a raised card has to lift
+    // by TONE instead — otherwise `raised` and `flat` are indistinguishable and
+    // the one card meant to lead a screen stops leading it.
+    isDark && elevation !== 'flat' && { backgroundColor: colors.surfaceRaised },
     style,
   ];
 
@@ -63,15 +71,15 @@ const Card: React.FC<CardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderRadius: R.card,
     overflow: 'hidden',
   },
   bordered: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   padding: {
     padding: S.lg,

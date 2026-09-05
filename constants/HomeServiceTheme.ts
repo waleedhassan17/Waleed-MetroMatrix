@@ -20,7 +20,8 @@
 // becomes the base surface — which is what the old screens did 132 times.
 // ============================================================================
 
-import { C, Tone } from './theme';
+import { C, DARK_C, ramp, ThemeMode, Tone } from './theme';
+import { AA_BODY, lift, mix } from '../theme/contrast';
 
 export const HS = {
   /** Primary action, selected state, accent iconography. */
@@ -126,14 +127,57 @@ const CATEGORIES: Record<ServiceCategory, CategoryAccent> = {
 };
 
 /**
+ * Dark tints, DERIVED rather than hand-picked.
+ *
+ * Each category's `tint` was chosen to read as text on white (#B45309 amber,
+ * #1D4ED8 blue, #0E7490 cyan) and its `tintSoft` is a near-white ground
+ * (#FEF6EC …). Both are wrong on a dark card in opposite directions: the tint
+ * goes muddy, the ground goes glaring.
+ *
+ * Deriving them keeps the three categories in step with each other and with
+ * any category added later — hand-picking six more hexes is how the amber and
+ * the blue would drift apart the first time someone edited one of them.
+ * `lift` raises the tint only as far as AA against the dark card; `mix` builds
+ * the ground from that same hue so the pairing still reads as one family.
+ */
+const darkCategoryCache = new Map<string, CategoryAccent>();
+
+const toDark = (key: string, accent: CategoryAccent): CategoryAccent => {
+  const cached = darkCategoryCache.get(key);
+  if (cached) return cached;
+
+  const tint = lift(accent.tint, AA_BODY, DARK_C.surface);
+  const dark: CategoryAccent = {
+    ...accent,
+    tint,
+    tintSoft: mix(DARK_C.surface, tint, 0.16),
+  };
+  darkCategoryCache.set(key, dark);
+  return dark;
+};
+
+/**
  * Accent for a service category.
  *
  * An unknown or missing category returns a neutral accent rather than guessing.
  * providerProfile.tsx used to fall back to `plumbers`, so an unrecognised
  * category silently rendered someone else's colour and icon.
  */
-export const categoryAccent = (category?: string | null): CategoryAccent =>
-  CATEGORIES[category as ServiceCategory] ?? NEUTRAL_CATEGORY;
+export const categoryAccent = (
+  category?: string | null,
+  mode: ThemeMode = 'light',
+): CategoryAccent => {
+  const key = (category as ServiceCategory) in CATEGORIES ? (category as string) : 'neutral';
+  const accent = CATEGORIES[category as ServiceCategory] ?? NEUTRAL_CATEGORY;
+
+  if (mode !== 'dark') return accent;
+  // The neutral fallback is built from ramp tokens, not a category hue, so it
+  // is already correct in dark — deriving it would only wash it out.
+  if (key === 'neutral') {
+    return { ...accent, tint: DARK_C.inkMuted, tintSoft: DARK_C.surfaceSunken };
+  }
+  return toDark(key, accent);
+};
 
 export const isServiceCategory = (value?: string | null): value is ServiceCategory =>
   !!value && value in CATEGORIES;
@@ -165,49 +209,38 @@ export interface StatusStyle {
   icon: string;
 }
 
-const STATUS: Record<BookingStatusKey, StatusStyle> = {
-  pending: {
-    label: 'Pending',
-    tone: 'warning',
-    color: C.warning,
-    bg: C.warningSoft,
-    icon: 'time-outline',
-  },
-  confirmed: {
-    label: 'Confirmed',
-    tone: 'info',
-    color: C.info,
-    bg: C.infoSoft,
-    icon: 'checkmark-circle-outline',
-  },
-  upcoming: {
-    label: 'Upcoming',
-    tone: 'warning',
-    color: C.warning,
-    bg: C.warningSoft,
-    icon: 'calendar-outline',
-  },
+// The table carries LABEL, TONE and GLYPH only. Colour is resolved from the
+// active ramp at call time — a status pill hardcoded to `C.warningSoft`
+// (#FEF6EC) is a near-white lozenge on a dark card, and there are six of them.
+// Light is unchanged: `ramp('light')` IS `C`.
+const STATUS: Record<BookingStatusKey, Omit<StatusStyle, 'color' | 'bg'>> = {
+  pending: { label: 'Pending', tone: 'warning', icon: 'time-outline' },
+  confirmed: { label: 'Confirmed', tone: 'info', icon: 'checkmark-circle-outline' },
+  upcoming: { label: 'Upcoming', tone: 'warning', icon: 'calendar-outline' },
   in_progress: {
     label: 'In progress',
     tone: 'info',
-    color: C.info,
-    bg: C.infoSoft,
     icon: 'ellipsis-horizontal-circle-outline',
   },
-  completed: {
-    label: 'Completed',
-    tone: 'success',
-    color: C.success,
-    bg: C.successSoft,
-    icon: 'checkmark-done-outline',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    tone: 'error',
-    color: C.error,
-    bg: C.errorSoft,
-    icon: 'close-circle-outline',
-  },
+  completed: { label: 'Completed', tone: 'success', icon: 'checkmark-done-outline' },
+  cancelled: { label: 'Cancelled', tone: 'error', icon: 'close-circle-outline' },
+};
+
+/** Ink and ground for a tone, in a mode. */
+const toneColours = (tone: Tone, mode: ThemeMode): { color: string; bg: string } => {
+  const r = ramp(mode);
+  switch (tone) {
+    case 'success':
+      return { color: r.success, bg: r.successSoft };
+    case 'warning':
+      return { color: r.warning, bg: r.warningSoft };
+    case 'error':
+      return { color: r.error, bg: r.errorSoft };
+    case 'info':
+      return { color: r.info, bg: r.infoSoft };
+    default:
+      return { color: r.inkMuted, bg: r.surfaceSunken };
+  }
 };
 
 /** Humanise an unmapped status: `awaiting_payment` -> `Awaiting payment`. */
@@ -217,17 +250,28 @@ const humanise = (status: string) =>
     .trim()
     .replace(/^./, (c) => c.toUpperCase());
 
-export const bookingStatus = (status?: string | null): StatusStyle => {
-  if (!status) return { ...STATUS.pending, label: 'Unknown', tone: 'neutral', color: C.inkMuted, bg: C.surfaceSunken, icon: 'help-circle-outline' };
-  return (
-    STATUS[status as BookingStatusKey] ?? {
-      label: humanise(status),
+export const bookingStatus = (
+  status?: string | null,
+  mode: ThemeMode = 'light',
+): StatusStyle => {
+  if (!status) {
+    return {
+      label: 'Unknown',
       tone: 'neutral',
-      color: C.inkMuted,
-      bg: C.surfaceSunken,
-      icon: 'ellipse-outline',
-    }
-  );
+      icon: 'help-circle-outline',
+      ...toneColours('neutral', mode),
+    };
+  }
+
+  const known = STATUS[status as BookingStatusKey];
+  if (known) return { ...known, ...toneColours(known.tone, mode) };
+
+  return {
+    label: humanise(status),
+    tone: 'neutral',
+    icon: 'ellipse-outline',
+    ...toneColours('neutral', mode),
+  };
 };
 
 /** Statuses where a provider is assigned and reachable, so call/chat make sense. */

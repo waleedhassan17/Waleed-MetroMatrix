@@ -3,7 +3,7 @@
 // search for into data (HS5), replacing the hardcoded provider enum.
 // ============================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {
   Switch,
   ScrollView,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -42,6 +44,9 @@ const COLORS = {
 const SUBTYPES = ['electrician', 'plumber', 'ac_repairer'];
 
 const AdminServiceCategoriesScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [rows, setRows] = useState<AdminServiceCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +160,7 @@ const AdminServiceCategoriesScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
@@ -250,7 +255,7 @@ const AdminServiceCategoriesScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',
@@ -273,7 +278,7 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   inactiveChip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -303,7 +308,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginTop: 10, marginBottom: 6 },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,

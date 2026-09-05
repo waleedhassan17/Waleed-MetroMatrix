@@ -37,7 +37,7 @@ import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';
 
 const BrandHomeScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -93,7 +93,7 @@ const BrandHomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={B.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={B.bg} />
 
       {/* ── Header ──
           Identity first: the store's mark and name carry the brand, with

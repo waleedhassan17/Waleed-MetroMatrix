@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, ImageStyle, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { C, F, R } from '../../constants/theme';
+import { F, R } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 import { initialsOf } from '../../utils/homeservice/format';
 
 /**
@@ -24,6 +25,9 @@ export interface AvatarProps {
 }
 
 const Avatar: React.FC<AvatarProps> = ({ uri, name, size = 40, tint, color, style }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [failed, setFailed] = useState(false);
   const dimension = { width: size, height: size, borderRadius: size / 2 };
   const initials = initialsOf(name);
@@ -45,7 +49,7 @@ const Avatar: React.FC<AvatarProps> = ({ uri, name, size = 40, tint, color, styl
         styles.base,
         styles.fallback,
         dimension,
-        { backgroundColor: tint ?? C.surfaceSunken },
+        { backgroundColor: tint ?? colors.surfaceSunken },
         style,
       ]}
       accessibilityLabel={name ? `${name}'s avatar` : 'Avatar'}
@@ -55,21 +59,21 @@ const Avatar: React.FC<AvatarProps> = ({ uri, name, size = 40, tint, color, styl
           style={{
             fontFamily: F.semibold,
             fontSize: Math.round(size * 0.36),
-            color: color ?? C.inkMuted,
+            color: color ?? colors.inkMuted,
           }}
         >
           {initials}
         </Text>
       ) : (
-        <Ionicons name="person" size={Math.round(size * 0.5)} color={color ?? C.inkFaint} />
+        <Ionicons name="person" size={Math.round(size * 0.5)} color={color ?? colors.inkFaint} />
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   base: {
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     borderRadius: R.pill,
   },
   fallback: {

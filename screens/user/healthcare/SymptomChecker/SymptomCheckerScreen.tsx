@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -32,6 +34,9 @@ const C = {
 };
 
 const SymptomCheckerScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const [symptoms, setSymptoms] = useState('');
   const [checking, setChecking] = useState(false);
@@ -62,7 +67,7 @@ const SymptomCheckerScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
       <View style={styles.header}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Symptom Checker</Text>
@@ -140,7 +145,7 @@ const SymptomCheckerScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
@@ -152,9 +157,9 @@ const styles = StyleSheet.create({
   input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, minHeight: 110, textAlignVertical: 'top', fontSize: 14, color: C.text },
   checkBtn: { backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
   checkText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
-  errorText: { color: '#EF4444', marginTop: 10, textAlign: 'center' },
+  errorText: { color: sh.hue('#EF4444'), marginTop: 10, textAlign: 'center' },
   disclaimerBox: { flexDirection: 'row', gap: 8, backgroundColor: C.warnBg, borderRadius: 12, padding: 12, marginTop: 18, alignItems: 'flex-start' },
-  disclaimerText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 17 },
+  disclaimerText: { flex: 1, fontSize: 12, color: sh.hue('#92400E'), lineHeight: 17 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: C.text, marginTop: 18, marginBottom: 8 },
   conditionCard: { backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },
   conditionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },

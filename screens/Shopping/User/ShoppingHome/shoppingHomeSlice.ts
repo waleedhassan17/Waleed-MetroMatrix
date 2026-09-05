@@ -2,24 +2,35 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { BrandConfig, Product } from '../../../../types/shopping';
 import { fetchBrandsApi } from '../../../../networks/shopping/brandApi';
 import { fetchProductsApi } from '../../../../networks/shopping/productApi';
-import { SHOPPING_BANNERS } from '../../../../networks/shopping/dummyData';
+import { fetchBannersApi } from '../../../../networks/shopping/bannerApi';
 
 // ── State Interface ─────────────────────────
 
+/**
+ * Promo banners are server rows (GET /shopping/banners), not a bundled
+ * fixture. The server only returns banners that are active, inside their date
+ * window, and whose brand is still live — so anything here is safe to tap.
+ */
 export interface Banner {
-  id: string;
+  bannerId: string;
   image: string;
   title: string;
   subtitle?: string;
-  brandId?: string;
-  productId?: string;
-  link?: string;
+  brandId?: string | null;
+  productId?: string | null;
 }
 
 export interface ShoppingHomeState {
   featuredBrands: BrandConfig[];
   featuredProducts: Product[];
   banners: Banner[];
+  /**
+   * Which storefront `featuredProducts` was loaded for (null = the brand
+   * chooser, i.e. all brands). The cache is keyed on this: without it,
+   * entering Cougar after Outfitters would serve Outfitters' products from a
+   * still-valid cache.
+   */
+  cachedBrandId: string | null;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -32,7 +43,8 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const initialState: ShoppingHomeState = {
   featuredBrands: [],
   featuredProducts: [],
-  banners: SHOPPING_BANNERS as Banner[],
+  banners: [],
+  cachedBrandId: null,
   loading: false,
   refreshing: false,
   error: null,
@@ -46,30 +58,52 @@ export const fetchHomeData = createAsyncThunk(
   'shoppingHome/fetchHomeData',
   async (forceRefresh: boolean | void, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { shoppingHome: ShoppingHomeState };
-      const { lastUpdated, cacheExpiry, featuredBrands, featuredProducts } = state.shoppingHome;
+      const state = getState() as {
+        shoppingHome: ShoppingHomeState;
+        brandList: { activeBrand: { brandId: string } | null };
+      };
+      const { lastUpdated, cacheExpiry, featuredBrands, featuredProducts, cachedBrandId } =
+        state.shoppingHome;
+
+      // Inside a storefront this screen IS that brand's shop, so its products
+      // must be that brand's. It used to fetch featured products across every
+      // brand, which meant the shopper could see — and save — an item that the
+      // brand-scoped Wishlist tab then filtered out of sight.
+      const brandId = state.brandList?.activeBrand?.brandId ?? null;
 
       const now = Date.now();
-      const isCacheValid = lastUpdated && (now - lastUpdated) < cacheExpiry;
+      const isCacheValid =
+        lastUpdated && now - lastUpdated < cacheExpiry && cachedBrandId === brandId;
 
       if (isCacheValid && !forceRefresh && featuredBrands.length > 0 && featuredProducts.length > 0) {
         return {
           featuredBrands,
           featuredProducts,
           banners: state.shoppingHome.banners,
+          brandId,
           fromCache: true,
         };
       }
 
-      const [brandsRes, productsRes] = await Promise.all([
+      const [brandsRes, productsRes, bannersRes] = await Promise.all([
+        // The brand list itself stays unscoped — it is how a shopper switches.
         fetchBrandsApi({ page: 1, limit: 10 }),
-        fetchProductsApi({ isFeatured: true, limit: 12 }),
+        fetchProductsApi({ isFeatured: true, limit: 12, ...(brandId ? { brandId } : {}) }),
+        fetchBannersApi(),
       ]);
 
+      // A `success: false` body used to be flattened to an empty list, so a
+      // failing API rendered an empty home screen with no error state.
+      if (!brandsRes.success || !productsRes.success) {
+        return rejectWithValue('Could not load the storefront. Pull to refresh.');
+      }
+
       return {
-        featuredBrands: brandsRes.success ? brandsRes.data : [],
-        featuredProducts: productsRes.success ? productsRes.data : [],
-        banners: state.shoppingHome.banners, // banners come from CMS or separate endpoint
+        featuredBrands: brandsRes.data,
+        featuredProducts: productsRes.data,
+        // Banners are decoration: a failure there must not empty the storefront.
+        banners: bannersRes.success ? (bannersRes.data as Banner[]) : [],
+        brandId,
         fromCache: false,
       };
     } catch (error: any) {
@@ -119,6 +153,8 @@ const shoppingHomeSlice = createSlice({
         if (!action.payload.fromCache) {
           state.featuredBrands = action.payload.featuredBrands;
           state.featuredProducts = action.payload.featuredProducts;
+          state.banners = action.payload.banners;
+          state.cachedBrandId = action.payload.brandId;
           state.lastUpdated = Date.now();
         }
       })

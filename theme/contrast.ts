@@ -118,3 +118,53 @@ export const tint = (hex: string, alpha: number): string => {
   const two = (n: number) => n.toString(16).padStart(2, '0');
   return `#${two(rgb.r)}${two(rgb.g)}${two(rgb.b)}${a}`;
 };
+
+const two = (n: number) => Math.round(n).toString(16).padStart(2, '0');
+
+/**
+ * Opaque blend of two colours — `amount` 0 returns `from`, 1 returns `to`.
+ *
+ * This is `tint()`'s counterpart for a dark surface. `tint()` returns an
+ * 8-digit hex and lets the compositor do the work, which means the result
+ * depends on whatever happens to be painted behind it: the same call yields a
+ * pale wash on white and a barely-visible film on near-black. A tinted well
+ * has to be a KNOWN colour, so this composites against a named ground and
+ * returns six digits.
+ */
+export const mix = (from: string, to: string, amount: number): string => {
+  const a = parseHex(from);
+  const b = parseHex(to);
+  if (!a || !b) return from;
+
+  const t = Math.min(Math.max(amount, 0), 1);
+  return `#${two(a.r + (b.r - a.r) * t)}${two(a.g + (b.g - a.g) * t)}${two(a.b + (b.b - a.b) * t)}`;
+};
+
+/**
+ * Lighten `hex` toward white until it clears `target` against `ground`.
+ * Returns it UNCHANGED when it already passes.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * A vendor picks their own brand colour against a white store. On a dark
+ * surface a deep navy (#1A1A2E) measures 1.02:1 — invisible. Refusing to draw
+ * it is not an option and neither is overriding it with our own accent, so it
+ * gets lifted just far enough to be legible and no further: a brand that
+ * already works keeps its exact hex, byte for byte.
+ *
+ * Lifting toward white rather than rotating hue is deliberate — it preserves
+ * the hue the vendor chose, which is the part they actually care about.
+ */
+export const lift = (hex: string, target: number, ground: string): string => {
+  if (!parseHex(hex) || !parseHex(ground)) return hex;
+
+  let amount = 0;
+  let out = hex;
+  // 2% steps: fine enough that nothing is lifted noticeably past the bar,
+  // coarse enough to terminate in at most 50 iterations.
+  while (contrastRatio(out, ground) < target && amount < 1) {
+    amount += 0.02;
+    out = mix(hex, '#FFFFFF', amount);
+  }
+  return out;
+};

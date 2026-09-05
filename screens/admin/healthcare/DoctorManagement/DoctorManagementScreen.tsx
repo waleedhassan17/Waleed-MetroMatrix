@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,6 +72,9 @@ const FILTER_OPTIONS: { key: VerificationFilter; label: string }[] = [
 // ── Component ─────────────────────────────────
 
 const DoctorManagementScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
@@ -244,7 +249,7 @@ const DoctorManagementScreen: React.FC = () => {
             <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={styles.statPill}>
-            <Text style={[styles.statValue, { color: '#fecaca' }]}>{stats.rejected}</Text>
+            <Text style={[styles.statValue, { color: sh.ground('#fecaca', '#EF4444') }]}>{stats.rejected}</Text>
             <Text style={styles.statLabel}>Rejected</Text>
           </View>
         </View>
@@ -316,7 +321,7 @@ const DoctorManagementScreen: React.FC = () => {
 
 // ── Styles ────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -343,7 +348,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   statsRow: {
     flexDirection: 'row',
@@ -356,7 +361,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   statLabel: {
     fontSize: 11,
@@ -408,7 +413,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   filterTabTextActive: {
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   listContent: {
     paddingHorizontal: 16,
@@ -522,7 +527,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: sh.n('#FFFFFF', 'inkInverse'),
   },
   loadingWrap: {
     flex: 1,

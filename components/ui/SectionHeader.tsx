@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { HS } from '../../constants/HomeServiceTheme';
-import { C, S, T } from '../../constants/theme';
+import { S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
+import { uiAccent } from './accentCompat';
 
 /**
  * Section heading, optionally with one trailing action.
@@ -25,7 +26,14 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   actionLabel,
   onAction,
   style,
-}) => (
+}) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(
+    () => makeStyles(colors, uiAccent(colors, isDark).accentDeep),
+    [colors, isDark],
+  );
+
+  return (
   <View style={[styles.row, style]}>
     <View style={styles.titles}>
       <Text style={styles.title}>{title}</Text>
@@ -37,9 +45,10 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       </TouchableOpacity>
     )}
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, action: string) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -48,16 +57,16 @@ const styles = StyleSheet.create({
   titles: { flex: 1 },
   title: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   subtitle: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   action: {
     ...T.label,
-    color: HS.accentDeep,
+    color: action,
     marginLeft: S.md,
   },
 });

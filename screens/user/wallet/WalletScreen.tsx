@@ -50,7 +50,8 @@ import {
 } from '../../../services/wallet';
 import type { WalletState } from '../../../services/wallet';
 import type { WalletTransaction, ConnectStatus } from '../../../models/wallet';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../constants/Colors';
+import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { useTheme } from '../../../theme';
 import { F } from '../../../constants/theme';
 import { KeyForStorage, retrieveData } from '../../../utils/storage_utils/storageUtils';
 import TransferSheet from '../../../components/wallet/TransferSheet';
@@ -124,7 +125,12 @@ const SkeletonBlock: React.FC<{ width: number | string; height: number; style?: 
   );
 };
 
-const TransactionSkeleton: React.FC = () => (
+const TransactionSkeleton: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
+  return (
   <View style={styles.txRow}>
     <SkeletonBlock width={36} height={36} style={{ borderRadius: 18, marginRight: 12 }} />
     <View style={{ flex: 1, gap: 6 }}>
@@ -136,12 +142,17 @@ const TransactionSkeleton: React.FC = () => (
       <SkeletonBlock width={48} height={10} />
     </View>
   </View>
-);
+  );
+};
 
 // ============================================================
 // MAIN
 // ============================================================
 const WalletScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
@@ -419,7 +430,7 @@ const WalletScreen: React.FC = () => {
       {/* Light page, so dark icons. There was no StatusBar here at all, which
           left the clock and battery in whatever style the previous screen had
           set — unreadable coming from any accent-barred screen. */}
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor="transparent" translucent />
 
       {/* Top app bar. The back control is new: this screen is pushed from the
           home screens, the profile and checkout, and had no way out but the
@@ -1014,7 +1025,12 @@ const providerStyles = StyleSheet.create({
 // ============================================================
 const DetailRow: React.FC<{ label: string; value: string; monospace?: boolean }> = ({
   label, value, monospace,
-}) => (
+}) => {
+  const { mode } = useTheme();
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+
+  return (
   <View style={styles.detailRow}>
     <Text style={styles.detailRowLabel}>{label}</Text>
     <Text
@@ -1025,12 +1041,13 @@ const DetailRow: React.FC<{ label: string; value: string; monospace?: boolean }>
       {value}
     </Text>
   </View>
-);
+  );
+};
 
 // ============================================================
 // STYLES
 // ============================================================
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
 
   // Top bar

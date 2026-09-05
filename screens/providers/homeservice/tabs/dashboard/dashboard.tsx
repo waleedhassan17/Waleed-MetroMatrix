@@ -37,6 +37,8 @@ import {
 } from '../../../../../components/ui';
 import { HS } from '../../../../../constants/HomeServiceTheme';
 import { C, F, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
+import { ThemeColors, useTheme } from '../../../../../theme';
+import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import { getSocket } from '../../../../../services/socket/socketClient';
 import type { RootState } from '../../../../../store/store';
@@ -111,6 +113,9 @@ const Header: React.FC<{
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
 }> = ({ profile, insetTop, onOpenNotifications, onOpenProfile }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const credentials = [
     profile.rating > 0 ? profile.rating.toFixed(1) : null,
     profile.isPro ? 'Pro' : null,
@@ -128,8 +133,8 @@ const Header: React.FC<{
           uri={profile.avatar}
           name={profile.name}
           size={46}
-          tint={HS.accentSoft}
-          color={HS.accentDeep}
+          tint={colors.accentSoft}
+          color={colors.accentDeep}
         />
         {profile.isOnline && <View style={styles.onlineDot} />}
       </TouchableOpacity>
@@ -141,7 +146,7 @@ const Header: React.FC<{
         </Text>
         {credentials.length > 0 && (
           <View style={styles.credentials}>
-            {profile.rating > 0 && <Ionicons name="star" size={11} color={C.star} />}
+            {profile.rating > 0 && <Ionicons name="star" size={11} color={colors.star} />}
             <Text style={styles.credentialsText}>{credentials.join(' · ')}</Text>
           </View>
         )}
@@ -157,7 +162,7 @@ const Header: React.FC<{
         accessibilityRole="button"
         accessibilityLabel="Notifications"
       >
-        <Ionicons name="notifications-outline" size={21} color={C.inkInverse} />
+        <Ionicons name="notifications-outline" size={21} color={colors.inkInverse} />
         {(profile.unreadNotifications ?? 0) > 0 && (
           <View style={styles.bellBadge}>
             <Text style={styles.bellBadgeText}>
@@ -170,31 +175,40 @@ const Header: React.FC<{
   );
 };
 
-const StatsCard: React.FC<{ stats: DashboardStats }> = ({ stats }) => (
+const StatsCard: React.FC<{ stats: DashboardStats }> = ({ stats }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
+
+  return (
   <Card style={styles.statsCard}>
     <View style={styles.statsRow}>
       <View style={styles.statItem}>
-        <Ionicons name="briefcase-outline" size={17} color={HS.accentDeep} />
+        <Ionicons name="briefcase-outline" size={17} color={colors.accentDeep} />
         <Text style={styles.statValue}>{stats.todayJobs}</Text>
         <Text style={styles.statLabel}>Today</Text>
       </View>
       <View style={styles.statDivider} />
       <View style={styles.statItem}>
-        <Ionicons name="calendar-outline" size={17} color={HS.accentDeep} />
+        <Ionicons name="calendar-outline" size={17} color={colors.accentDeep} />
         <Text style={styles.statValue}>{stats.weekJobs}</Text>
         <Text style={styles.statLabel}>This week</Text>
       </View>
       <View style={styles.statDivider} />
       <View style={styles.statItem}>
-        <Ionicons name="checkmark-done-outline" size={17} color={HS.accentDeep} />
+        <Ionicons name="checkmark-done-outline" size={17} color={colors.accentDeep} />
         <Text style={styles.statValue}>{stats.completionRate}%</Text>
         <Text style={styles.statLabel}>Completed</Text>
       </View>
     </View>
   </Card>
-);
+  );
+};
 
 const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insights }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   if (!insights.length) return null;
 
   return (
@@ -216,7 +230,7 @@ const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insigh
                   <Ionicons
                     name={down ? 'trending-down' : 'trending-up'}
                     size={13}
-                    color={down ? C.error : C.success}
+                    color={down ? colors.error : colors.success}
                   />
                   {!!insight.subtitle && (
                     <Text style={styles.insightSubtitle} numberOfLines={1}>
@@ -252,6 +266,9 @@ const JobsSection: React.FC<JobsSectionProps> = ({
   onNavigateToJob,
   onMessage,
 }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const currentJobs = activeTab === 'today' ? jobs.today : jobs.available;
 
   return (
@@ -280,7 +297,7 @@ const JobsSection: React.FC<JobsSectionProps> = ({
           // sides of the marketplace read as one app.
           <Card
             key={job.id}
-            accentRule={activeTab === 'today' ? HS.accent : C.info}
+            accentRule={activeTab === 'today' ? colors.accent : colors.info}
             style={styles.jobCard}
           >
             <View style={styles.jobTop}>
@@ -311,7 +328,7 @@ const JobsSection: React.FC<JobsSectionProps> = ({
                     onPress={() => onMessage(job)}
                     accessibilityLabel={`Message ${job.customer}`}
                   >
-                    <Ionicons name="chatbubble-outline" size={15} color={C.ink} />
+                    <Ionicons name="chatbubble-outline" size={15} color={colors.ink} />
                     <Text style={styles.jobSecondaryText}>Message</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -319,7 +336,7 @@ const JobsSection: React.FC<JobsSectionProps> = ({
                     onPress={() => onNavigateToJob(job)}
                     accessibilityLabel={`Open ${job.title}`}
                   >
-                    <Ionicons name="navigate-outline" size={15} color={C.inkInverse} />
+                    <Ionicons name="navigate-outline" size={15} color={colors.inkInverse} />
                     <Text style={styles.jobPrimaryText}>Navigate</Text>
                   </TouchableOpacity>
                 </>
@@ -360,6 +377,9 @@ const JobsSection: React.FC<JobsSectionProps> = ({
 };
 
 const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({ recentActivity }) => {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   if (!recentActivity.length) return null;
 
   return (
@@ -381,7 +401,7 @@ const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({ recen
               style={[styles.activityRow, index > 0 && styles.activityDivider]}
             >
               <View style={styles.activityIcon}>
-                <Ionicons name={activityIcon(activity.type) as any} size={17} color={C.inkMuted} />
+                <Ionicons name={activityIcon(activity.type) as any} size={17} color={colors.inkMuted} />
               </View>
               <View style={styles.activityBody}>
                 <Text style={styles.activityTitle} numberOfLines={1}>
@@ -404,6 +424,9 @@ const ActivitySection: React.FC<{ recentActivity: RecentActivity[] }> = ({ recen
 };
 
 export default function Dashboard() {
+  const { colors } = useTheme();
+  const theme = useMemo(() => makeProviderTheme(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
@@ -537,7 +560,7 @@ export default function Dashboard() {
   const showInitialLoader = loading && !identity.name;
 
   return (
-    <Screen background={C.bg} barStyle="light-content">
+    <Screen background={colors.bg} barStyle="light-content">
       <Header
         profile={identity}
         insetTop={insets.top}
@@ -552,8 +575,8 @@ export default function Dashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={HS.accent}
-            colors={[HS.accent]}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
       >
@@ -570,7 +593,7 @@ export default function Dashboard() {
           activeOpacity={0.7}
         >
           <View style={styles.messagesIcon}>
-            <Ionicons name="chatbubbles-outline" size={19} color={C.ink} />
+            <Ionicons name="chatbubbles-outline" size={19} color={colors.ink} />
           </View>
           <View style={styles.messagesBody}>
             <Text style={styles.messagesTitle}>Messages</Text>
@@ -583,7 +606,7 @@ export default function Dashboard() {
               </Text>
             </View>
           )}
-          <Ionicons name="chevron-forward" size={17} color={C.inkFaint} />
+          <Ionicons name="chevron-forward" size={17} color={colors.inkFaint} />
         </TouchableOpacity>
 
         {!!error && (
@@ -658,7 +681,7 @@ export default function Dashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -668,7 +691,7 @@ const styles = StyleSheet.create({
     // dashboard does not read as a different app from the screens it opens.
     // `accentDeep`, not `accent`: white measures 5.48:1 on it and 3.77:1 on
     // the lighter one, and this carries a name at body size.
-    backgroundColor: HS.accentDeep,
+    backgroundColor: c.accentDeep,
   },
   onlineDot: {
     position: 'absolute',
@@ -677,12 +700,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    // White on the green ground, not green-on-green: C.success and
-    // HS.accentDeep are the same hex, so the old dot vanished into the header
+    // White on the green ground, not green-on-green: c.success and
+    // c.accentDeep are the same hex, so the old dot vanished into the header
     // and only its ring was visible.
-    backgroundColor: C.inkInverse,
+    backgroundColor: c.inkInverse,
     borderWidth: 2,
-    borderColor: HS.accentDeep,
+    borderColor: c.accentDeep,
   },
   headerInfo: {
     flex: 1,
@@ -690,11 +713,11 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...T.caption,
-    color: C.inkInverseSoft,
+    color: c.inkInverseSoft,
   },
   userName: {
     ...T.subhead,
-    color: C.inkInverse,
+    color: c.inkInverse,
   },
   credentials: {
     flexDirection: 'row',
@@ -703,7 +726,7 @@ const styles = StyleSheet.create({
   },
   credentialsText: {
     ...T.caption,
-    color: C.inkInverseSoft,
+    color: c.inkInverseSoft,
     marginLeft: 3,
   },
   bell: {
@@ -720,15 +743,15 @@ const styles = StyleSheet.create({
     height: 16,
     paddingHorizontal: 4,
     borderRadius: 8,
-    backgroundColor: C.error,
+    backgroundColor: c.error,
     // Same ring AppBar gives its badge: red loses its edge against the green.
     borderWidth: 2,
-    borderColor: HS.accentDeep,
+    borderColor: c.accentDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bellBadgeText: {
-    color: C.inkInverse,
+    color: c.inkInverse,
     ...T.caption,
     fontFamily: F.bold,
   },
@@ -746,15 +769,15 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
     padding: S.lg,
     borderRadius: R.card,
-    backgroundColor: C.surface,
+    backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
   },
   messagesIcon: {
     width: 40,
     height: 40,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -764,11 +787,11 @@ const styles = StyleSheet.create({
   },
   messagesTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
   },
   messagesSub: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 1,
   },
   messagesBadge: {
@@ -776,12 +799,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: R.pill,
-    backgroundColor: C.error,
+    backgroundColor: c.error,
     marginRight: S.sm,
   },
   messagesBadgeText: {
     ...T.caption,
-    color: C.inkInverse,
+    color: c.inkInverse,
     fontFamily: F.bold,
     textAlign: 'center',
   },
@@ -792,17 +815,17 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
     padding: S.md,
     borderRadius: R.control,
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
   },
   errorText: {
     ...T.caption,
-    color: C.error,
+    color: c.error,
     flex: 1,
     marginRight: S.md,
   },
   errorRetry: {
     ...T.label,
-    color: C.error,
+    color: c.error,
     fontFamily: F.bold,
   },
 
@@ -826,18 +849,18 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...T.title,
-    color: C.ink,
+    color: c.ink,
     marginTop: S.sm,
   },
   statLabel: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 1,
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
-    backgroundColor: C.line,
+    backgroundColor: c.line,
   },
 
   section: {
@@ -859,11 +882,11 @@ const styles = StyleSheet.create({
   },
   insightValue: {
     ...T.heading,
-    color: C.ink,
+    color: c.ink,
   },
   insightTitle: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   insightTrend: {
@@ -873,7 +896,7 @@ const styles = StyleSheet.create({
   },
   insightSubtitle: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginLeft: 4,
     flexShrink: 1,
   },
@@ -897,22 +920,22 @@ const styles = StyleSheet.create({
   },
   jobTitle: {
     ...T.subhead,
-    color: C.ink,
+    color: c.ink,
     flex: 1,
     marginRight: S.sm,
   },
   jobPrice: {
     ...T.bodyStrong,
-    color: C.ink,
+    color: c.ink,
   },
   jobCustomer: {
     ...T.body,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 2,
   },
   jobMeta: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: S.sm,
   },
   jobActions: {
@@ -920,7 +943,7 @@ const styles = StyleSheet.create({
     marginTop: S.lg,
     paddingTop: S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   jobSecondary: {
     flex: 1,
@@ -930,12 +953,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: R.control,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.line,
+    borderColor: c.line,
     marginRight: S.sm,
   },
   jobSecondaryText: {
     ...T.label,
-    color: C.ink,
+    color: c.ink,
     marginLeft: 6,
   },
   jobPrimary: {
@@ -945,11 +968,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 40,
     borderRadius: R.control,
-    backgroundColor: HS.accent,
+    backgroundColor: c.accent,
   },
   jobPrimaryText: {
     ...T.label,
-    color: C.inkInverse,
+    color: c.inkInverse,
     fontFamily: F.semibold,
     marginLeft: 6,
   },
@@ -959,12 +982,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 40,
     borderRadius: R.control,
-    backgroundColor: C.errorSoft,
+    backgroundColor: c.errorSoft,
     marginRight: S.sm,
   },
   jobDeclineText: {
     ...T.label,
-    color: C.error,
+    color: c.error,
     fontFamily: F.semibold,
   },
 
@@ -975,13 +998,13 @@ const styles = StyleSheet.create({
   },
   activityDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: C.lineSoft,
+    borderTopColor: c.lineSoft,
   },
   activityIcon: {
     width: 38,
     height: 38,
     borderRadius: R.control,
-    backgroundColor: C.surfaceSunken,
+    backgroundColor: c.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -991,16 +1014,16 @@ const styles = StyleSheet.create({
   },
   activityTitle: {
     ...T.body,
-    color: C.ink,
+    color: c.ink,
   },
   activityDesc: {
     ...T.caption,
-    color: C.inkMuted,
+    color: c.inkMuted,
     marginTop: 1,
   },
   activityTime: {
     ...T.caption,
-    color: C.inkFaint,
+    color: c.inkFaint,
     marginTop: 2,
   },
 });

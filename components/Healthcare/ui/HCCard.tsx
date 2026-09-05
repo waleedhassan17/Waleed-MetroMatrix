@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { HC, HCRadius, HCShadow } from '../../../constants/HealthcareTheme';
+import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { useTheme } from '../../../theme';
 
 interface HCCardProps {
   children: React.ReactNode;
@@ -17,6 +18,9 @@ const HCCard: React.FC<HCCardProps> = ({
   elevation = 'sm',
   style,
 }) => {
+  const { mode } = useTheme();
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const styles = useMemo(() => makeStyles(HC), [HC]);
   const cardStyle = [
     styles.card,
     padded && styles.padded,
@@ -33,7 +37,7 @@ const HCCard: React.FC<HCCardProps> = ({
   return <View style={cardStyle}>{children}</View>;
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (HC: HCPalette) => StyleSheet.create({
   card: {
     backgroundColor: HC.card,
     borderRadius: HCRadius.lg,

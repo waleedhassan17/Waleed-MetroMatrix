@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Alert,
   Switch,
 } from 'react-native';
+import { darkShift, type DarkShift } from '../../../../constants/darkShift';
+import { useTheme } from '../../../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ChevronLeft,
@@ -29,6 +31,7 @@ import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { AdminShoppingParamList } from '../../../../types/shopping';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import { SHOPPING_PAYMENT_METHODS, SHOPPING_BRAND_CATEGORIES } from '../../../../constants/shopping';
 import {
   fetchBrandAsync,
   saveBrandAsync,
@@ -68,10 +71,11 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'contact', label: 'Contact', icon: Mail },
 ];
 
-const GLOBAL_CATEGORIES = ['Men', 'Women', 'Kids', 'Shoes', 'Accessories', 'Home', 'Sports'];
-const PAYMENT_METHODS = ['Cash on Delivery', 'Credit/Debit Card', 'Bank Transfer', 'JazzCash', 'EasyPaisa'];
 
 const EditBrandScreen: React.FC = () => {
+  const { mode } = useTheme();
+  const sh = useMemo(() => darkShift(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const dispatch = useAppDispatch();
@@ -244,7 +248,7 @@ const EditBrandScreen: React.FC = () => {
       <View style={styles.tabContent}>
         <Text style={styles.subtitle}>Select categories</Text>
         <View style={styles.chipGrid}>
-          {GLOBAL_CATEGORIES.map(cat => (
+          {SHOPPING_BRAND_CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat}
               style={[styles.chip, cats.includes(cat) && styles.chipActive]}
@@ -290,17 +294,19 @@ const EditBrandScreen: React.FC = () => {
         </View>
         <Text style={styles.label}>Payment Methods</Text>
         <View style={styles.chipGrid}>
-          {PAYMENT_METHODS.map(m => (
+          {SHOPPING_PAYMENT_METHODS.map(({ value, label }) => (
             <TouchableOpacity
-              key={m}
-              style={[styles.chip, (policies.paymentMethods || []).includes(m) && styles.chipActive]}
+              key={value}
+              style={[styles.chip, (policies.paymentMethods || []).includes(value) && styles.chipActive]}
               onPress={() => {
                 const pm = policies.paymentMethods || [];
-                const next = pm.includes(m) ? pm.filter((p: string) => p !== m) : [...pm, m];
+                const next = pm.includes(value)
+                  ? pm.filter((p: string) => p !== value)
+                  : [...pm, value];
                 dispatch(updateBrandField({ policies: { ...policies, paymentMethods: next } }));
               }}
             >
-              <Text style={[styles.chipText, (policies.paymentMethods || []).includes(m) && styles.chipTextActive]}>{m}</Text>
+              <Text style={[styles.chipText, (policies.paymentMethods || []).includes(value) && styles.chipTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -361,7 +367,7 @@ const EditBrandScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.headerBtn}>
@@ -414,7 +420,7 @@ const EditBrandScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (sh: DarkShift) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { justifyContent: 'center', alignItems: 'center' },
   loadingText: { fontSize: 16, color: COLORS.textLight },
