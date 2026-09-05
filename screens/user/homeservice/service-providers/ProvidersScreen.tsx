@@ -41,6 +41,13 @@ import { C, GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { Provider } from '../../../../models/serviceProviders';
 import { RootState } from '../../../../store/store';
+import {
+  addFavorite,
+  fetchFavorites,
+  removeFavorite,
+  selectFavorites,
+  selectPendingFavoriteIds,
+} from '../favorites/favoritesSlice';
 import { formatPrice, formatRating, formatReviewCount } from '../../../../utils/homeservice/format';
 import {
   fetchACRepairers,
@@ -221,8 +228,26 @@ export default function ProvidersScreen() {
 
   const [searchFocused, setSearchFocused] = useState(false);
   const [showSortSheet, setShowSortSheet] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // ── Saved providers ────────────────────────────────────────────────────────
+  //
+  // These come from the favourites slice, NOT from local state. They used to be
+  // a `useState<string[]>` that the heart pushed ids into, which meant a tap
+  // here never reached `/user/favorites` at all: the Saved tab reads the server
+  // and correctly showed nothing, and the heart itself reset the moment you
+  // left the screen. The provider profile always did this properly; this list
+  // simply was not wired up.
+  //
+  // `pendingIds` is folded in so a heart stays filled while its request is in
+  // flight, matching `selectIsFavorite` — otherwise it flickers back to an
+  // outline for the width of the round trip.
+  const favoriteItems = useSelector(selectFavorites);
+  const pendingFavoriteIds = useSelector(selectPendingFavoriteIds);
+  const favorites = useMemo(
+    () => [...new Set([...favoriteItems.map((p: Provider) => p.id), ...pendingFavoriteIds])],
+    [favoriteItems, pendingFavoriteIds]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -238,6 +263,11 @@ export default function ProvidersScreen() {
           dispatch(fetchACRepairers() as any);
           break;
       }
+      // Without this the list opens with every heart hollow, however many
+      // providers the user has already saved — the slice is only populated by
+      // whichever screen last fetched it, and arriving here directly from Home
+      // means nothing has.
+      dispatch(fetchFavorites() as any);
     }, [serviceType, dispatch])
   );
 
@@ -291,11 +321,18 @@ export default function ProvidersScreen() {
     [navigation, serviceType]
   );
 
-  const handleToggleFavorite = useCallback((providerId: string) => {
-    setFavorites((prev) =>
-      prev.includes(providerId) ? prev.filter((id) => id !== providerId) : [...prev, providerId]
-    );
-  }, []);
+  const handleToggleFavorite = useCallback(
+    (providerId: string) => {
+      // The slice is optimistic and rolls itself back if the request fails, so
+      // the heart still feels instant — it is just no longer *only* instant.
+      dispatch(
+        (favorites.includes(providerId)
+          ? removeFavorite(providerId)
+          : addFavorite(providerId)) as any
+      );
+    },
+    [dispatch, favorites]
+  );
 
   const displayedProviders = useMemo(
     () => (showFavoritesOnly ? providers.filter((p) => favorites.includes(p.id)) : providers),
