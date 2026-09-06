@@ -29,6 +29,7 @@ export type { Ramp, ThemeMode, Tone } from '../constants/theme';
 export {
   AA_BODY,
   AA_LARGE,
+  barStyleOn,
   contrastRatio,
   isHexColor,
   lift,

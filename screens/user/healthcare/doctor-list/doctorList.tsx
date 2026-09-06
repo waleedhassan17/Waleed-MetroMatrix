@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -44,7 +44,7 @@ import type {
   DoctorFilters,
 } from './doctorListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
@@ -146,7 +146,8 @@ const DoctorCardSkeleton: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
 
   return (
   <View style={styles.doctorCard}>
@@ -182,7 +183,8 @@ const FilterChip: React.FC<{
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
 
   return (
   <TouchableOpacity
@@ -210,7 +212,8 @@ const DoctorListScreen: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -441,7 +444,7 @@ const DoctorListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E6AE1" />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.header[0])} backgroundColor={THEME.gradient.header[0]} />
 
       {/* ── Header ───────────────────────── */}
       <LinearGradient
@@ -798,7 +801,11 @@ const DoctorListScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
+const makeStyles = (
+  THEME: ReturnType<typeof makeTHEME>,
+  sh: DarkShift,
+  Colors: ColorType,
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: sh.n('#F8FBFF', 'bg'),

@@ -48,12 +48,12 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 // Route names are string literals here rather than `BaseRouteNames`: that lives
 // in navigation-maps/Base, which imports this screen, and importing it back
 // would close the cycle.
-import { C, DARK_C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
+import { barStyleOn, C, DARK_C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
 import { AA_BODY, lift, mix } from '../../../../theme/contrast';
 import { BackButton, BackButtonSpacer } from '../../../../components/ui';
-import ThemeModeSelector from '../../../../components/ui/ThemeModeSelector';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
+import { selectThemePreference, setThemePreference } from '../../../../store/themeSlice';
 import {
   selectUser,
   selectUserAddresses,
@@ -176,14 +176,6 @@ interface MenuItem {
   toggleValue?: boolean;
   onToggle?: () => void;
   onPress?: () => void;
-  /**
-   * A control too wide to sit beside the label — the appearance picker needs
-   * three states, which neither a boolean switch nor a 40pt slot can express.
-   * It renders on its OWN LINE beneath the row, still inside the same card,
-   * and suppresses both the switch and the chevron: a row carrying its own
-   * control is not also a link.
-   */
-  control?: React.ReactNode;
 }
 
 const MenuItemComponent: React.FC<{ 
@@ -198,7 +190,7 @@ const MenuItemComponent: React.FC<{
   const ItemIcon = item.icon;
   // A row carrying its own control is not itself pressable, so it must not
   // animate a press either.
-  const inert = item.hasToggle || !!item.control;
+  const inert = !!item.hasToggle;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -225,8 +217,7 @@ const MenuItemComponent: React.FC<{
         activeOpacity={inert ? 1 : 0.7}
         onPressIn={!inert ? handlePressIn : undefined}
         onPressOut={!inert ? handlePressOut : undefined}
-        onPress={item.control ? undefined : onPress}
-        disabled={!!item.control}
+        onPress={onPress}
       >
         <View style={[styles.menuIconContainer, { backgroundColor: item.iconBg }]}>
           <ItemIcon size={18} color={item.iconColor} strokeWidth={2} />
@@ -240,18 +231,20 @@ const MenuItemComponent: React.FC<{
             <Text style={[styles.badgeText, { color: item.badgeColor }]}>{item.badge}</Text>
           </View>
         )}
-        {!item.control && item.hasToggle && (
+        {item.hasToggle ? (
           <Switch
             value={item.toggleValue}
             onValueChange={item.onToggle}
             trackColor={{ false: colors.line, true: colors.accentSoft }}
             thumbColor={item.toggleValue ? colors.accent : colors.inkFaint}
             ios_backgroundColor={colors.line}
+            accessibilityLabel={item.label}
+            accessibilityState={{ checked: !!item.toggleValue }}
           />
+        ) : (
+          <ChevronRight size={18} color={colors.disabled} />
         )}
-        {!item.control && !item.hasToggle && <ChevronRight size={18} color={colors.disabled} />}
       </TouchableOpacity>
-      {item.control && <View style={styles.menuControl}>{item.control}</View>}
     </Animated.View>
   );
 };
@@ -317,6 +310,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   const stats = useAppSelector(selectUserStats);
   const isLoading = useAppSelector(selectProfileLoading);
   const profileError = useAppSelector(selectProfileError);
+  const themePreference = useAppSelector(selectThemePreference);
 
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -514,14 +508,17 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
     {
       id: 'appearance',
       icon: Moon,
-      label: 'Appearance',
-      // Was a switch bound to `user.darkMode`, which nothing in the app read
-      // and which a logout reset. The preference now lives in its own persisted
-      // slice — see store/themeSlice.ts.
+      label: 'Dark Mode',
+      // Bound to the persisted device-level slice (store/themeSlice.ts), NOT to
+      // `user.darkMode` — that was account state, so a logout reset it and
+      // nothing in the app read it anyway.
       iconBg: ROW_TINT.ink.bg,
       iconColor: ROW_TINT.ink.fg,
-      subtitle: 'Follow the system, or choose one',
-      control: <ThemeModeSelector />,
+      subtitle: 'Dimmed surfaces, easier on the eyes at night',
+      hasToggle: true,
+      toggleValue: themePreference === 'dark',
+      onToggle: () =>
+        dispatch(setThemePreference(themePreference === 'dark' ? 'light' : 'dark')),
     },
     {
       id: 'language',
@@ -825,7 +822,7 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.accent} translucent />
+      <StatusBar barStyle={barStyleOn(colors.accent)} backgroundColor={colors.accent} translucent />
 
       <ScrollView
         style={styles.scrollView}
@@ -1300,13 +1297,6 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 13,
     paddingHorizontal: 14,
-  },
-  // A row's own control, on the line below it. Indented to the label rather
-  // than the icon so it reads as belonging to that row and not to the card.
-  menuControl: {
-    paddingLeft: 14 + 36 + 12,
-    paddingRight: 14,
-    paddingBottom: 13,
   },
   menuIconContainer: {
     width: 36,

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
@@ -361,7 +361,7 @@ const SlotSelectionScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
 
       {/* ── Gradient Header ── */}
       <LinearGradient

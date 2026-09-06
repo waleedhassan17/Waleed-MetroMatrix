@@ -17,7 +17,7 @@ import {
   Switch,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
@@ -274,7 +274,7 @@ const PrescriptionWriterScreen: React.FC = () => {
   if (!patient) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
           <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <View style={styles.headerCenter}>
@@ -291,7 +291,7 @@ const PrescriptionWriterScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
 
       {/* ── Gradient Header ── */}
       <LinearGradient

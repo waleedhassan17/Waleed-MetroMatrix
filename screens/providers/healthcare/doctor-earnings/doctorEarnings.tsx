@@ -21,7 +21,7 @@ import {
   Share,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -249,7 +249,7 @@ const DoctorEarningsScreen: React.FC = () => {
   if (loading && totalEarnings === 0 && chartData.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           {!isInTab && (
             <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
@@ -272,7 +272,7 @@ const DoctorEarningsScreen: React.FC = () => {
   if (error && totalEarnings === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           {!isInTab && (
             <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
@@ -348,7 +348,7 @@ const DoctorEarningsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.primary)} backgroundColor={THEME.primary} />
 
       <Animated.ScrollView
         style={{ flex: 1 }}

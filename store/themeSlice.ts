@@ -24,26 +24,49 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 // ============================================================================
 
 /**
- * What the user chose. Distinct from the RESOLVED mode: 'system' is a live
- * subscription to the OS setting, not a snapshot of it, so it has to survive as
- * itself rather than being flattened to light/dark at the moment it is picked.
+ * What the user chose. Two values, and deliberately not three.
+ *
+ * There USED to be a 'system' option that subscribed to the OS setting, and it
+ * was the default. That is exactly the behaviour being removed: MetroMatrix has
+ * a designed light appearance, and a user whose phone happens to be dark was
+ * being shown the dark one on first launch without ever asking for it. Light is
+ * the product; dark is an opt-in, chosen here and nowhere else.
+ *
+ * Because there is no live OS subscription any more, the preference IS the
+ * resolved mode — see `useResolvedMode()` in theme/mode.ts, which is now a
+ * straight read rather than a collapse of three values into two.
  */
-export type ThemePreference = 'system' | 'light' | 'dark';
+export type ThemePreference = 'light' | 'dark';
 
 export interface ThemeState {
   preference: ThemePreference;
 }
 
-// 'system' by default: a fresh install should match the phone the user already
-// set up, not announce our own opinion on the first launch.
-const initialState: ThemeState = { preference: 'system' };
+// Light by default. A fresh install opens in the appearance the app was
+// designed and reviewed in, on every phone.
+const initialState: ThemeState = { preference: 'light' };
+
+/**
+ * Anything that is not exactly 'dark' is light.
+ *
+ * This slice is in redux-persist's whitelist, so installs that predate this
+ * change have the literal string 'system' sitting on disk — as do any that
+ * stored a value we no longer recognise. Rather than adding a persist
+ * `version`/`migrate` (there is none today, and introducing one touches every
+ * whitelisted slice), the legacy value is normalised on the way in and on the
+ * way out. Upgrading such an install lands on light, which is the new default
+ * and the safe direction: a screen that has not been checked in dark is never
+ * shown in dark by accident.
+ */
+const normalise = (value: unknown): ThemePreference =>
+  value === 'dark' ? 'dark' : 'light';
 
 const themeSlice = createSlice({
   name: 'theme',
   initialState,
   reducers: {
     setThemePreference(state, action: PayloadAction<ThemePreference>) {
-      state.preference = action.payload;
+      state.preference = normalise(action.payload);
     },
   },
 });
@@ -53,4 +76,4 @@ export default themeSlice.reducer;
 
 /** The stored preference. Use `useResolvedMode()` to render with it. */
 export const selectThemePreference = (state: any): ThemePreference =>
-  state.theme?.preference ?? 'system';
+  normalise(state.theme?.preference);

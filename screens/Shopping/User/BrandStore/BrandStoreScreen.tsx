@@ -15,7 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';
 import { ThemeProvider } from '../../../../theme';
@@ -284,7 +284,7 @@ const BrandStoreScreen: React.FC = () => {
     // without knowing whose store they are in.
     <ThemeProvider module="shopping" brand={brand}>
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.primaryColor} />
+      <StatusBar barStyle={barStyleOn(theme.primaryColor)} backgroundColor={theme.primaryColor} />
 
       {/* ── Brand Banner ────────────────────── */}
       <View style={[styles.bannerWrap, { backgroundColor: theme.primaryColor }]}>

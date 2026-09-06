@@ -14,7 +14,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../constants/darkShift';
-import { useTheme } from '../../../theme';
+import { barStyleOn, useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -190,7 +190,7 @@ const NotificationsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
+      <StatusBar barStyle={barStyleOn('#6366f1')} backgroundColor="#6366f1" />
 
       <LinearGradient colors={['#6366f1', '#8b5cf6']} style={styles.header}>
         <View style={styles.headerContent}>

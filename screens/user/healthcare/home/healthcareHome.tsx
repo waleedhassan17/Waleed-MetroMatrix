@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +25,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchHomeData, clearError } from './healthcareHomeSlice';
 import type { HealthcareHomeState } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
@@ -179,7 +179,8 @@ const SpecialtyCardSkeleton: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
   const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
 
   return (
@@ -195,7 +196,8 @@ const DoctorCardSkeleton: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
   const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
 
   return (
@@ -219,7 +221,8 @@ const HealthcareHomeScreen: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
   const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
@@ -504,7 +507,7 @@ const HealthcareHomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} translucent />
+      <StatusBar barStyle={barStyleOn(THEME.primary)} backgroundColor={THEME.primary} translucent />
 
       {/* Floating Header on Scroll.
 
@@ -891,7 +894,11 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight |
 
 // ── Styles ──────────────────────────────────
 
-const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
+const makeStyles = (
+  THEME: ReturnType<typeof makeTHEME>,
+  sh: DarkShift,
+  Colors: ColorType,
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: sh.n('#F8FBFF', 'bg'),

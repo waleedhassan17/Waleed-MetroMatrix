@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -252,7 +252,7 @@ const RecordDetailScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E6AE1" />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.header[0])} backgroundColor={THEME.gradient.header[0]} />
 
       <LinearGradient
         colors={THEME.gradient.header}

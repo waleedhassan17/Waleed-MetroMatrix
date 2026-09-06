@@ -41,9 +41,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {
  *
  * Separate from `App` because `useResolvedMode` reads the store, so it has to
  * run BELOW `<Provider>` — and below `<PersistGate>`, so the value it reads is
- * the rehydrated preference rather than the initial 'system' that would be
- * replaced a frame later. A theme that flickers on every cold start is the
- * thing this ordering avoids.
+ * the rehydrated preference rather than the initial 'light' that would be
+ * replaced a frame later. A user who chose dark must not get a white flash on
+ * every cold start, which is what this ordering avoids.
  *
  * Setting the mode HERE and nowhere else is the whole design: every nested
  * provider inherits it, so a stack that names only its module cannot revert it.

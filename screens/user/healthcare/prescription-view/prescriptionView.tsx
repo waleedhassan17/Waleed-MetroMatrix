@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -101,7 +101,8 @@ const PrescriptionViewScreen: React.FC = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        {/* Headerless page: the bar follows the ramp, not the brand blue. */}
+        <StatusBar barStyle={barStyleOn(sh.colors.bg)} backgroundColor={sh.colors.bg} />
         <View style={styles.loadingIconWrap}>
           <ActivityIndicator size="large" color={THEME.primary} />
         </View>
@@ -116,7 +117,9 @@ const PrescriptionViewScreen: React.FC = () => {
   if (error || !prescription) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        {/* No header on the error state — the page is the ground, so the bar
+            follows the ramp rather than the pale red of the icon chip below. */}
+        <StatusBar barStyle={barStyleOn(sh.colors.bg)} backgroundColor={sh.colors.bg} />
         <View style={styles.errorIconWrap}>
           <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconGradient}>
             <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
@@ -142,7 +145,7 @@ const PrescriptionViewScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
 
       {/* ── Gradient Header ── */}
       <LinearGradient

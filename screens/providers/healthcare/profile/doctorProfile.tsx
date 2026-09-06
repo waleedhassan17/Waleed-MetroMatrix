@@ -14,13 +14,13 @@ import {
   Alert,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import {
   fetchDoctorProfile,
@@ -28,6 +28,7 @@ import {
   updateDoctorProfile,
 } from './doctorProfileSlice';
 import EditDoctorProfileModal from './EditDoctorProfileModal';
+import DarkModeSwitch from '../../../../components/ui/DarkModeSwitch';
 import type { DoctorProfileData } from '../../../../models/healthcare/types';
 
 // ── Theme ─────────────────────────────────────
@@ -115,7 +116,7 @@ const DoctorProfileScreen: React.FC = () => {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
-  const sectionAnims = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
+  const sectionAnims = useRef([0, 1, 2, 3, 4, 5].map(() => new Animated.Value(0))).current;
 
   const hasAnimated = useRef(false);
 
@@ -150,7 +151,7 @@ const DoctorProfileScreen: React.FC = () => {
   if (loading && !profile) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           <Text style={styles.headerTitle}>My Profile</Text>
         </LinearGradient>
@@ -169,7 +170,7 @@ const DoctorProfileScreen: React.FC = () => {
   if (error && !profile) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.loadingHeader}>
           <Text style={styles.headerTitle}>My Profile</Text>
         </LinearGradient>
@@ -196,7 +197,7 @@ const DoctorProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.primary)} backgroundColor={THEME.primary} />
 
       <Animated.ScrollView
         style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
@@ -411,6 +412,26 @@ const DoctorProfileScreen: React.FC = () => {
                   <Text style={styles.langChipText}>{lang}</Text>
                 </View>
               ))}
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ── Preferences ──
+            A doctor had no way to change the app's appearance at all: this
+            screen is the doctor surface's only settings-shaped page, and it
+            carried no device preferences. The switch is the shared component,
+            so all five roles write the one persisted preference. */}
+        <Animated.View style={[styles.sectionAnim, {
+          opacity: sectionAnims[5],
+          transform: [{ translateY: sectionAnims[5].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+        }]}>
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionDot, { backgroundColor: sh.hue(THEME.primary) }]} />
+              <Text style={styles.sectionTitle}>Preferences</Text>
+            </View>
+            <View style={styles.prefCard}>
+              <DarkModeSwitch />
             </View>
           </View>
         </Animated.View>
@@ -795,6 +816,19 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
   },
 
   // Languages
+  // Same card treatment as availCard, minus its own padding — the switch row
+  // brings its own vertical rhythm.
+  prefCard: {
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: sh.n('#F1F5F9', 'lineSoft'),
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 5 },
+    }),
+  },
   langRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

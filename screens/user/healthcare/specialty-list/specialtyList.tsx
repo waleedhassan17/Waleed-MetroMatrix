@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -249,7 +249,7 @@ const SpecialtyListScreen: React.FC = () => {
   if (error && !loading && filteredSpecialties.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.gradientHeader}>
           <View style={styles.headerRow}>
             <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
@@ -284,7 +284,7 @@ const SpecialtyListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.primary)} backgroundColor={THEME.primary} />
 
       {/* ── Gradient Header ── */}
       <Animated.View style={{ transform: [{ translateY: headerSlide }], opacity: fadeAnim }}>

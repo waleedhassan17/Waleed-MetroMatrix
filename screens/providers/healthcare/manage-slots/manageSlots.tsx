@@ -17,7 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -355,7 +355,7 @@ const ManageSlotsScreen: React.FC = () => {
   if (loading && slots.length === 0 && clinics.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Manage Slots</Text>
@@ -374,7 +374,7 @@ const ManageSlotsScreen: React.FC = () => {
   if (error && slots.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
         <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
           <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
           <Text style={styles.headerTitle}>Manage Slots</Text>
@@ -401,7 +401,7 @@ const ManageSlotsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
 
       {/* ── Gradient Header ── */}
       <LinearGradient

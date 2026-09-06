@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { darkShift, type DarkShift } from '../../constants/darkShift';
 import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../constants/Colors';
+import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../constants/Colors';
 import { Typography } from '../../constants/Fonts';
 import type { Specialty } from '../../models/healthcare/types';
 
@@ -42,7 +42,8 @@ interface SpecialtyCardProps {
 const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialty, index = 0, onPress }) => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh, Colors), [sh, Colors]);
   const color = CARD_COLORS[index % CARD_COLORS.length];
   const iconName = ICON_MAP[specialty.icon] ?? 'medkit-outline';
 
@@ -65,7 +66,7 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialty, index = 0, onP
   );
 };
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
+const makeStyles = (sh: DarkShift, Colors: ColorType) => StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: Colors.surface,

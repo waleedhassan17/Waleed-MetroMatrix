@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,7 +34,7 @@ import {
 } from './doctorSearchSlice';
 import { fetchSpecialties } from '../specialty-list/specialtyListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
@@ -162,7 +162,8 @@ const DoctorRowSkeleton: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
 
   return (
   <View style={styles.resultRow}>
@@ -182,7 +183,8 @@ const DoctorSearchScreen: React.FC = () => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
@@ -680,7 +682,7 @@ const DoctorSearchScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E6AE1" />
+      <StatusBar barStyle={barStyleOn(THEME.gradient.header[0])} backgroundColor={THEME.gradient.header[0]} />
 
       {/* ── Gradient Search Header ───────────────── */}
       <LinearGradient
@@ -814,7 +816,11 @@ const DoctorSearchScreen: React.FC = () => {
 
 // ── Styles ──────────────────────────────────
 
-const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => StyleSheet.create({
+const makeStyles = (
+  THEME: ReturnType<typeof makeTHEME>,
+  sh: DarkShift,
+  Colors: ColorType,
+) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: sh.n('#F8FBFF', 'bg'),

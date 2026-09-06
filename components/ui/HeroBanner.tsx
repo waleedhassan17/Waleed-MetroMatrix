@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
+import { darkShift } from '../../constants/darkShift';
 import { HS } from '../../constants/HomeServiceTheme';
 import { C, GUTTER, PROSE_WIDTH, R, S, T } from '../../constants/theme';
+import { useTheme } from '../../theme';
 
 /**
  * THE hero. The only place in home services that uses the brand gradient.
@@ -27,23 +29,33 @@ export interface HeroBannerProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const HeroBanner: React.FC<HeroBannerProps> = ({ icon, title, message, children, style }) => (
-  <LinearGradient
-    colors={HS.heroGradient}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 1 }}
-    style={[styles.hero, style]}
-  >
-    {!!icon && (
-      <View style={styles.badge}>
-        <Ionicons name={icon as any} size={28} color={C.inkInverse} />
-      </View>
-    )}
-    <Text style={styles.title}>{title}</Text>
-    {!!message && <Text style={styles.message}>{message}</Text>}
-    {children}
-  </LinearGradient>
-);
+const HeroBanner: React.FC<HeroBannerProps> = ({ icon, title, message, children, style }) => {
+  const { mode } = useTheme();
+  // In light this returns HS.heroGradient unchanged, byte for byte. In dark it
+  // mixes the stops down into the dark surface: the point of a hero is emphasis,
+  // and a full-brightness green ramp on a dark page is not emphasis, it is a
+  // lamp. The white text and the translucent badge still read against the
+  // mixed-down stops, which is why they are unchanged below.
+  const gradient = useMemo(() => darkShift(mode).grad(HS.heroGradient), [mode]);
+
+  return (
+    <LinearGradient
+      colors={gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.hero, style]}
+    >
+      {!!icon && (
+        <View style={styles.badge}>
+          <Ionicons name={icon as any} size={28} color={C.inkInverse} />
+        </View>
+      )}
+      <Text style={styles.title}>{title}</Text>
+      {!!message && <Text style={styles.message}>{message}</Text>}
+      {children}
+    </LinearGradient>
+  );
+};
 
 const styles = StyleSheet.create({
   hero: {

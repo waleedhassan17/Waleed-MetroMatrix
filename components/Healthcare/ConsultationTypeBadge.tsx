@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { darkShift, type DarkShift } from '../../constants/darkShift';
 import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius } from '../../constants/Colors';
+import { makeColors, Spacing, BorderRadius, type ColorType } from '../../constants/Colors';
 import { Typography } from '../../constants/Fonts';
 
 type ConsultationType = 'in-clinic' | 'video' | 'both';
@@ -28,7 +28,8 @@ const ConsultationTypeBadge: React.FC<ConsultationTypeBadgeProps> = ({
 }) => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const Colors = useMemo(() => makeColors(mode), [mode]);
+  const styles = useMemo(() => makeStyles(sh, Colors), [sh, Colors]);
   const items = CONFIG[type];
 
   return (
@@ -43,7 +44,7 @@ const ConsultationTypeBadge: React.FC<ConsultationTypeBadgeProps> = ({
   );
 };
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
+const makeStyles = (sh: DarkShift, Colors: ColorType) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: Spacing.sm,

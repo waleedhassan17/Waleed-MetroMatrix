@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Save } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from '../BrandProfile/brandProfileSlice';
-import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import BrandThemeEditor, { BrandThemeValue } from '../../../../components/Shopping/BrandThemeEditor';
+import DarkModeSwitch from '../../../../components/ui/DarkModeSwitch';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { F, T } from '../../../../constants/theme';
 import { SHOPPING_PAYMENT_VALUES, paymentMethodLabel } from '../../../../constants/shopping';
 
 // Same two rails, same values, one definition — see constants/shopping.ts.
@@ -92,7 +92,7 @@ const BrandSettingsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.bg} />
       <BrandHeader title="Brand Settings" showBack />
 
       {loading && !brand ? (
@@ -123,7 +123,7 @@ const BrandSettingsScreen: React.FC = () => {
               style={[styles.input, styles.multiline]}
               multiline
               placeholder="e.g. Delivery within 3-5 working days."
-              placeholderTextColor={Colors.text.tertiary}
+              placeholderTextColor={colors.inkFaint}
               value={shippingInfo}
               onChangeText={setShippingInfo}
             />
@@ -137,11 +137,26 @@ const BrandSettingsScreen: React.FC = () => {
                 <Switch
                   value={paymentMethods.includes(method)}
                   onValueChange={() => togglePayment(method)}
-                  trackColor={{ true: colors.accent, false: Colors.border }}
-                  thumbColor={C.surface}
+                  trackColor={{ false: colors.line, true: colors.accentSoft }}
+                  thumbColor={paymentMethods.includes(method) ? colors.accent : colors.inkFaint}
+                  ios_backgroundColor={colors.line}
                 />
               </View>
             ))}
+          </View>
+
+          {/* App appearance sits ABOVE store appearance, and the two are named
+              apart on purpose: this one is the light/dark of the app on this
+              phone, the one below is the brand's own colours as customers see
+              them. A vendor reading "appearance" twice needs to be able to tell
+              which is which without opening either. */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>App appearance</Text>
+            <Text style={styles.sectionHelp}>
+              How MetroMatrix looks on this device. It applies to your dashboard only —
+              your customers always see your store in your own colours below.
+            </Text>
+            <DarkModeSwitch />
           </View>
 
           <View style={styles.card}>
@@ -154,7 +169,7 @@ const BrandSettingsScreen: React.FC = () => {
           </View>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-            <Save size={18} stroke={C.surface} strokeWidth={2} />
+            <Save size={18} stroke={colors.onAccent} strokeWidth={2} />
             <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save Settings'}</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -163,25 +178,40 @@ const BrandSettingsScreen: React.FC = () => {
   );
 };
 
-// Built per render from the resolved theme so a brand's colours reach
-// rules that live at module scope. Layout, spacing and type are unchanged.
+// Built per render from the resolved theme so a brand's colours reach rules
+// that live at module scope.
+//
+// The neutrals used to come from the static light `Colors` while the accents
+// came from the theme, so in dark this screen kept a white page and white cards
+// under correctly-darkened accents. They now come from the ramp too, which is
+// the whole reason the ramp exists.
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: c.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
+  errorText: { color: c.inkMuted, textAlign: 'center', marginBottom: Spacing.md },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: C.surface, fontFamily: F.bold },
+  retryText: { color: c.onAccent, fontFamily: F.bold },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
-  card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
-  sectionTitle: { ...T.body, fontFamily: F.bold, color: Colors.text.primary, marginBottom: Spacing.md },
-  sectionHelp: { ...T.caption, lineHeight: 17, color: Colors.text.secondary, marginBottom: Spacing.md },
-  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: Colors.text.secondary, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: Colors.text.primary },
+  // A hairline as well as the shadow: a drop shadow is invisible against a dark
+  // page, so without it the cards lose their edge entirely in dark.
+  card: {
+    backgroundColor: c.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
+    ...Shadows.sm,
+  },
+  sectionTitle: { ...T.body, fontFamily: F.bold, color: c.ink, marginBottom: Spacing.md },
+  sectionHelp: { ...T.caption, lineHeight: 17, color: c.inkMuted, marginBottom: Spacing.md },
+  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: c.inkMuted, marginBottom: 4 },
+  input: { borderWidth: 1, borderColor: c.line, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: c.ink },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm },
-  switchLabel: { ...T.body, color: Colors.text.primary },
+  switchLabel: { ...T.body, color: c.ink },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
-  saveText: { color: C.surface, ...T.body, fontFamily: F.bold },
+  saveText: { color: c.onAccent, ...T.body, fontFamily: F.bold },
 });
 
 export default BrandSettingsScreen;

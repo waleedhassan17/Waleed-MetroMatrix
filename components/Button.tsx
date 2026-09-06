@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, StyleProp } from 'react-native';
-import { Colors } from '../constants/Colors';
-import { Fonts } from '../constants/Fonts';
+import { makeColors, type ColorType } from '../constants/Colors';
+import { useTheme } from '../theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline';
 
@@ -13,13 +13,25 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const Button: React.FC<ButtonProps> = ({ 
-  title, 
-  onPress, 
-  variant = 'primary', 
-  disabled = false, 
-  style 
+/**
+ * This component was the last one in the app reading the static light `Colors`
+ * from module scope, which meant its styles were frozen at import time. In dark
+ * that put a near-white `secondary` ground and a near-black `outline` label on a
+ * dark page — the button was there, it just could not be read.
+ *
+ * The fix is the standard shape used everywhere else here: resolve the palette
+ * per render and build the sheet from it. See constants/Colors.ts:354.
+ */
+const Button: React.FC<ButtonProps> = ({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled = false,
+  style
 }) => {
+  const { mode } = useTheme();
+  const styles = useMemo(() => makeStyles(makeColors(mode)), [mode]);
+
   const getButtonStyle = (): StyleProp<ViewStyle> => {
     switch (variant) {
       case 'secondary':
@@ -56,7 +68,7 @@ const Button: React.FC<ButtonProps> = ({
 
 export default Button;
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: ColorType) => StyleSheet.create({
   button: {
     paddingVertical: 16,
     paddingHorizontal: 24,

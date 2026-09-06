@@ -15,16 +15,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../constants/darkShift';
-import { useTheme } from '../../../theme';
+import { barStyleOn, useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
-import {
-  selectThemePreference,
-  setThemePreference,
-  type ThemePreference,
-} from '../../../store/themeSlice';
+import DarkModeSwitch from '../../../components/ui/DarkModeSwitch';
 import {
   getSettingsAsync,
   updateGeneralSettingsAsync,
@@ -100,8 +96,6 @@ const SettingsScreen = () => {
   const dispatch = useAppDispatch();
 
   const settings = useAppSelector(selectSettings);
-  // The device preference is the one that paints the app — see themeSlice.
-  const themePreference = useAppSelector(selectThemePreference);
   const isSaving = useAppSelector(selectIsSaving);
   const hasUnsavedChanges = useAppSelector(selectHasUnsavedChanges);
 
@@ -402,12 +396,6 @@ const SettingsScreen = () => {
   );
 
   const renderAppearanceSettings = () => {
-    const themes = [
-      { key: 'light', label: 'Light', icon: 'sunny-outline' as IconName, color: sh.n('#f8fafc', 'surfaceSunken') },
-      { key: 'dark', label: 'Dark', icon: 'moon-outline' as IconName, color: sh.n('#1e293b', 'ink') },
-      { key: 'system', label: 'System', icon: 'phone-portrait-outline' as IconName, color: '#6366f1' },
-    ];
-
     const colors = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
     return (
@@ -415,38 +403,17 @@ const SettingsScreen = () => {
         <SectionHeader
           icon="color-palette"
           title="Theme"
-          subtitle="Choose your preferred look"
+          subtitle="Light by default — turn dark on if you prefer it"
         />
-        <View style={styles.themeGrid}>
-          {themes.map((theme) => (
-            <TouchableOpacity
-              key={theme.key}
-              style={[
-                styles.themeCard,
-                themePreference === theme.key && styles.themeCardActive,
-              ]}
-              onPress={() => {
-                // Two writes on purpose. The device slice is what actually
-                // paints the app; the settings slice keeps the server's
-                // `appearance.theme` in step so an admin's stored preference
-                // does not silently disagree with what they are looking at.
-                // The device wins if they ever differ — a theme belongs to the
-                // screen in your hand, not to the account.
-                dispatch(setThemePreference(theme.key as ThemePreference));
-                dispatch(updateLocalAppearanceSettings({ theme: theme.key as 'light' | 'dark' | 'system' }));
-              }}
-            >
-              <View style={[styles.themePreview, { backgroundColor: theme.color }]}>
-                <Ionicons name={theme.icon} size={24} color={theme.key === 'light' ? '#1e293b' : '#FFFFFF'} />
-              </View>
-              <Text style={styles.themeLabel}>{theme.label}</Text>
-              {themePreference === theme.key && (
-                <View style={styles.themeCheck}>
-                  <Ionicons name="checkmark-circle" size={20} color="#6366f1" />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+        {/* Was a three-card Light / Dark / System grid. 'System' no longer
+            exists as a preference — the app does not read the phone's theme —
+            so the remaining choice is a boolean, and a boolean belongs in a
+            switch. This is the same shared control every other role renders,
+            over the same device-level preference. */}
+        <View style={styles.themeCardSingle}>
+          <DarkModeSwitch
+            onChange={(next) => dispatch(updateLocalAppearanceSettings({ theme: next }))}
+          />
         </View>
 
         <SectionHeader
@@ -479,7 +446,7 @@ const SettingsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
+      <StatusBar barStyle={barStyleOn('#6366f1')} backgroundColor="#6366f1" />
 
       <LinearGradient colors={['#6366f1', '#8b5cf6']} style={styles.header}>
         <View style={styles.headerContent}>
@@ -683,49 +650,15 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
     fontWeight: '700',
     color: sh.n('#FFFFFF', 'inkInverse'),
   },
-  themeGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  themeCard: {
-    flex: 1,
+  // One card holding the Dark Mode switch, where a three-up Light/Dark/System
+  // grid used to be.
+  themeCardSingle: {
     backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
+    paddingHorizontal: 16,
+    borderWidth: 1,
     borderColor: sh.n('#e2e8f0', 'line'),
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  themeCardActive: {
-    borderColor: sh.hue('#6366f1'),
-  },
-  themePreview: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  themeLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: sh.n('#1e293b', 'ink'),
-  },
-  themeCheck: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+    marginBottom: 24,
   },
   colorGrid: {
     flexDirection: 'row',

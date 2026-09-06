@@ -104,6 +104,39 @@ export const textOn = (
 };
 
 /**
+ * Status-bar glyph style for the surface directly beneath the status bar.
+ *
+ * Screens with a coloured header used to hardcode `barStyle="light-content"`
+ * beside `backgroundColor={THEME.primary}`, which was true only for the light
+ * palette they were written against. In dark, `darkShift`'s `hue()` RAISES a
+ * saturated colour until it clears AA against the dark card — so the header goes
+ * lighter, and the white glyphs that were correct on the original blue lose
+ * contrast on the lifted one.
+ *
+ * WHY THIS IS NOT `textOn`
+ * ------------------------
+ * `textOn` picks the winner of a head-to-head comparison, and on a mid-tone
+ * brand colour the DARK ink usually wins by a nose: white on the healthcare
+ * blue #2A7FFF measures 3.76 while the dark ink measures 4.39. Following that
+ * would put dark status-bar glyphs directly above a header whose own title is
+ * white — which reads as a bug, not as a contrast decision.
+ *
+ * The status bar's job is to agree with the header it sits on, so the question
+ * is "is this ground dark enough to carry white?", not "which ink wins". Light
+ * glyphs stay unless white actually FAILS — AA_LARGE, because these are icons
+ * and a clock, not body copy. Every shipped light header keeps the glyphs it
+ * has; only a ground lifted past the point where white stops working flips.
+ */
+export const barStyleOn = (
+  background?: string | null,
+): 'light-content' | 'dark-content' => {
+  if (!parseHex(background)) return 'light-content';
+  return contrastRatio(C.inkInverse, background as string) >= AA_LARGE
+    ? 'light-content'
+    : 'dark-content';
+};
+
+/**
  * An 8-digit hex is the cheapest way to get a tint of a brand colour without a
  * colour-space library, and it is what BrandStoreScreen already did by hand.
  * `alpha` is 0–1. Composites over whatever is behind it, so only use it on a

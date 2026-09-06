@@ -55,10 +55,10 @@ import { currencySymbol } from '../../../../constants/Currency';
 import { theme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, T } from '../../../../constants/theme';
-import { ThemeColors, useTheme } from '../../../../theme';
+import { barStyleOn, ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { HS } from '../../../../constants/HomeServiceTheme';
-import ThemeModeSelector from '../../../../components/ui/ThemeModeSelector';
+import { selectThemePreference, setThemePreference } from '../../../../store/themeSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -95,6 +95,7 @@ export default function ProviderProfileScreen() {
 
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
+  const themePreference = useAppSelector(selectThemePreference);
 
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -244,7 +245,7 @@ export default function ProviderProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} />
+      <StatusBar barStyle={barStyleOn(theme.colors.primaryDark)} backgroundColor={theme.colors.primaryDark} />
 
       <ScrollView
         style={styles.scrollView}
@@ -482,10 +483,16 @@ export default function ProviderProfileScreen() {
               />
             </View>
 
-            {/* Appearance. This row said "Coming soon" for as long as there
-                was no dark palette behind the ThemeProvider; there is one now,
-                so it is a real control — the same one the customer and admin
-                settings render, reading the same device-level preference.
+            {/* Dark mode. This row said "Coming soon" for as long as there was
+                no dark palette behind the ThemeProvider; there is one now, so
+                it is a real control, reading the same device-level preference
+                every other role's settings write to.
+
+                It is this screen's own row rather than the shared
+                <DarkModeSwitch /> because the rows here are built on a 42pt
+                icon column and that component is built on 36 — dropping it in
+                would break the alignment of the column it sits in. The shared
+                component is for screens with no row system of their own.
 
                 Language below is still disabled, and still honestly so: there
                 is no i18n layer at all. A control that flips and does nothing
@@ -495,12 +502,22 @@ export default function ProviderProfileScreen() {
                 <Moon size={20} color={theme.colors.primary} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Appearance</Text>
-                <Text style={styles.menuSubtitle}>Follow the system, or choose one</Text>
+                <Text style={styles.menuTitle}>Dark Mode</Text>
+                <Text style={styles.menuSubtitle}>
+                  Dimmed surfaces, easier on the eyes at night
+                </Text>
               </View>
-            </View>
-            <View style={styles.appearanceControl}>
-              <ThemeModeSelector />
+              <Switch
+                value={themePreference === 'dark'}
+                onValueChange={(next) => {
+                  dispatch(setThemePreference(next ? 'dark' : 'light'));
+                }}
+                trackColor={{ false: colors.line, true: colors.accentSoft }}
+                thumbColor={themePreference === 'dark' ? colors.accent : colors.inkFaint}
+                ios_backgroundColor={colors.line}
+                accessibilityLabel="Dark mode"
+                accessibilityState={{ checked: themePreference === 'dark' }}
+              />
             </View>
 
             {/* Language */}
@@ -888,14 +905,6 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   menuItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: c.surfaceSunken,
-  },
-  // The appearance picker is three segments wide — too wide for the trailing
-  // slot of a menu row, so it sits on its own line beneath one, indented to
-  // the row's label rather than its icon.
-  appearanceControl: {
-    paddingLeft: 42 + theme.spacing.md,
-    paddingRight: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
   },
   menuIconContainer: {
     width: 42,

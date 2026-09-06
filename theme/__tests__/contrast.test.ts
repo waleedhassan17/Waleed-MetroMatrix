@@ -1,6 +1,6 @@
 import { Colors, makeColors } from '../../constants/Colors';
 import { C, DARK_C, Ramp, ThemeMode } from '../../constants/theme';
-import { AA_BODY, AA_LARGE, contrastRatio } from '../contrast';
+import { AA_BODY, AA_LARGE, barStyleOn, contrastRatio, lift } from '../contrast';
 import { brandPalette, ModuleName, modulePalette } from '../palettes';
 
 // ============================================================================
@@ -288,5 +288,47 @@ describe('known light-mode contrast gaps', () => {
     // Why AppBar paints `accentDeep` and not `accent` — see its header comment.
     expect(contrastRatio('#FFFFFF', modulePalette('healthcare', 'light').accent)).toBeCloseTo(3.76, 1);
     expect(contrastRatio('#FFFFFF', modulePalette('homeservice', 'light').accent)).toBeCloseTo(3.77, 1);
+  });
+});
+
+// ============================================================================
+// The status-bar decision.
+//
+// 61 StatusBars used to hardcode `barStyle="light-content"` next to a
+// `backgroundColor` that only went dark in one of the two modes. `barStyleOn`
+// derives the glyph style from the colour actually being painted, so the pair
+// cannot drift apart again.
+// ============================================================================
+describe('barStyleOn', () => {
+  it('puts light glyphs on the brand headers', () => {
+    expect(barStyleOn('#2A7FFF')).toBe('light-content'); // healthcare
+    expect(barStyleOn('#1E6AE1')).toBe('light-content'); // healthcare, deep
+    expect(barStyleOn('#6366f1')).toBe('light-content'); // admin
+  });
+
+  it('puts dark glyphs on a light page', () => {
+    expect(barStyleOn(C.bg)).toBe('dark-content');
+    expect(barStyleOn(C.surface)).toBe('dark-content');
+  });
+
+  it('puts light glyphs on a dark page', () => {
+    expect(barStyleOn(DARK_C.bg)).toBe('light-content');
+    expect(barStyleOn(DARK_C.surface)).toBe('light-content');
+  });
+
+  it('flips when a header is lifted past the midpoint', () => {
+    // The case the hardcoded value got wrong: `hue()` raises a saturated colour
+    // until it clears AA against the dark card, and a header raised far enough
+    // stops carrying white text.
+    const lifted = lift('#2A7FFF', 7, DARK_C.surface);
+    expect(contrastRatio('#FFFFFF', lifted)).toBeLessThan(AA_LARGE);
+    expect(barStyleOn(lifted)).toBe('dark-content');
+  });
+
+  it('falls back to light glyphs for an unparseable colour', () => {
+    // Same fallback as textOn — a `rgba(...)` or a bad hex must not throw
+    // inside a render.
+    expect(barStyleOn('rgba(0,0,0,0.5)')).toBe('light-content');
+    expect(barStyleOn(undefined)).toBe('light-content');
   });
 });

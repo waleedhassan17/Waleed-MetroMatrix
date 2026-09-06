@@ -16,7 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -219,7 +219,7 @@ const DoctorManagementScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
+      <StatusBar barStyle={barStyleOn(COLORS.primary)} backgroundColor={COLORS.primary} />
 
       {/* Header */}
       <LinearGradient

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
-import { useTheme } from '../../../../theme';
+import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
@@ -210,7 +210,7 @@ const HealthcareNotificationsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME.primary} />
+      <StatusBar barStyle={barStyleOn(sh.grad(['#2A7FFF', '#1857C0'])[0])} backgroundColor={sh.grad(['#2A7FFF', '#1857C0'])[0]} />
 
       {/* Header */}
       <LinearGradient

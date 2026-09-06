@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleProp, TextStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { ICONS, IconName, IconSet, IconSizeKey, ICON_SIZES, IconDef } from '../constants/icons';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../theme';
 
 const SET_COMPONENTS: Record<IconSet, React.ComponentType<any>> = {
   Ionicons,
@@ -23,11 +23,25 @@ interface IconProps {
   style?: StyleProp<TextStyle>;
 }
 
-/** Semantic-name icon — <Icon name="cart" />. Glyph lives in constants/icons.ts. */
-export const Icon: React.FC<IconProps> = ({ name, size, color = Colors.text.primary, style }) => {
+/**
+ * Semantic-name icon — <Icon name="cart" />. Glyph lives in constants/icons.ts.
+ *
+ * The default colour resolves from the ramp rather than being frozen at import
+ * time. It used to be the static light `Colors.text.primary` — near-black — so
+ * any caller that left `color` off drew an invisible glyph on a dark page.
+ */
+export const Icon: React.FC<IconProps> = ({ name, size, color, style }) => {
+  const { colors } = useTheme();
   const def = ICONS[name];
   const Component = SET_COMPONENTS[def.set];
-  return <Component name={def.name} size={resolveSize(size)} color={color} style={style} />;
+  return (
+    <Component
+      name={def.name}
+      size={resolveSize(size)}
+      color={color ?? colors.ink}
+      style={style}
+    />
+  );
 };
 
 interface RawIconProps {
@@ -38,9 +52,17 @@ interface RawIconProps {
 }
 
 /** Renders an already-resolved IconDef (e.g. from getCategoryIcon()) rather than a registry name. */
-export const RawIcon: React.FC<RawIconProps> = ({ icon, size, color = Colors.text.primary, style }) => {
+export const RawIcon: React.FC<RawIconProps> = ({ icon, size, color, style }) => {
+  const { colors } = useTheme();
   const Component = SET_COMPONENTS[icon.set];
-  return <Component name={icon.name} size={resolveSize(size)} color={color} style={style} />;
+  return (
+    <Component
+      name={icon.name}
+      size={resolveSize(size)}
+      color={color ?? colors.ink}
+      style={style}
+    />
+  );
 };
 
 export default Icon;
