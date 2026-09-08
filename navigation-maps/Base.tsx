@@ -76,6 +76,10 @@ import ProviderAvailabilityScreen from "../screens/providers/homeservice/availab
 
 // Shopping Module
 import ShoppingStack from "../navigators/ShoppingStack";
+// Registered on the Base stack as well as inside ShoppingStack: the profile's
+// Addresses tab lives on this stack, and pushing the manager here is what lets
+// Back return to the profile instead of unwinding into the brand list.
+import ShoppingAddressesScreen from "../screens/Shopping/User/AddressSelection/AddressSelectionScreen";
 import BrandStack from "../navigators/BrandStack";
 
 // Healthcare Module
@@ -219,6 +223,7 @@ export const BaseRouteNames = {
 
   // Shopping
   Shopping: "Shopping",
+  ShoppingAddresses: "ShoppingAddresses",
   BrandModule: "BrandModule",
 
   // Admin Shopping
@@ -371,6 +376,7 @@ export type RootStackParamList = {
 
   // Shopping
   Shopping: undefined;
+  ShoppingAddresses: undefined;
   BrandModule: undefined;
 
   // Admin Shopping
@@ -955,6 +961,11 @@ export const BaseRoutes: IRoute[] = [
       headerShown: false,
     }
   },
+  {
+    component: ShoppingAddressesScreen,
+    title: BaseRouteNames.ShoppingAddresses,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
 
   // Brand Provider Route
   {
@@ -1120,4 +1131,7 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
   [BaseRouteNames.ProviderAvailability]: 'homeservice',
   [BaseRouteNames.ProviderEditProfile]: 'homeservice',
   [BaseRouteNames.ProviderSettings]: 'homeservice',
+
+  // Shopping
+  [BaseRouteNames.ShoppingAddresses]: 'shopping',
 };

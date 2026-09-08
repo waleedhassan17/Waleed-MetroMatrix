@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,7 @@ import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import BannerCarousel from '../../../../components/Shopping/BannerCarousel';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
 // Department tiles are derived from live data, not a hardcoded list: the names
@@ -94,8 +95,6 @@ const ShoppingHomeScreen: React.FC = () => {
   const BANNER_WIDTH = screenWidth - Spacing.lg * 2;
   const { cardWidth, imageHeight } = useProductGridSizing();
 
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const bannerRef = useRef<FlatList>(null);
   const cartItemCount = useAppSelector(selectCartItemCount);
   const walletBalance = useAppSelector(selectBalance) as number;
   const walletCurrency = useAppSelector(selectCurrency) as string;
@@ -108,18 +107,17 @@ const ShoppingHomeScreen: React.FC = () => {
     dispatch(fetchHomeData());
   }, [dispatch, activeBrand?.brandId]);
 
-  // Auto-scroll banners
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => {
-      setBannerIndex((prev) => {
-        const next = (prev + 1) % banners.length;
-        bannerRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
-      });
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
+  /**
+   * Inside a storefront this screen IS that brand's shop, so the promo strip
+   * has to be that brand's too. `GET /banners` is account-wide and takes no
+   * brandId, so the shopper browsing Outfitters was shown Cougar artwork — and
+   * tapping it walked them straight out into Cougar's store. Scoped here the
+   * same way `categories` and the featured products already are.
+   */
+  const visibleBanners = useMemo(
+    () => (activeBrand ? banners.filter((b) => b.brandId === activeBrand.brandId) : banners),
+    [banners, activeBrand]
+  );
 
   const handleRefresh = useCallback(() => {
     dispatch(refreshHomeData());
@@ -129,22 +127,32 @@ const ShoppingHomeScreen: React.FC = () => {
     navigation.navigate(ShoppingRouteNames.BrandStore, { brandId });
   };
 
-  /**
-   * A banner may deep-link to a brand. The server validates the target on
-   * write and drops banners whose brand is no longer live, so a brandId that
-   * arrives here is real — an undecorated banner just does nothing.
-   */
-  const openBannerBrand = useCallback(
-    (brandId?: string | null) => {
-      if (!brandId) return;
-      navigateToBrandStore(brandId);
-    },
-    [navigation]
-  );
-
   const navigateToProductDetail = (productId: string, brandId: string) => {
     navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId });
   };
+
+  /**
+   * A banner may deep-link to a brand or to a single product. The server
+   * validates the target on write and drops banners whose brand is no longer
+   * live, so anything that arrives here is real.
+   *
+   * The brand jump only applies on the brand chooser. Inside a storefront the
+   * banner belongs to the brand the shopper is already in, so re-entering it
+   * would be a no-op at best — the product link is the useful destination
+   * there, and a banner without one simply does nothing.
+   */
+  const handlePressBanner = useCallback(
+    (banner: Banner) => {
+      if (banner.productId) {
+        navigateToProductDetail(banner.productId, banner.brandId ?? activeBrand?.brandId ?? '');
+        return;
+      }
+      if (!activeBrand && banner.brandId) {
+        navigateToBrandStore(banner.brandId);
+      }
+    },
+    [navigation, activeBrand]
+  );
 
   const navigateToSearch = () => {
     // Search stays inside the storefront the shopper is in.
@@ -169,22 +177,6 @@ const ShoppingHomeScreen: React.FC = () => {
   }, [dispatch, navigation]);
 
   // ── Render Helpers ────────────────────────
-
-  const renderBanner = ({ item }: { item: Banner }) => (
-    <TouchableOpacity
-      style={[styles.bannerCard, { width: BANNER_WIDTH }]}
-      activeOpacity={0.9}
-      onPress={() => openBannerBrand(item.brandId)}
-    >
-      <Image source={{ uri: item.image }} style={styles.bannerImage} />
-      <View style={styles.bannerOverlay}>
-        <Text style={styles.bannerTitle}>{item.title}</Text>
-        {!!item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
-
-
 
   const handleToggleWishlist = useCallback((item: Product) => {
     dispatch(toggleWishlistItem({ productId: item.productId }));
@@ -349,36 +341,16 @@ const ShoppingHomeScreen: React.FC = () => {
           />
         }
       >
-        {/* ── Banners Carousel ────────────────── */}
-        <View style={styles.bannerSection}>
-          <FlatList
-            ref={bannerRef}
-            data={banners}
-            renderItem={renderBanner}
-            keyExtractor={(item) => item.bannerId}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={BANNER_WIDTH + Spacing.md}
-            decelerationRate="fast"
-            contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
-            ItemSeparatorComponent={() => <View style={{ width: Spacing.md }} />}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + Spacing.md));
-              setBannerIndex(idx);
-            }}
-          />
-          {banners.length > 1 && (
-            <View style={styles.dotsRow}>
-              {banners.map((_, i) => (
-                <View
-                  key={i}
-                  style={[styles.dot, i === bannerIndex ? styles.dotActive : {}]}
-                />
-              ))}
-            </View>
-          )}
-        </View>
+        {/* ── Banners Carousel (renders nothing when this storefront has
+            no banners of its own) ────────────── */}
+        <BannerCarousel
+          banners={visibleBanners}
+          itemWidth={BANNER_WIDTH}
+          itemHeight={BANNER_HEIGHT}
+          autoScroll
+          style={styles.bannerSection}
+          onPressBanner={handlePressBanner}
+        />
 
         {/* Wallet — one component, one data source, everywhere (W2 Part 4).
             The header chip above reads the SAME selectBalance/selectCurrency,
@@ -627,52 +599,9 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     paddingBottom: Spacing.xxxl,
   },
 
-  // Banners
+  // Banners — the strip itself lives in components/Shopping/BannerCarousel.
   bannerSection: {
     marginTop: Spacing.sm,
-  },
-  bannerCard: {
-    height: BANNER_HEIGHT,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-    padding: Spacing.lg,
-  },
-  bannerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  bannerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.borderDark,
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: ShopColors.primary,
-    borderRadius: 3,
   },
 
   // Sections

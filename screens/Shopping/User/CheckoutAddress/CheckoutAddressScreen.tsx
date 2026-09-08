@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckCircle2, Circle, ChevronLeft, MapPin, Plus, Pencil, Trash2, ArrowRight } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
@@ -46,6 +47,10 @@ const CheckoutAddressScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(Colors, colors), [Colors, colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  // The footer is absolutely positioned at bottom:0 and the app runs
+  // edge-to-edge on Android, so without this the gesture/nav bar covers the
+  // lower half of Continue.
+  const insets = useSafeAreaInsets();
 
   const [fieldErrors, setFieldErrors] = useState<AddressFormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -162,7 +167,10 @@ const CheckoutAddressScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
+      >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Saved Addresses</Text>
@@ -281,7 +289,7 @@ const CheckoutAddressScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <TouchableOpacity style={[styles.continueBtn, !selectedAddress && styles.continueBtnDisabled]} disabled={!selectedAddress} onPress={handleContinue}>
           <Text style={styles.continueBtnText}>Continue</Text>
           <ArrowRight size={16} stroke="#FFF" strokeWidth={2} />

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronLeft, Edit3, MapPin, Truck, CreditCard, ShoppingBag, AlertCircle } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
@@ -14,6 +15,9 @@ const CheckoutReviewScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  // Absolute footer + Android edge-to-edge: without the inset the system
+  // navigation bar sits over the Place Order button.
+  const insets = useSafeAreaInsets();
 
   const summary = useAppSelector(selectCheckoutOrderSummary);
   const placing = useAppSelector(selectCheckoutPlacing);
@@ -73,7 +77,10 @@ const CheckoutReviewScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Order Items</Text>
@@ -157,7 +164,7 @@ const CheckoutReviewScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <TouchableOpacity style={[styles.placeBtn, placing && styles.placeBtnDisabled]} disabled={placing} onPress={handlePlaceOrder}>
           <Text style={styles.placeBtnText}>{placing ? 'Placing Order...' : 'Place Order'}</Text>
           <ArrowRight size={16} stroke="#FFF" strokeWidth={2} />

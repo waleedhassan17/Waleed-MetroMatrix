@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, CheckCircle2, Circle, ChevronLeft, Truck } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
@@ -23,6 +24,9 @@ const CheckoutDeliveryScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(Colors, colors), [Colors, colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  // Absolute footer + Android edge-to-edge: without the inset the system
+  // navigation bar sits over the Continue button.
+  const insets = useSafeAreaInsets();
 
   const options = useAppSelector(selectCheckoutDeliveryOptions);
   const selectedOption = useAppSelector(selectSelectedCheckoutDeliveryOption);
@@ -97,7 +101,10 @@ const CheckoutDeliveryScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.heroCard}>
           <Truck size={20} stroke={Colors.primary} strokeWidth={2} />
           <View style={{ flex: 1 }}>
@@ -123,7 +130,7 @@ const CheckoutDeliveryScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <TouchableOpacity style={[styles.continueBtn, !selectedOption && styles.continueBtnDisabled]} disabled={!selectedOption} onPress={handleContinue}>
           <Text style={styles.continueBtnText}>Continue</Text>
           <ArrowRight size={16} stroke="#FFF" strokeWidth={2} />

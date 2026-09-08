@@ -90,6 +90,9 @@ const WishlistScreen: React.FC = () => {
         image: item.productImage,
         basePrice: item.originalPrice ?? item.price,
         salePrice: item.originalPrice && item.originalPrice > item.price ? item.price : undefined,
+        rating: item.rating,
+        totalReviews: item.totalReviews,
+        inStock: item.inStock,
       }}
       width={cardWidth}
       imageHeight={imageHeight}

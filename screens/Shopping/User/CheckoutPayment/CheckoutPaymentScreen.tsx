@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowRight,
   CheckCircle2,
@@ -54,6 +55,9 @@ const CheckoutPaymentScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  // Absolute footer + Android edge-to-edge: without the inset the system
+  // navigation bar sits over the Continue button.
+  const insets = useSafeAreaInsets();
 
   const paymentMethods = useAppSelector(selectCheckoutPaymentMethods);
   const selectedMethod = useAppSelector(selectSelectedCheckoutPaymentMethod);
@@ -164,7 +168,10 @@ const CheckoutPaymentScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Payment Methods */}
         <View style={styles.section}>
@@ -220,7 +227,7 @@ const CheckoutPaymentScreen: React.FC = () => {
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <TouchableOpacity
           style={[
             styles.continueBtn,

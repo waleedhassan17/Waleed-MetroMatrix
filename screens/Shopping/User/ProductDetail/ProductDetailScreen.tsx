@@ -11,6 +11,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -159,6 +160,37 @@ const ProductDetailScreen: React.FC = () => {
     dispatch(setImageIndex(idx));
   }, [dispatch]);
 
+  /**
+   * The share control was a bare TouchableOpacity with no `onPress` — it drew
+   * an icon and did nothing. Uses the OS share sheet, the same way the doctor
+   * and provider profiles already do.
+   *
+   * The message is plain text plus the product photo: the app's deep-link
+   * config registers no shopping routes, so a `metromatrix://` product URL
+   * would open the app on whatever screen it happened to be on rather than
+   * this product.
+   */
+  const handleShare = useCallback(async () => {
+    if (!product) return;
+    const brandLine = activeBrand?.name ? `${activeBrand.name} — ` : '';
+    const image = product.images?.[0];
+    try {
+      await Share.share({
+        title: product.name,
+        message: [
+          `${brandLine}${product.name}`,
+          `PKR ${price.toLocaleString()}${hasDiscount ? ` (was PKR ${originalPrice.toLocaleString()})` : ''}`,
+          image,
+          'Shared from MetroMatrix',
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      });
+    } catch {
+      Alert.alert('Could not share', 'Please try again.');
+    }
+  }, [product, activeBrand, price, originalPrice, hasDiscount]);
+
   // ── Loading / Error ───────────────────────
 
   if (loading) {
@@ -214,7 +246,12 @@ const ProductDetailScreen: React.FC = () => {
                   strokeWidth={1.75}
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerCircle}>
+              <TouchableOpacity
+                style={styles.headerCircle}
+                onPress={handleShare}
+                accessibilityRole="button"
+                accessibilityLabel={`Share ${product.name}`}
+              >
                 <Share2 size={18} stroke={Colors.text.primary} strokeWidth={1.75} />
               </TouchableOpacity>
             </View>

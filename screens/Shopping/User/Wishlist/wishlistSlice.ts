@@ -14,6 +14,15 @@ export interface WishlistItemState {
   brandName: string;
   price: number;
   originalPrice?: number;
+  /**
+   * The server populates the whole product card on every wishlist response —
+   * `rating` and `totalReviews` included. They were simply not carried across
+   * here, so the Wishlist tab rendered a flat "0.0 (0)" under products that
+   * showed a real score everywhere else in the app.
+   */
+  rating: number;
+  totalReviews: number;
+  inStock: boolean;
 }
 
 export interface WishlistState {
@@ -37,6 +46,9 @@ const mapServerItems = (items: (WishlistItemView & { brandName?: string })[]): W
     brandName: it.brandName || '',
     price: it.product?.salePrice ?? it.product?.basePrice ?? 0,
     originalPrice: it.product?.salePrice != null ? it.product?.basePrice : undefined,
+    rating: it.product?.rating ?? 0,
+    totalReviews: it.product?.totalReviews ?? 0,
+    inStock: it.product?.inStock ?? true,
   }));
 
 // ── Server-backed thunks (same names as the old local actions) ──────

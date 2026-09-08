@@ -67,6 +67,14 @@ import {
   selectProfileLoading,
   selectProfileError,
 } from './userProfileSlice';
+// Shopping keeps its own address book — a delivery address needs a recipient
+// name and phone, which the home-service "where to send the provider" list
+// does not carry. Reading it here is what makes this tab agree with the
+// manager it opens and with the checkout that consumes the same store.
+import {
+  fetchAddresses as fetchShoppingAddresses,
+  selectCheckoutAddresses,
+} from '../../../Shopping/User/CheckoutAddress/checkoutAddressSlice';
 import {
   User,
   Edit3,
@@ -304,13 +312,44 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   const dispatch = useAppDispatch();
   const unreadTotal = useAppSelector(selectTotalUnread);
   const user = useAppSelector(selectUser);
-  const addresses = useAppSelector(selectUserAddresses);
   const isPremium = useAppSelector(selectIsPremium);
   const isVerified = useAppSelector(selectIsVerified);
   const stats = useAppSelector(selectUserStats);
   const isLoading = useAppSelector(selectProfileLoading);
   const profileError = useAppSelector(selectProfileError);
   const themePreference = useAppSelector(selectThemePreference);
+
+  /**
+   * WHICH ADDRESS BOOK THIS TAB SHOWS
+   * ---------------------------------
+   * It used to read `userProfileSlice`, which derives its list from the single
+   * legacy `user.address` object on the account record — almost always empty.
+   * So the tab said "No saved addresses" directly above a button that opened a
+   * screen listing several.
+   *
+   * There are two real address books, and they are not interchangeable:
+   * home services stores a place (label + line + coordinates), shopping stores
+   * a shipment (recipient name + phone + city, which checkout requires). Each
+   * vertical therefore reads its own, and the tab now shows whichever one the
+   * button below it will open.
+   */
+  const isShopping = module === 'shopping';
+  const profileAddresses = useAppSelector(selectUserAddresses);
+  const shoppingAddresses = useAppSelector(selectCheckoutAddresses);
+  const addresses = useMemo(
+    () =>
+      isShopping
+        ? shoppingAddresses.map((a) => ({
+            id: a.id,
+            label: 'home' as const,
+            address: [a.address, a.area].filter(Boolean).join(', '),
+            city: a.city,
+            postalCode: a.postalCode,
+            isDefault: a.isDefault,
+          }))
+        : profileAddresses,
+    [isShopping, shoppingAddresses, profileAddresses]
+  );
 
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -330,7 +369,8 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   useFocusEffect(
     React.useCallback(() => {
       dispatch(fetchUserProfile());
-    }, [dispatch])
+      if (isShopping) dispatch(fetchShoppingAddresses());
+    }, [dispatch, isShopping])
   );
 
   /** Two-letter monogram, for a profile with no picture set. */
@@ -733,7 +773,10 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
     <View style={styles.addressesContainer}>
       <TouchableOpacity
         style={[styles.addAddressButton, accent.solid]}
-        onPress={() => navigation.navigate('AddressManagement')}
+        // Each vertical hands off to the manager that writes to the book this
+        // tab is reading — shopping's is the same store checkout consumes, so
+        // an address added here is selectable at checkout straight away.
+        onPress={() => navigation.navigate(isShopping ? 'ShoppingAddresses' : 'AddressManagement')}
         accessibilityRole="button"
         accessibilityLabel="Manage your addresses"
       >
@@ -750,7 +793,9 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
           </View>
           <Text style={styles.addressEmptyTitle}>No saved addresses</Text>
           <Text style={styles.addressEmptyBody}>
-            Save where you want work done and it will be ready at checkout.
+            {isShopping
+              ? 'Save a delivery address and it will be ready to pick at checkout.'
+              : 'Save where you want work done and it will be ready at checkout.'}
           </Text>
         </View>
       )}

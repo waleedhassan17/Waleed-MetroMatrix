@@ -34,6 +34,7 @@ import type { Banner } from '../ShoppingHome/shoppingHomeSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import type { Product } from '../../../../types/shopping';
 import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
+import BannerCarousel from '../../../../components/Shopping/BannerCarousel';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -50,6 +51,94 @@ const makeShopColors = (c: ThemeColors) => ({
   border: c.line,
   success: c.success,
 });
+
+const BANNER_WIDTH = 320;
+
+interface BrandListHeaderProps {
+  styles: ReturnType<typeof makeStyles>;
+  ShopColors: ReturnType<typeof makeShopColors>;
+  banners: Banner[];
+  featuredBrands: BrandConfig[];
+  brandCount: number;
+  isSearching: boolean;
+  onPressBanner: (banner: Banner) => void;
+  onPressBrand: (brand: BrandConfig) => void;
+}
+
+/**
+ * Declared at module scope, and handed to `ListHeaderComponent` as an ELEMENT.
+ *
+ * It used to be a `renderHeader` closure defined inside the screen body and
+ * passed by reference. VirtualizedList renders that as `<ListHeaderComponent/>`
+ * — a component *type* — so a fresh closure on every render read as a
+ * different type, and React unmounted and remounted the whole header. Any
+ * re-render therefore threw away the scroll position of the horizontal strips
+ * inside it: swipe a banner, the index changes, the strip jumps back to the
+ * first card. (Only on the first swipe — the second produced the same index,
+ * `setState` bailed out, and nothing re-rendered.) A stable type plus an
+ * element reconciles in place, so the strips keep their offset.
+ */
+const BrandListHeader: React.FC<BrandListHeaderProps> = React.memo(
+  ({ styles, ShopColors, banners, featuredBrands, brandCount, isSearching, onPressBanner, onPressBrand }) => (
+    <View style={styles.listHeader}>
+      {!isSearching && (
+        <>
+          {/* ── Banners Carousel (server-driven; hidden when empty) ── */}
+          <BannerCarousel
+            banners={banners}
+            itemWidth={BANNER_WIDTH}
+            style={styles.bannerSection}
+            onPressBanner={onPressBanner}
+          />
+
+          {/* ── Featured Brands ────────────────── */}
+          {featuredBrands.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Featured Brands</Text>
+                  <Text style={styles.sectionSubtitle}>{featuredBrands.length} top brands</Text>
+                </View>
+              </View>
+              <FlatList
+                data={featuredBrands}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.smallBrandCard}
+                    activeOpacity={0.7}
+                    onPress={() => onPressBrand(item)}
+                  >
+                    <View style={[styles.brandLogoWrap, { borderColor: item.primaryColor || ShopColors.primary }]}>
+                      <Image source={{ uri: item.logo }} style={styles.brandLogoSmall} />
+                    </View>
+                    <Text style={styles.smallBrandName} numberOfLines={1}>{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+                keyExtractor={(item) => item.brandId}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
+                ItemSeparatorComponent={() => <View style={{ width: Spacing.lg }} />}
+              />
+            </View>
+          )}
+        </>
+      )}
+
+      {/* ── All Brands Title ───────────────── */}
+      {brandCount > 0 && (
+        <View style={[styles.sectionHeader, { marginTop: isSearching ? 0 : Spacing.md }]}>
+          <Text style={styles.sectionTitle}>
+            {isSearching ? 'Search Results' : 'All Brands'}
+          </Text>
+          <Text style={styles.sectionCount}>
+            {brandCount} brand{brandCount !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+    </View>
+  )
+);
 
 const BrandListScreen: React.FC = () => {
   const { colors, mode } = useTheme();
@@ -152,21 +241,9 @@ const BrandListScreen: React.FC = () => {
 
   // ── Render Helpers ────────────────────────
 
-  const renderBanner = ({ item }: { item: Banner }) => (
-    <TouchableOpacity
-      style={styles.bannerCard}
-      activeOpacity={0.9}
-      onPress={() => {
-        if (item.brandId) openBrandById(item.brandId);
-      }}
-    >
-      <Image source={{ uri: item.image }} style={styles.bannerImage} />
-      <View style={styles.bannerOverlay}>
-        <Text style={styles.bannerTitle}>{item.title}</Text>
-        {!!item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
+  const handlePressBanner = useCallback((banner: Banner) => {
+    if (banner.brandId) openBrandById(banner.brandId);
+  }, [openBrandById]);
 
   const renderProductCard = ({ item, index }: { item: Product; index: number }) => {
     const hasDiscount = Boolean(item.salePrice && item.salePrice < item.basePrice);
@@ -219,22 +296,6 @@ const BrandListScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
-
-  const renderSmallBrandCard = ({ item }: { item: BrandConfig }) => (
-    <TouchableOpacity
-      style={styles.smallBrandCard}
-      activeOpacity={0.7}
-      onPress={() => openBrand(item)}
-    >
-      <View style={[styles.brandLogoWrap, { borderColor: item.primaryColor || ShopColors.primary }]}>
-        <Image source={{ uri: item.logo }} style={styles.brandLogoSmall} />
-      </View>
-      <Text style={styles.smallBrandName} numberOfLines={1}>{item.name}</Text>
-    </TouchableOpacity>
-  );
-
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const BANNER_WIDTH = 320;
 
   // ── Render: Large Brand Card ───────────────
 
@@ -290,87 +351,6 @@ const BrandListScreen: React.FC = () => {
           </View>
         </View>
       </TouchableOpacity>
-    );
-  };
-
-  // ── Render: Section Header ─────────────────
-
-  const renderHeader = () => {
-    const isSearching = searchQuery.trim().length > 0;
-    
-    return (
-      <View style={styles.listHeader}>
-        {!isSearching && (
-          <>
-            {/* ── Banners Carousel (server-driven; hidden when empty) ── */}
-            {banners.length > 0 && (
-            <View style={styles.bannerSection}>
-              <FlatList
-                data={banners}
-                renderItem={renderBanner}
-                keyExtractor={(item) => item.bannerId}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={BANNER_WIDTH + Spacing.md}
-                decelerationRate="fast"
-                contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
-                ItemSeparatorComponent={() => <View style={{ width: Spacing.md }} />}
-                onMomentumScrollEnd={(e) => {
-                  const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + Spacing.md));
-                  setBannerIndex(idx);
-                }}
-              />
-              {banners.length > 1 && (
-                <View style={styles.dotsRow}>
-                  {banners.map((_, i: number) => (
-                    <View
-                      key={i}
-                      style={[styles.dot, i === bannerIndex ? styles.dotActive : {}]}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-            )}
-
-            {/* ── Featured Brands ────────────────── */}
-            {featuredBrands.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>Featured Brands</Text>
-                    <Text style={styles.sectionSubtitle}>{featuredBrands.length} top brands</Text>
-                  </View>
-                </View>
-                <FlatList
-                  data={featuredBrands}
-                  renderItem={renderSmallBrandCard}
-                  keyExtractor={(item) => item.brandId}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: Spacing.lg }}
-                  ItemSeparatorComponent={() => <View style={{ width: Spacing.lg }} />}
-                />
-              </View>
-            )}
-
-
-          </>
-        )}
-
-        {/* ── All Brands Title ───────────────── */}
-        {filteredBrands.length > 0 && (
-          <View style={[styles.sectionHeader, { marginTop: isSearching ? 0 : Spacing.md }]}>
-            <Text style={styles.sectionTitle}>
-              {isSearching ? 'Search Results' : 'All Brands'}
-            </Text>
-            <Text style={styles.sectionCount}>
-              {filteredBrands.length} brand{filteredBrands.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        )}
-      </View>
     );
   };
 
@@ -483,9 +463,23 @@ const BrandListScreen: React.FC = () => {
           renderItem={renderBrandCard}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
+          // Elements, not function references — see the note on
+          // BrandListHeader. A function is treated as a component type, and a
+          // new one each render remounts the subtree.
+          ListHeaderComponent={
+            <BrandListHeader
+              styles={styles}
+              ShopColors={ShopColors}
+              banners={banners}
+              featuredBrands={featuredBrands}
+              brandCount={filteredBrands.length}
+              isSearching={searchQuery.trim().length > 0}
+              onPressBanner={handlePressBanner}
+              onPressBrand={openBrand}
+            />
+          }
+          ListEmptyComponent={renderEmpty()}
+          ListFooterComponent={renderFooter()}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           refreshControl={
@@ -716,55 +710,10 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
 
   // ── Mega Feed Styles ─────────────────────
 
+  // The strip itself lives in components/Shopping/BannerCarousel.
   bannerSection: {
     marginTop: Spacing.md,
     marginBottom: Spacing.md,
-  },
-  bannerCard: {
-    width: 320,
-    height: 160,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: ShopColors.backgroundAlt,
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-    padding: Spacing.lg,
-  },
-  bannerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  bannerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: ShopColors.border,
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: ShopColors.primary,
-    borderRadius: 3,
   },
 
   section: {
