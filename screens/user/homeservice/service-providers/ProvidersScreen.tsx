@@ -48,6 +48,10 @@ import {
   selectFavorites,
   selectPendingFavoriteIds,
 } from '../favorites/favoritesSlice';
+import {
+  fetchActiveBookings,
+  selectActiveBookings,
+} from '../Booking/bookingScreenSlice';
 import { formatPrice, formatRating, formatReviewCount } from '../../../../utils/homeservice/format';
 import {
   fetchACRepairers,
@@ -81,6 +85,8 @@ interface ProviderCardProps {
   onCall: (provider: Provider) => void;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
+  /** True when the customer already has a live request with this provider. */
+  hasActiveRequest: boolean;
 }
 
 const ProviderCard: React.FC<ProviderCardProps> = ({
@@ -93,6 +99,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   onCall,
   isFavorite,
   onToggleFavorite,
+  hasActiveRequest,
 }) => {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -191,13 +198,19 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           >
             <Ionicons name="call-outline" size={17} color={colors.inkMuted} />
           </TouchableOpacity>
+          {/* One live request per provider. Sending the customer back into
+              the booking form here would only end at the server's duplicate
+              guard, so the button says what it can actually do. */}
           <Button
-            label="Book"
+            label={hasActiveRequest ? 'View request' : 'Book'}
+            variant={hasActiveRequest ? 'secondary' : 'primary'}
             size="sm"
             fullWidth={false}
             onPress={() => onBookNow(item.id)}
             style={styles.bookButton}
-            accessibilityLabel={`Book ${item.name}`}
+            accessibilityLabel={
+              hasActiveRequest ? `View your request with ${item.name}` : `Book ${item.name}`
+            }
           />
         </View>
       </View>
@@ -242,6 +255,11 @@ export default function ProvidersScreen() {
   // `pendingIds` is folded in so a heart stays filled while its request is in
   // flight, matching `selectIsFavorite` — otherwise it flickers back to an
   // outline for the width of the round trip.
+  // Which providers already have this customer's request. Read straight from
+  // the booking slice so this list and the provider profile cannot disagree
+  // about who has been booked.
+  const activeBookings = useSelector(selectActiveBookings);
+
   const favoriteItems = useSelector(selectFavorites);
   const pendingFavoriteIds = useSelector(selectPendingFavoriteIds);
   const favorites = useMemo(
@@ -268,6 +286,10 @@ export default function ProvidersScreen() {
       // whichever screen last fetched it, and arriving here directly from Home
       // means nothing has.
       dispatch(fetchFavorites() as any);
+      // Refetched on every focus, not just the first: the customer arrives
+      // back here after cancelling a request or having one accepted, and a
+      // stale map would leave "View request" on a provider they could book.
+      dispatch(fetchActiveBookings() as any);
     }, [serviceType, dispatch])
   );
 
@@ -280,9 +302,19 @@ export default function ProvidersScreen() {
 
   const handleBookNow = useCallback(
     (providerId: string) => {
+      // Already requested → straight to the booking status, skipping the date,
+      // address and summary steps the customer completed the first time.
+      const active = activeBookings[providerId];
+      if (active) {
+        navigation.navigate('BookConfirmation', {
+          category: serviceType,
+          bookingId: active.bookingId,
+        });
+        return;
+      }
       navigation.navigate('BookingScreen', { providerId, category: serviceType });
     },
-    [navigation, serviceType]
+    [navigation, serviceType, activeBookings]
   );
 
   const handleChatPress = useCallback(
@@ -469,6 +501,7 @@ export default function ProvidersScreen() {
               tintSoft={category.tintSoft}
               onPress={handleProviderPress}
               onBookNow={handleBookNow}
+              hasActiveRequest={!!activeBookings[provider.id]}
               onChat={handleChatPress}
               onCall={handleCallPress}
               isFavorite={favorites.includes(provider.id)}

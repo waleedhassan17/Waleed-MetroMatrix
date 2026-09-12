@@ -23,10 +23,15 @@ export interface Job {
   specialInstructions?: string;
 }
 
+// One count per bucket `Job.status` can hold. `available` is the number of
+// customers waiting on this provider to accept or decline — the count the
+// Jobs tab puts on its New-requests filter.
 export interface JobStats {
   total: number;
+  available: number;
   upcoming: number;
   today: number;
+  active: number;
   completed: number;
   cancelled: number;
 }

@@ -8,6 +8,7 @@ import {
   BookingProvider,
   Booking,
   BookingConfirmation,
+  ActiveBooking,
 } from '../../models/serviceProviders';
 import { toServiceCategory } from './commonSerializer';
 
@@ -52,15 +53,33 @@ export function bookingProviderSerializer(data: any): BookingProvider {
   };
 }
 
+// Null, not a placeholder object: "no live request with this provider" is the
+// normal answer, and an empty-stringed ActiveBooking would route the app to a
+// booking id of ''.
+export function activeBookingSerializer(data: any): ActiveBooking | null {
+  if (!data || !data.bookingId) return null;
+  return {
+    bookingId: String(data.bookingId),
+    providerId: String(data.providerId || ''),
+    status: data.status || 'waiting',
+    category: toServiceCategory(data.category),
+    scheduledFor: data.scheduledFor || null,
+    scheduledTime: data.scheduledTime || '',
+    createdAt: data.createdAt || '',
+  };
+}
+
 export function bookingDataSerializer(payload: any): {
   provider: BookingProvider;
   addresses: SavedAddress[];
   timeSlots: TimeSlot[];
+  activeBooking: ActiveBooking | null;
 } {
   return {
     provider: bookingProviderSerializer(payload?.provider || {}),
     addresses: (payload?.savedAddresses || payload?.addresses || []).map(savedAddressSerializer),
     timeSlots: (payload?.timeSlots || []).map(timeSlotSerializer),
+    activeBooking: activeBookingSerializer(payload?.activeBooking),
   };
 }
 

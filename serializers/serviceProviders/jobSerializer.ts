@@ -34,8 +34,10 @@ export function jobListSerializer(payload: any): { jobs: Job[]; stats: JobStats 
     jobs,
     stats: {
       total: payload?.stats?.total || jobs.length,
+      available: payload?.stats?.available || 0,
       upcoming: payload?.stats?.upcoming || 0,
       today: payload?.stats?.today || 0,
+      active: payload?.stats?.active || 0,
       completed: payload?.stats?.completed || 0,
       cancelled: payload?.stats?.cancelled || 0,
     },

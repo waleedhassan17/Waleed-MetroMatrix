@@ -60,6 +60,10 @@ import {
   selectIsFavorite,
 } from '../favorites/favoritesSlice';
 import {
+  fetchActiveBookings,
+  selectActiveBookings,
+} from '../Booking/bookingScreenSlice';
+import {
   fetchProviderById,
   GalleryItem,
   Provider,
@@ -99,6 +103,11 @@ export default function ProviderProfileScreen() {
   const selectedTab = useSelector((state: RootState) => state.providerProfile?.selectedTab) as TabId;
   const isFavorite = useSelector(selectIsFavorite(provider?.id));
 
+  // The live request with this provider, if there is one. Same source as the
+  // provider list's Book buttons — see the booking slice.
+  const activeBookings = useSelector(selectActiveBookings);
+  const activeBooking = provider ? activeBookings[provider.id] : undefined;
+
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
   const [showLocationSheet, setShowLocationSheet] = useState(false);
 
@@ -107,6 +116,10 @@ export default function ProviderProfileScreen() {
       dispatch(fetchProviderById({ providerId: id, category }) as any);
       // So the heart shows the saved state the user left it in.
       dispatch(fetchFavorites() as any);
+      // And so the footer knows whether this provider already has a request
+      // from this customer — refetched on focus, because the answer changes
+      // while the customer is away booking or cancelling.
+      dispatch(fetchActiveBookings() as any);
     }, [id, category, dispatch])
   );
 
@@ -597,10 +610,30 @@ export default function ProviderProfileScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: bottomPad }]}>
+        {/* One live request per provider: booking this one again is not a
+            thing the server will allow, so the button reopens the request
+            that exists instead of walking the customer back through a form
+            that ends in a refusal. */}
         <Button
-          label={`Book · ${formatPrice(provider.price, 'request a quote')}`}
-          onPress={() => navigation.navigate('BookingScreen', { providerId: provider.id, category })}
-          accessibilityLabel={`Book ${provider.name}`}
+          label={
+            activeBooking
+              ? 'View your request'
+              : `Book · ${formatPrice(provider.price, 'request a quote')}`
+          }
+          variant={activeBooking ? 'secondary' : 'primary'}
+          onPress={() =>
+            activeBooking
+              ? navigation.navigate('BookConfirmation', {
+                  category,
+                  bookingId: activeBooking.bookingId,
+                })
+              : navigation.navigate('BookingScreen', { providerId: provider.id, category })
+          }
+          accessibilityLabel={
+            activeBooking
+              ? `View your request with ${provider.name}`
+              : `Book ${provider.name}`
+          }
         />
       </View>
 

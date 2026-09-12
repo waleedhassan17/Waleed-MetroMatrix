@@ -8,6 +8,7 @@ export function serviceStatusSerializer(payload: any): ServiceStatus {
   return {
     bookingId: payload?.bookingId || '',
     status: payload?.status || 'in_progress',
+    canonicalStatus: payload?.canonicalStatus,
     provider: {
       id: payload?.provider?.id || '',
       name: payload?.provider?.name || '',
@@ -22,7 +23,11 @@ export function serviceStatusSerializer(payload: any): ServiceStatus {
     serviceDetails: {
       type: payload?.serviceDetails?.type || '',
       description: payload?.serviceDetails?.description || '',
-      startedAt: payload?.serviceDetails?.startedAt || new Date().toISOString(),
+      // Empty, NOT "now". A job that has not started has no start time, and
+      // defaulting to the current clock printed "Started 03:00" on a booking
+      // the provider had not even set off for. The screen already hides the
+      // label when this is empty.
+      startedAt: payload?.serviceDetails?.startedAt || '',
       estimatedDuration: payload?.serviceDetails?.estimatedDuration || '',
       suggestedAmount: payload?.serviceDetails?.suggestedAmount || 0,
     },

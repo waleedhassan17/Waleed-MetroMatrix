@@ -54,6 +54,11 @@ export interface ServiceStatusState {
   serviceDetails: ServiceDetails | null;
   payment: PaymentInfo;
   serviceStatus: ServiceStatusType;
+  // Raw server lifecycle status. 'checking' above covers everything from
+  // ACCEPTED to ARRIVED, but the customer may only confirm completion from
+  // IN_PROGRESS — the state machine rejects anything earlier. Without this the
+  // screen offered "Mark complete" on a job the provider had not started.
+  canonicalStatus: string | null;
   isLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
@@ -70,6 +75,7 @@ const initialState: ServiceStatusState = {
     transactionId: null,
   },
   serviceStatus: 'checking',
+  canonicalStatus: null,
   isLoading: false,
   isSubmitting: false,
   error: null,
@@ -155,6 +161,7 @@ const mapApiServiceStatusToLocal = (
     serviceDetails,
     payment,
     serviceStatus: mapApiStatusToLocal(apiData.status, apiData.payment.status),
+    canonicalStatus: apiData.canonicalStatus ?? null,
   };
 };
 
@@ -192,6 +199,7 @@ const serviceStatusSlice = createAppSlice({
           // the only thing that ever advanced this screen, and why a
           // completed-but-unpaid booking looked unpaid-and-unfinished forever.
           state.serviceStatus = action.payload.serviceStatus;
+          state.canonicalStatus = action.payload.canonicalStatus;
           state.payment.status = action.payload.payment.status;
           // Don't clobber an amount the customer is mid-way through typing.
           if (!state.payment.amount) {
@@ -303,6 +311,7 @@ const serviceStatusSlice = createAppSlice({
     }),
   }),
   selectors: {
+    selectCanonicalStatus: (state) => state.canonicalStatus,
     selectProvider: (state) => state.provider,
     selectServiceDetails: (state) => state.serviceDetails,
     selectPayment: (state) => state.payment,
@@ -327,6 +336,7 @@ export const {
 
 // Selectors
 export const {
+  selectCanonicalStatus,
   selectProvider,
   selectServiceDetails,
   selectPayment,
@@ -370,14 +380,33 @@ interface ProgressStep {
   completed: boolean;
 }
 
+// Lifecycle order, so a step can ask "have we reached this point yet?".
+const LIFECYCLE = ['PENDING', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'];
+
 export const selectServiceProgress = (state: { serviceStatus?: ServiceStatusState }): ProgressStep[] => {
   const serviceStatusState = state.serviceStatus;
   if (!serviceStatusState) return [];
-  const { serviceStatus } = serviceStatusState;
-  
+  const { serviceStatus, canonicalStatus } = serviceStatusState;
+
+  // 'Service Started' used to be hardcoded `completed: true`, so a job nobody
+  // had started still showed a green tick — directly contradicting the
+  // "Waiting for the provider" card beneath it. Driven by the real status now,
+  // falling back to the old behaviour when the server does not send one.
+  const rank = canonicalStatus ? LIFECYCLE.indexOf(canonicalStatus) : -1;
+  const reached = (s: string) => rank >= 0 && rank >= LIFECYCLE.indexOf(s);
+  const known = rank >= 0;
+
   const steps: ProgressStep[] = [
-    { key: 'started', label: 'Service Started', completed: true },
-    { key: 'in_progress', label: 'In Progress', completed: serviceStatus !== 'checking' },
+    {
+      key: 'started',
+      label: 'Service Started',
+      completed: known ? reached('EN_ROUTE') : true,
+    },
+    {
+      key: 'in_progress',
+      label: 'In Progress',
+      completed: known ? reached('IN_PROGRESS') : serviceStatus !== 'checking',
+    },
     { key: 'completed', label: 'Completed', completed: ['completed', 'payment_pending', 'payment_completed'].includes(serviceStatus) },
     { key: 'payment', label: 'Payment', completed: serviceStatus === 'payment_completed' },
   ];

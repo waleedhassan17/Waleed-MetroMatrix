@@ -49,12 +49,14 @@ import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constan
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';
+import { cancelBooking } from '../../../../networks/serviceProviders/bookingNetwork';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 import { formatAmount, formatInstant, formatRating } from '../../../../utils/homeservice/format';
 import {
   clearServiceStatusState,
   fetchServiceStatus,
   markServiceCompleted,
+  selectCanonicalStatus,
   selectPaymentSummary,
   selectServiceProgress,
   setPaymentAmount,
@@ -95,6 +97,27 @@ export default function ServiceStatusScreen() {
   const error = useSelector((state: RootState) => state.serviceStatus?.error);
   const paymentSummary = useSelector(selectPaymentSummary);
   const progressSteps = useSelector(selectServiceProgress);
+  const canonicalStatus = useSelector(selectCanonicalStatus);
+
+  // The customer may confirm completion only from IN_PROGRESS — the state
+  // machine rejects every earlier status, and `serviceStatus` cannot tell them
+  // apart because it reports 'checking' for everything from ACCEPTED to
+  // ARRIVED. Offering the button regardless is what produced the 400
+  // "Illegal transition ACCEPTED → COMPLETED" on a job nobody had started.
+  //
+  // An older server omits canonicalStatus; falling back to the previous
+  // behaviour there keeps this screen working against a backend that predates
+  // the field, rather than hiding the button forever.
+  const workHasStarted = canonicalStatus ? canonicalStatus === 'IN_PROGRESS' : true;
+
+  // The customer may close out a job from any point after a provider took it
+  // on — the lifecycle only advances when the PROVIDER taps through
+  // en-route/arrived/start-work, so without this a provider who does the work
+  // but skips those buttons strands the booking forever, and stays unbookable
+  // themselves. PENDING is excluded: nothing has been agreed yet, so there is
+  // no work to call finished — cancelling is the right move there.
+  const canConfirmCompletion =
+    !!canonicalStatus && ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'].includes(canonicalStatus);
 
   // The card used to print `provider.startTime` raw, so a customer saw
   // "Started 2026-09-03T18:22:41.507Z". Null when the job has not started.
@@ -107,6 +130,9 @@ export default function ServiceStatusScreen() {
   const [manualAmount, setManualAmount] = useState('');
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
   const [showLeaveSheet, setShowLeaveSheet] = useState(false);
+  const [showCancelSheet, setShowCancelSheet] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
 
@@ -128,6 +154,27 @@ export default function ServiceStatusScreen() {
   // even by the phone's back button — made the booking permanently unpayable
   // from this screen. Derived, it survives navigation and app restarts.
   const paymentDue = serviceStatus === 'completed' && payment?.status !== 'completed';
+
+  // Before work starts this screen is otherwise a dead end: the customer can
+  // neither complete the job (illegal that early) nor free the provider, who
+  // stays unbookable while the request sits there. Cancelling is legal from
+  // PENDING through ARRIVED, so it is the honest way out.
+  const handleCancelBooking = useCallback(async () => {
+    if (!bookingId) return;
+    setCancelError(null);
+    setIsCancelling(true);
+    try {
+      const res = await cancelBooking(bookingId, 'Cancelled from service status');
+      if (!res.success) {
+        setCancelError(res.message || "We couldn't cancel this booking. Try again.");
+        return;
+      }
+      dispatch(clearServiceStatusState());
+      navigation.goBack();
+    } finally {
+      setIsCancelling(false);
+    }
+  }, [bookingId, dispatch, navigation]);
 
   const leaveScreen = useCallback(() => {
     dispatch(clearServiceStatusState());
@@ -342,7 +389,50 @@ export default function ServiceStatusScreen() {
             </Card>
           </View>
 
-          {serviceStatus === 'checking' && (
+          {serviceStatus === 'checking' && !workHasStarted && (
+            <View style={styles.section}>
+              <Card>
+                <Text style={styles.cardTitle}>
+                  {canonicalStatus === 'ARRIVED'
+                    ? `${provider.name} has arrived`
+                    : `Waiting for ${provider.name}`}
+                </Text>
+                <Text style={styles.body}>
+                  {canonicalStatus === 'ARRIVED'
+                    ? "You'll be able to confirm the job once they start work."
+                    : "We'll update this as soon as they're on their way and the job begins."}
+                </Text>
+                {!!completeError && <Text style={styles.error}>{completeError}</Text>}
+                {!!cancelError && <Text style={styles.error}>{cancelError}</Text>}
+                {canConfirmCompletion && (
+                  <Button
+                    label="Mark work done"
+                    icon="checkmark-circle-outline"
+                    onPress={handleServiceCompleted}
+                    loading={!!isSubmitting}
+                    style={styles.cardButton}
+                  />
+                )}
+                <Button
+                  label="Message provider"
+                  variant="secondary"
+                  icon="chatbubble-outline"
+                  onPress={() => setContactSheetOpen(true)}
+                  style={styles.cardButtonStacked}
+                />
+                <Button
+                  label="Cancel booking"
+                  variant="destructive"
+                  icon="close-circle-outline"
+                  loading={isCancelling}
+                  onPress={() => setShowCancelSheet(true)}
+                  style={styles.cardButtonStacked}
+                />
+              </Card>
+            </View>
+          )}
+
+          {serviceStatus === 'checking' && workHasStarted && (
             <View style={styles.section}>
               <Card>
                 <Text style={styles.cardTitle}>Is the work finished?</Text>
@@ -507,6 +597,22 @@ export default function ServiceStatusScreen() {
       />
 
       <ActionSheet
+        visible={showCancelSheet}
+        title="Cancel this booking?"
+        message={`${provider.name} will be told, and you'll need to book again if you change your mind.`}
+        cancelLabel="Keep booking"
+        onClose={() => setShowCancelSheet(false)}
+        options={[
+          {
+            label: 'Cancel booking',
+            icon: 'close-circle-outline',
+            tone: 'destructive',
+            onPress: handleCancelBooking,
+          },
+        ]}
+      />
+
+      <ActionSheet
         visible={showLeaveSheet}
         title="Leave without paying?"
         message="The job is done. You can pay now, or come back to it from My bookings."
@@ -626,6 +732,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.inkMuted,
     marginTop: S.xs,
     maxWidth: PROSE_WIDTH,
+  },
+  cardButtonStacked: {
+    marginTop: S.sm,
   },
   cardButton: {
     marginTop: S.lg,

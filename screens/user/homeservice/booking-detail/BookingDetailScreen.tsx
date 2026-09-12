@@ -19,6 +19,7 @@ import {
   ActionSheet,
   AppBar,
   Avatar,
+  Button,
   Card,
   ErrorState,
   Screen,
@@ -42,7 +43,14 @@ import {
 type Params = { bookingId: string };
 
 const CANCELLABLE = ['PENDING', 'ACCEPTED', 'EN_ROUTE', 'ARRIVED'];
-const TRACKABLE = ['EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'];
+// A provider has committed to the job from ACCEPTED onward — that is the
+// moment "Track provider" and "Service status" become real questions rather
+// than PENDING ones nobody has agreed to yet. Both destinations already
+// degrade sensibly before EN_ROUTE (tracking shows the provider's base
+// location with a "Waiting for provider" message; the service-status timeline
+// simply shows nothing checked off yet) — see trackingController.js and
+// statusMap.toServiceStatus for how the backend already accounts for this.
+const LIVE_JOB_STATUSES = ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'];
 const CONTACTABLE_EXCLUDED = ['PENDING', 'REJECTED', 'CANCELLED'];
 
 // The detail endpoint speaks SCREAMING_SNAKE; `bookingStatus()` speaks the
@@ -90,6 +98,7 @@ export default function BookingDetailScreen() {
   }, [bookingId, load]);
 
   const status = data?.canonicalStatus as string | undefined;
+  const isLiveJob = LIVE_JOB_STATUSES.includes(status || '');
   const paid = data?.payment?.status === 'paid';
   // Cached after the first call — a native module cannot appear at runtime.
   const callingSupported = isCallingSupported();
@@ -97,11 +106,6 @@ export default function BookingDetailScreen() {
 
   const actions = data
     ? [
-        TRACKABLE.includes(status || '') && {
-          icon: 'navigate-outline',
-          label: 'Track',
-          onPress: () => navigation.navigate('liveTracking', { bookingId }),
-        },
         contactable && {
           icon: 'chatbubble-outline',
           label: 'Message',
@@ -211,6 +215,26 @@ export default function BookingDetailScreen() {
               )}
             </View>
           </Card>
+
+          {/* Once a provider has accepted, these are the two things a
+              customer actually opens this screen to do — surfaced as real
+              buttons rather than buried in the icon-chip row below. */}
+          {isLiveJob && (
+            <View style={styles.primaryActions}>
+              <Button
+                label="Track provider"
+                icon="navigate-outline"
+                onPress={() => navigation.navigate('liveTracking', { bookingId })}
+              />
+              <Button
+                label="Service status"
+                variant="secondary"
+                icon="document-text-outline"
+                onPress={() => navigation.navigate('serviceStatus', { bookingId })}
+                style={styles.secondaryAction}
+              />
+            </View>
+          )}
 
           {actions.length > 0 && (
             <View style={styles.actions}>
@@ -348,6 +372,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.inkMuted,
     marginLeft: S.sm,
     flex: 1,
+  },
+
+  primaryActions: {
+    marginTop: S.lg,
+  },
+  secondaryAction: {
+    marginTop: S.sm,
   },
 
   actions: {

@@ -14,7 +14,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   Platform,
   ScrollView,
@@ -41,14 +41,17 @@ import { C, F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';
+import { toLocalISODate } from '../../../../utils/date/localDate';
 import {
   formatBookingDate,
   formatRating,
   formatReviewCount,
 } from '../../../../utils/homeservice/format';
 import {
+  DuplicateBookingError,
   fetchBookingData,
   SavedAddress,
+  selectActiveBookingForProvider,
   selectBookingSummary,
   selectIsFormValid,
   setInstructions,
@@ -97,6 +100,7 @@ export default function BookingScreen() {
   const isSubmitting = useSelector((state: RootState) => state.booking?.isSubmitting);
   const isFormValid = useSelector(selectIsFormValid);
   const bookingSummary = useSelector(selectBookingSummary);
+  const activeBooking = useSelector(selectActiveBookingForProvider);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
@@ -118,14 +122,40 @@ export default function BookingScreen() {
         return;
       }
 
+      // Refetches with the picked date too — not just on first focus, but any
+      // time `selectedDate` changes while this screen is open, so the slot
+      // grid always reflects THIS provider's live bookings for THAT date
+      // rather than the generic "everything's open" list from before a date
+      // was chosen.
       dispatch(
         fetchBookingData({
           providerId,
           category: validCategory as 'electricians' | 'plumbers' | 'ac-repairers',
+          date: selectedDate || undefined,
         })
       );
-    }, [providerId, category, dispatch])
+    }, [providerId, category, selectedDate, dispatch])
   );
+
+  // ── Already requested? Then this is the wrong screen ──────────────────────
+  //
+  // A customer who taps Book on a provider they have already requested wants
+  // to see that request, not fill the form in again — and could not create a
+  // second one anyway; the server refuses it. GET /bookings/init answers with
+  // the live booking when there is one, and we hand them straight to it.
+  //
+  // `replace`, not `navigate`: this screen never became part of the journey,
+  // so Back from the booking status belongs to the provider list. And the
+  // providerId check matters — the redirect fires from state that briefly
+  // still describes the LAST provider whose form was opened.
+  useEffect(() => {
+    if (!activeBooking || !providerId) return;
+    if (activeBooking.providerId !== providerId) return;
+    navigation.replace('BookConfirmation', {
+      category,
+      bookingId: activeBooking.bookingId,
+    });
+  }, [activeBooking, providerId, category, navigation]);
 
   // The booking must exist on the server BEFORE we navigate: the confirmation
   // screen and everything it leads to (tracking, service status, chat) are
@@ -138,6 +168,22 @@ export default function BookingScreen() {
       const result = await dispatch(submitBooking(bookingSummary)).unwrap();
       navigation.navigate('BookConfirmation', { category, bookingId: result.bookingId });
     } catch (e) {
+      // The server's duplicate guard, which the redirect above races: two taps
+      // on Continue, or a request placed from another device while this form
+      // was open. Not an error to show — the booking they were trying to make
+      // already exists, so open it.
+      const duplicate = e as DuplicateBookingError;
+      if (duplicate && typeof duplicate === 'object' && duplicate.duplicate) {
+        if (duplicate.activeBooking) {
+          navigation.replace('BookConfirmation', {
+            category,
+            bookingId: duplicate.activeBooking.bookingId,
+          });
+          return;
+        }
+        setSubmitError(duplicate.message);
+        return;
+      }
       setSubmitError(
         typeof e === 'string' ? e : "We couldn't create your booking. Check your connection and try again."
       );
@@ -149,22 +195,22 @@ export default function BookingScreen() {
       setShowDatePicker(Platform.OS === 'ios');
       if (picked) {
         setDate(picked);
-        dispatch(
-          setSelectedDate(
-            picked.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })
-          )
-        );
+        // 'YYYY-MM-DD', not a locale string: this is what the server's
+        // parseScheduledFor expects, and what re-fetching this provider's
+        // slots for the day is keyed on. formatBookingDate renders it back
+        // out as "Sat, 6 Sep" wherever it's shown.
+        dispatch(setSelectedDate(toLocalISODate(picked)));
       }
     },
     [dispatch]
   );
 
-  if (isLoading || !provider) {
+  // Only the FIRST load (no provider yet) blanks the whole screen. Every
+  // later fetch — re-checking this provider's slots after the customer picks
+  // a date — sets `isLoading` too, and collapsing an already-filled-in form
+  // back to a skeleton on every date tap read as the screen forgetting what
+  // they'd chosen. `renderTimeGroup` below shows that refetch instead.
+  if (!provider) {
     return (
       <Screen>
         <AppBar title="Book a visit" onBack={() => navigation.goBack()} />
@@ -192,7 +238,11 @@ export default function BookingScreen() {
         <View style={styles.timeGrid}>
           {slots.map((slot) => {
             const isSelected = selectedTime === slot.time;
-            const isDisabled = !slot.available;
+            // Also disabled mid-refetch: the list on screen is still the
+            // PREVIOUS date's availability for a beat after a new date is
+            // picked, and a tap in that window would select a slot label
+            // that turns out to belong to the wrong day's answer.
+            const isDisabled = !slot.available || isLoading;
             return (
               <TouchableOpacity
                 key={slot.id}
@@ -307,7 +357,7 @@ export default function BookingScreen() {
                   style={selectedDate ? styles.selectorValue : styles.selectorPlaceholder}
                   numberOfLines={1}
                 >
-                  {selectedDate || 'Choose a date'}
+                  {selectedDate ? (formatBookingDate(selectedDate) ?? selectedDate) : 'Choose a date'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
@@ -324,6 +374,9 @@ export default function BookingScreen() {
             />
           )}
 
+          {isLoading && !!selectedDate && (
+            <Text style={styles.timeGroupLabel}>Checking available times…</Text>
+          )}
           {PERIODS.map((p) => renderTimeGroup(p.key, p.label))}
         </View>
 

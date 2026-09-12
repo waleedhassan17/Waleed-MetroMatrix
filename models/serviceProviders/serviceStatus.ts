@@ -52,6 +52,13 @@ export interface ServicePayment {
 export interface ServiceStatus {
   bookingId: string;
   status: 'arrived' | 'in_progress' | 'completed';
+  /**
+   * The raw lifecycle status from the server. `status` above collapses
+   * everything before IN_PROGRESS into 'arrived', so it cannot answer "has the
+   * work actually started?" — which is what decides whether the customer may
+   * confirm completion. Optional: an older server omits it.
+   */
+  canonicalStatus?: string;
   provider: ServiceProvider;
   serviceDetails: ServiceDetails;
   progressSteps: ProgressStep[];

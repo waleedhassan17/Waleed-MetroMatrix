@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getSocket } from '../../../../../services/socket/socketClient';
@@ -31,6 +32,8 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
 import {
+  acceptJob,
+  rejectJob,
   selectFilteredJobs,
   selectJobsStats,
   setFilter,
@@ -44,7 +47,7 @@ import { theme } from '../../providerTheme';
 import { C, F, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
-import { AppBar, Screen } from '../../../../../components/ui';
+import { ActionSheet, AppBar, Screen } from '../../../../../components/ui';
 
 const { width } = Dimensions.get('window');
 
@@ -126,6 +129,10 @@ const JobsScreen: React.FC = () => {
   const filterOptions = useMemo(
     () => [
       { key: 'all' as any, label: 'All', count: stats.total },
+      // Named for what it asks of the provider rather than for the bucket it
+      // arrives in. A request nobody answers is a booking the customer
+      // eventually gives up on.
+      { key: 'available' as JobStatus, label: 'New requests', count: stats.available },
       { key: 'upcoming' as JobStatus, label: 'Upcoming', count: stats.upcoming },
       { key: 'active' as any, label: 'Active', count: stats.today },
     ],
@@ -194,6 +201,44 @@ const JobsScreen: React.FC = () => {
     setIsRefreshing(true);
     dispatch(fetchJobs()).finally(() => setIsRefreshing(false));
   }, [dispatch]);
+
+  // ── Answering a request ───────────────────────────────────────────────────
+  //
+  // A PENDING booking arrives here in the 'available' bucket, and this list is
+  // where a provider goes to look at their work — but the cards offered no way
+  // to answer one. Accepting was reachable only from the dashboard's
+  // "Available" tab, which is a different screen behind a second tab, so a
+  // customer's request could sit unanswered in plain sight.
+  //
+  // The thunks were already here and already correct; they had no button.
+  const [pendingDecision, setPendingDecision] = useState<{
+    job: Job;
+    action: 'accept' | 'reject';
+  } | null>(null);
+
+  const handleDecision = useCallback(async () => {
+    if (!pendingDecision) return;
+    const { job, action } = pendingDecision;
+    setPendingDecision(null);
+
+    // Dispatched on separate lines deliberately: a union of two different
+    // AsyncThunkActions is not assignable to dispatch's overloads.
+    const result: any =
+      action === 'accept'
+        ? await dispatch(acceptJob(job.id))
+        : await dispatch(rejectJob(job.id));
+    if (result?.meta?.requestStatus === 'rejected') {
+      Alert.alert(
+        action === 'accept' ? 'Could not accept this job' : 'Could not decline this job',
+        (result.payload as string) || 'Please check your connection and try again.'
+      );
+      return;
+    }
+    // The bucket a job lands in after acceptance is the SERVER's call — 'today'
+    // or 'upcoming' depending on the schedule — so re-read rather than trust
+    // the optimistic 'upcoming' the reducer sets.
+    dispatch(fetchJobs());
+  }, [dispatch, pendingDecision]);
 
   const getServiceImage = (title: string): string => {
     for (const key of Object.keys(serviceImages)) {
@@ -346,6 +391,32 @@ const JobsScreen: React.FC = () => {
                 </View>
               ) : null}
             </View>
+
+            {/* A request the customer is waiting on. Full width under the
+                price rather than squeezed beside it: these are the two most
+                consequential taps on the screen, and Decline is terminal. */}
+            {job.status === 'available' && (
+              <View style={styles.decisionRow}>
+                <TouchableOpacity
+                  style={styles.declineBtn}
+                  onPress={() => setPendingDecision({ job, action: 'reject' })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Decline ${job.title} for ${job.customer.name}`}
+                >
+                  <XCircle size={15} color={colors.error} />
+                  <Text style={styles.declineText}>Decline</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.acceptBtn}
+                  onPress={() => setPendingDecision({ job, action: 'accept' })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Accept ${job.title} for ${job.customer.name}`}
+                >
+                  <CheckCircle2 size={15} color={colors.inkInverse} />
+                  <Text style={styles.acceptText}>Accept</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -461,6 +532,36 @@ const JobsScreen: React.FC = () => {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Same confirm-then-act shape the dashboard uses for these two
+          actions, so answering a request feels identical wherever the
+          provider happens to be standing. */}
+      <ActionSheet
+        visible={!!pendingDecision}
+        title={
+          pendingDecision?.action === 'accept'
+            ? `Accept ${pendingDecision?.job.title}?`
+            : `Decline ${pendingDecision?.job.title}?`
+        }
+        message={
+          pendingDecision?.action === 'accept'
+            ? `${pendingDecision?.job.customer.name} will be told you're taking this job.`
+            : 'This cannot be undone — the request goes back to other providers.'
+        }
+        cancelLabel="Not now"
+        onClose={() => setPendingDecision(null)}
+        options={[
+          {
+            label: pendingDecision?.action === 'accept' ? 'Accept job' : 'Decline job',
+            icon:
+              pendingDecision?.action === 'accept'
+                ? 'checkmark-circle-outline'
+                : 'close-circle-outline',
+            tone: pendingDecision?.action === 'reject' ? 'destructive' : 'default',
+            onPress: handleDecision,
+          },
+        ]}
+      />
     </Screen>
   );
 };
@@ -713,6 +814,41 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  decisionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  declineBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.surface,
+  },
+  declineText: {
+    ...T.label,
+    color: c.error,
+  },
+  acceptBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primary,
+  },
+  acceptText: {
+    ...T.label,
+    color: c.inkInverse,
   },
   loadingContainer: {
     flex: 1,

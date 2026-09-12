@@ -6,7 +6,21 @@ import { jobListSerializer, paginationSerializer } from '../../../../../serializ
 import { fetchProviderJobs, acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';
 
 // Types
-export type JobStatus = 'upcoming' | 'active' | 'completed' | 'cancelled' | 'today';
+// These are the SERVER's display buckets, verbatim — see toJobBucket in
+// src/modules/homeservice/services/statusMap.js.
+//
+// 'available' was missing, and its absence is why a provider could not answer
+// a booking request from this screen: a PENDING booking arrives in that
+// bucket, mapApiJobToLocal cast it through as a JobStatus anyway, and every
+// piece of UI keyed off this union — the filter tabs, the per-status card
+// actions — therefore had no branch for the one status that needs a decision.
+export type JobStatus =
+  | 'available'
+  | 'upcoming'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'today';
 export type JobPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Job {
@@ -149,10 +163,13 @@ const jobsSlice = createAppSlice({
           jobs: jobs.map(mapApiJobToLocal),
           stats: {
             total: stats.total,
-            available: 0,
+            // Real counts now — the server sends every bucket. These two
+            // were hardcoded to 0 because it used to send neither, which left
+            // the New-requests tab reading "0" with jobs sitting in it.
+            available: stats.available || 0,
             today: stats.today,
             upcoming: stats.upcoming,
-            active: 0,
+            active: stats.active || 0,
             completed: stats.completed,
             cancelled: stats.cancelled || 0,
           },
@@ -198,10 +215,13 @@ const jobsSlice = createAppSlice({
           jobs: jobs.map(mapApiJobToLocal),
           stats: {
             total: stats.total,
-            available: 0,
+            // Real counts now — the server sends every bucket. These two
+            // were hardcoded to 0 because it used to send neither, which left
+            // the New-requests tab reading "0" with jobs sitting in it.
+            available: stats.available || 0,
             today: stats.today,
             upcoming: stats.upcoming,
-            active: 0,
+            active: stats.active || 0,
             completed: stats.completed,
             cancelled: stats.cancelled || 0,
           },

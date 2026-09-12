@@ -9,11 +9,13 @@ import {
 type BookConfirmationRootState = { bookConfirmation: BookConfirmationState };
 
 // Types
-export type BookingStatusType = 
-  | 'waiting' 
-  | 'accepted' 
-  | 'declined' 
-  | 'timeout' 
+// 'timeout' is gone with the countdown that produced it. Only the server ends
+// a request: the provider answers, or the customer cancels. See the header of
+// bookConfirmation.tsx for why a client-side deadline was worse than none.
+export type BookingStatusType =
+  | 'waiting'
+  | 'accepted'
+  | 'declined'
   | 'cancelled';
 
 export interface SavedAddress {
@@ -79,10 +81,11 @@ export interface BookConfirmationState {
   isLoading: boolean;
   isProcessing: boolean;
   error: string | null;
-  
-  // Timer State
-  waitingStartTime: string | null;
-  maxWaitTime: number; // in seconds
+
+  // Why a cancelled request ended, in the server's words — most often
+  // "someone else accepted this job first", which is otherwise invisible to
+  // the customer whose other requests were released.
+  cancellationReason: string | null;
   
   // Notification State
   notificationSent: boolean;
@@ -97,8 +100,7 @@ const initialState: BookConfirmationState = {
   isLoading: false,
   isProcessing: false,
   error: null,
-  waitingStartTime: null,
-  maxWaitTime: 300, // 5 minutes
+  cancellationReason: null,
   notificationSent: false,
   notificationSentAt: null,
 };
@@ -114,8 +116,6 @@ const initialState: BookConfirmationState = {
 // ============================================================================
 
 // The server's confirmation vocabulary -> this screen's status vocabulary.
-// 'timeout' is intentionally absent: it is a client-side wait-expiry state and
-// the server never reports it.
 const toScreenStatus = (apiStatus?: string): BookingStatusType => {
   switch (apiStatus) {
     case 'confirmed':
@@ -184,6 +184,7 @@ export const initializeConfirmation = createAsyncThunk(
         status: 'waiting' as BookingStatusType,
         notificationSentAt: new Date().toISOString(),
         estimatedArrival: undefined as string | undefined,
+        cancellationReason: null as string | null,
       };
     }
 
@@ -202,6 +203,7 @@ export const initializeConfirmation = createAsyncThunk(
       status: toScreenStatus(data.status),
       notificationSentAt: new Date().toISOString(),
       estimatedArrival: data.estimatedArrival as string | undefined,
+      cancellationReason: (data.cancellation && data.cancellation.reason) || null,
     };
   }
 );
@@ -272,6 +274,8 @@ export const checkBookingStatus = createAsyncThunk(
     }
 
     return {
+      cancellationReason:
+        (response.data.cancellation && response.data.cancellation.reason) || null,
       status: toScreenStatus(response.data.status),
       provider: toProviderInfo(response.data.provider),
       updatedAt: new Date().toISOString(),
@@ -337,13 +341,6 @@ const bookConfirmationSlice = createSlice({
     },
 
     /**
-     * Update waiting start time
-     */
-    setWaitingStartTime: (state) => {
-      state.waitingStartTime = new Date().toISOString();
-    },
-
-    /**
      * Reset the confirmation state
      */
     resetConfirmation: (state) => {
@@ -389,7 +386,7 @@ const bookConfirmationSlice = createSlice({
         };
         state.notificationSent = true;
         state.notificationSentAt = action.payload.notificationSentAt;
-        state.waitingStartTime = new Date().toISOString();
+        state.cancellationReason = action.payload.cancellationReason;
       })
       .addCase(initializeConfirmation.rejected, (state, action) => {
         state.isLoading = false;
@@ -434,7 +431,7 @@ const bookConfirmationSlice = createSlice({
         state.bookingDetails = action.payload.bookingDetails;
         state.notificationSent = true;
         state.notificationSentAt = action.payload.notificationSentAt;
-        state.waitingStartTime = new Date().toISOString();
+        state.cancellationReason = null;
       })
       .addCase(retryBooking.rejected, (state, action) => {
         state.isProcessing = false;
@@ -456,6 +453,7 @@ const bookConfirmationSlice = createSlice({
         if (action.payload.provider) {
           state.provider = action.payload.provider;
         }
+        state.cancellationReason = action.payload.cancellationReason;
       });
   },
 });
@@ -466,7 +464,6 @@ export const {
   cancelBooking,
   setProvider,
   setBookingDetails,
-  setWaitingStartTime,
   resetConfirmation,
   clearConfirmationState,
   setError,
@@ -517,16 +514,10 @@ export const selectNotificationSent = (state: BookConfirmationRootState) =>
   state.bookConfirmation?.notificationSent;
 
 /**
- * Select waiting start time
+ * Select why a cancelled request ended, when the server said.
  */
-export const selectWaitingStartTime = (state: BookConfirmationRootState) => 
-  state.bookConfirmation?.waitingStartTime;
-
-/**
- * Select max wait time
- */
-export const selectMaxWaitTime = (state: BookConfirmationRootState) => 
-  state.bookConfirmation?.maxWaitTime;
+export const selectCancellationReason = (state: BookConfirmationRootState) =>
+  state.bookConfirmation?.cancellationReason;
 
 /**
  * Select booking status
@@ -539,7 +530,7 @@ export const selectBookingStatus = (state: BookConfirmationRootState): BookingSt
  */
 export const selectIsBookingFinalized = (state: BookConfirmationRootState): boolean => {
   const status = state.bookConfirmation?.bookingConfirmation?.status;
-  return status === 'accepted' || status === 'declined' || status === 'cancelled' || status === 'timeout';
+  return status === 'accepted' || status === 'declined' || status === 'cancelled';
 };
 
 /**
@@ -553,30 +544,5 @@ export const selectBookingId = (state: BookConfirmationRootState) =>
  */
 export const selectEstimatedArrival = (state: BookConfirmationRootState) => 
   state.bookConfirmation?.bookingConfirmation?.estimatedArrival;
-
-/**
- * Compute time elapsed since waiting started
- */
-export const selectTimeElapsed = (state: BookConfirmationRootState): number => {
-  const startTime = state.bookConfirmation?.waitingStartTime;
-  if (!startTime) return 0;
-  
-  const start = new Date(startTime).getTime();
-  const now = Date.now();
-  return Math.floor((now - start) / 1000);
-};
-
-/**
- * Compute time remaining
- */
-export const selectTimeRemaining = (state: BookConfirmationRootState): number => {
-  const maxWait = state.bookConfirmation?.maxWaitTime || 300;
-  const startTime = state.bookConfirmation?.waitingStartTime;
-  
-  if (!startTime) return maxWait;
-  
-  const elapsed = selectTimeElapsed(state);
-  return Math.max(0, maxWait - elapsed);
-};
 
 export default bookConfirmationSlice.reducer;

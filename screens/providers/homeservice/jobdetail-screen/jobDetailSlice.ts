@@ -3,6 +3,7 @@ import { createAppSlice } from '../../../../store/createAppSlice';
 import {
   fetchJobDetail,
   acceptJob as acceptJobApi,
+  rejectJob as rejectJobApi,
   startJob as startJobApi,
   completeJob as completeJobApi,
 } from '../../../../networks/serviceProviders/jobNetwork';
@@ -34,7 +35,29 @@ export interface JobData {
   preferredPaymentMethod?: string;
   bookingId?: string;
   createdAt?: string;
-  status?: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+  /**
+   * Two vocabularies land in this one field, and both are legitimate.
+   *
+   * From the SERVER it is a display bucket ('available' | 'today' |
+   * 'upcoming' | 'active' | 'completed' | 'cancelled') — see toJobBucket. From
+   * the reducers below it is a lifecycle value they set locally after an
+   * action succeeds. The union used to admit only the second kind while
+   * mapApiJobToLocal cast the first kind straight in, so 'available' — a job
+   * PENDING the provider's answer — was a value the type said could not exist
+   * and no screen ever checked for. Use `isAwaitingResponse` rather than
+   * comparing by hand.
+   */
+  status?:
+    | 'available'
+    | 'today'
+    | 'upcoming'
+    | 'active'
+    | 'pending'
+    | 'accepted'
+    | 'in_progress'
+    | 'completed'
+    | 'rejected'
+    | 'cancelled';
   // Provider-specific fields
   estimatedDuration?: string;
   distanceFromProvider?: number;
@@ -50,6 +73,18 @@ export interface JobDetailState {
   jobAcceptedAt: string | null;
   estimatedArrivalTime: string | null;
 }
+
+/**
+ * Is this job still waiting for the provider to accept or decline it?
+ *
+ * Covers both vocabularies `JobData.status` can carry: 'available' is what
+ * the server calls a PENDING booking, 'pending' is what locally-shaped job
+ * objects use. A job in this state must NOT be offered navigation — the
+ * provider has not agreed to it yet, and the server refuses PENDING → EN_ROUTE
+ * anyway.
+ */
+export const isAwaitingResponse = (status?: JobData['status']): boolean =>
+  status === 'available' || status === 'pending';
 
 const initialState: JobDetailState = {
   job: null,
@@ -142,6 +177,34 @@ const jobDetailSlice = createAppSlice({
           if (state.job) {
             state.job.status = 'accepted';
             state.jobAcceptedAt = action.payload;
+          }
+        },
+        rejected: (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        },
+      }
+    ),
+
+    // Declining is terminal on the server (REJECTED has no outward
+    // transitions), so the screen confirms before dispatching this.
+    rejectJobAsync: create.asyncThunk(
+      async (jobId: string, { rejectWithValue }) => {
+        const response = await rejectJobApi(jobId);
+        if (!response.success) {
+          return rejectWithValue(response.message || 'Failed to decline job');
+        }
+        return true;
+      },
+      {
+        pending: (state) => {
+          state.isLoading = true;
+          state.error = null;
+        },
+        fulfilled: (state) => {
+          state.isLoading = false;
+          if (state.job) {
+            state.job.status = 'rejected';
           }
         },
         rejected: (state, action) => {
@@ -290,6 +353,7 @@ const jobDetailSlice = createAppSlice({
 export const {
   fetchJobDetailData,
   acceptJobAsync,
+  rejectJobAsync,
   startJobAsync,
   completeJobAsync,
   setJobDetail,

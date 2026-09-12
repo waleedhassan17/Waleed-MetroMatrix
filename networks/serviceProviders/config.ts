@@ -18,9 +18,24 @@ export const BASE_URL = API_BASE_URL;
 // Offline demo fallback ONLY (defaults to false in config/env.ts).
 export const USE_DUMMY_DATA = USE_HOMESERVICE_DUMMY_DATA;
 
+export type RequestOptions = RequestInit & {
+  /**
+   * Mark the request survivable. Its failure is logged quietly rather than as
+   * an error, exactly as in networks/healthcare/config.ts.
+   *
+   * For a call the caller has ALREADY decided to shrug off, a red LogBox is
+   * not a diagnosis — it is a false alarm on top of a screen that is working.
+   * GET /bookings/active is the case in point: it only decides whether a Book
+   * button reads "Book" or "View request", the caller degrades to "Book" when
+   * it fails, and an app build talking to a backend deployed before that route
+   * existed gets a 404 on every list focus.
+   */
+  bestEffort?: boolean;
+};
+
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestOptions = {}
 ): Promise<ApiResponse<T>> {
   const method = (options.method || 'GET').toUpperCase();
   const data =
@@ -31,23 +46,29 @@ export async function apiRequest<T>(
   // '/providers?x=1' resolves against it.
   const URL = endpoint.replace(/^\//, '');
 
+  // Carried as a header purely so it reaches the interceptor on error.config;
+  // the backend ignores it.
+  const headers = options.bestEffort
+    ? { ...((options.headers as any) || {}), 'x-best-effort': '1' }
+    : (options.headers as any);
+
   try {
     let response;
     switch (method) {
       case 'POST':
-        response = await API.POST({ URL, data });
+        response = await API.POST({ URL, data, headers });
         break;
       case 'PUT':
-        response = await API.PUT({ URL, data });
+        response = await API.PUT({ URL, data, headers });
         break;
       case 'PATCH':
-        response = await API.PATCH({ URL, data });
+        response = await API.PATCH({ URL, data, headers });
         break;
       case 'DELETE':
-        response = await API.DELETE({ URL });
+        response = await API.DELETE({ URL, headers });
         break;
       default:
-        response = await API.GET({ URL });
+        response = await API.GET({ URL, headers });
     }
 
     const payload = response.data;
@@ -64,8 +85,18 @@ export async function apiRequest<T>(
     const message = isTimeout
       ? 'Request timed out. Please check your connection and try again.'
       : error?.response?.data?.message ||
+        error?.response?.data?.error ||
         error?.message ||
         'Network error occurred';
-    return { success: false, data: null as any, message };
+    // A refusal can carry a payload, and throwing it away costs a round trip:
+    // POST /bookings answers a duplicate request with 409 AND the booking that
+    // already exists, precisely so the caller can open it instead of asking
+    // for it again. Failures without a body still get `null`, so every
+    // `if (!response.success)` branch behaves exactly as before.
+    return {
+      success: false,
+      data: (error?.response?.data?.data ?? null) as any,
+      message,
+    };
   }
 }

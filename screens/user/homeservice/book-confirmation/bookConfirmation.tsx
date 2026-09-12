@@ -10,9 +10,17 @@
 // What went: 13 Animated.Values, three infinite loops (shimmer, avatar pulse,
 // expanding rings), a gradient hero with three decorative circles, a "LIVE"
 // pulse chip, a gradient notification card, staggered button entrances and a
-// gradient cancel modal. What stayed: the determinate progress bar (it says
-// how long is left, which is the only thing the customer wants to know) and a
-// checkmark that scales in once when acceptance actually lands.
+// gradient cancel modal. What stayed: a checkmark that scales in once when
+// acceptance actually lands.
+//
+// NO COUNTDOWN. This screen used to run a five-minute clock and expire the
+// request itself when it hit zero — but only on the phone that was watching.
+// The booking stayed PENDING on the server, the provider kept seeing a live
+// job, and accepting it after the clock ran out left the customer looking at
+// "No reply in time" for a booking that had been confirmed. A deadline the
+// server does not enforce is not a deadline; it is a lie told to whoever is
+// looking at the screen. The request now waits until the provider answers or
+// the customer cancels, and the steps below say where it has got to.
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +53,7 @@ import {
   initializeConfirmation,
   resetConfirmation,
   selectBookingConfirmation,
+  selectCancellationReason,
   selectConfirmationDetails,
   selectConfirmationProvider,
   setBookingStatus,
@@ -56,7 +65,6 @@ type RouteParams = {
   bookingId?: string;
 };
 
-const TOTAL_WAIT_TIME = 300; // 5 minutes in seconds
 // Backstop for the socket. The screen previously "accepted" every booking
 // after 10 seconds regardless of what the provider did.
 const STATUS_POLL_INTERVAL_MS = 10000;
@@ -67,9 +75,6 @@ const STEPS = [
   { key: 'waiting', label: 'Waiting', icon: 'hourglass-outline' },
   { key: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle-outline' },
 ];
-
-const clock = (seconds: number) =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 export default function BookConfirmationScreen() {
   const { colors, mode } = useTheme();
@@ -85,6 +90,7 @@ export default function BookConfirmationScreen() {
   const bookingConfirmation = useSelector(selectBookingConfirmation);
   const provider = useSelector(selectConfirmationProvider);
   const bookingDetails = useSelector(selectConfirmationDetails);
+  const cancellationReason = useSelector(selectCancellationReason);
 
   // What POST /bookings returned, still sitting in the booking slice. Seeding
   // from it spares a round trip on the common path (straight from checkout).
@@ -99,9 +105,7 @@ export default function BookConfirmationScreen() {
   // and liveTracking use.
   const { roomStatus } = useRoomSocket(bookingId || undefined, 'homeservice');
 
-  const [timeLeft, setTimeLeft] = useState(TOTAL_WAIT_TIME);
   const [showCancelSheet, setShowCancelSheet] = useState(false);
-  const [isTimerActive, setIsTimerActive] = useState(true);
 
   // The only animation left: the success checkmark, which fires once when a
   // real acceptance arrives.
@@ -138,8 +142,14 @@ export default function BookConfirmationScreen() {
       dispatch(setBookingStatus('declined'));
     } else if (next === 'cancelled') {
       dispatch(setBookingStatus('cancelled'));
+      // The socket frame carries a status, not a reason, and the poll below
+      // has already stopped by the time this runs. Read the booking once more
+      // so the screen can say WHY — "someone accepted this job first" is the
+      // difference between a cancellation the customer understands and a
+      // request that vanished on them.
+      if (bookingId) dispatch(checkBookingStatus(bookingId));
     }
-  }, [roomStatus, dispatch]);
+  }, [roomStatus, dispatch, bookingId]);
 
   // Polling backstop: if the realtime service is unreachable the customer must
   // still find out that their booking was accepted.
@@ -150,27 +160,6 @@ export default function BookConfirmationScreen() {
     }, STATUS_POLL_INTERVAL_MS);
     return () => clearInterval(poll);
   }, [dispatch, bookingId, bookingStatus]);
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-
-    if (isTimerActive && timeLeft > 0 && bookingStatus === 'waiting') {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            dispatch(setBookingStatus('timeout'));
-            setIsTimerActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timeLeft, isTimerActive, bookingStatus, dispatch]);
 
   // Driven by a REAL 'accepted' status rather than a 10-second timer that fired
   // whether or not a provider ever responded.
@@ -198,7 +187,6 @@ export default function BookConfirmationScreen() {
     } else {
       dispatch(cancelBooking());
     }
-    setIsTimerActive(false);
     navigation.goBack();
   }, [dispatch, navigation, bookingId]);
 
@@ -287,25 +275,15 @@ export default function BookConfirmationScreen() {
 
   const renderWaiting = () => {
     if (bookingStatus !== 'waiting') return null;
-    const progress = 1 - timeLeft / TOTAL_WAIT_TIME;
 
     return (
       <>
         <Card style={styles.card}>
-          <View style={styles.waitHeader}>
-            <Text style={styles.waitTitle}>Waiting for a reply</Text>
-            <Text style={styles.waitTimer}>{clock(timeLeft)} left</Text>
-          </View>
+          <Text style={styles.waitTitle}>Waiting for a reply</Text>
           <Text style={styles.body}>
             {provider?.name || 'The provider'} has your request. We'll tell you the moment they
-            accept.
+            accept. You can keep booking other providers while you wait.
           </Text>
-
-          <View style={styles.track}>
-            <View
-              style={[styles.fill, { width: `${Math.round(Math.min(Math.max(progress, 0), 1) * 100)}%` }]}
-            />
-          </View>
 
           <View style={styles.steps}>
             {STEPS.map((step, index) => {
@@ -369,17 +347,17 @@ export default function BookConfirmationScreen() {
         title: 'Provider unavailable',
         message: `${provider?.name || 'They'} can't take this job right now. Other providers in your area can.`,
       },
-      timeout: {
-        icon: 'time-outline',
-        title: 'No reply in time',
-        message: `${provider?.name || 'They'} didn't respond within five minutes. Try another provider.`,
-      },
       cancelled: {
         icon: 'remove-circle-outline',
         title: 'Booking cancelled',
-        message: "This request was cancelled. You can book someone else whenever you're ready.",
+        // The server's own reason when it has one — this is how a customer
+        // learns their other requests were released because someone accepted
+        // first, rather than watching a request vanish unexplained.
+        message:
+          cancellationReason ||
+          "This request was cancelled. You can book someone else whenever you're ready.",
       },
-    }[bookingStatus as 'declined' | 'timeout' | 'cancelled'];
+    }[bookingStatus as 'declined' | 'cancelled'];
 
     if (!config) return null;
 
@@ -497,37 +475,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: S.lg,
   },
-  waitHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   waitTitle: {
     ...T.subhead,
     color: c.ink,
-  },
-  waitTimer: {
-    ...T.label,
-    color: c.inkMuted,
   },
   body: {
     ...T.body,
     color: c.inkMuted,
     marginTop: S.xs,
     maxWidth: PROSE_WIDTH,
-  },
-
-  track: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: c.surfaceSunken,
-    marginTop: S.lg,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 2,
-    backgroundColor: c.success,
   },
 
   steps: {

@@ -66,6 +66,25 @@ export interface Booking {
   completedAt?: string;
 }
 
+/**
+ * A booking the customer still has running with a provider — anything not
+ * completed, rejected or cancelled.
+ *
+ * The customer may hold one of these per provider and no more. Every Book
+ * button reads this to decide between opening the booking form and reopening
+ * the request that already exists, which is what stops the same provider being
+ * booked twice over while the first request is still waiting.
+ */
+export interface ActiveBooking {
+  bookingId: string;
+  providerId: string;
+  status: 'waiting' | 'confirmed' | 'rejected' | 'cancelled';
+  category?: 'electricians' | 'plumbers' | 'ac-repairers';
+  scheduledFor: string | null;
+  scheduledTime: string;
+  createdAt: string;
+}
+
 export interface BookingConfirmation {
   bookingId: string;
   status: 'waiting' | 'confirmed' | 'rejected' | 'cancelled';

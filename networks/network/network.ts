@@ -18,10 +18,64 @@ import { Audience, tokenForRequest } from "./tokenSelection";
 //
 // The literal is kept as a fallback so a build with no env configured behaves
 // exactly as it did before.
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://metro-matrix-backend.vercel.app/api";
+// `EXPO_PUBLIC_API_URL=auto` (dev only) resolves the backend host from Metro's
+// own bundle URL. A LAN address hardcoded in .env.local goes stale every time
+// DHCP hands the machine a new IP, and the failure it produces on the phone is
+// an opaque "Network request failed" — the app is simply calling an address
+// that no longer exists. Metro already knows the right host, because the phone
+// just downloaded the bundle from it, so let it answer rather than a human.
+//
+// Opt-in by design: only the literal string 'auto' triggers it, so anyone with
+// a real URL configured (or nothing configured at all) is unaffected, and a
+// production build never takes this path.
+const packagerHost = (): string | null => {
+  // expo-constants is the supported way to ask; hostUri is "192.168.1.4:8081".
+  try {
+    const Constants = require("expo-constants").default;
+    const hostUri: string | undefined =
+      Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.debuggerHost;
+    const host = hostUri ? hostUri.split(":")[0] : null;
+    if (host) return host;
+  } catch {
+    // fall through to the RN internal below
+  }
+  // Fallback: parse the bundle URL the app was loaded from.
+  try {
+    const { NativeModules } = require("react-native");
+    const url: string | undefined = NativeModules?.SourceCode?.scriptURL;
+    return url ? /^https?:\/\/([^/:]+)/.exec(url)?.[1] || null : null;
+  } catch {
+    return null;
+  }
+};
+
+const resolveApiUrl = (): string => {
+  const configured = process.env.EXPO_PUBLIC_API_URL;
+  if (configured && configured !== "auto") return configured;
+  if (configured === "auto" && __DEV__) {
+    const host = packagerHost();
+    if (host) return `http://${host}:5000/api`;
+    // Silently using the deployed API here would be the worst outcome: local
+    // changes appear to do nothing, which is far harder to diagnose than a
+    // failed request. Say so loudly instead.
+    console.warn(
+      "⚠️ EXPO_PUBLIC_API_URL=auto could not resolve the Metro host — " +
+        "falling back to the DEPLOYED backend. Set a full URL in .env.local."
+    );
+  }
+  return "https://metro-matrix-backend.vercel.app/api";
+};
+
+export const API_URL = resolveApiUrl();
 // Local testing (web): "http://localhost:5000/api"
-// LAN IP (for Expo Go on a physical device): "http://192.168.100.71:5000/api"
+// LAN IP (for a physical device): "http://192.168.100.71:5000/api", or 'auto'.
+
+// Which backend this build is actually talking to. Without it, diagnosing a
+// failed request means guessing between a stale LAN IP, a missed Metro
+// restart, and the deployed default — all of which look identical on screen.
+if (__DEV__) {
+  console.log(`🌐 API_URL in use: ${API_URL}`);
+}
 
 const TIMEOUT = 30000; // 30 seconds timeout
 
