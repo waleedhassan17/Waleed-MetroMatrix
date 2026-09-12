@@ -60,7 +60,9 @@ export interface VendorAnalyticsView {
     netProfit: number;
     totalOrders: number;
     avgOrderValue: number;
-    conversionRate: number;
+    // No conversionRate: the endpoint deliberately omits it (no traffic data
+    // is collected), so declaring it here made the client assert a field that
+    // always arrives undefined.
     returnsCount: number;
     refundsAmount: number;
   };
@@ -181,11 +183,25 @@ export const fetchVendorOrderApi = (orderId: string) =>
 
 export const updateVendorOrderStatusApi = (
   orderId: string,
-  payload: { status: string; note?: string; trackingNumber?: string }
+  payload: { status: string; note?: string; trackingNumber?: string; carrier?: string }
 ) =>
   call<SingleResponse<Order>>(
     () => ShoppingAxiosInstance.patch(`/vendor/orders/${orderId}/status`, payload),
     "Failed to update order status"
+  );
+
+/**
+ * Shipping paperwork on its own, with no status change. The status endpoint
+ * used to be the only writer, and since the backend allows no same-status
+ * transition, a mistyped tracking number could never be corrected.
+ */
+export const updateVendorOrderShippingApi = (
+  orderId: string,
+  payload: { trackingNumber?: string; carrier?: string; internalNotes?: string }
+) =>
+  call<SingleResponse<Order>>(
+    () => ShoppingAxiosInstance.patch(`/vendor/orders/${orderId}/shipping`, payload),
+    "Failed to save shipping details"
   );
 
 export const fetchVendorReturnsApi = (params: { page?: number; limit?: number; status?: string } = {}) =>

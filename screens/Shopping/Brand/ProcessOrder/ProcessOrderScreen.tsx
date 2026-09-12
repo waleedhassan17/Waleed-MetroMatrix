@@ -20,12 +20,22 @@ import {
   MapPin,
   CreditCard,
   FileText,
+  Save,
 } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
-import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { selectBrandOrderById, updateOrderStatus } from '../BrandOrders/brandOrdersSlice';
-import { resetProcessOrder, selectProcessOrder, setCarrier, setNotes, setSaving, setTrackingNumber } from './processOrderSlice';
+import { selectBrandOrderById, updateOrderStatus, upsertOrder } from '../BrandOrders/brandOrdersSlice';
+import {
+  hydrateFromOrder,
+  resetProcessOrder,
+  saveShipping,
+  selectProcessOrder,
+  setCarrier,
+  setCustomerNote,
+  setInternalNotes,
+  setSaving,
+  setTrackingNumber,
+} from './processOrderSlice';
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
@@ -72,11 +82,41 @@ const ProcessOrderScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const orderId = route.params?.orderId as string;
   const order = useAppSelector(selectBrandOrderById(orderId));
-  const { carrier, notes, saving, trackingNumber } = useAppSelector(selectProcessOrder);
+  const { carrier, internalNotes, customerNote, saving, trackingNumber } =
+    useAppSelector(selectProcessOrder);
+
+  // Seed the shipping inputs from the order. Their absence was the whole of the
+  // "tracking number disappears when the state changes" bug: the value was
+  // saved and preserved server-side all along, but this form started blank
+  // every time, so reopening a shipped order looked like the data was gone.
+  useEffect(() => {
+    if (!order) return;
+    dispatch(
+      hydrateFromOrder({
+        orderId: order.orderId,
+        trackingNumber: order.trackingNumber,
+        carrier: order.carrier,
+        internalNotes: order.internalNotes,
+      })
+    );
+  }, [dispatch, order?.orderId, order?.trackingNumber, order?.carrier, order?.internalNotes]);
 
   useEffect(() => {
     return () => { dispatch(resetProcessOrder()); };
   }, [dispatch]);
+
+  /** Shipping paperwork, saved on its own — no status change required. */
+  const handleSaveShipping = async () => {
+    const result = await dispatch(
+      saveShipping({ orderId, trackingNumber, carrier, internalNotes })
+    );
+    if (saveShipping.rejected.match(result)) {
+      Alert.alert('Could not save', (result.payload as string) || 'Please try again.');
+      return;
+    }
+    dispatch(upsertOrder(result.payload as any));
+    Alert.alert('Saved', 'Shipping details have been saved.');
+  };
 
   const handleUpdate = async (nextStatus: NextStatus) => {
     if (nextStatus === 'shipped' && !trackingNumber.trim()) {
@@ -89,7 +129,11 @@ const ProcessOrderScreen: React.FC = () => {
         orderId,
         orderStatus: nextStatus,
         trackingNumber: trackingNumber || undefined,
-        note: notes || undefined,
+        carrier: carrier || undefined,
+        // statusHistory is the shopper-visible timeline, so only the note
+        // explicitly addressed to them goes here. internalNotes is saved
+        // separately by the shipping endpoint and never leaves the vendor.
+        note: customerNote || undefined,
       })
     );
     dispatch(setSaving(false));
@@ -98,7 +142,10 @@ const ProcessOrderScreen: React.FC = () => {
       return;
     }
     Alert.alert('Order Updated', `Status changed to "${nextStatus}".`);
-    navigation.navigate(BrandRouteNames.BrandOrders);
+    // goBack, not navigate: BrandOrders is registered both as a tab and as a
+    // sibling stack route, and navigate() resolved to the stack copy — pushing
+    // a second, tab-bar-less Orders screen instead of returning to the tab.
+    navigation.goBack();
   };
 
   if (!order) {
@@ -155,7 +202,47 @@ const ProcessOrderScreen: React.FC = () => {
               <Text style={styles.cardLabel}>Payment</Text>
               <Text style={styles.cardValue}>{order.paymentMethod} · {order.paymentStatus}</Text>
             </View>
-            <Text style={styles.totalText}>₨{order.total.toLocaleString()}</Text>
+          </View>
+
+          {/* A single total could not be reconciled against anything — a vendor
+              looking at ₨3,440 had no way to see it was ₨3,190 of goods plus
+              ₨250 of Express. The delivery tier is named because it is a
+              fulfilment instruction, not just a line of money.
+
+              The tier's own `surcharge` is deliberately NOT printed: on a
+              multi-brand order checkout splits it proportionally across the
+              brands, so this order's shippingFee is its real share of it. */}
+          <View style={styles.breakdown}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Subtotal</Text>
+              <Text style={styles.breakdownValue}>₨{order.subtotal.toLocaleString()}</Text>
+            </View>
+            {order.discount > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Discount</Text>
+                <Text style={[styles.breakdownValue, { color: B.success }]}>
+                  −₨{order.discount.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            <View style={styles.breakdownRow}>
+              <View style={styles.deliveryLabelWrap}>
+                <Text style={styles.breakdownLabel}>Shipping &amp; delivery</Text>
+                {!!order.deliveryOption && (
+                  <View style={[styles.speedChip, { backgroundColor: B.purpleLight }]}>
+                    <Truck size={11} stroke={B.purple} strokeWidth={2} />
+                    <Text style={[styles.speedChipText, { color: B.purple }]}>
+                      {order.deliveryOption.name}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.breakdownValue}>₨{order.shippingFee.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.breakdownRow, styles.breakdownTotalRow]}>
+              <Text style={styles.breakdownTotalLabel}>Total</Text>
+              <Text style={styles.totalText}>₨{order.total.toLocaleString()}</Text>
+            </View>
           </View>
         </View>
 
@@ -196,20 +283,46 @@ const ProcessOrderScreen: React.FC = () => {
             onChangeText={(text) => dispatch(setCarrier(text))}
           />
           <Text style={styles.inputLabel}>Internal Notes</Text>
+          <Text style={styles.inputHint}>Only your team sees this.</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
             placeholder="Add any internal notes..."
             placeholderTextColor={B.textMuted}
-            value={notes}
-            onChangeText={(text) => dispatch(setNotes(text))}
+            value={internalNotes}
+            onChangeText={(text) => dispatch(setInternalNotes(text))}
             multiline
           />
+
+          {/* Saveable on its own. These three used to persist only as a side
+              effect of a status change, so on a delivered or cancelled order —
+              where no transition is left — they could be typed but never
+              stored, and a mistyped tracking number could never be corrected. */}
+          <TouchableOpacity
+            style={[styles.saveShippingBtn, saving && { opacity: 0.6 }]}
+            disabled={saving}
+            onPress={handleSaveShipping}
+          >
+            <Save size={15} stroke={C.surface} strokeWidth={2} />
+            <Text style={styles.saveShippingText}>
+              {saving ? 'Saving…' : 'Save shipping info'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Actions — only transitions the backend will actually accept from this order's current status */}
         {nextActions.length > 0 ? (
           <View style={styles.actionsCard}>
             <Text style={styles.sectionTitle}>Update Status</Text>
+            {/* This one really does reach the shopper: it is appended to
+                statusHistory, which the order-tracking endpoint serves them. */}
+            <Text style={styles.inputLabel}>Note to customer (optional)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Shown on their order tracking"
+              placeholderTextColor={B.textMuted}
+              value={customerNote}
+              onChangeText={(text) => dispatch(setCustomerNote(text))}
+            />
             <View style={styles.actionsGrid}>
               {nextActions.map((action) => {
                 const Icon = action.icon;
@@ -279,6 +392,30 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   totalText: { ...T.subhead, fontFamily: F.bold, color: B.text },
   divider: { height: 1, backgroundColor: B.border, marginVertical: 12 },
 
+  // Payment breakdown
+  breakdown: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: B.border },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    gap: 8,
+  },
+  breakdownLabel: { ...T.body, color: B.textSec },
+  breakdownValue: { ...T.body, color: B.text },
+  breakdownTotalRow: { marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: B.border },
+  breakdownTotalLabel: { ...T.body, fontFamily: F.bold, color: B.text },
+  deliveryLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  speedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  speedChipText: { ...T.caption, fontFamily: F.bold },
+
   // Section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 4 },
@@ -307,6 +444,18 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
 
   },
   multiline: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
+  inputHint: { ...T.caption, color: B.textMuted, marginBottom: 6, marginTop: -2 },
+  saveShippingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 4,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: c.accent,
+  },
+  saveShippingText: { color: C.surface, ...T.label, fontFamily: F.bold },
 
   // Actions
   actionsCard: {

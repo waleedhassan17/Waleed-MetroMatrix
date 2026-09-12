@@ -33,7 +33,11 @@ export interface FinancialSummary {
   netProfit: number;         // income - expenses
   totalOrders: number;
   avgOrderValue: number;
-  conversionRate: number;    // percentage
+  // conversionRate is deliberately absent, matching the server: it needs
+  // traffic data nothing in this system collects. It was declared here as a
+  // required number while the API stopped sending it, and since the fulfilled
+  // reducer replaces this object wholesale rather than merging into
+  // `emptySummary`, the screen rendered a literal "undefined%".
   returnsCount: number;
   refundsAmount: number;
 }
@@ -56,7 +60,6 @@ const emptySummary: FinancialSummary = {
   netProfit: 0,
   totalOrders: 0,
   avgOrderValue: 0,
-  conversionRate: 0,
   returnsCount: 0,
   refundsAmount: 0,
 };

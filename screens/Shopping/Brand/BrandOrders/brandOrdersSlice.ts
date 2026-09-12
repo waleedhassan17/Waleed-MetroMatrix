@@ -42,14 +42,22 @@ export const updateOrderStatus = createAsyncThunk(
       orderId,
       orderStatus,
       trackingNumber,
+      carrier,
       note,
-    }: { orderId: string; orderStatus: OrderStatus; trackingNumber?: string; note?: string },
+    }: {
+      orderId: string;
+      orderStatus: OrderStatus;
+      trackingNumber?: string;
+      carrier?: string;
+      note?: string;
+    },
     { rejectWithValue }
   ) => {
     try {
       const res = await updateVendorOrderStatusApi(orderId, {
         status: orderStatus,
         trackingNumber,
+        carrier,
         note,
       });
       return res.data;
@@ -65,6 +73,17 @@ const brandOrdersSlice = createSlice({
   reducers: {
     setStatusFilter(state, action: PayloadAction<BrandOrdersState['statusFilter']>) {
       state.statusFilter = action.payload;
+    },
+    /**
+     * Merge a server copy of one order back into the list. The order screen
+     * reads its data out of this list, so a shipping save made there has to
+     * land here or reopening the order shows the pre-save values again.
+     */
+    upsertOrder(state, action: PayloadAction<Order & { customerName?: string }>) {
+      const updated = action.payload;
+      const index = state.orders.findIndex((order) => order.orderId === updated.orderId);
+      if (index !== -1) state.orders[index] = { ...state.orders[index], ...updated };
+      else state.orders.unshift(updated);
     },
   },
   extraReducers: (builder) => {
@@ -94,7 +113,7 @@ const brandOrdersSlice = createSlice({
   },
 });
 
-export const { setStatusFilter } = brandOrdersSlice.actions;
+export const { setStatusFilter, upsertOrder } = brandOrdersSlice.actions;
 export const selectBrandOrders = (state: { brandOrders: BrandOrdersState }) => state.brandOrders;
 export const selectBrandOrderById = (orderId: string) => (state: { brandOrders: BrandOrdersState }) =>
   state.brandOrders.orders.find((order) => order.orderId === orderId) || null;

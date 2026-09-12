@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Save,
   ImagePlus,
@@ -18,6 +20,7 @@ import {
   Check,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
@@ -33,6 +36,10 @@ import {
   removeVariant,
   fetchFormCategories,
   createFormCategory,
+  addPendingImages,
+  removePendingImage,
+  removeImage,
+  MAX_PRODUCT_IMAGES,
 } from './productFormSlice';
 import { swatchColor } from '../../../../constants/ProductColors';
 import { upsertProduct } from '../BrandProducts/brandProductsSlice';
@@ -54,7 +61,8 @@ const ProductFormScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
-  const { draft, saving, categories, categoriesLoading } = useAppSelector(selectProductForm);
+  const { draft, saving, categories, categoriesLoading, pendingImages } =
+    useAppSelector(selectProductForm);
   const [newCategory, setNewCategory] = useState('');
   const productId = route.params?.productId as string | undefined;
   const isEdit = Boolean(productId);
@@ -112,6 +120,37 @@ const ProductFormScreen: React.FC = () => {
     Alert.alert('Could not save', err?.message || 'Please try again.');
   };
 
+  const imageCount = draft.images.length + pendingImages.length;
+
+  /**
+   * Follows the picker pattern already used in RaiseDisputeScreen, with
+   * `base64: true` so the picked file can go straight to the vendor image
+   * endpoint (which takes data URIs, not multipart).
+   */
+  const handlePickImages = async () => {
+    if (imageCount >= MAX_PRODUCT_IMAGES) {
+      Alert.alert('Limit reached', `A product can have up to ${MAX_PRODUCT_IMAGES} images.`);
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to add product images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PRODUCT_IMAGES - imageCount,
+      quality: 0.6,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const uris = (result.assets ?? [])
+      .filter((a) => a.base64)
+      .map((a) => `data:${a.mimeType || 'image/jpeg'};base64,${a.base64}`);
+    if (uris.length > 0) dispatch(addPendingImages(uris));
+  };
+
   const handleCreateCategory = async () => {
     const name = newCategory.trim();
     if (!name) return;
@@ -140,11 +179,68 @@ const ProductFormScreen: React.FC = () => {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Image placeholder */}
-        <TouchableOpacity style={styles.imagePlaceholder} activeOpacity={0.7}>
-          <ImagePlus size={28} stroke={B.textMuted} strokeWidth={1.5} />
-          <Text style={styles.imagePlaceholderText}>Tap to add product images</Text>
-        </TouchableOpacity>
+        {/* Images. The saved ones were already in the draft all along — this
+            screen simply never rendered them, so an edit showed an empty box
+            over a product that had four photos. Pending ones are local picks
+            not yet uploaded; both are removable. */}
+        {imageCount === 0 ? (
+          <TouchableOpacity
+            style={styles.imagePlaceholder}
+            activeOpacity={0.7}
+            onPress={handlePickImages}
+          >
+            <ImagePlus size={28} stroke={B.textMuted} strokeWidth={1.5} />
+            <Text style={styles.imagePlaceholderText}>Tap to add product images</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.imageSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.imageStrip}
+            >
+              {draft.images.map((uri, index) => (
+                <View key={`saved-${index}`} style={styles.thumbWrap}>
+                  <Image source={{ uri }} style={styles.thumb} />
+                  <TouchableOpacity
+                    style={styles.thumbRemove}
+                    onPress={() => dispatch(removeImage(index))}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityLabel="Remove image"
+                  >
+                    <X size={12} stroke={C.surface} strokeWidth={2.5} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {pendingImages.map((uri, index) => (
+                <View key={`pending-${index}`} style={styles.thumbWrap}>
+                  <Image source={{ uri }} style={styles.thumb} />
+                  <View style={styles.pendingTag}>
+                    <Text style={styles.pendingTagText}>New</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.thumbRemove}
+                    onPress={() => dispatch(removePendingImage(index))}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityLabel="Remove image"
+                  >
+                    <X size={12} stroke={C.surface} strokeWidth={2.5} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {imageCount < MAX_PRODUCT_IMAGES && (
+                <TouchableOpacity style={styles.thumbAdd} onPress={handlePickImages}>
+                  <ImagePlus size={22} stroke={B.textMuted} strokeWidth={1.5} />
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+            <Text style={styles.imageHint}>
+              {pendingImages.length > 0
+                ? `${pendingImages.length} new image${pendingImages.length > 1 ? 's' : ''} will upload when you save.`
+                : `${imageCount} of ${MAX_PRODUCT_IMAGES} images. The first is the cover.`}
+            </Text>
+          </View>
+        )}
 
         {/* Basic Info */}
         <View style={styles.section}>
@@ -440,6 +536,51 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 16,
   },
   imagePlaceholderText: { ...T.label, fontFamily: F.semibold, color: B.textMuted },
+
+  // Image strip
+  imageSection: { marginBottom: 16 },
+  imageStrip: { gap: 10, paddingRight: 4 },
+  thumbWrap: {
+    width: 96,
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: B.surface,
+  },
+  thumb: { width: '100%', height: '100%', resizeMode: 'cover' },
+  thumbRemove: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  pendingTag: {
+    position: 'absolute',
+    left: 5,
+    bottom: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 7,
+    backgroundColor: c.accent,
+  },
+  pendingTagText: { ...T.caption, fontFamily: F.bold, color: C.surface, fontSize: 10 },
+  thumbAdd: {
+    width: 96,
+    height: 120,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: B.border,
+    backgroundColor: B.surface,
+  },
+  imageHint: { ...T.caption, color: B.textMuted, marginTop: 8 },
 
   // Section
   section: {

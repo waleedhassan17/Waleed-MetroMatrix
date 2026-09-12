@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
@@ -32,11 +33,14 @@ import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';
 
-const PERIODS: { key: AnalyticsPeriod; label: string }[] = [
-  { key: '7d', label: '7 Days' },
-  { key: '30d', label: '30 Days' },
-  { key: '90d', label: '90 Days' },
-  { key: 'all', label: 'All Time' },
+// The comparison label says out loud what the trend badge measures against.
+// It was previously a bare percentage next to a revenue figure, which reads as
+// a margin or a fee rather than period-over-period growth.
+const PERIODS: { key: AnalyticsPeriod; label: string; comparisonLabel: string }[] = [
+  { key: '7d', label: '7 Days', comparisonLabel: 'vs. previous 7 days' },
+  { key: '30d', label: '30 Days', comparisonLabel: 'vs. previous 30 days' },
+  { key: '90d', label: '90 Days', comparisonLabel: 'vs. previous 90 days' },
+  { key: 'all', label: 'All Time', comparisonLabel: 'No earlier period to compare' },
 ];
 
 const formatCurrency = (amount: number): string => {
@@ -57,6 +61,8 @@ const BrandAnalyticsScreen: React.FC = () => {
     topProducts,
     categoryBreakdown,
     previousPeriodRevenue,
+    loading,
+    error,
   } = useAppSelector(selectBrandAnalytics);
 
   // Recomputed on focus as well as on period change — figures shown here
@@ -67,11 +73,56 @@ const BrandAnalyticsScreen: React.FC = () => {
     }, [dispatch, period])
   );
 
-  const revenueTrend = previousPeriodRevenue > 0
+  /**
+   * Revenue against the immediately preceding window of the same length.
+   *
+   * `hasBaseline` is the important part. This used to collapse to a literal 0
+   * whenever there was nothing to compare against — a new brand, or the "All"
+   * period, whose preceding window is empty by construction — and since
+   * `0 >= 0` it rendered as a green up-arrow reading "0.0%". That is "no data"
+   * drawn as "flat but improving", on an unlabelled badge beside a revenue
+   * figure, which is worse than showing nothing.
+   */
+  const hasBaseline = previousPeriodRevenue > 0;
+  const revenueTrend = hasBaseline
     ? ((summary.totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
     : 0;
   const trendPositive = revenueTrend >= 0;
+  const trendColor = !hasBaseline ? B.textMuted : trendPositive ? B.success : B.error;
+  const comparisonLabel =
+    PERIODS.find((p) => p.key === period)?.comparisonLabel ?? 'vs. previous period';
   const maxChartValue = Math.max(...revenueChart.map((p) => p.revenue), 1);
+
+  if (loading && summary.totalOrders === 0 && revenueChart.length === 0) {
+    return (
+      <View style={styles.container}>
+        <BrandHeader title="Analytics" showBack />
+        <View style={styles.stateWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      </View>
+    );
+  }
+
+  // Without this a failed fetch rendered a full grid of confident ₨0 figures,
+  // which a vendor reads as "I sold nothing" rather than "this did not load".
+  if (error && revenueChart.length === 0) {
+    return (
+      <View style={styles.container}>
+        <BrandHeader title="Analytics" showBack />
+        <View style={styles.stateWrap}>
+          <Text style={styles.stateTitle}>Couldn't load analytics</Text>
+          <Text style={styles.stateBody}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryBtn, { backgroundColor: colors.accent }]}
+            onPress={() => dispatch(fetchBrandAnalytics(period))}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -105,15 +156,29 @@ const BrandAnalyticsScreen: React.FC = () => {
             <View style={{ flex: 1 }}>
               <Text style={styles.finLabel}>Total Revenue</Text>
               <Text style={styles.finValueLg}>{formatCurrency(summary.totalRevenue)}</Text>
+              <Text style={styles.finSub}>{comparisonLabel}</Text>
             </View>
-            <View style={[styles.trendBadge, { backgroundColor: trendPositive ? B.successLight : B.errorLight }]}>
-              {trendPositive ? (
-                <ArrowUpRight size={12} stroke={B.success} strokeWidth={2} />
+            <View
+              style={[
+                styles.trendBadge,
+                {
+                  backgroundColor: !hasBaseline
+                    ? B.bg
+                    : trendPositive
+                      ? B.successLight
+                      : B.errorLight,
+                },
+              ]}
+            >
+              {!hasBaseline ? (
+                <Minus size={12} stroke={trendColor} strokeWidth={2} />
+              ) : trendPositive ? (
+                <ArrowUpRight size={12} stroke={trendColor} strokeWidth={2} />
               ) : (
-                <ArrowDownRight size={12} stroke={B.error} strokeWidth={2} />
+                <ArrowDownRight size={12} stroke={trendColor} strokeWidth={2} />
               )}
-              <Text style={[styles.trendText, { color: trendPositive ? B.success : B.error }]}>
-                {Math.abs(revenueTrend).toFixed(1)}%
+              <Text style={[styles.trendText, { color: trendColor }]}>
+                {hasBaseline ? `${Math.abs(revenueTrend).toFixed(1)}%` : 'No data'}
               </Text>
             </View>
           </View>
@@ -265,11 +330,14 @@ const BrandAnalyticsScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <BarChart3 size={16} stroke={colors.accent} strokeWidth={2} />
-            <Text style={styles.cardTitle}>Conversion & Performance</Text>
+            <Text style={styles.cardTitle}>Performance</Text>
           </View>
           <View style={styles.metricGrid}>
             {[
-              { label: 'Conversion Rate', value: `${summary.conversionRate}%`, color: B.success },
+              // Conversion Rate used to lead this grid. The server deliberately
+              // stopped sending it (it needs traffic data nothing here
+              // collects) and the slice replaces the summary wholesale, so the
+              // tile rendered a literal "undefined%" after every load.
               { label: 'Avg Order Value', value: `₨${summary.avgOrderValue.toLocaleString()}`, color: B.info },
               { label: 'Return Rate', value: summary.totalOrders > 0 ? `${((summary.returnsCount / summary.totalOrders) * 100).toFixed(1)}%` : '0%', color: B.amber },
               { label: 'Profit Margin', value: summary.totalRevenue > 0 ? `${((summary.netProfit / summary.totalRevenue) * 100).toFixed(1)}%` : '-', color: B.purple },
@@ -289,6 +357,12 @@ const BrandAnalyticsScreen: React.FC = () => {
 // Built per render from the resolved theme so a brand's colours reach
 // rules that live at module scope. Layout, spacing and type are unchanged.
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
+  stateTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  stateBody: { ...T.body, color: B.textMuted, textAlign: 'center' },
+  retryBtn: { marginTop: 12, paddingHorizontal: 26, paddingVertical: 12, borderRadius: 12 },
+  retryText: { ...T.label, fontFamily: F.bold, color: C.surface },
+
   container: { flex: 1, backgroundColor: B.bg },
   scrollContent: { padding: 16, paddingBottom: 40 },
 

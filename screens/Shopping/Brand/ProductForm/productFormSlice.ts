@@ -1,7 +1,11 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { Product, ProductVariant } from '../../../../types/shopping';
 import { createProductApi, updateProductApi, fetchProductByIdApi } from '../../../../networks/shopping/productApi';
-import { fetchMyCategoriesApi, createCategoryApi } from '../../../../networks/shopping/vendorApi';
+import {
+  fetchMyCategoriesApi,
+  createCategoryApi,
+  addProductImagesApi,
+} from '../../../../networks/shopping/vendorApi';
 import { swatchColor } from '../../../../constants/ProductColors';
 
 /** Just what the category picker needs; `GET /vendor/categories` returns more. */
@@ -21,6 +25,18 @@ export interface ProductFormState {
   saving: boolean;
   error: SaveError | null;
   draft: Product;
+  /**
+   * Photos picked on the device but not yet uploaded, held as
+   * `data:image/...;base64,...` URIs.
+   *
+   * They cannot go into the create/update payload: `PATCH /vendor/products/:id`
+   * whitelists `images` and assigns it verbatim with no validation, so base64
+   * sent there is silently persisted into Mongo as a giant string instead of
+   * being uploaded. They also cannot be uploaded before saving a NEW product,
+   * because the upload endpoint is addressed by product id. So they wait here
+   * and `saveProductDraft` flushes them once an id exists.
+   */
+  pendingImages: string[];
   categories: VendorCategory[];
   categoriesLoading: boolean;
   categoriesError: string | null;
@@ -73,10 +89,14 @@ const makeEmptyDraft = (): Product => ({
   createdAt: new Date().toISOString(),
 });
 
+/** Serial Cloudinary round-trips in one request — keep the batch small. */
+export const MAX_PRODUCT_IMAGES = 5;
+
 const initialState: ProductFormState = {
   saving: false,
   error: null,
   draft: makeEmptyDraft(),
+  pendingImages: [],
   categories: [],
   categoriesLoading: false,
   categoriesError: null,
@@ -162,6 +182,16 @@ export const saveProductDraft = createAsyncThunk(
       const res = isNew
         ? await createProductApi(payload)
         : await updateProductApi(draft.productId, payload);
+
+      // Newly picked photos are uploaded after the product exists, because the
+      // upload endpoint is keyed by product id. It appends and returns the full
+      // updated product, so its response — not the save response — is the
+      // canonical one whenever there were pending images.
+      const pending = productForm.pendingImages;
+      if (pending.length > 0) {
+        const uploaded = await addProductImagesApi(res.data.productId, pending);
+        return uploaded.data;
+      }
       return res.data;
     } catch (error: any) {
       return rejectWithValue({
@@ -202,6 +232,23 @@ const productFormSlice = createSlice({
     toggleFlag(state, action: PayloadAction<'isFeatured' | 'isNewArrival'>) {
       state.draft[action.payload] = !state.draft[action.payload];
     },
+    /** Newly picked photos, as base64 data URIs. Capped across both lists. */
+    addPendingImages(state, action: PayloadAction<string[]>) {
+      const room = MAX_PRODUCT_IMAGES - (state.draft.images.length + state.pendingImages.length);
+      if (room <= 0) return;
+      state.pendingImages.push(...action.payload.slice(0, room));
+    },
+    removePendingImage(state, action: PayloadAction<number>) {
+      state.pendingImages.splice(action.payload, 1);
+    },
+    /**
+     * Drop an already-uploaded image. There is no delete endpoint — removal is
+     * expressed by saving the shortened `images` array, which the update route
+     * assigns wholesale.
+     */
+    removeImage(state, action: PayloadAction<number>) {
+      state.draft.images.splice(action.payload, 1);
+    },
     setSaving(state, action: PayloadAction<boolean>) {
       state.saving = action.payload;
     },
@@ -212,6 +259,7 @@ const productFormSlice = createSlice({
       state.saving = false;
       state.error = null;
       state.draft = makeEmptyDraft();
+      state.pendingImages = [];
     },
   },
   extraReducers: (builder) => {
@@ -222,6 +270,7 @@ const productFormSlice = createSlice({
       })
       .addCase(loadProductDraft.fulfilled, (state, action) => {
         state.draft = action.payload;
+        state.pendingImages = [];
       })
       .addCase(loadProductDraft.rejected, (state, action) => {
         state.error = { message: action.payload as string };
@@ -233,6 +282,8 @@ const productFormSlice = createSlice({
       .addCase(saveProductDraft.fulfilled, (state, action) => {
         state.saving = false;
         state.draft = action.payload;
+        // Uploaded; the server's `images` now holds their hosted URLs.
+        state.pendingImages = [];
       })
       .addCase(saveProductDraft.rejected, (state, action) => {
         state.saving = false;
@@ -266,6 +317,9 @@ export const {
   updateVariant,
   removeVariant,
   toggleFlag,
+  addPendingImages,
+  removePendingImage,
+  removeImage,
   setSaving,
   setError,
   resetDraft,

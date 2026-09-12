@@ -9,6 +9,7 @@ import {
   Image,
   Alert,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
@@ -41,7 +42,8 @@ const BrandProductsScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { products, searchQuery, stockFilter } = useAppSelector(selectBrandProducts);
+  const { products, searchQuery, stockFilter, loading, error } =
+    useAppSelector(selectBrandProducts);
 
   // Refetch on focus: adding or editing a product elsewhere in the stack
   // otherwise left this list stale until the app restarted.
@@ -176,21 +178,44 @@ const BrandProductsScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Package size={32} stroke={B.textMuted} strokeWidth={1.5} />
+          // An empty list has three very different causes and used to render
+          // one message for all of them — a failed fetch told a vendor with a
+          // full catalogue to "add your first product".
+          loading && products.length === 0 ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={colors.accent} />
             </View>
-            <Text style={styles.emptyTitle}>No products found</Text>
-            <Text style={styles.emptyText}>
-              {searchQuery ? 'Try a different search term.' : 'Add your first product to get started.'}
-            </Text>
-            {!searchQuery && (
-              <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate(BrandRouteNames.AddProduct)}>
-                <Plus size={16} stroke={C.surface} strokeWidth={2} />
-                <Text style={styles.emptyCtaText}>Add Product</Text>
+          ) : error ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Package size={32} stroke={B.error} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.emptyTitle}>Couldn't load your products</Text>
+              <Text style={styles.emptyText}>{error}</Text>
+              <TouchableOpacity
+                style={styles.emptyCta}
+                onPress={() => dispatch(fetchBrandProducts())}
+              >
+                <Text style={styles.emptyCtaText}>Try Again</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Package size={32} stroke={B.textMuted} strokeWidth={1.5} />
+              </View>
+              <Text style={styles.emptyTitle}>No products found</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery ? 'Try a different search term.' : 'Add your first product to get started.'}
+              </Text>
+              {!searchQuery && (
+                <TouchableOpacity style={styles.emptyCta} onPress={() => navigation.navigate(BrandRouteNames.AddProduct)}>
+                  <Plus size={16} stroke={C.surface} strokeWidth={2} />
+                  <Text style={styles.emptyCtaText}>Add Product</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )
         }
       />
     </View>

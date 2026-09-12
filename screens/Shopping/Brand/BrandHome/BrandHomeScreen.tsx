@@ -440,6 +440,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     width: '31%' as any,
     alignItems: 'center',
     paddingVertical: 16,
+    // "Add Product" is the only two-word label in this grid; without room to
+    // breathe it wraps tight against the card edges.
+    paddingHorizontal: 6,
     borderRadius: 14,
     backgroundColor: B.surface,
     ...Shadows.sm,
@@ -456,6 +459,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     ...T.caption,
     fontFamily: F.bold,
     color: B.textSec,
+    // Without this, a label that wraps sizes its box to the longest line and
+    // the shorter line falls back to textAlign 'auto' — which is why "Add"
+    // sat flush-left under a centred icon while "Product" looked fine.
+    textAlign: 'center',
   },
 
   // Shared Card

@@ -163,6 +163,21 @@ export interface Order {
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
   trackingNumber?: string;
+  /** Vendor-entered courier. Saved by PATCH /vendor/orders/:id/shipping. */
+  carrier?: string;
+  /**
+   * Vendor-private. The schema's toJSON strips it; only the vendor endpoints
+   * add it back, so it is absent on customer-facing order responses.
+   */
+  internalNotes?: string;
+  /**
+   * The delivery tier the shopper paid for. Snapshotted on the parent
+   * OrderGroup at checkout, and attached to the vendor's view of each child
+   * order — the child's own `shippingFee` folds the surcharge in and cannot
+   * tell you which speed was bought. Null on orders placed before the vendor
+   * endpoints started exposing it.
+   */
+  deliveryOption?: { id: string; name: string; surcharge: number } | null;
   subtotal: number;
   discount: number;
   shippingFee: number;
