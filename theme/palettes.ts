@@ -73,7 +73,7 @@ const healthcare: ModulePalette = {
   accentSoft: HC.primaryLight,
   accentLine: HC.accentLight,
   onAccent: HC.textInverse,
-  barTone: 'surface',
+  barTone: 'accent',
 };
 
 /** Service green. Deliberately not the healthcare blue. */
