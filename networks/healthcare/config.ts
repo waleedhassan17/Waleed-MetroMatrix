@@ -43,7 +43,7 @@ async function request<T>(
   prefix: string,
   endpoint: string,
   options: RequestOptions = {}
-): Promise<ApiResponse<T>> {
+): Promise<HealthcareResponse<T>> {
   const method = (options.method || 'GET').toUpperCase();
   const URL = `${prefix}${endpoint}`;
   // Carried as a header purely so it reaches the interceptor on error.config;
@@ -90,8 +90,13 @@ async function request<T>(
     };
   } catch (error: any) {
     const body = error?.response?.data;
+    // Newer endpoints reply `{ error: 'TEMPLATE_CHANGED', message: 'Your weekly
+    // hours were changed…', data }` — a stable code for the app to branch on and
+    // a sentence for the doctor. Older ones put the sentence in `error`. Show the
+    // sentence either way, and hand the code and data to the caller.
+    const code = typeof body?.error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(body.error) ? body.error : undefined;
     const base =
-      body?.error || body?.message || error?.message || 'Network error occurred';
+      (code ? body?.message : body?.error || body?.message) || error?.message || 'Network error occurred';
 
     // express-validator replies as
     //   { error: 'Validation failed', details: [{ field, message }, ...] }
@@ -110,15 +115,28 @@ async function request<T>(
       success: false,
       data: null as any,
       message: fieldMessages.length ? fieldMessages.join('. ') : base,
+      code,
+      errorData: body?.data,
+      status: error?.response?.status,
     };
   }
+}
+
+/** A response that may carry the server's error code and data on failure. */
+export interface HealthcareResponse<T> extends ApiResponse<T> {
+  /** Stable error code, e.g. 'TEMPLATE_CHANGED'. Only on failure. */
+  code?: string;
+  /** Structured detail the server attached to the error. */
+  errorData?: any;
+  /** HTTP status of a failed request. */
+  status?: number;
 }
 
 /** Request against /api/v1/healthcare/* */
 export async function healthcareApiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
-): Promise<ApiResponse<T>> {
+): Promise<HealthcareResponse<T>> {
   return request<T>(HEALTHCARE_PREFIX, endpoint, options);
 }
 
