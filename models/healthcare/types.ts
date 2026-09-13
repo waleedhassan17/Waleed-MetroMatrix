@@ -109,6 +109,62 @@ export interface TimeSlot {
   bookedCount: number;
 }
 
+// ── Doctor-managed slot ─────────────────────
+//
+// The doctor's own view of a slot, as returned by GET /slots/my-slots. Kept
+// separate from TimeSlot, which eight patient screens depend on, so neither can
+// break the other.
+
+/**
+ * open      — bookable by patients
+ * requested — a patient asked for it; awaiting the doctor's approval
+ * booked    — the doctor approved it
+ * held      — overlaps another booked slot, so it cannot be offered (the doctor
+ *             cannot see two patients at once)
+ * blocked   — closed by the doctor
+ * past      — already started
+ */
+export type DoctorSlotState = 'open' | 'requested' | 'booked' | 'held' | 'blocked' | 'past';
+
+export type SlotKind = 'video' | 'in-clinic';
+
+/** 'both' creates a video slot and an in-clinic slot at the same time. */
+export type NewSlotType = SlotKind | 'both';
+
+export interface DoctorSlot {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  type: SlotKind;
+  clinic: { id: string; name: string; address?: string } | null;
+  state: DoctorSlotState;
+  maxPatients: number;
+  bookedCount: number;
+  appointments: { id: string; status: string; patientName: string }[];
+  heldBy: { id: string; type: SlotKind; startTime: string; endTime: string } | null;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export interface NewSlotInput {
+  date: string;
+  startTime: string;
+  endTime: string;
+  type: NewSlotType;
+  clinicId?: string | null;
+  maxPatients: number;
+}
+
+export interface SlotEdit {
+  startTime?: string;
+  endTime?: string;
+  type?: SlotKind;
+  clinicId?: string | null;
+  maxPatients?: number;
+  status?: 'available' | 'blocked';
+}
+
 // ── Prescription ────────────────────────────
 
 export interface Medication {

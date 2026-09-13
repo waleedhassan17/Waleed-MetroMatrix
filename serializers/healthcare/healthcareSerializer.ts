@@ -12,6 +12,52 @@ import type {
   VideoCall,
   PaymentRecord,
 } from '../../models/healthcare/types';
+import { toLocalISODate } from '../../utils/date/localDate';
+
+/** The backend's DEFAULT_TIMEZONE; every clinic is created in it unless told otherwise. */
+const DEFAULT_CLINIC_TIMEZONE = 'Asia/Karachi';
+
+/**
+ * An appointment's calendar day, as a `YYYY-MM-DD` key AT THE CLINIC.
+ *
+ * The API sends the slot's day as an INSTANT — midnight at the clinic, in UTC,
+ * e.g. "2026-09-13T19:00:00.000Z" for Monday 14 September in Karachi. That
+ * string was passed straight through, while every consumer treats
+ * `appointment.date` as a calendar key:
+ *   · the doctor's schedule grouped by it and looked up "2026-09-14", which a
+ *     full timestamp never equals — so NO appointment ever showed on any day;
+ *   · detail screens built `new Date(${date}T${start})`, which is
+ *     "…ZT10:30" — an Invalid Date, breaking every countdown and join window;
+ *   · and slicing the string would still have given Sunday, not Monday.
+ *
+ * Read in the CLINIC's zone, not the device's. An appointment is on Monday
+ * because Monday is when it happens where the clinic is; a phone set to UTC
+ * (emulators default to it) or abroad would otherwise file it under Sunday.
+ * Falls back to the device calendar only if this engine cannot format a zone.
+ */
+const calendarDayOf = (value: any, timeZone?: string): string => {
+  if (!value) return '';
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZone || DEFAULT_CLINIC_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const part = (type: string) => parts.find((p) => p.type === type)?.value;
+    const y = part('year');
+    const m = part('month');
+    const day = part('day');
+    if (y && m && day) return `${y}-${m}-${day}`;
+  } catch {
+    // Engine without time-zone support: the device calendar is the best left.
+  }
+  return toLocalISODate(d);
+};
 
 // Helpers to normalise backend ObjectId / populated refs.
 const idOf = (v: any): string => {
@@ -171,7 +217,7 @@ export function appointmentSerializer(data: any): Appointment {
     doctorId: idOf(data?.doctorId),
     clinicId: idOf(data?.clinicId) || undefined,
     type: data?.type || 'in-clinic',
-    date: data?.date || slot?.date || '',
+    date: calendarDayOf(data?.date || slot?.date, slot?.clinicTimezone),
     timeSlot: {
       start: data?.timeSlot?.start || slot?.startTime || '',
       end: data?.timeSlot?.end || slot?.endTime || '',

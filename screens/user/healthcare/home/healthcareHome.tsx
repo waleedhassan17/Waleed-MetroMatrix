@@ -25,6 +25,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchHomeData, clearError } from './healthcareHomeSlice';
 import type { HealthcareHomeState } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
+import { fromLocalISODate } from '../../../../utils/date/localDate';
 import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
@@ -695,7 +696,7 @@ const HealthcareHomeScreen: React.FC = () => {
                   </Text>
                 </View>
                 <Text style={styles.upcomingDate}>
-                  {new Date(nextAppointment.date).toLocaleDateString('en-US', {
+                  {fromLocalISODate(nextAppointment.date).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',

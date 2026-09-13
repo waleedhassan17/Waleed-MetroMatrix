@@ -24,7 +24,7 @@ const initialState: MyAppointmentsState = {
 
 export const fetchMyAppointments = createAsyncThunk<
   Appointment[],
-  { patientId: string; status?: Appointment['status'] },
+  { patientId: string; status?: Appointment['status']; limit?: number },
   { rejectValue: string }
 >('myAppointments/fetchMyAppointments', async (params, { rejectWithValue }) => {
   try {

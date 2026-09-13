@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  Alert,
   Animated,
   Platform,
 } from 'react-native';
@@ -30,6 +31,7 @@ import {
 } from './doctorScheduleSlice';
 import { Appointment } from '../../../../models/healthcare/types';
 import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
+import { approveAppointmentApi, declineAppointmentApi } from '../../../../networks/healthcare/providerApi';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Theme ─────────────────────────────────────
@@ -154,7 +156,12 @@ const WeekCalendarStrip: React.FC<{
 
 // ── Appointment Card ──────────────────────────
 
-const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = ({ appointment, index }) => {
+const AppointmentCard: React.FC<{
+  appointment: Appointment;
+  index: number;
+  /** Refetch after the doctor approves or declines. */
+  onChanged?: () => void;
+}> = ({ appointment, index, onChanged }) => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const styles = useMemo(() => makeStyles(sh), [sh]);
@@ -163,6 +170,36 @@ const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = (
   const sc = STATUS_CONFIG[appointment.status] ?? STATUS_CONFIG.pending;
   const patientName = getPatientName(appointment);
   const anim = useRef(new Animated.Value(0)).current;
+  const [responding, setResponding] = useState<'approve' | 'decline' | null>(null);
+
+  // A pending appointment is a request the doctor has not answered. This card
+  // showed "Pending" with no way to act on it, and the only approval path in the
+  // app was the patient queue — which lists TODAY only — so a request for any
+  // other date could never be approved or declined at all.
+  const respond = async (approve: boolean) => {
+    setResponding(approve ? 'approve' : 'decline');
+    try {
+      const res = approve
+        ? await approveAppointmentApi(appointment.appointmentId)
+        : await declineAppointmentApi(appointment.appointmentId);
+      if (!res.success) {
+        Alert.alert(approve ? 'Could not approve' : 'Could not decline', res.message || 'Please try again.');
+      }
+      onChanged?.();
+    } finally {
+      setResponding(null);
+    }
+  };
+
+  const confirmDecline = () =>
+    Alert.alert(
+      'Decline request',
+      `Decline ${patientName}'s request? They will be refunded and notified, and the slot reopens for other patients.`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        { text: 'Decline', style: 'destructive', onPress: () => respond(false) },
+      ],
+    );
 
   useEffect(() => {
     Animated.spring(anim, {
@@ -254,6 +291,33 @@ const AppointmentCard: React.FC<{ appointment: Appointment; index: number }> = (
               </View>
             )}
           </View>
+
+          {appointment.status === 'pending' && (
+            <View style={styles.aptRespondRow}>
+              <TouchableOpacity
+                style={[styles.aptRespondBtn, styles.aptDeclineBtn]}
+                onPress={confirmDecline}
+                disabled={!!responding}
+                accessibilityRole="button"
+                accessibilityLabel={`Decline ${patientName}'s request`}
+              >
+                {responding === 'decline'
+                  ? <ActivityIndicator size="small" color={THEME.error} />
+                  : <Text style={[styles.aptRespondText, { color: THEME.error }]}>Decline</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.aptRespondBtn, styles.aptApproveBtn]}
+                onPress={() => respond(true)}
+                disabled={!!responding}
+                accessibilityRole="button"
+                accessibilityLabel={`Approve ${patientName}'s request`}
+              >
+                {responding === 'approve'
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={[styles.aptRespondText, { color: '#FFFFFF' }]}>Approve</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Ionicons name="chevron-forward" size={16} color="#CBD5E1" style={{ marginRight: 4 }} />
@@ -545,7 +609,12 @@ const DoctorScheduleScreen: React.FC = () => {
             ) : (
               <View style={styles.aptList}>
                 {selectedDayAppointments.map((apt, i) => (
-                  <AppointmentCard key={apt.appointmentId} appointment={apt} index={i} />
+                  <AppointmentCard
+                    key={apt.appointmentId}
+                    appointment={apt}
+                    index={i}
+                    onChanged={() => dispatch(fetchSchedule(weekAnchor))}
+                  />
                 ))}
               </View>
             )}
@@ -571,7 +640,12 @@ const DoctorScheduleScreen: React.FC = () => {
                   </View>
                 </View>
                 {dayApts.map((apt, i) => (
-                  <AppointmentCard key={apt.appointmentId} appointment={apt} index={i} />
+                  <AppointmentCard
+                    key={apt.appointmentId}
+                    appointment={apt}
+                    index={i}
+                    onChanged={() => dispatch(fetchSchedule(weekAnchor))}
+                  />
                 ))}
               </View>
             ))
@@ -943,6 +1017,28 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
     fontWeight: '500',
     color: sh.n('#64748B', 'inkMuted'),
     marginTop: 2,
+  },
+  aptRespondRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  aptRespondBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aptApproveBtn: {
+    backgroundColor: THEME.success,
+  },
+  aptDeclineBtn: {
+    backgroundColor: THEME.errorLight,
+  },
+  aptRespondText: {
+    fontSize: 13.5,
+    fontWeight: '800',
   },
   aptFooterRow: {
     flexDirection: 'row',

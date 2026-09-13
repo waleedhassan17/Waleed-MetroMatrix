@@ -11,7 +11,6 @@ import {
   Platform,
   Animated,
   Switch,
-  Alert,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { barStyleOn, useTheme } from '../../../../theme';
@@ -33,7 +32,7 @@ import type { DoctorProfileData } from '../../../../models/healthcare/types';
 
 // ── Theme ─────────────────────────────────────
 import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
-import { performLogout } from '../../../../services/auth/logout';
+import { useDoctorSignOut } from '../useDoctorSignOut';
 
 const formatCurrency = (amount: number, currency: string) =>
   `${currency} ${amount.toLocaleString()}`;
@@ -97,6 +96,7 @@ const DoctorProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const confirmSignOut = useDoctorSignOut();
   const isInTab = route.params?.isTab === true;
   const { profile, loading, saving, error } = useAppSelector((state) => state.doctorProfile);
 
@@ -446,16 +446,12 @@ const DoctorProfileScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.signOutBtn}
           activeOpacity={0.8}
-          onPress={() =>
-            Alert.alert('Sign out', 'Sign out of your doctor account?', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Sign out',
-                style: 'destructive',
-                onPress: () => performLogout(navigation as any),
-              },
-            ])
-          }
+          // Was performLogout(navigation), which passed navigation where the
+          // Redux dispatch belongs — it cleared the token and then threw
+          // before resetting state or navigating. See useDoctorSignOut.
+          onPress={confirmSignOut}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
         >
           <Ionicons name="log-out-outline" size={18} color="#DC2626" />
           <Text style={styles.signOutText}>Sign Out</Text>

@@ -16,7 +16,8 @@ import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
 import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { fromLocalISODate } from '../../../../utils/date/localDate';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { setActiveTab, fetchMyAppointments } from './myAppointmentsSlice';
@@ -116,11 +117,26 @@ const MyAppointmentsScreen: React.FC = () => {
 
   const handleTabPress = (tab: 'upcoming' | 'past') => dispatch(setActiveTab(tab));
 
+  // Upcoming is filtered on this device from one newest-first page, so the page
+  // must be big enough that a patient's older cancelled or past visits cannot
+  // push a real upcoming appointment off the end of it.
+  const APPOINTMENT_PAGE = 100;
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await dispatch(fetchMyAppointments({ patientId: 'patient-1' }));
+    await dispatch(fetchMyAppointments({ patientId: 'patient-1', limit: APPOINTMENT_PAGE }));
     setRefreshing(false);
   }, [dispatch]);
+
+  // THE BUG: this list was only ever fetched on pull-to-refresh. Nothing loaded
+  // it when the tab opened, so a patient who had just booked saw "No Upcoming
+  // Appointments" until they happened to drag the list down. Load on every
+  // focus — the tab stays mounted, so returning from a booking must refetch.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchMyAppointments({ patientId: 'patient-1', limit: APPOINTMENT_PAGE }));
+    }, [dispatch])
+  );
 
   const handleCancel = (id: string) => {};
   const handleReschedule = (id: string) => {};
@@ -227,7 +243,15 @@ const MyAppointmentsScreen: React.FC = () => {
         <View style={styles.cardDetails}>
           <View style={styles.detailChip}>
             <Ionicons name="calendar-outline" size={13} color="#64748B" />
-            <Text style={styles.detailChipText}>{item.date}</Text>
+            <Text style={styles.detailChipText}>
+              {item.date
+                ? fromLocalISODate(item.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })
+                : '—'}
+            </Text>
           </View>
           <View style={styles.detailDivider} />
           <View style={styles.detailChip}>

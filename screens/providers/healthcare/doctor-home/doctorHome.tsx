@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Alert,
   ActivityIndicator,
   RefreshControl,
   Animated,
@@ -24,6 +25,7 @@ import { Typography } from '../../../../constants/Fonts';
 import { fetchDashboardData, refreshDashboard } from './doctorDashboardSlice';
 import type { DoctorDashboardState } from './doctorDashboardSlice';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+import { useDoctorSignOut } from '../useDoctorSignOut';
 import { getPatientName, getInitials } from '../../../../utils/healthcare/doctorDisplay';
 import type { Appointment } from '../../../../models/healthcare/types';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
@@ -111,6 +113,7 @@ const DoctorHomeScreen: React.FC = () => {
   const sh = useMemo(() => darkShift(mode), [mode]);
   const styles = useMemo(() => makeStyles(sh), [sh]);
   const navigation = useNavigation<any>();
+  const confirmSignOut = useDoctorSignOut();
   const dispatch = useAppDispatch();
   const unreadTotal = useAppSelector(selectTotalUnread);
 
@@ -265,6 +268,25 @@ const DoctorHomeScreen: React.FC = () => {
               the quick action below — which was itself mislabelled "Settings".
               One correctly-labelled entry point replaces both.
             */}
+            {/* ACCOUNT — the only way to sign out used to be three levels
+                down (quick actions → Profile → scroll to the bottom), and even
+                that button was broken. The top-right account control is where
+                every app puts it. */}
+            <TouchableOpacity
+              style={styles.accountBtn}
+              onPress={() =>
+                Alert.alert(doctorName || 'Your account', undefined, [
+                  { text: 'My profile', onPress: () => navigation.navigate(DoctorRouteNames.DoctorProfile) },
+                  { text: 'Sign out', style: 'destructive', onPress: confirmSignOut },
+                  { text: 'Cancel', style: 'cancel' },
+                ])
+              }
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Account: profile and sign out"
+            >
+              <Ionicons name="person-circle-outline" size={30} color={THEME.primary} />
+            </TouchableOpacity>
           </View>
 
           {/* Stats Cards Row */}
@@ -708,6 +730,14 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
       ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 16 },
       android: { elevation: 4 },
     }),
+  },
+  accountBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: THEME.primaryLight,
   },
   headerTopRow: {
     flexDirection: 'row',

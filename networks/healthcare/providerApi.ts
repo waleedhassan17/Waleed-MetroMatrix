@@ -27,7 +27,6 @@ import {
 } from '../../serializers/healthcare/providerSerializer';
 import {
   appointmentSerializer,
-  timeSlotSerializer,
   medicalRecordSerializer,
   clinicSerializer,
 } from '../../serializers/healthcare/healthcareSerializer';
@@ -41,7 +40,6 @@ import type {
   ConsultationBreakdown,
   PeriodFilter,
   QueuePatient,
-  TimeSlot,
   Clinic,
   DaySchedule,
   VacationDate,
@@ -54,6 +52,9 @@ import type {
   PatientRecord,
   DoctorProfileData,
   Coupon,
+  DoctorSlot,
+  NewSlotInput,
+  SlotEdit,
 } from '../../models/healthcare/types';
 
 const genderLabel = (g?: string): 'Male' | 'Female' | 'Other' => {
@@ -242,17 +243,26 @@ export async function updateQueuePatientApi(
 //  MANAGE SLOTS
 // ═══════════════════════════════════════════
 
+/**
+ * The doctor's slots for one day, each carrying its booking state, plus the
+ * doctor's clinics.
+ *
+ * A failed slots request is an ERROR here, not an empty day. It used to fall
+ * back to `[]`, which rendered as "no slots configured" — indistinguishable
+ * from a genuinely empty day, so a doctor could create duplicates of slots
+ * that already existed.
+ */
 export async function fetchManageSlotsApi(
-  clinicId: string,
   date: string,
-  duration: number,
-  maxPatients: number
-): Promise<ApiResponse<{ slots: TimeSlot[]; clinics: Clinic[] }>> {
+): Promise<ApiResponse<{ slots: DoctorSlot[]; clinics: Clinic[] }>> {
   const [slotsRes, clinicsRes] = await Promise.all([
     healthcareApiRequest<any>(`/slots/my-slots?date=${encodeURIComponent(date)}`),
     healthcareApiRequest<any>('/doctors/me/clinics'),
   ]);
-  const slots = (slotsRes.success ? slotsRes.data || [] : []).map(timeSlotSerializer);
+  if (!slotsRes.success) {
+    return { success: false, data: null as any, message: slotsRes.message || 'Could not load slots' };
+  }
+  const slots = (Array.isArray(slotsRes.data) ? slotsRes.data : []).map(doctorSlotSerializer);
 
   // clinicSerializer, not the raw documents. These were returned straight from
   // the API, and the backend sends Mongoose documents keyed `_id` while the app
@@ -328,19 +338,108 @@ export async function deleteClinicApi(clinicId: string): Promise<ApiResponse<{ s
   });
 }
 
-export async function saveSlotsApi(slots: TimeSlot[]): Promise<ApiResponse<{ success: boolean }>> {
-  // Module slot-create endpoint takes an explicit slots array.
-  const payload = {
-    slots: slots.map((s) => ({
-      clinicId: s.clinicId,
-      date: s.date,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      type: s.appointmentType === 'both' ? 'in-clinic' : s.appointmentType,
-      maxPatients: s.maxPatients,
-    })),
+const SLOT_STATES = ['open', 'requested', 'booked', 'held', 'blocked', 'past'] as const;
+
+function doctorSlotSerializer(raw: any): DoctorSlot {
+  const state = SLOT_STATES.includes(raw?.state) ? raw.state : 'open';
+  return {
+    id: String(raw?.id || raw?._id || ''),
+    date: raw?.date || '',
+    startTime: raw?.startTime || '',
+    endTime: raw?.endTime || '',
+    type: raw?.type === 'video' ? 'video' : 'in-clinic',
+    clinic: raw?.clinic ? { id: String(raw.clinic.id), name: raw.clinic.name || 'Clinic', address: raw.clinic.address } : null,
+    state,
+    maxPatients: Number(raw?.maxPatients) || 1,
+    bookedCount: Number(raw?.bookedCount) || 0,
+    appointments: Array.isArray(raw?.appointments) ? raw.appointments : [],
+    heldBy: raw?.heldBy || null,
+    canEdit: !!raw?.canEdit,
+    canDelete: !!raw?.canDelete,
   };
-  const res = await healthcareApiRequest<any>('/slots', { method: 'POST', data: payload });
+}
+
+/**
+ * Create slots. `type: 'both'` makes a video slot and an in-clinic slot at the
+ * same time — the server does the split. It used to be flattened to
+ * 'in-clinic' here, so a doctor choosing "both" never got a video slot.
+ */
+export async function createDoctorSlotsApi(
+  slots: NewSlotInput[],
+): Promise<ApiResponse<{ ids: string[] }>> {
+  const res = await healthcareApiRequest<any>('/slots', {
+    method: 'POST',
+    data: {
+      slots: slots.map((s) => ({
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        type: s.type,
+        clinicId: s.type === 'video' ? null : s.clinicId,
+        maxPatients: s.maxPatients,
+      })),
+    },
+  });
+  return {
+    success: res.success,
+    data: { ids: res.data?.ids || [] },
+    message: res.message,
+  };
+}
+
+/** Edit an unbooked slot, or open/close it. The server refuses booked or held slots. */
+export async function updateDoctorSlotApi(
+  slotId: string,
+  edit: SlotEdit,
+): Promise<ApiResponse<{ success: boolean }>> {
+  if (!slotId) return { success: false, data: null as any, message: 'Slot id is missing' };
+  const res = await healthcareApiRequest<any>(`/slots/${encodeURIComponent(slotId)}`, {
+    method: 'PUT',
+    data: edit,
+  });
+  return { success: res.success, data: { success: res.success }, message: res.message };
+}
+
+/**
+ * Approve a patient's request. The slot was already held for them the moment
+ * they asked (no second patient can take it); approval is what turns the
+ * request into a confirmed appointment.
+ *
+ * There was no way to do this for a future date anywhere in the app: the only
+ * caller of /confirm was the patient queue's "start", and the queue is built
+ * from today's appointments.
+ */
+export async function approveAppointmentApi(appointmentId: string): Promise<ApiResponse<{ success: boolean }>> {
+  if (!appointmentId) return { success: false, data: null as any, message: 'Appointment id is missing' };
+  const res = await healthcareApiRequest<any>(`/doctors/me/appointments/${encodeURIComponent(appointmentId)}/confirm`, {
+    method: 'PATCH',
+  });
+  return { success: res.success, data: { success: res.success }, message: res.message };
+}
+
+/**
+ * Decline a request (or cancel an approved appointment). The patient is refunded
+ * and notified by the server, and the slot — plus any overlapping slot it was
+ * holding — reopens for other patients.
+ */
+export async function declineAppointmentApi(
+  appointmentId: string,
+  reason = 'The doctor is unavailable at this time',
+): Promise<ApiResponse<{ success: boolean }>> {
+  if (!appointmentId) return { success: false, data: null as any, message: 'Appointment id is missing' };
+  const res = await healthcareApiRequest<any>(`/doctors/me/appointments/${encodeURIComponent(appointmentId)}/cancel`, {
+    method: 'PATCH',
+    data: { reason },
+  });
+  return { success: res.success, data: { success: res.success }, message: res.message };
+}
+
+/** Delete an unbooked slot. */
+export async function deleteDoctorSlotApi(slotId: string): Promise<ApiResponse<{ success: boolean }>> {
+  if (!slotId) return { success: false, data: null as any, message: 'Slot id is missing' };
+  const res = await healthcareApiRequest<any>(`/slots/${encodeURIComponent(slotId)}`, {
+    method: 'DELETE',
+  });
   return { success: res.success, data: { success: res.success }, message: res.message };
 }
 
