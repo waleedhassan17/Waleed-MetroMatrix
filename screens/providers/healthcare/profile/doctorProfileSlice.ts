@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { fetchDoctorProviderProfileApi, updateDoctorProviderProfileApi } from '../../../../networks/healthcare/providerApi';
 
 // ── Types ───────────────────────────────────
@@ -31,6 +31,8 @@ export interface DoctorProfileState {
   loading: boolean;
   saving: boolean;
   error: string | null;
+  /** When the profile was last loaded, for refetch-only-when-stale. */
+  lastFetchedAt: number | null;
 }
 
 const initialState: DoctorProfileState = {
@@ -38,6 +40,7 @@ const initialState: DoctorProfileState = {
   loading: false,
   saving: false,
   error: null,
+  lastFetchedAt: null,
 };
 
 // ── Async Thunks ────────────────────────────
@@ -49,10 +52,10 @@ export const fetchDoctorProfile = createAsyncThunk<
 >('doctorProfile/fetchDoctorProfile', async (_, { rejectWithValue }) => {
   try {
     const res = await fetchDoctorProviderProfileApi();
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
+    if (!res.success) return rejectWithValue(res.message ?? "We couldn't load your profile");
     return res.data as unknown as DoctorProfileData;
   } catch {
-    return rejectWithValue('Failed to load profile');
+    return rejectWithValue("We couldn't load your profile");
   }
 });
 
@@ -63,24 +66,24 @@ export const updateDoctorProfile = createAsyncThunk<
 >('doctorProfile/updateDoctorProfile', async (updates, { rejectWithValue }) => {
   try {
     const res = await updateDoctorProviderProfileApi(updates);
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
+    if (!res.success) return rejectWithValue(res.message ?? "We couldn't save your profile");
     return res.data as unknown as DoctorProfileData;
   } catch {
-    return rejectWithValue('Failed to update profile');
+    return rejectWithValue("We couldn't save your profile");
   }
 });
 
 // ── Slice ───────────────────────────────────
+//
+// There was a `toggleAvailability` reducer here that flipped a switch in
+// memory and called no API. The profile refetched on focus, so the switch
+// flipped back and the doctor's choice silently did nothing. Taking bookings
+// is now decided by weekly hours and time off in the Availability hub.
 
 const doctorProfileSlice = createSlice({
   name: 'doctorProfile',
   initialState,
   reducers: {
-    toggleAvailability(state) {
-      if (state.profile) {
-        state.profile.isAvailable = !state.profile.isAvailable;
-      }
-    },
     resetDoctorProfile() {
       return initialState;
     },
@@ -94,10 +97,11 @@ const doctorProfileSlice = createSlice({
       .addCase(fetchDoctorProfile.fulfilled, (state, action) => {
         state.loading = false;
         state.profile = action.payload;
+        state.lastFetchedAt = Date.now();
       })
       .addCase(fetchDoctorProfile.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? 'Unknown error';
+        state.error = action.payload ?? "We couldn't load your profile";
       })
       .addCase(updateDoctorProfile.pending, (state) => {
         state.saving = true;
@@ -105,14 +109,15 @@ const doctorProfileSlice = createSlice({
       .addCase(updateDoctorProfile.fulfilled, (state, action) => {
         state.saving = false;
         state.profile = action.payload;
+        state.lastFetchedAt = Date.now();
       })
-      .addCase(updateDoctorProfile.rejected, (state, action) => {
+      .addCase(updateDoctorProfile.rejected, (state) => {
+        // Reported by the screen that saved; the profile on screen stays valid.
         state.saving = false;
-        state.error = action.payload ?? 'Unknown error';
       });
   },
 });
 
-export const { toggleAvailability, resetDoctorProfile } = doctorProfileSlice.actions;
+export const { resetDoctorProfile } = doctorProfileSlice.actions;
 
 export default doctorProfileSlice.reducer;

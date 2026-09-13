@@ -1,83 +1,75 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import type { Appointment } from '../../../../models/healthcare/types';
-import { fetchDoctorDashboardApi } from '../../../../networks/healthcare/providerApi';
-import { APP_CURRENCY } from '../../../../constants/Currency';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-// ── Types ───────────────────────────────────
+import type { DoctorDashboard } from '../../../../models/healthcare/doctorHub';
+import { fetchDoctorDashboard } from '../../../../networks/healthcare/doctorHubApi';
+import {
+  fetchAvailabilityStatusApi,
+  refreshMySlotsApi,
+  type AvailabilityStatus,
+} from '../../../../networks/healthcare/providerApi';
 
-export interface TodayStats {
-  totalAppointments: number;
-  patientsSeen: number;
-  pending: number;
-  cancelled: number;
-}
+// ============================================================================
+// Doctor Home.
+//
+// The old slice started at `loading: false` with no data, so the screen's
+// "loading && no name" gate let the first render through, then unmounted
+// everything a frame later when `pending` landed — which remounted the wallet
+// card and availability banner and fired both of their requests twice. The
+// status here says exactly which of the four situations the screen is in, and
+// `refreshing` is separate so a pull-to-refresh never blanks what is showing.
+// ============================================================================
 
-export interface DoctorEarnings {
-  today: number;
-  thisWeek: number;
-  thisMonth: number;
-  currency: string;
-}
+export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface DoctorDashboardState {
-  doctorName: string;
-  todayStats: TodayStats;
-  upcomingAppointments: Appointment[];
-  earnings: DoctorEarnings;
-  loading: boolean;
+  data: DoctorDashboard | null;
+  /** How much bookable runway the doctor has — drives the warning banner. */
+  availability: AvailabilityStatus | null;
+  status: LoadStatus;
+  refreshing: boolean;
   error: string | null;
+  lastFetchedAt: number | null;
+  extending: boolean;
 }
 
 const initialState: DoctorDashboardState = {
-  doctorName: '',
-  todayStats: { totalAppointments: 0, patientsSeen: 0, pending: 0, cancelled: 0 },
-  upcomingAppointments: [],
-  earnings: { today: 0, thisWeek: 0, thisMonth: 0, currency: APP_CURRENCY },
-  loading: false,
+  data: null,
+  availability: null,
+  status: 'idle',
+  refreshing: false,
   error: null,
+  lastFetchedAt: null,
+  extending: false,
 };
 
-// ── Async Thunks ────────────────────────────
-
-export const fetchDashboardData = createAsyncThunk<
-  Omit<DoctorDashboardState, 'loading' | 'error'>,
-  void,
+export const fetchDashboard = createAsyncThunk<
+  { dashboard: DoctorDashboard; availability: AvailabilityStatus | null },
+  { refresh?: boolean } | undefined,
   { rejectValue: string }
->('doctorDashboard/fetchDashboardData', async (_, { rejectWithValue }) => {
-  try {
-    const res = await fetchDoctorDashboardApi();
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return {
-      doctorName: res.data.doctorName,
-      todayStats: res.data.todayStats,
-      upcomingAppointments: res.data.upcomingAppointments,
-      earnings: res.data.earnings,
-    };
-  } catch {
-    return rejectWithValue('Failed to load dashboard data');
-  }
+>('doctorDashboard/fetch', async (_arg, { rejectWithValue }) => {
+  // In parallel. A failed availability check stays silent rather than
+  // alarming a doctor whose hours may be perfectly fine.
+  const [dashboard, availability] = await Promise.all([
+    fetchDoctorDashboard(),
+    fetchAvailabilityStatusApi().catch(() => null),
+  ]);
+  if (!dashboard.success) return rejectWithValue(dashboard.message || "We couldn't load your dashboard");
+  return {
+    dashboard: dashboard.data,
+    availability: availability && availability.success ? availability.data : null,
+  };
 });
 
-export const refreshDashboard = createAsyncThunk<
-  Omit<DoctorDashboardState, 'loading' | 'error'>,
-  void,
-  { rejectValue: string }
->('doctorDashboard/refreshDashboard', async (_, { rejectWithValue }) => {
-  try {
-    const res = await fetchDoctorDashboardApi();
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return {
-      doctorName: res.data.doctorName,
-      todayStats: res.data.todayStats,
-      upcomingAppointments: res.data.upcomingAppointments,
-      earnings: res.data.earnings,
-    };
-  } catch {
-    return rejectWithValue('Failed to refresh dashboard');
+/** Top the rolling horizon back up now, then reload. */
+export const extendAvailability = createAsyncThunk<true, void, { rejectValue: string }>(
+  'doctorDashboard/extendAvailability',
+  async (_arg, { dispatch, rejectWithValue }) => {
+    const res = await refreshMySlotsApi();
+    if (!res.success) return rejectWithValue(res.message || "We couldn't extend your availability");
+    await dispatch(fetchDashboard({ refresh: true }));
+    return true;
   }
-});
-
-// ── Slice ───────────────────────────────────
+);
 
 const doctorDashboardSlice = createSlice({
   name: 'doctorDashboard',
@@ -89,26 +81,32 @@ const doctorDashboardSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchDashboardData.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchDashboard.pending, (state, action) => {
+        if (action.meta.arg?.refresh) state.refreshing = true;
+        if (!state.data) state.status = 'loading';
         state.error = null;
       })
-      .addCase(fetchDashboardData.fulfilled, (state, action) => {
-        state.loading = false;
-        state.doctorName = action.payload.doctorName;
-        state.todayStats = action.payload.todayStats;
-        state.upcomingAppointments = action.payload.upcomingAppointments;
-        state.earnings = action.payload.earnings;
+      .addCase(fetchDashboard.fulfilled, (state, action) => {
+        state.data = action.payload.dashboard;
+        state.availability = action.payload.availability;
+        state.status = 'ready';
+        state.refreshing = false;
+        state.lastFetchedAt = Date.now();
       })
-      .addCase(fetchDashboardData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload ?? 'Unknown error';
+      .addCase(fetchDashboard.rejected, (state, action) => {
+        state.refreshing = false;
+        state.error = action.payload ?? "We couldn't load your dashboard";
+        // Data already on screen stays on screen; only a first load fails.
+        state.status = state.data ? 'ready' : 'error';
       })
-      .addCase(refreshDashboard.fulfilled, (state, action) => {
-        state.doctorName = action.payload.doctorName;
-        state.todayStats = action.payload.todayStats;
-        state.upcomingAppointments = action.payload.upcomingAppointments;
-        state.earnings = action.payload.earnings;
+      .addCase(extendAvailability.pending, (state) => {
+        state.extending = true;
+      })
+      .addCase(extendAvailability.fulfilled, (state) => {
+        state.extending = false;
+      })
+      .addCase(extendAvailability.rejected, (state) => {
+        state.extending = false;
       });
   },
 });

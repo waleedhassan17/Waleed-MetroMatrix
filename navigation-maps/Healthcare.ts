@@ -36,20 +36,27 @@ export const HealthcareRouteNames = {
 // Doctor / Provider Routes
 export const DoctorRouteNames = {
   DoctorTabs: 'DoctorTabs',
-  DoctorDashboard: 'DoctorDashboard',
-  DoctorSchedule: 'DoctorSchedule',
-  DoctorAppointments: 'DoctorAppointments',
+  // Prefixed: the patient stack already owns 'AppointmentDetail', and an
+  // unresolved name bubbles up to the root navigator.
+  AppointmentDetail: 'DoctorAppointmentDetail',
   ConsultationNotes: 'ConsultationNotes',
   PrescriptionWriter: 'PrescriptionWriter',
   PatientHistory: 'PatientHistory',
-  DoctorEarnings: 'DoctorEarnings',
-  DoctorProfile: 'DoctorProfile',
-  DoctorAvailability: 'DoctorAvailability',
+  EditDoctorProfile: 'EditDoctorProfile',
+  AvailabilityHub: 'AvailabilityHub',
   ManageSlots: 'ManageSlots',
-  DoctorVideoConsultation: 'DoctorVideoConsultation',
   DoctorMyReviews: 'DoctorMyReviews',
   DoctorNotifications: 'DoctorNotifications',
   DoctorPatients: 'DoctorPatients',
+} as const;
+
+/** The doctor's bottom tabs, inside DoctorTabs. */
+export const DoctorTabNames = {
+  Home: 'DoctorHome',
+  Schedule: 'Schedule',
+  Patients: 'Patients',
+  Earnings: 'Earnings',
+  Account: 'Account',
 } as const;
 
 export type HealthcareRouteName = typeof HealthcareRouteNames[keyof typeof HealthcareRouteNames];

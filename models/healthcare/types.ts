@@ -2,6 +2,8 @@
 // Healthcare Module - TypeScript Types
 // ============================================
 
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 // ── Doctor ──────────────────────────────────
 
 export interface Doctor {
@@ -520,21 +522,30 @@ export type HealthcareStackParamList = {
   SymptomChecker: undefined;
 };
 
+export type DoctorTabParamList = {
+  DoctorHome: undefined;
+  Schedule: { date?: string } | undefined;
+  Patients: { segment?: 'today' | 'all' } | undefined;
+  Earnings: undefined;
+  Account: undefined;
+};
+
 export type DoctorStackParamList = {
-  DoctorTabs: undefined;
-  DoctorDashboard: undefined;
-  DoctorSchedule: undefined;
-  DoctorAppointments: undefined;
-  ConsultationNotes: { appointmentId: string };
-  PrescriptionWriter: { appointmentId: string; patientId: string };
-  PatientHistory: { patientId: string };
-  DoctorEarnings: undefined;
-  DoctorProfile: undefined;
-  DoctorAvailability: undefined;
+  DoctorTabs: NavigatorScreenParams<DoctorTabParamList> | undefined;
+  DoctorAppointmentDetail: { appointmentId: string };
+  ConsultationNotes: { appointmentId: string; patientId: string; patientName?: string };
+  PrescriptionWriter: {
+    patientId: string;
+    patientName: string;
+    appointmentId: string;
+    type: 'in-clinic' | 'video';
+    age?: number;
+    gender?: 'Male' | 'Female' | 'Other';
+  };
+  PatientHistory: { patientId: string; patientName?: string };
+  EditDoctorProfile: undefined;
+  AvailabilityHub: { section?: 'weekly' | 'calendar' | 'timeOff'; date?: string } | undefined;
   ManageSlots: undefined;
-  WalletScreen: undefined;
-  TopUpWebView: { url: string; sessionId: string };
-  DoctorVideoConsultation: { appointmentId: string };
   DoctorMyReviews: undefined;
   DoctorNotifications: undefined;
   DoctorPatients: undefined;

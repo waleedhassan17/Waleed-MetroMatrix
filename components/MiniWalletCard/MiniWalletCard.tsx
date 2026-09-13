@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../../hooks/useReduxHooks';
 import {
@@ -13,13 +15,21 @@ import {
   selectCurrency,
   fetchWallet,
 } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
-import { useTheme } from '../../theme';
+import { makeColors, type ColorType } from '../../constants/Colors';
+import { R, S, T } from '../../constants/theme';
+import { ThemeColors, useTheme } from '../../theme';
 import { Eye, EyeOff, ArrowUpRight } from 'lucide-react-native';
 import { currencySymbol } from '../../constants/Currency';
 
 interface MiniWalletCardProps {
   onPress?: () => void;
+  /**
+   * 'dark' is the original near-black card other roles use. 'light' sits on
+   * the doctor's light Home as an ordinary card — a black slab in the middle of
+   * a light dashboard read as a different app.
+   */
+  variant?: 'dark' | 'light';
+  style?: StyleProp<ViewStyle>;
 }
 
 const splitMoney = (amount: number) => {
@@ -31,23 +41,30 @@ const splitMoney = (amount: number) => {
   };
 };
 
-const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
-  const { mode } = useTheme();
+const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress, variant = 'dark', style }) => {
+  const { mode, colors } = useTheme();
   const Colors = useMemo(() => makeColors(mode), [mode]);
-  const styles = useMemo(() => makeStyles(Colors), [Colors]);
+  const light = variant === 'light';
+  const styles = useMemo(
+    () => (light ? makeLightStyles(colors) : makeStyles(Colors)),
+    [light, colors, Colors]
+  );
   const dispatch = useAppDispatch();
   const balance = useAppSelector(selectBalance) as number;
   const currency = useAppSelector(selectCurrency) as string;
   const [showBalance, setShowBalance] = useState(true);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const dotOpacity = useRef(new Animated.Value(0.5)).current;
+  const dotOpacity = useRef(new Animated.Value(light ? 1 : 0.5)).current;
 
   useEffect(() => { dispatch(fetchWallet()); }, [dispatch]);
 
-  // Subtle live-state breathing animation on the status dot
+  // Subtle live-state breathing animation on the status dot. Not on the light
+  // card, and stopped on unmount — an animation that never ends keeps work
+  // running behind every other screen.
   useEffect(() => {
-    Animated.loop(
+    if (light) return undefined;
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(dotOpacity, {
           toValue: 1, duration: 1200,
@@ -60,8 +77,10 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [dotOpacity]);
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [dotOpacity, light]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -78,15 +97,21 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
 
   const symbol = currencySymbol(currency);
   const parts = splitMoney(balance);
+  const mutedIcon = light ? colors.inkMuted : 'rgba(255,255,255,0.55)';
+  const ctaIcon = light ? colors.accentDeep : '#FFFFFF';
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.container, style, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.92}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        accessibilityRole="button"
+        accessibilityLabel={
+          showBalance ? `Wallet balance ${symbol}${parts.whole}.${parts.cents}. Open wallet` : 'Wallet. Open wallet'
+        }
       >
         {/* Top row: label + eye toggle */}
         <View style={styles.topRow}>
@@ -98,10 +123,12 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
             onPress={handleToggleBalance}
             style={styles.eyeBtn}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={showBalance ? 'Hide balance' : 'Show balance'}
           >
             {showBalance
-              ? <Eye size={14} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />
-              : <EyeOff size={14} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />}
+              ? <Eye size={14} color={mutedIcon} strokeWidth={1.75} />
+              : <EyeOff size={14} color={mutedIcon} strokeWidth={1.75} />}
           </TouchableOpacity>
         </View>
 
@@ -113,7 +140,7 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
             <Text style={styles.balanceCents}>.{parts.cents}</Text>
           </View>
         ) : (
-          <Text style={styles.balanceWhole}>••••••</Text>
+          <Text style={[styles.balanceWhole, styles.balanceLine]}>••••••</Text>
         )}
 
         {/* Footer */}
@@ -121,12 +148,12 @@ const MiniWalletCard: React.FC<MiniWalletCardProps> = ({ onPress }) => {
           <Text style={styles.currency}>{currency.toUpperCase()}</Text>
           <View style={styles.cta}>
             <Text style={styles.ctaText}>Open wallet</Text>
-            <ArrowUpRight size={13} color="#FFFFFF" strokeWidth={2.25} />
+            <ArrowUpRight size={13} color={ctaIcon} strokeWidth={2.25} />
           </View>
         </View>
 
         {/* Hairline accent at the bottom — Stripe-ish thin pop of color */}
-        <View style={styles.accentLine} />
+        {!light && <View style={styles.accentLine} />}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -238,6 +265,61 @@ const makeStyles = (Colors: ColorType) => StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
+});
+
+/** The light card: theme tokens only, so it also follows dark mode. */
+const makeLightStyles = (c: ThemeColors) => StyleSheet.create({
+  container: {},
+  card: {
+    backgroundColor: c.surface,
+    borderRadius: R.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
+    paddingHorizontal: S.lg,
+    paddingVertical: S.md + 2,
+    overflow: 'hidden',
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: S.sm,
+  },
+  labelGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  liveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: c.success,
+  },
+  label: { ...T.caption, color: c.inkMuted },
+  eyeBtn: {
+    width: 24, height: 24,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  balanceLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: S.sm,
+  },
+  balanceSymbol: { ...T.bodyStrong, color: c.inkMuted, marginRight: 2 },
+  balanceWhole: { ...T.title, color: c.ink, fontVariant: ['tabular-nums'] },
+  balanceCents: { ...T.bodyStrong, color: c.inkMuted, fontVariant: ['tabular-nums'] },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  currency: { ...T.caption, color: c.inkMuted },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ctaText: { ...T.label, color: c.accentDeep },
+  accentLine: {},
 });
 
 export default MiniWalletCard;
