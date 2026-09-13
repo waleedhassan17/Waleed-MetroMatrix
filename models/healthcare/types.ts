@@ -545,8 +545,6 @@ export type DoctorStackParamList = {
   PatientHistory: { patientId: string; patientName?: string };
   EditDoctorProfile: undefined;
   AvailabilityHub: { section?: 'weekly' | 'calendar' | 'timeOff'; date?: string } | undefined;
-  ManageSlots: undefined;
   DoctorMyReviews: undefined;
   DoctorNotifications: undefined;
-  DoctorPatients: undefined;
 };

@@ -98,8 +98,6 @@ import prescriptionWriterReducer from '../screens/providers/healthcare/prescript
 import patientHistoryReducer from '../screens/providers/healthcare/patient-history/patientHistorySlice';
 import doctorEarningsReducer from '../screens/providers/healthcare/doctor-earnings/doctorEarningsSlice';
 import doctorProfileReducer from '../screens/providers/healthcare/profile/doctorProfileSlice';
-import availabilitySettingsReducer from '../screens/providers/healthcare/availability-settings/availabilitySettingsSlice';
-import manageSlotsReducer from '../screens/providers/healthcare/manage-slots/manageSlotsSlice';
 
 // Admin Healthcare
 import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAnalytics/healthcareAnalyticsSlice';
@@ -296,8 +294,6 @@ const appReducer = combineReducers({
   patientHistory: patientHistoryReducer,
   doctorEarnings: doctorEarningsReducer,
   doctorProfile: doctorProfileReducer,
-  availabilitySettings: availabilitySettingsReducer,
-  manageSlots: manageSlotsReducer,
   healthcareAnalytics: healthcareAnalyticsReducer,
   specialtyManagement: specialtyManagementReducer,
   doctorManagement: doctorManagementReducer,

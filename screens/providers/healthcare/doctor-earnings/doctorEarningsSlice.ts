@@ -1,113 +1,88 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { fetchDoctorEarningsApi, fetchDoctorTransactionsApi } from '../../../../networks/healthcare/providerApi';
-import { APP_CURRENCY } from '../../../../constants/Currency';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// ── Types ───────────────────────────────────
+import type { DoctorTransaction, EarningsRangeKey, EarningsReport } from '../../../../models/healthcare/doctorHub';
+import { fetchDoctorTransactions, fetchEarningsReport } from '../../../../networks/healthcare/doctorHubApi';
 
-export type PeriodFilter = 'today' | 'thisWeek' | 'thisMonth' | 'custom';
+// ============================================================================
+// Doctor Earnings.
+//
+// Named periods used to send no dates, so the server summed everything since
+// 1970: "This Month" was all-time earnings, with a hardcoded "+12% vs last
+// period" beside it. The range is now explicit, and the previous total comes
+// from the server over the equivalent complete window.
+// ============================================================================
 
-export interface EarningTransaction {
-  transactionId: string;
-  patientName: string;
-  appointmentId: string;
-  type: 'in-clinic' | 'video';
-  amount: number;
-  method: 'cash' | 'card' | 'online' | 'insurance';
-  status: 'completed' | 'pending' | 'refunded';
-  date: string;
-}
+export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-export interface ConsultationBreakdown {
-  type: 'in-clinic' | 'video';
-  count: number;
-  total: number;
-  percentage: number;
-}
-
-export interface ChartDataPoint {
-  label: string;
-  value: number;
+export interface CustomRange {
+  startDate: string;
+  endDate: string;
 }
 
 export interface DoctorEarningsState {
-  totalEarnings: number;
-  periodFilter: PeriodFilter;
-  /** Set only while periodFilter === 'custom'. */
-  customRange: { startDate: string; endDate: string } | undefined;
-  transactions: EarningTransaction[];
-  chartData: ChartDataPoint[];
-  breakdown: ConsultationBreakdown[];
-  currency: string;
-  loading: boolean;
-  transactionsLoading: boolean;
-  transactionsError: string | null;
+  range: EarningsRangeKey;
+  custom: CustomRange | null;
+  report: EarningsReport | null;
+  status: LoadStatus;
+  refreshing: boolean;
   error: string | null;
+  lastFetchedAt: number | null;
+  transactions: DoctorTransaction[];
+  transactionsStatus: LoadStatus;
+  transactionsError: string | null;
 }
 
 const initialState: DoctorEarningsState = {
-  totalEarnings: 0,
-  periodFilter: 'thisMonth',
-  customRange: undefined,
-  transactions: [],
-  chartData: [],
-  breakdown: [],
-  currency: APP_CURRENCY,
-  loading: false,
-  transactionsLoading: false,
-  transactionsError: null,
+  range: 'thisMonth',
+  custom: null,
+  report: null,
+  status: 'idle',
+  refreshing: false,
   error: null,
+  lastFetchedAt: null,
+  transactions: [],
+  transactionsStatus: 'idle',
+  transactionsError: null,
 };
 
-// ── Async Thunks ────────────────────────────
+const rangeId = (range: EarningsRangeKey, custom: CustomRange | null) =>
+  range === 'custom' && custom ? `custom:${custom.startDate}:${custom.endDate}` : range;
 
 export const fetchEarnings = createAsyncThunk<
-  { total: number; chart: ChartDataPoint[]; breakdown: ConsultationBreakdown[] },
-  PeriodFilter | undefined,
+  { id: string; report: EarningsReport },
+  { refresh?: boolean } | undefined,
   { state: { doctorEarnings: DoctorEarningsState }; rejectValue: string }
->('doctorEarnings/fetchEarnings', async (period, { getState, rejectWithValue }) => {
-  try {
-    const state = getState().doctorEarnings;
-    const filter = period ?? state.periodFilter;
-    // Only a custom filter carries a range; the named periods are derived
-    // server-side and must not be narrowed by a stale one.
-    const range = filter === 'custom' ? state.customRange : undefined;
-    const res = await fetchDoctorEarningsApi(filter, range);
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return res.data;
-  } catch {
-    return rejectWithValue('Failed to load earnings data');
-  }
+>('doctorEarnings/fetchEarnings', async (_arg, { getState, rejectWithValue }) => {
+  const { range, custom } = getState().doctorEarnings;
+  const res = await fetchEarningsReport({
+    range,
+    startDate: range === 'custom' ? custom?.startDate : undefined,
+    endDate: range === 'custom' ? custom?.endDate : undefined,
+  });
+  if (!res.success) return rejectWithValue(res.message || "We couldn't load your earnings");
+  return { id: rangeId(range, custom), report: res.data };
 });
 
-export const fetchTransactions = createAsyncThunk<
-  EarningTransaction[],
-  void,
-  { state: { doctorEarnings: DoctorEarningsState }; rejectValue: string }
->('doctorEarnings/fetchTransactions', async (_, { rejectWithValue }) => {
-  try {
-    const res = await fetchDoctorTransactionsApi();
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return res.data;
-  } catch {
-    return rejectWithValue('Failed to load transactions');
+export const fetchTransactions = createAsyncThunk<DoctorTransaction[], void, { rejectValue: string }>(
+  'doctorEarnings/fetchTransactions',
+  async (_arg, { rejectWithValue }) => {
+    const res = await fetchDoctorTransactions({ page: 1, limit: 20 });
+    if (!res.success) return rejectWithValue(res.message || "We couldn't load your consultations");
+    return res.data.transactions;
   }
-});
-
-// ── Slice ───────────────────────────────────
+);
 
 const doctorEarningsSlice = createSlice({
   name: 'doctorEarnings',
   initialState,
   reducers: {
-    setCustomRange(state, action: PayloadAction<{ startDate: string; endDate: string }>) {
-      state.customRange = action.payload;
-      state.periodFilter = 'custom';
+    setRange(state, action: PayloadAction<EarningsRangeKey>) {
+      state.range = action.payload;
+      if (action.payload !== 'custom') state.custom = null;
     },
-    setPeriodFilter(state, action: PayloadAction<PeriodFilter>) {
-      state.periodFilter = action.payload;
-      // Leaving Custom drops its range so a named period is never narrowed by
-      // a range the user can no longer see.
-      if (action.payload !== 'custom') state.customRange = undefined;
+    setCustomRange(state, action: PayloadAction<CustomRange>) {
+      state.range = 'custom';
+      state.custom = action.payload;
     },
     resetDoctorEarnings() {
       return initialState;
@@ -115,40 +90,40 @@ const doctorEarningsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // fetchEarnings
-      .addCase(fetchEarnings.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchEarnings.pending, (state, action) => {
+        if (action.meta.arg?.refresh) state.refreshing = true;
+        if (!state.report) state.status = 'loading';
         state.error = null;
       })
       .addCase(fetchEarnings.fulfilled, (state, action) => {
-        state.loading = false;
-        state.totalEarnings = action.payload.total;
-        state.chartData = action.payload.chart;
-        state.breakdown = action.payload.breakdown;
+        state.refreshing = false;
+        // A slow answer for a period the doctor has already moved away from.
+        if (action.payload.id !== rangeId(state.range, state.custom)) return;
+        state.report = action.payload.report;
+        state.status = 'ready';
+        state.lastFetchedAt = Date.now();
       })
       .addCase(fetchEarnings.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload ?? 'Unknown error';
+        state.refreshing = false;
+        state.error = action.payload ?? "We couldn't load your earnings";
+        state.status = state.report ? 'ready' : 'error';
       })
-      // fetchTransactions
       .addCase(fetchTransactions.pending, (state) => {
-        state.transactionsLoading = true;
+        if (state.transactionsStatus !== 'ready') state.transactionsStatus = 'loading';
         state.transactionsError = null;
       })
       .addCase(fetchTransactions.fulfilled, (state, action) => {
-        state.transactionsLoading = false;
         state.transactions = action.payload;
+        state.transactionsStatus = 'ready';
       })
       .addCase(fetchTransactions.rejected, (state, action) => {
-        state.transactionsLoading = false;
-        // Was swallowed entirely, so a network failure rendered the
-        // "No transactions yet" empty state — a fabricated fact.
-        state.transactionsError = (action.payload as string) ?? 'Could not load transactions';
+        // Not an empty list: "No consultations yet" would be a fabricated fact.
+        state.transactionsError = action.payload ?? "We couldn't load your consultations";
+        state.transactionsStatus = state.transactions.length ? 'ready' : 'error';
       });
   },
 });
 
-export const { setPeriodFilter, setCustomRange, resetDoctorEarnings } =
-  doctorEarningsSlice.actions;
+export const { setRange, setCustomRange, resetDoctorEarnings } = doctorEarningsSlice.actions;
 
 export default doctorEarningsSlice.reducer;

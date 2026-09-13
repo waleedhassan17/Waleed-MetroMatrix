@@ -1,133 +1,78 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { fetchPatientQueueApi, updateQueuePatientApi } from '../../../../networks/healthcare/providerApi';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-// ── Types ───────────────────────────────────
+import type { DoctorAppointment, PatientSummary } from '../../../../models/healthcare/doctorHub';
+import { fetchDoctorAppointments, fetchMyPatients } from '../../../../networks/healthcare/doctorHubApi';
+import { todayDateKey } from '../../../../utils/healthcare/timeRanges';
 
-export type QueueStatus = 'waiting' | 'in-progress' | 'completed' | 'skipped';
+// ============================================================================
+// Patients: today's appointments, and everyone the doctor has seen.
+//
+// The old "queue" invented token numbers and "~15 min wait" estimates from
+// array position, had a "call next patient" action that made no request, and
+// replaced every row with a new object on each 30-second poll so the whole
+// list re-rendered even when nothing had changed.
+// ============================================================================
 
-export interface PatientHistoryItem {
-  date: string;
-  diagnosis: string;
-  type: 'in-clinic' | 'video';
-}
+export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-export interface QueuePatient {
-  queueId: string;
-  patientId: string;
-  patientName: string;
-  /** Undefined when the backend has no demographic on file — the card omits
-   *  the line rather than printing "0y, Other". */
-  age?: number;
-  gender?: 'Male' | 'Female' | 'Other';
-  appointmentId: string;
-  type: 'in-clinic' | 'video';
-  timeSlot: { start: string; end: string };
-  symptoms: string;
-  status: QueueStatus;
-  /** 1-based position in today's list. NOT a clinic-issued token number, and
-   *  deliberately not a wait estimate — the backend provides neither. */
-  position: number;
-  checkedInAt?: string;
-  startedAt?: string;
-  completedAt?: string;
-  history: PatientHistoryItem[];
-}
+const PAGE_SIZE = 20;
 
 export interface PatientQueueState {
-  queue: QueuePatient[];
-  currentPatient: string | null; // queueId of in-progress patient
-  loading: boolean;
-  error: string | null;
-  /** Failure of a queue ACTION (start/complete/skip/next), not of the fetch. */
-  actionError: string | null;
+  today: DoctorAppointment[];
+  todayKey: string;
+  todayStatus: LoadStatus;
+  todayRefreshing: boolean;
+  todayError: string | null;
+  lastFetchedAt: number | null;
+
+  patients: PatientSummary[];
+  query: string;
+  page: number;
+  hasMore: boolean;
+  patientsStatus: LoadStatus;
+  loadingMore: boolean;
+  patientsError: string | null;
 }
 
 const initialState: PatientQueueState = {
-  queue: [],
-  currentPatient: null,
-  loading: false,
-  error: null,
-  actionError: null,
+  today: [],
+  todayKey: todayDateKey(),
+  todayStatus: 'idle',
+  todayRefreshing: false,
+  todayError: null,
+  lastFetchedAt: null,
+
+  patients: [],
+  query: '',
+  page: 0,
+  hasMore: true,
+  patientsStatus: 'idle',
+  loadingMore: false,
+  patientsError: null,
 };
 
-// ── Async Thunks ────────────────────────────
+const signature = (list: DoctorAppointment[]) => list.map((a) => `${a.id}:${a.status}:${a.startTime}`).join('|');
 
-/** `silent` suppresses the loading flag — used by the 30s background poll so
- *  it cannot replace a populated queue with a full-screen spinner. */
-export const fetchQueue = createAsyncThunk<
-  QueuePatient[],
-  { silent?: boolean } | undefined,
+export const fetchToday = createAsyncThunk<
+  { dateKey: string; appointments: DoctorAppointment[] },
+  { refresh?: boolean; silent?: boolean } | undefined,
   { rejectValue: string }
->('patientQueue/fetchQueue', async (_arg, { rejectWithValue }) => {
-  try {
-    const res = await fetchPatientQueueApi();
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return res.data;
-  } catch {
-    return rejectWithValue('Failed to load patient queue');
-  }
+>('patientQueue/fetchToday', async (_arg, { rejectWithValue }) => {
+  const dateKey = todayDateKey();
+  const res = await fetchDoctorAppointments({ date: dateKey, limit: 100 });
+  if (!res.success) return rejectWithValue(res.message || "We couldn't load today's patients");
+  return { dateKey, appointments: res.data.appointments.filter((a) => a.status !== 'cancelled') };
 });
 
-export const startConsultation = createAsyncThunk<
-  string,
-  string,
+export const fetchPatients = createAsyncThunk<
+  { query: string; page: number; patients: PatientSummary[]; pages: number },
+  { query: string; page: number },
   { rejectValue: string }
->('patientQueue/startConsultation', async (queueId, { rejectWithValue }) => {
-  try {
-    const res = await updateQueuePatientApi(queueId, 'start');
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return queueId;
-  } catch {
-    return rejectWithValue('Failed to start consultation');
-  }
+>('patientQueue/fetchPatients', async ({ query, page }, { rejectWithValue }) => {
+  const res = await fetchMyPatients({ q: query || undefined, page, limit: PAGE_SIZE });
+  if (!res.success) return rejectWithValue(res.message || "We couldn't load your patients");
+  return { query, page, patients: res.data.patients, pages: res.data.pagination.pages };
 });
-
-export const completeConsultation = createAsyncThunk<
-  string,
-  string,
-  { rejectValue: string }
->('patientQueue/completeConsultation', async (queueId, { rejectWithValue }) => {
-  try {
-    const res = await updateQueuePatientApi(queueId, 'complete');
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return queueId;
-  } catch {
-    return rejectWithValue('Failed to complete consultation');
-  }
-});
-
-export const skipPatient = createAsyncThunk<
-  string,
-  string,
-  { rejectValue: string }
->('patientQueue/skipPatient', async (queueId, { rejectWithValue }) => {
-  try {
-    const res = await updateQueuePatientApi(queueId, 'skip');
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return queueId;
-  } catch {
-    return rejectWithValue('Failed to skip patient');
-  }
-});
-
-export const callNextPatient = createAsyncThunk<
-  string | null,
-  void,
-  { state: { patientQueue: PatientQueueState }; rejectValue: string }
->('patientQueue/callNextPatient', async (_, { getState, rejectWithValue }) => {
-  try {
-    const { queue } = getState().patientQueue;
-    const next = queue.find((p) => p.status === 'waiting');
-    if (!next) return null;
-    const res = await updateQueuePatientApi(next.queueId, 'call-next');
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return next.queueId;
-  } catch {
-    return rejectWithValue('Failed to call next patient');
-  }
-});
-
-// ── Slice ───────────────────────────────────
 
 const patientQueueSlice = createSlice({
   name: 'patientQueue',
@@ -136,87 +81,62 @@ const patientQueueSlice = createSlice({
     resetPatientQueue() {
       return initialState;
     },
-    clearQueueActionError(state) {
-      state.actionError = null;
-    },
   },
   extraReducers: (builder) => {
     builder
-      // fetchQueue
-      .addCase(fetchQueue.pending, (state, action) => {
-        if (!(action.meta.arg as { silent?: boolean } | undefined)?.silent) {
-          state.loading = true;
-        }
-        state.error = null;
+      .addCase(fetchToday.pending, (state, action) => {
+        if (action.meta.arg?.refresh) state.todayRefreshing = true;
+        if (state.todayStatus !== 'ready') state.todayStatus = 'loading';
+        if (!action.meta.arg?.silent) state.todayError = null;
       })
-      .addCase(fetchQueue.fulfilled, (state, action) => {
-        state.loading = false;
-        state.queue = action.payload;
-        const inProgress = action.payload.find((p) => p.status === 'in-progress');
-        state.currentPatient = inProgress?.queueId ?? null;
-      })
-      .addCase(fetchQueue.rejected, (state, action) => {
-        state.loading = false;
-        state.error = (action.payload as string) ?? 'Unknown error';
-      })
-      // startConsultation
-      .addCase(startConsultation.fulfilled, (state, action) => {
-        const patient = state.queue.find((p) => p.queueId === action.payload);
-        if (patient) {
-          patient.status = 'in-progress';
-          patient.startedAt = new Date().toISOString();
-          state.currentPatient = action.payload;
+      .addCase(fetchToday.fulfilled, (state, action) => {
+        state.todayRefreshing = false;
+        state.todayStatus = 'ready';
+        state.todayError = null;
+        state.lastFetchedAt = Date.now();
+        // Only replace the list when something changed, so a poll that brings
+        // nothing new does not re-render every row.
+        if (state.todayKey !== action.payload.dateKey || signature(state.today) !== signature(action.payload.appointments)) {
+          state.today = action.payload.appointments;
+          state.todayKey = action.payload.dateKey;
         }
       })
-      // completeConsultation
-      .addCase(completeConsultation.fulfilled, (state, action) => {
-        const patient = state.queue.find((p) => p.queueId === action.payload);
-        if (patient) {
-          patient.status = 'completed';
-          patient.completedAt = new Date().toISOString();
-        }
-        if (state.currentPatient === action.payload) {
-          state.currentPatient = null;
-        }
+      .addCase(fetchToday.rejected, (state, action) => {
+        state.todayRefreshing = false;
+        // A failed background poll stays quiet; the list on screen is still right.
+        if (action.meta.arg?.silent && state.todayStatus === 'ready') return;
+        state.todayError = action.payload ?? "We couldn't load today's patients";
+        state.todayStatus = state.today.length ? 'ready' : 'error';
       })
-      // skipPatient
-      .addCase(skipPatient.fulfilled, (state, action) => {
-        const patient = state.queue.find((p) => p.queueId === action.payload);
-        if (patient) {
-          patient.status = 'skipped';
+      .addCase(fetchPatients.pending, (state, action) => {
+        const first = action.meta.arg.page <= 1;
+        if (first) {
+          state.query = action.meta.arg.query;
+          if (state.patientsStatus !== 'ready') state.patientsStatus = 'loading';
+        } else {
+          state.loadingMore = true;
         }
-        if (state.currentPatient === action.payload) {
-          state.currentPatient = null;
-        }
+        state.patientsError = null;
       })
-      // callNextPatient
-      .addCase(callNextPatient.fulfilled, (state, action) => {
-        if (action.payload) {
-          const patient = state.queue.find((p) => p.queueId === action.payload);
-          if (patient) {
-            patient.status = 'in-progress';
-            patient.startedAt = new Date().toISOString();
-            state.currentPatient = action.payload;
-          }
-        }
+      .addCase(fetchPatients.fulfilled, (state, action) => {
+        state.loadingMore = false;
+        // Results for a search the doctor has since changed are dropped.
+        if (action.payload.query !== state.query) return;
+        state.patients =
+          action.payload.page <= 1 ? action.payload.patients : [...state.patients, ...action.payload.patients];
+        state.page = action.payload.page;
+        state.hasMore = action.payload.page < action.payload.pages;
+        state.patientsStatus = 'ready';
       })
-      // These four had NO rejected case: a failed "Mark Complete" changed
-      // nothing and reported nothing, so the doctor could not tell whether the
-      // consultation had been recorded. Surface it as actionError; the screen
-      // alerts on it and clears it.
-      .addMatcher(
-        (action): action is { type: string; payload?: string } =>
-          /^patientQueue\/(startConsultation|completeConsultation|skipPatient|callNextPatient)\/rejected$/.test(
-            action.type,
-          ),
-        (state, action) => {
-          state.actionError =
-            (action.payload as string) ?? 'Could not update the queue. Please try again.';
-        },
-      );
+      .addCase(fetchPatients.rejected, (state, action) => {
+        state.loadingMore = false;
+        if (action.meta.arg.query !== state.query) return;
+        state.patientsError = action.payload ?? "We couldn't load your patients";
+        state.patientsStatus = state.patients.length ? 'ready' : 'error';
+      });
   },
 });
 
-export const { resetPatientQueue, clearQueueActionError } = patientQueueSlice.actions;
+export const { resetPatientQueue } = patientQueueSlice.actions;
 
 export default patientQueueSlice.reducer;

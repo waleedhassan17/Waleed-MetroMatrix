@@ -13,11 +13,9 @@ import ConsultationScreen from '../screens/providers/healthcare/medical-notes/me
 import PrescriptionWriterScreen from '../screens/providers/healthcare/prescription-writer/prescriptionWriter';
 import PatientHistoryScreen from '../screens/providers/healthcare/patient-history/patientHistory';
 import EditDoctorProfileScreen from '../screens/providers/healthcare/profile/EditDoctorProfileScreen';
-import AvailabilityScreen from '../screens/providers/healthcare/availability-settings/availabilitySettings';
-import ManageSlotsScreen from '../screens/providers/healthcare/manage-slots/manageSlots';
+import AvailabilityHubScreen from '../screens/providers/healthcare/availability/AvailabilityHubScreen';
 import DoctorReviewsScreen from '../screens/providers/healthcare/doctor-reviews/DoctorReviewsScreen';
 import DoctorNotificationsScreen from '../screens/providers/healthcare/notifications/DoctorNotificationsScreen';
-import DoctorPatientsScreen from '../screens/providers/healthcare/patients/DoctorPatientsScreen';
 
 // Wallet + top-up live ONLY in the root navigator (navigation-maps/Base.tsx).
 // React Navigation bubbles an unresolved route name up to the parent, so
@@ -44,11 +42,9 @@ const DoctorStack: React.FC = () => (
         <Stack.Screen name={DoctorRouteNames.PrescriptionWriter} component={PrescriptionWriterScreen} />
         <Stack.Screen name={DoctorRouteNames.PatientHistory} component={PatientHistoryScreen} />
         <Stack.Screen name={DoctorRouteNames.EditDoctorProfile} component={EditDoctorProfileScreen} />
-        <Stack.Screen name={DoctorRouteNames.AvailabilityHub} component={AvailabilityScreen} />
-        <Stack.Screen name={DoctorRouteNames.ManageSlots} component={ManageSlotsScreen} />
+        <Stack.Screen name={DoctorRouteNames.AvailabilityHub} component={AvailabilityHubScreen} />
         <Stack.Screen name={DoctorRouteNames.DoctorMyReviews} component={DoctorReviewsScreen} />
         <Stack.Screen name={DoctorRouteNames.DoctorNotifications} component={DoctorNotificationsScreen} />
-        <Stack.Screen name={DoctorRouteNames.DoctorPatients} component={DoctorPatientsScreen} />
       </Stack.Navigator>
       {/* One host for every doctor screen's confirmations and failures. */}
       <ToastHost />

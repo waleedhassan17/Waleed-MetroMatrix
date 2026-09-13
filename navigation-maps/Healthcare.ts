@@ -44,10 +44,8 @@ export const DoctorRouteNames = {
   PatientHistory: 'PatientHistory',
   EditDoctorProfile: 'EditDoctorProfile',
   AvailabilityHub: 'AvailabilityHub',
-  ManageSlots: 'ManageSlots',
   DoctorMyReviews: 'DoctorMyReviews',
   DoctorNotifications: 'DoctorNotifications',
-  DoctorPatients: 'DoctorPatients',
 } as const;
 
 /** The doctor's bottom tabs, inside DoctorTabs. */

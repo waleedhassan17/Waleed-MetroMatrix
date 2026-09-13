@@ -1,1091 +1,492 @@
-import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation, useRoute, useScrollToTop } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
+  AppState,
+  FlatList,
+  RefreshControl,
+  SectionList,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
+  Text,
+  TextInput,
   TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Platform,
+  View,
 } from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+
+import AppointmentRow from '../../../../components/Healthcare/doctor/AppointmentRow';
+import ActionSheet, { SheetOption } from '../../../../components/ui/ActionSheet';
 import {
-  fetchQueue,
-  startConsultation,
-  completeConsultation,
-  skipPatient,
-  callNextPatient,
-  clearQueueActionError,
-  QueuePatient,
-  QueueStatus,
-} from './patientQueueSlice';
-
-// ── Theme ─────────────────────────────────────
-import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SegmentedControl,
+  SkeletonCard,
+  ToneBadge,
+} from '../../../../components/ui';
+import { GUTTER, R, S, T } from '../../../../constants/theme';
+import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
+import type { DoctorAppointment, PatientSummary } from '../../../../models/healthcare/doctorHub';
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+import { ThemeColors, useTheme } from '../../../../theme';
+import {
+  consultationIcon,
+  consultationLabel,
+  formatDateLabel,
+  formatTimeRange,
+  isLiveWindow,
+  relativeStart,
+  uses24HourClock,
+} from '../../../../utils/healthcare/doctorFormat';
+import { dateKeyOf, todayDateKey } from '../../../../utils/healthcare/timeRanges';
+import { fetchPatients, fetchToday } from './patientQueueSlice';
 
-// ── Helpers ───────────────────────────────────
+// ============================================================================
+// Patients: today's list, and everyone you have seen.
+//
+// "Patients" was two screens with confusingly similar names — a tab titled
+// "Patient Queue" and a "My Patients" tile that opened something else. The
+// current patient's card squeezed five equal buttons into one row; it now has
+// one clear next step and the rest in a menu.
+// ============================================================================
 
-const formatTime12 = (time24: string): string => {
-  const [h, m] = time24.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hour12 = h % 12 || 12;
-  return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
-};
+type Segment = 'today' | 'all';
 
-const STATUS_CONFIG: Record<QueueStatus, {
-  label: string; color: string; bg: string; dot: string;
-}> = {
-  waiting:     { label: 'Waiting',     color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
-  'in-progress': { label: 'Active',    color: THEME.primary, bg: THEME.primaryLight, dot: THEME.primary },
-  completed:   { label: 'Completed',   color: '#16A34A', bg: '#DCFCE7', dot: '#10B981' },
-  skipped:     { label: 'Skipped',     color: '#94A3B8', bg: '#F8FBFF', dot: '#CBD5E1' },
-};
+const POLL_MS = 30000;
+const STALE_MS = 30000;
 
-type FilterTab = 'all' | 'waiting' | 'in-progress' | 'completed';
-
-const FILTER_TABS: { label: string; value: FilterTab }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Waiting', value: 'waiting' },
-  { label: 'Active', value: 'in-progress' },
-  { label: 'Done', value: 'completed' },
-];
-
-// ── Current Patient Card ──────────────────────
-
-const CurrentPatientCard: React.FC<{
-  patient: QueuePatient;
-  onComplete: () => void;
-  onSkip: () => void;
-}> = ({ patient, onComplete, onSkip }) => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const navigation = useNavigation<any>();
-  const isVideo = patient.type === 'video';
-  const initials = patient.patientName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [pulseAnim]);
+const CurrentCard: React.FC<{
+  appointment: DoctorAppointment;
+  uses24h: boolean;
+  onPrimary: () => void;
+  onMore: () => void;
+  onOpen: () => void;
+}> = ({ appointment: a, uses24h, onPrimary, onMore, onOpen }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const live = isLiveWindow(a.startUtc, a.endUtc);
 
   return (
-    <View style={styles.currentCard}>
-      {/* Card header */}
-      <LinearGradient
-        colors={THEME.gradient.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.currentCardHeader}
-      >
-        <View style={styles.currentBadgeRow}>
-          <View style={styles.currentLiveBadge}>
-            <Animated.View style={[styles.currentLiveDot, { opacity: pulseAnim }]} />
-            <Text style={styles.currentLiveText}>In Consultation</Text>
-          </View>
-          <View style={styles.currentTokenBadge}>
-            <Text style={styles.currentTokenText}>{patient.position}</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Patient info */}
-      <View style={styles.currentBody}>
-        <View style={styles.currentAvatarWrap}>
-          <LinearGradient colors={THEME.gradient.primary} style={styles.currentAvatar}>
-            <Text style={styles.currentInitials}>{initials}</Text>
-          </LinearGradient>
-          <View style={[
-            styles.currentTypeChip,
-            { backgroundColor: isVideo ? '#EAF3FF' : THEME.primaryLight },
-          ]}>
-            <Ionicons
-              name={isVideo ? 'videocam-outline' : 'business-outline'}
-              size={11}
-              color={isVideo ? THEME.accent : THEME.primary}
-            />
-            <Text style={[styles.currentTypeText, { color: isVideo ? THEME.accent : THEME.primary }]}>
-              {isVideo ? 'Video' : 'In-Clinic'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.currentInfo}>
-          <Text style={styles.currentName}>{patient.patientName}</Text>
-          <Text style={styles.currentMeta}>
-            {/* Was always "0y, Other" — the backend rarely sends demographics. */}
-            {patient.age ? `${patient.age}y` : null}
-            {patient.age && patient.gender ? ', ' : null}
-            {patient.gender ?? null}
-            {patient.age || patient.gender ? '  ·  ' : null}
-            {formatTime12(patient.timeSlot.start)}
+    <Card elevation="raised" accentRule={live ? colors.success : colors.accent} onPress={onOpen} style={styles.current}>
+      <View style={styles.currentTop}>
+        <Text style={[styles.currentWhen, live && { color: colors.success }]}>
+          {live ? 'Now' : relativeStart(a.startUtc, a.endUtc) || 'Next'}
+        </Text>
+        <ToneBadge label={consultationLabel(a.type)} icon={consultationIcon(a.type)} tone={a.type === 'video' ? 'info' : 'accent'} />
+      </View>
+      <View style={styles.currentPatient}>
+        <Avatar uri={a.patientPhoto} name={a.patientName} size={44} />
+        <View style={styles.currentText}>
+          <Text style={styles.currentName} numberOfLines={1}>
+            {a.patientName}
           </Text>
-          {patient.symptoms ? (
-            <Text style={styles.currentSymptoms} numberOfLines={2}>{patient.symptoms}</Text>
-          ) : null}
-
-          {patient.history.length > 0 && (
-            <View style={styles.currentHistoryRow}>
-              <Ionicons name="time-outline" size={12} color="#94A3B8" />
-              <Text style={styles.currentHistoryText} numberOfLines={1}>
-                Last: {patient.history[0].diagnosis} ({patient.history[0].date})
-              </Text>
-            </View>
-          )}
+          <Text style={styles.caption}>{formatTimeRange(a.startTime, a.endTime, uses24h)}</Text>
         </View>
       </View>
-
-      {/* Actions */}
-      <View style={styles.currentActionsRow}>
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={() => navigation.navigate(DoctorRouteNames.PatientHistory, { patientId: patient.patientId, patientName: patient.patientName })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="document-text-outline" size={17} color={THEME.primary} />
-          <Text style={styles.actionBtnText}>History</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => navigation.navigate(DoctorRouteNames.PrescriptionWriter, { patientId: patient.patientId, patientName: patient.patientName, age: patient.age, gender: patient.gender, appointmentId: patient.appointmentId, type: patient.type })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="create-outline" size={17} color={THEME.accent} />
-          <Text style={[styles.actionBtnText, { color: THEME.accent }]}>Write Rx</Text>
-        </TouchableOpacity>
-        {patient.type === 'video' && (
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              navigation.navigate('HealthcareConsultCall', {
-                roomId: patient.appointmentId,
-                appointmentId: patient.appointmentId,
-                roomType: 'healthcare',
-                media: 'video',
-                counterpartName: patient.patientName,
-              })
-            }
-            activeOpacity={0.8}
-          >
-            <Ionicons name="videocam-outline" size={17} color="#10B981" />
-            <Text style={[styles.actionBtnText, { color: '#10B981' }]}>Join Call</Text>
-          </TouchableOpacity>
-        )}
-        {/* Message / voice-call the patient through the realtime service. The
-            room is the appointment, so these work for in-clinic visits too,
-            not only video consults. */}
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() =>
-            navigation.navigate('DoctorConsultChat', {
-              appointmentId: patient.appointmentId,
-              patientName: patient.patientName,
-            })
-          }
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={17} color="#0EA5E9" />
-          <Text style={[styles.actionBtnText, { color: '#0EA5E9' }]}>Message</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() =>
-            navigation.navigate('HealthcareConsultCall', {
-              appointmentId: patient.appointmentId,
-              roomType: 'healthcare',
-              // EXPLICITLY AUDIO. Without it, roomParams infers healthcare
-              // from the appointmentId alias and CallScreen defaults
-              // healthcare to video — so this phone-icon "Call" button opened
-              // the camera.
-              media: 'audio',
-              counterpartName: patient.patientName,
-            })
-          }
-          activeOpacity={0.8}
-        >
-          <Ionicons name="call-outline" size={17} color="#2563EB" />
-          <Text style={[styles.actionBtnText, { color: '#2563EB' }]}>Call</Text>
-        </TouchableOpacity>
-      </View>
-
+      {!!a.symptoms && (
+        <Text style={styles.body} numberOfLines={2}>
+          {a.symptoms}
+        </Text>
+      )}
       <View style={styles.currentActions}>
-        <TouchableOpacity style={styles.skipBtn} onPress={onSkip} activeOpacity={0.8}>
-          <Ionicons name="arrow-forward-outline" size={17} color="#64748B" />
-          <Text style={styles.skipBtnText}>Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.completeBtn} onPress={onComplete} activeOpacity={0.85}>
-          <LinearGradient
-            colors={THEME.gradient.success}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.completeBtnGradient}
-          >
-            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-            <Text style={styles.completeBtnText}>Mark Complete</Text>
-          </LinearGradient>
+        <Button
+          label={a.type === 'video' ? 'Join video call' : 'Open consultation'}
+          icon={a.type === 'video' ? 'videocam-outline' : 'clipboard-outline'}
+          onPress={onPrimary}
+          fullWidth={false}
+          style={styles.flex}
+        />
+        <TouchableOpacity onPress={onMore} style={styles.moreButton} accessibilityRole="button" accessibilityLabel="More actions">
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.ink} />
         </TouchableOpacity>
       </View>
-    </View>
+    </Card>
   );
 };
 
-// ── Patient Row ───────────────────────────────
-
-const PatientRow: React.FC<{
-  patient: QueuePatient;
-  index: number;
-  onStart: () => void;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  hasCurrentPatient: boolean;
-}> = ({ patient, index, onStart, isExpanded, onToggleExpand, hasCurrentPatient }) => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const cfg = STATUS_CONFIG[patient.status];
-  const isVideo = patient.type === 'video';
-  const expandAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(expandAnim, {
-      toValue: isExpanded ? 1 : 0,
-      tension: 100,
-      friction: 9,
-      useNativeDriver: false,
-    }).start();
-  }, [isExpanded]);
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.queueRow,
-        patient.status === 'in-progress' && styles.queueRowActive,
-        (patient.status === 'completed' || patient.status === 'skipped') && styles.queueRowDim,
-      ]}
-      onPress={onToggleExpand}
-      activeOpacity={0.8}
-    >
-      {/* Position in today's list — the backend issues no clinic token. */}
-      <View style={[styles.tokenBadge, { backgroundColor: cfg.bg }]}>
-        <Text style={[styles.tokenNum, { color: cfg.color }]}>{patient.position}</Text>
-      </View>
-
-      <View style={styles.queueRowInfo}>
-        {/* Name + status */}
-        <View style={styles.queueNameRow}>
-          <Text style={styles.queuePatientName} numberOfLines={1}>{patient.patientName}</Text>
-          <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
-            <View style={[styles.statusPillDot, { backgroundColor: cfg.dot }]} />
-            <Text style={[styles.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
-          </View>
+const PatientRow: React.FC<{ patient: PatientSummary; divider: boolean; onPress: () => void }> = React.memo(
+  ({ patient, divider, onPress }) => {
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const last = patient.lastVisit ? formatDateLabel(dateKeyOf(new Date(patient.lastVisit)), { weekday: false, year: true }) : '';
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[styles.patientRow, divider && styles.divider]}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${patient.name}, ${patient.appointmentCount} visits`}
+      >
+        <Avatar uri={patient.profilePhoto} name={patient.name} size={40} />
+        <View style={styles.patientText}>
+          <Text style={styles.strong} numberOfLines={1}>
+            {patient.name}
+          </Text>
+          <Text style={styles.caption} numberOfLines={1}>
+            {[last ? `Last visit ${last}` : '', `${patient.appointmentCount} visit${patient.appointmentCount === 1 ? '' : 's'}`]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
         </View>
-
-        {/* Meta chips */}
-        <View style={styles.queueMetaRow}>
-          {(patient.age || patient.gender) && (
-            <Text style={styles.queueMeta}>
-              {patient.age ? `${patient.age}y` : ''}
-              {patient.age && patient.gender ? ', ' : ''}
-              {patient.gender ?? ''}
-            </Text>
-          )}
-          <View style={styles.metaSep} />
-          <View style={[styles.typeMiniChip, { backgroundColor: isVideo ? '#EAF3FF' : THEME.primaryLight }]}>
-            <Ionicons
-              name={isVideo ? 'videocam-outline' : 'business-outline'}
-              size={10}
-              color={isVideo ? THEME.accent : THEME.primary}
-            />
-            <Text style={[styles.typeMiniText, { color: isVideo ? THEME.accent : THEME.primary }]}>
-              {isVideo ? 'Video' : 'Clinic'}
-            </Text>
-          </View>
-          <View style={styles.metaSep} />
-          <Text style={styles.queueMeta}>{formatTime12(patient.timeSlot.start)}</Text>
-        </View>
-
-        {/* Expanded content */}
-        {isExpanded && (
-          <Animated.View style={styles.expandedBlock}>
-            {patient.symptoms ? (
-              <View style={styles.expandedRow}>
-                <Ionicons name="bandage-outline" size={13} color="#64748B" />
-                <Text style={styles.expandedText}>{patient.symptoms}</Text>
-              </View>
-            ) : null}
-
-            {patient.history.length > 0 ? (
-              <View style={styles.historyBlock}>
-                <Text style={styles.historyBlockTitle}>Visit History</Text>
-                {patient.history.slice(0, 3).map((h, idx) => (
-                  <View key={idx} style={styles.historyRow}>
-                    <View style={styles.historyDot} />
-                    <Text style={styles.historyDate}>{h.date}</Text>
-                    <Text style={styles.historyDiag} numberOfLines={1}>{h.diagnosis}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.noHistory}>No prior visit history</Text>
-            )}
-
-            {patient.status === 'waiting' && !hasCurrentPatient && (
-              <TouchableOpacity style={styles.startBtn} onPress={onStart} activeOpacity={0.85}>
-                <LinearGradient
-                  colors={THEME.gradient.primary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.startBtnGradient}
-                >
-                  <Ionicons name="play-circle" size={17} color="#FFFFFF" />
-                  <Text style={styles.startBtnText}>Start Consultation</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-        )}
-      </View>
-
-      <Ionicons
-        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-        size={15}
-        color="#CBD5E1"
-        style={{ marginLeft: 6, marginTop: 2 }}
-      />
-    </TouchableOpacity>
-  );
-};
-
-// ── Main Component ────────────────────────────
+        <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+      </TouchableOpacity>
+    );
+  }
+);
 
 const PatientQueueScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
-  const isInTab = route.params?.isTab === true;
+  const uses24h = useMemo(uses24HourClock, []);
+  const listRef = useRef<any>(null);
+  useScrollToTop(listRef);
 
-  const { queue, currentPatient, loading, error } = useAppSelector(
-    (state) => state.patientQueue,
-  );
+  const [segment, setSegment] = useState<Segment>(route.params?.segment === 'all' ? 'all' : 'today');
+  const [search, setSearch] = useState('');
+  const [menuFor, setMenuFor] = useState<DoctorAppointment | null>(null);
 
-  const [filterTab, setFilterTab] = useState<FilterTab>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const q = useAppSelector((s) => s.patientQueue);
 
-  const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
-
-  // The reveal fade is removed for the same reason as the schedule screen: it
-  // waited on an onLayout flag that the loading-branch swap silently discarded,
-  // so the body stayed at opacity 0 under the gradient header.
-  // A failed start/complete/skip used to do nothing at all — no state change,
-  // no message — so the doctor could not tell whether it had been recorded.
-  const actionError = useAppSelector((s) => s.patientQueue.actionError);
   useEffect(() => {
-    if (!actionError) return;
-    Alert.alert('Could not update the queue', actionError, [
-      { text: 'OK', onPress: () => dispatch(clearQueueActionError()) },
-    ]);
-  }, [actionError, dispatch]);
+    if (route.params?.segment === 'all' || route.params?.segment === 'today') setSegment(route.params.segment);
+  }, [route.params?.segment]);
 
-  // Focus-scoped so it stops polling on the other three tabs, and silent so a
-  // background refresh cannot swap the populated queue for a spinner every 30s.
+  // ── Today: load when stale on focus, then poll while visible ──
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchQueue());
-      const interval = setInterval(() => {
-        dispatch(fetchQueue({ silent: true }));
-      }, 30000);
-      return () => clearInterval(interval);
+      if (!q.lastFetchedAt || Date.now() - q.lastFetchedAt > STALE_MS || q.todayKey !== todayDateKey()) {
+        dispatch(fetchToday());
+      }
+      let timer: ReturnType<typeof setInterval> | null = setInterval(() => {
+        dispatch(fetchToday({ silent: true }));
+      }, POLL_MS);
+      // No polling in the background: a phone in a pocket should not keep
+      // asking the server who is waiting.
+      const sub = AppState.addEventListener('change', (next) => {
+        if (next === 'active' && !timer) {
+          dispatch(fetchToday({ silent: true }));
+          timer = setInterval(() => dispatch(fetchToday({ silent: true })), POLL_MS);
+        } else if (next !== 'active' && timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      });
+      return () => {
+        if (timer) clearInterval(timer);
+        sub.remove();
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch])
   );
 
-  // Tab indicator animation
-  const tabIndex = FILTER_TABS.findIndex((t) => t.value === filterTab);
+  // ── All patients: debounced search ──
   useEffect(() => {
-    Animated.spring(tabIndicatorAnim, {
-      toValue: tabIndex,
-      tension: 100,
-      friction: 8,
-      useNativeDriver: false,
-    }).start();
-  }, [tabIndex]);
+    if (segment !== 'all') return undefined;
+    const handle = setTimeout(() => {
+      if (search.trim() !== q.query || q.patientsStatus === 'idle') {
+        dispatch(fetchPatients({ query: search.trim(), page: 1 }));
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, search, segment]);
 
-  const currentPatientData = useMemo(
-    () => queue.find((p) => p.queueId === currentPatient) ?? null,
-    [queue, currentPatient],
+  const openAppointment = useCallback(
+    (a: DoctorAppointment) => navigation.navigate(DoctorRouteNames.AppointmentDetail, { appointmentId: a.id }),
+    [navigation]
   );
 
-  const filteredQueue = useMemo(() => {
-    if (filterTab === 'all') return queue;
-    return queue.filter((p) => p.status === filterTab);
-  }, [queue, filterTab]);
-
-  const stats = useMemo(() => ({
-    total: queue.length,
-    waiting: queue.filter((p) => p.status === 'waiting').length,
-    inProgress: queue.filter((p) => p.status === 'in-progress').length,
-    completed: queue.filter((p) => p.status === 'completed').length,
-  }), [queue]);
-
-  const handleStart = useCallback((queueId: string) => {
-    if (currentPatient) {
-      Alert.alert('Active Consultation', 'Please complete or skip the current patient first.');
-      return;
+  const startConsultation = (a: DoctorAppointment) => {
+    if (a.type === 'video') {
+      navigation.navigate('HealthcareConsultCall', {
+        roomId: a.id,
+        appointmentId: a.id,
+        roomType: 'healthcare',
+        media: 'video',
+        counterpartName: a.patientName,
+      });
+    } else {
+      navigation.navigate(DoctorRouteNames.ConsultationNotes, {
+        appointmentId: a.id,
+        patientId: a.patientId,
+        patientName: a.patientName,
+      });
     }
-    dispatch(startConsultation(queueId));
-  }, [dispatch, currentPatient]);
+  };
 
-  const handleComplete = useCallback(() => {
-    if (!currentPatient) return;
-    Alert.alert('Complete Consultation', 'Mark this consultation as completed?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Complete', onPress: () => dispatch(completeConsultation(currentPatient)) },
-    ]);
-  }, [dispatch, currentPatient]);
+  const menuOptions = (a: DoctorAppointment): SheetOption[] => [
+    { label: 'Appointment details', icon: 'document-text-outline', onPress: () => openAppointment(a) },
+    {
+      label: 'Visit history',
+      icon: 'time-outline',
+      onPress: () => navigation.navigate(DoctorRouteNames.PatientHistory, { patientId: a.patientId, patientName: a.patientName }),
+    },
+    {
+      label: 'Message',
+      icon: 'chatbubble-ellipses-outline',
+      onPress: () => navigation.navigate('DoctorConsultChat', { appointmentId: a.id, patientName: a.patientName }),
+    },
+    {
+      label: 'Voice call',
+      icon: 'call-outline',
+      onPress: () =>
+        navigation.navigate('HealthcareConsultCall', {
+          appointmentId: a.id,
+          roomType: 'healthcare',
+          media: 'audio',
+          counterpartName: a.patientName,
+        }),
+    },
+  ];
 
-  const handleSkip = useCallback(() => {
-    if (!currentPatient) return;
-    Alert.alert('Skip Patient', 'Skip this patient and move to the next?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Skip', style: 'destructive', onPress: () => dispatch(skipPatient(currentPatient)) },
-    ]);
-  }, [dispatch, currentPatient]);
+  // ── Today sections ──
+  const now = new Date();
+  const confirmed = q.today.filter((a) => a.status === 'confirmed');
+  const current =
+    confirmed.find((a) => isLiveWindow(a.startUtc, a.endUtc, now)) ??
+    confirmed.find((a) => !!a.endUtc && new Date(a.endUtc) > now) ??
+    null;
+  const sections = [
+    { key: 'requests', title: 'Waiting for approval', data: q.today.filter((a) => a.status === 'pending') },
+    {
+      key: 'upcoming',
+      title: 'Up next',
+      data: confirmed.filter((a) => a.id !== current?.id && (!a.endUtc || new Date(a.endUtc) > now)),
+    },
+    {
+      key: 'seen',
+      title: 'Seen',
+      data: q.today.filter(
+        (a) => a.status === 'completed' || (a.status === 'confirmed' && !!a.endUtc && new Date(a.endUtc) <= now && a.id !== current?.id)
+      ),
+    },
+  ].filter((section) => section.data.length > 0);
 
-  const handleCallNext = useCallback(() => {
-    if (currentPatient) {
-      Alert.alert('Active Consultation', 'Please complete or skip the current patient first.');
-      return;
+  const segmentControl = (
+    <View style={styles.segment}>
+      <SegmentedControl<Segment>
+        options={[
+          { value: 'today', label: 'Today', count: q.today.length || undefined },
+          { value: 'all', label: 'All patients' },
+        ]}
+        value={segment}
+        onChange={setSegment}
+      />
+    </View>
+  );
+
+  const renderToday = () => {
+    if (q.todayStatus !== 'ready' && q.todayStatus !== 'error') {
+      return (
+        <View style={styles.content}>
+          {segmentControl}
+          <SkeletonCard lines={3} />
+        </View>
+      );
     }
-    dispatch(callNextPatient());
-  }, [dispatch, currentPatient]);
-
-  const handleToggleExpand = useCallback((queueId: string) => {
-    setExpandedId((prev) => (prev === queueId ? null : queueId));
-  }, []);
-
-  // ── Loading ───────────────────────────────────
-
-  // A full-screen loader or error page is only legitimate when there is
-  // nothing to show. Gating on bare `loading`/`error` meant every refetch
-  // blanked a populated screen — and on the queue, one failed 30s poll
-  // replaced a working list with an error page.
-  if (loading && queue.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          {isInTab ? <View style={styles.headerBtn} /> : (
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
-          <Text style={styles.headerTitle}>Patient Queue</Text>
-          <View style={styles.headerBtn} />
-        </LinearGradient>
-        <View style={styles.centered}>
-          <View style={styles.loadingIconWrap}>
-            <ActivityIndicator size="large" color={THEME.primary} />
+      <SectionList
+        ref={listRef}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={q.todayRefreshing}
+            onRefresh={() => dispatch(fetchToday({ refresh: true }))}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            {segmentControl}
+            {!!q.todayError && q.todayStatus === 'ready' && (
+              <Text style={styles.stale}>Couldn't refresh. Pull down to try again.</Text>
+            )}
+            {current && (
+              <CurrentCard
+                appointment={current}
+                uses24h={uses24h}
+                onOpen={() => openAppointment(current)}
+                onPrimary={() => startConsultation(current)}
+                onMore={() => setMenuFor(current)}
+              />
+            )}
           </View>
-          <Text style={styles.loadingText}>Loading queue…</Text>
-        </View>
-      </SafeAreaView>
+        }
+        ListEmptyComponent={
+          q.todayStatus === 'error' ? (
+            <ErrorState message={q.todayError} onRetry={() => dispatch(fetchToday())} />
+          ) : current ? null : (
+            <Card>
+              <EmptyState
+                icon="people-outline"
+                title="No patients today"
+                message="Today's appointments appear here as patients book."
+              />
+            </Card>
+          )
+        }
+        renderSectionHeader={({ section }) => (
+          <Text style={styles.sectionTitle}>
+            {section.title} · {section.data.length}
+          </Text>
+        )}
+        renderItem={({ item, index, section }) => (
+          <View style={[styles.rowCard, index === 0 && styles.rowFirst, index === section.data.length - 1 && styles.rowLast]}>
+            <AppointmentRow appointment={item} onPress={openAppointment} uses24h={uses24h} divider={index > 0} />
+          </View>
+        )}
+        ListFooterComponent={<View style={styles.bottomSpace} />}
+      />
     );
-  }
+  };
 
-  if (error && queue.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          {isInTab ? <View style={styles.headerBtn} /> : (
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
-          <Text style={styles.headerTitle}>Patient Queue</Text>
-          <View style={styles.headerBtn} />
-        </LinearGradient>
-        <View style={styles.centered}>
-          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
-            <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
-          </LinearGradient>
-          <Text style={styles.errorTitle}>Failed to load queue</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => dispatch(fetchQueue())} activeOpacity={0.85}>
-            <LinearGradient colors={THEME.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.retryBtnGradient}>
-              <Ionicons name="refresh" size={16} color="#FFFFFF" />
-              <Text style={styles.retryBtnText}>Try Again</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+  const renderAll = () => (
+    <FlatList
+      ref={listRef}
+      data={q.patients}
+      keyExtractor={(item) => item.patientId}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={q.patientsStatus === 'loading' && q.patients.length > 0}
+          onRefresh={() => dispatch(fetchPatients({ query: search.trim(), page: 1 }))}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+        />
+      }
+      ListHeaderComponent={
+        <View>
+          {segmentControl}
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={colors.inkFaint} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search by name"
+              placeholderTextColor={colors.inkFaint}
+              style={styles.searchInput}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="Search patients by name"
+            />
+            {!!search && (
+              <TouchableOpacity onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.clear}>
+                <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Render ────────────────────────────────────
+      }
+      ListEmptyComponent={
+        q.patientsStatus === 'loading' || q.patientsStatus === 'idle' ? (
+          <SkeletonCard lines={2} />
+        ) : q.patientsStatus === 'error' ? (
+          <ErrorState message={q.patientsError} onRetry={() => dispatch(fetchPatients({ query: search.trim(), page: 1 }))} />
+        ) : (
+          <EmptyState
+            icon="people-outline"
+            title={search ? `No patients match "${search}"` : 'No patients yet'}
+            message={search ? 'Check the spelling, or search by first name.' : 'Patients you see appear here.'}
+          />
+        )
+      }
+      renderItem={({ item, index }) => (
+        <View style={[styles.rowCard, index === 0 && styles.rowFirst, index === q.patients.length - 1 && styles.rowLast]}>
+          <PatientRow
+            patient={item}
+            divider={index > 0}
+            onPress={() => navigation.navigate(DoctorRouteNames.PatientHistory, { patientId: item.patientId, patientName: item.name })}
+          />
+        </View>
+      )}
+      onEndReachedThreshold={0.4}
+      onEndReached={() => {
+        if (q.hasMore && !q.loadingMore && q.patientsStatus === 'ready') {
+          dispatch(fetchPatients({ query: q.query, page: q.page + 1 }));
+        }
+      }}
+      ListFooterComponent={<View style={styles.bottomSpace} />}
+    />
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={THEME.gradient.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerNav}>
-          {isInTab ? <View style={styles.headerBtn} /> : (
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />)}
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Patient Queue</Text>
-            <Text style={styles.headerSubtitle}>{stats.waiting} waiting  ·  {stats.completed} completed</Text>
-          </View>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => dispatch(fetchQueue())} activeOpacity={0.8}>
-            <Ionicons name="refresh" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      <Animated.ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Stats Strip ── */}
-        <LinearGradient colors={sh.grad(['#F0F7FF', '#EAF3FF'])} style={styles.statsStrip}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: THEME.warning }]}>{stats.waiting}</Text>
-            <Text style={[styles.statLabel, { color: THEME.warning }]}>Waiting</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: THEME.primary }]}>{stats.inProgress}</Text>
-            <Text style={[styles.statLabel, { color: THEME.primary }]}>Active</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: THEME.success }]}>{stats.completed}</Text>
-            <Text style={[styles.statLabel, { color: THEME.success }]}>Done</Text>
-          </View>
-        </LinearGradient>
-
-        {/* ── Current Patient ── */}
-        {currentPatientData && (
-          <View style={styles.section}>
-            <CurrentPatientCard
-              patient={currentPatientData}
-              onComplete={handleComplete}
-              onSkip={handleSkip}
-            />
-          </View>
-        )}
-
-        {/* ── Call Next Button ── */}
-        {!currentPatient && stats.waiting > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.callNextBtn} onPress={handleCallNext} activeOpacity={0.85}>
-              <LinearGradient
-                colors={THEME.gradient.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.callNextBtnGradient}
-              >
-                <MaterialCommunityIcons name="account-voice" size={22} color="#FFFFFF" />
-                <Text style={styles.callNextBtnText}>Call Next Patient</Text>
-                <View style={styles.callNextCountBadge}>
-                  <Text style={styles.callNextCountText}>{stats.waiting}</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Filter Tabs ── */}
-        <View style={styles.section}>
-          <View style={styles.filterTabs}>
-            <Animated.View
-              style={[
-                styles.filterTabIndicator,
-                {
-                  left: tabIndicatorAnim.interpolate({
-                    inputRange: [0, 1, 2, 3],
-                    outputRange: ['1%', '25.5%', '50%', '75%'],
-                  }),
-                  width: '24%',
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={THEME.gradient.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 10 }]}
-              />
-            </Animated.View>
-
-            {FILTER_TABS.map((tab) => {
-              const isActive = filterTab === tab.value;
-              return (
-                <TouchableOpacity
-                  key={tab.value}
-                  style={styles.filterTab}
-                  onPress={() => setFilterTab(tab.value)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* ── Queue List ── */}
-        <View style={styles.section}>
-          <View style={styles.queueSectionHeader}>
-            <View style={styles.queueSectionDot} />
-            <Text style={styles.queueSectionTitle}>
-              {filterTab === 'all' ? "Today's Queue" : FILTER_TABS.find((t) => t.value === filterTab)?.label}
-            </Text>
-            <View style={styles.queueCountBadge}>
-              <Text style={styles.queueCountText}>{filteredQueue.length}</Text>
-            </View>
-          </View>
-
-          {filteredQueue.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
-                <Ionicons name="people-outline" size={36} color={THEME.primary} />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>No patients</Text>
-              <Text style={styles.emptySubtitle}>No patients match the selected filter</Text>
-            </View>
-          ) : (
-            <View style={styles.queueList}>
-              {filteredQueue.map((patient, index) => (
-                <PatientRow
-                  key={patient.queueId}
-                  patient={patient}
-                  index={index}
-                  onStart={() => handleStart(patient.queueId)}
-                  isExpanded={expandedId === patient.queueId}
-                  onToggleExpand={() => handleToggleExpand(patient.queueId)}
-                  hasCurrentPatient={!!currentPatient}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
-        <View style={{ height: 40 }} />
-      </Animated.ScrollView>
-    </SafeAreaView>
+    <Screen>
+      <AppBar title="Patients" hideBack />
+      {segment === 'today' ? renderToday() : renderAll()}
+      <ActionSheet
+        visible={!!menuFor}
+        title={menuFor?.patientName}
+        options={menuFor ? menuOptions(menuFor) : []}
+        onClose={() => setMenuFor(null)}
+      />
+    </Screen>
   );
 };
 
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    content: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    segment: { marginBottom: S.lg },
+    stale: { ...T.caption, color: c.warning, marginBottom: S.sm },
+    caption: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    body: { ...T.body, color: c.ink, marginTop: S.md },
+    strong: { ...T.bodyStrong, color: c.ink },
+    current: { marginBottom: S.sm },
+    currentTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    currentWhen: { ...T.label, color: c.accentDeep },
+    currentPatient: { flexDirection: 'row', alignItems: 'center', marginTop: S.md },
+    currentText: { flex: 1, marginLeft: S.md },
+    currentName: { ...T.subhead, color: c.ink },
+    currentActions: { flexDirection: 'row', alignItems: 'center', marginTop: S.lg },
+    moreButton: {
+      width: 46,
+      height: 46,
+      marginLeft: S.sm,
+      borderRadius: R.control,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { ...T.label, color: c.inkMuted, marginTop: S.lg, marginBottom: S.sm },
+    rowCard: {
+      backgroundColor: c.surface,
+      paddingHorizontal: S.lg,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderRightWidth: StyleSheet.hairlineWidth,
+      borderColor: c.line,
+    },
+    rowFirst: { borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: R.card, borderTopRightRadius: R.card },
+    rowLast: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomLeftRadius: R.card, borderBottomRightRadius: R.card },
+    divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+    patientRow: { flexDirection: 'row', alignItems: 'center', minHeight: 64, paddingVertical: S.md },
+    patientText: { flex: 1, marginHorizontal: S.md },
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 46,
+      borderRadius: R.control,
+      backgroundColor: c.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.line,
+      paddingHorizontal: S.md,
+      marginBottom: S.md,
+    },
+    searchInput: { ...T.body, color: c.ink, flex: 1, marginLeft: S.sm, paddingVertical: S.sm },
+    clear: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+    bottomSpace: { height: S.huge * 2 },
+  });
+
 export default PatientQueueScreen;
-
-// ── Styles ─────────────────────────────────────
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-  },
-
-  // Loading / Error
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    gap: 10,
-  },
-  loadingIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-  errorIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
-  errorSubtext: { fontSize: 14, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), textAlign: 'center', marginBottom: 6 },
-  retryBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
-  retryBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 14 },
-  retryBtnText: { fontSize: 15, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Header
-  headerGradient: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0,
-    paddingBottom: 14,
-  },
-  headerNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.3 },
-  headerSubtitle: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
-
-  // Scroll
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  section: { marginBottom: 16 },
-
-  // Stats strip
-  statsStrip: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: sh.hue('#B8D4FF'),
-    alignItems: 'center',
-  },
-  statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statNum: { fontSize: 22, fontWeight: '800', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, fontWeight: '700', color: sh.n('#64748B', 'inkMuted'), textTransform: 'uppercase', letterSpacing: 0.3 },
-  statDivider: { width: 1, height: 30, backgroundColor: sh.hue('#B8D4FF') },
-
-  // Current patient card
-  currentCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: sh.hue('#BFDBFE'),
-    ...Platform.select({
-      ios: { shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
-      android: { elevation: 6 },
-    }),
-  },
-  currentCardHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  currentBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  currentLiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  currentLiveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-  },
-  currentLiveText: { fontSize: 12, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-  currentTokenBadge: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  currentTokenText: { fontSize: 13, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
-  currentBody: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 14,
-    alignItems: 'flex-start',
-  },
-  currentAvatarWrap: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  currentAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  currentInitials: { fontSize: 18, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
-  currentTypeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  currentTypeText: { fontSize: 10, fontWeight: '700' },
-  currentInfo: { flex: 1, gap: 4 },
-  currentName: { fontSize: 17, fontWeight: '800', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.3 },
-  currentMeta: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
-  currentSymptoms: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), lineHeight: 18 },
-  currentHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  currentHistoryText: { fontSize: 11, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint'), flex: 1 },
-  currentActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: THEME.pageBg,
-    borderWidth: 1,
-    borderColor: THEME.border,
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
-  currentActions: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 10,
-  },
-  skipBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 13,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderWidth: 1.5,
-    borderColor: sh.n('#E2E8F0', 'line'),
-  },
-  skipBtnText: { fontSize: 13, fontWeight: '700', color: sh.n('#64748B', 'inkMuted') },
-  completeBtn: { flex: 2, borderRadius: 13, overflow: 'hidden' },
-  completeBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingVertical: 13,
-  },
-  completeBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Call next
-  callNextBtn: { borderRadius: 10, overflow: 'hidden' },
-  callNextBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  callNextBtnText: { fontSize: 16, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), flex: 1, textAlign: 'center' },
-  callNextCountBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  callNextCountText: { fontSize: 12, fontWeight: '800', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Filter tabs
-  filterTabs: {
-    flexDirection: 'row',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    position: 'relative',
-    height: 46,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
-      android: { elevation: 2 },
-    }),
-  },
-  filterTabIndicator: {
-    position: 'absolute',
-    top: 4,
-    bottom: 4,
-    borderRadius: 10,
-    overflow: 'hidden',
-    zIndex: 0,
-  },
-  filterTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  filterTabText: { fontSize: 12, fontWeight: '700', color: sh.n('#64748B', 'inkMuted') },
-  filterTabTextActive: { color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Queue list
-  queueSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  queueSectionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: THEME.primary },
-  queueSectionTitle: { fontSize: 15, fontWeight: '700', color: sh.n('#0F172A', 'ink'), letterSpacing: -0.2, flex: 1 },
-  queueCountBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: THEME.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  queueCountText: { fontSize: 11, fontWeight: '800', color: THEME.primary },
-  queueList: { gap: 8 },
-
-  // Queue row
-  queueRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
-      android: { elevation: 2 },
-    }),
-  },
-  queueRowActive: { borderColor: sh.hue('#BFDBFE'), backgroundColor: sh.n('#FAFEFF', 'surfaceSunken') },
-  queueRowDim: { opacity: 0.65 },
-  tokenBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  tokenNum: { fontSize: 13, fontWeight: '800' },
-  queueRowInfo: { flex: 1, gap: 6 },
-  queueNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  queuePatientName: { fontSize: 14, fontWeight: '700', color: sh.n('#0F172A', 'ink'), flex: 1 },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusPillDot: { width: 5, height: 5, borderRadius: 2.5 },
-  statusPillText: { fontSize: 10, fontWeight: '700' },
-  queueMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  queueMeta: { fontSize: 11, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
-  metaSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: sh.n('#CBD5E1', 'disabled') },
-  typeMiniChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  typeMiniText: { fontSize: 10, fontWeight: '700' },
-  waitRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  waitText: { fontSize: 11, fontWeight: '700', color: THEME.warning },
-
-  // Expanded
-  expandedBlock: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
-    gap: 10,
-  },
-  expandedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  expandedText: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), flex: 1, lineHeight: 18 },
-  historyBlock: { gap: 6 },
-  historyBlockTitle: { fontSize: 11, fontWeight: '700', color: sh.n('#94A3B8', 'inkFaint'), textTransform: 'uppercase', letterSpacing: 0.4 },
-  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  historyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: THEME.primary },
-  historyDate: { fontSize: 11, fontWeight: '600', color: sh.n('#94A3B8', 'inkFaint'), width: 72 },
-  historyDiag: { fontSize: 12, fontWeight: '600', color: sh.hue('#374151'), flex: 1 },
-  noHistory: { fontSize: 12, fontWeight: '500', color: sh.n('#CBD5E1', 'disabled'), fontStyle: 'italic' },
-  startBtn: { borderRadius: 13, overflow: 'hidden', marginTop: 4 },
-  startBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  startBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Empty
-  emptyCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    padding: 36,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  emptyIconWrap: { width: 72, height: 72, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: sh.hue('#374151') },
-  emptySubtitle: { fontSize: 13, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), textAlign: 'center' },
-});
