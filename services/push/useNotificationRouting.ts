@@ -23,6 +23,18 @@ async function openRoute(route: NotificationRoute, presentCall: (c: any) => void
   const userType = await retrieveData(KeyForStorage.userType);
   const isProvider = userType === 'provider';
 
+  if (route.type === 'appointment') {
+    // A doctor opens the appointment itself — a new request is approved from
+    // there. Tapping one of these used to open nothing.
+    if (isProvider && route.appointmentId) {
+      navigate('DoctorStack', {
+        screen: 'DoctorAppointmentDetail',
+        params: { appointmentId: route.appointmentId },
+      });
+    }
+    return;
+  }
+
   if (route.type === 'call') {
     // Re-present the ring. If the socket already delivered it, the provider
     // dedupes on callId and this is a no-op.

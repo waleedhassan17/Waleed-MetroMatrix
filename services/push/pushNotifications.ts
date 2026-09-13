@@ -188,18 +188,30 @@ export interface NotificationRoute {
    * 'missed_call' — after the fact; there is nothing to answer, so it opens the
    *                 conversation instead, where the user can call back
    * 'message'     — opens the thread
+   * 'appointment' — a booking, cancellation, payment or prescription update;
+   *                 opens the appointment it is about
    */
-  type: 'call' | 'missed_call' | 'message';
+  type: 'call' | 'missed_call' | 'message' | 'appointment';
   roomId: string;
   roomType: 'homeservice' | 'healthcare';
   callId?: string;
   callerName?: string;
+  appointmentId?: string;
 }
 
 const ROUTABLE_TYPES = ['call', 'missed_call', 'message'];
 
 /** Normalize a notification payload into something navigable, or null. */
 export function routeFromNotification(data: any): NotificationRoute | null {
+  // Healthcare appointment updates carry the appointment, not a chat room.
+  if (
+    data?.appointmentId &&
+    !data?.roomId &&
+    typeof data?.type === 'string' &&
+    /^(appointment|prescription|payment|review)_/.test(data.type)
+  ) {
+    return { type: 'appointment', roomId: '', roomType: 'healthcare', appointmentId: String(data.appointmentId) };
+  }
   if (!data?.type || !data?.roomId) return null;
   if (!ROUTABLE_TYPES.includes(data.type)) return null;
   return {

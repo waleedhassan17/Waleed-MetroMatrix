@@ -1,838 +1,208 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
-  Platform,
-  Animated,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
 import {
-  fetchPatientHistory,
-  selectVisit,
-  resetPatientHistory,
-} from './patientHistorySlice';
-import type { PastVisit } from './patientHistorySlice';
-import type { DoctorStackParamList } from '../../../../models/healthcare/types';
+  AppBar,
+  Avatar,
+  Card,
+  EmptyState,
+  ErrorState,
+  ListRow,
+  Screen,
+  SectionHeader,
+  SkeletonCard,
+  ToneBadge,
+} from '../../../../components/ui';
+import { GUTTER, S, SECTION, T } from '../../../../constants/theme';
+import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { consultationIcon, consultationLabel, formatDateLabel } from '../../../../utils/healthcare/doctorFormat';
+import { dateKeyOf } from '../../../../utils/healthcare/timeRanges';
+import { fetchPatientHistory, resetPatientHistory } from './patientHistorySlice';
 
-type RouteParams = RouteProp<DoctorStackParamList, 'PatientHistory'>;
+// ============================================================================
+// A patient's visits with this doctor.
+//
+// Visit cards showed a chevron and did nothing but highlight when tapped, and
+// "0 yrs · Male" appeared for patients whose age and gender were never
+// recorded. Each visit now opens its appointment, and unknown details are left
+// out rather than invented.
+// ============================================================================
 
-// ── Theme ─────────────────────────────────────
-import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
-
-// ── Helpers ───────────────────────────────────
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-const VISIT_ACCENTS: [string, string][] = [
-  THEME.gradient.primary,
-  THEME.gradient.secondary,
-  THEME.gradient.success,
-  ['#F59E0B', '#D97706'],
-];
-
-// ── Visit Card ────────────────────────────────
-
-const VisitCard: React.FC<{
-  visit: PastVisit;
-  index: number;
-  onPress: () => void;
-  isSelected: boolean;
-}> = ({ visit, index, onPress, isSelected }) => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const gradient = VISIT_ACCENTS[index % VISIT_ACCENTS.length];
-  const isVideo = visit.type === 'video';
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(anim, {
-      toValue: 1,
-      tension: 100,
-      friction: 8,
-      delay: index * 55,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={{
-        opacity: anim,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
-      }}
-    >
-      <TouchableOpacity
-        style={[styles.visitCard, isSelected && styles.visitCardSelected]}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.visitStripe}
-        />
-
-        <View style={styles.visitBody}>
-          {/* Header row */}
-          <View style={styles.visitHeaderRow}>
-            <View style={[
-              styles.visitTypeBadge,
-              { backgroundColor: isVideo ? '#EAF3FF' : THEME.primaryLight },
-            ]}>
-              <Ionicons
-                name={isVideo ? 'videocam-outline' : 'business-outline'}
-                size={12}
-                color={isVideo ? THEME.accent : THEME.primary}
-              />
-              <Text style={[styles.visitTypeText, { color: isVideo ? THEME.accent : THEME.primary }]}>
-                {isVideo ? 'Video' : 'In-Clinic'}
-              </Text>
-            </View>
-            <Text style={styles.visitDateText}>{formatDate(visit.date)}</Text>
-          </View>
-
-          {/* Diagnosis */}
-          <Text style={styles.visitDiagnosis}>{visit.diagnosis}</Text>
-
-          {/* Symptoms */}
-          {visit.symptoms.length > 0 && (
-            <View style={styles.symptomsRow}>
-              {visit.symptoms.slice(0, 3).map((s, i) => (
-                <View key={i} style={styles.symptomTag}>
-                  <Text style={styles.symptomText}>{s}</Text>
-                </View>
-              ))}
-              {visit.symptoms.length > 3 && (
-                <Text style={styles.moreText}>+{visit.symptoms.length - 3}</Text>
-              )}
-            </View>
-          )}
-
-          {/* Notes */}
-          {visit.notes && (
-            <Text style={styles.visitNotes} numberOfLines={2}>{visit.notes}</Text>
-          )}
-
-          {/* Footer badges */}
-          <View style={styles.visitFooter}>
-            {visit.prescriptionId && (
-              <View style={styles.rxBadge}>
-                <MaterialCommunityIcons name="prescription" size={11} color={THEME.primary} />
-                <Text style={styles.rxBadgeText}>Prescription</Text>
-              </View>
-            )}
-            {visit.followUp && (
-              <View style={styles.followUpBadge}>
-                <Ionicons name="calendar-outline" size={11} color={THEME.warning} />
-                <Text style={styles.followUpText}>Follow-up: {formatDate(visit.followUp)}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }} />
-            <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-// ── Main Component ────────────────────────────
+const genderWord = (g: string) => (g === 'male' ? 'Male' : g === 'female' ? 'Female' : g === 'other' ? 'Other' : '');
 
 const PatientHistoryScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteParams>();
+  const route = useRoute<any>();
   const dispatch = useAppDispatch();
-  const { patientId } = route.params;
+  const patientId: string = route.params?.patientId;
+  const fallbackName: string | undefined = route.params?.patientName;
 
-  const { patient, selectedVisit, loading, error } = useAppSelector(
-    (state) => state.patientHistory,
-  );
+  const { patient, loading, error } = useAppSelector((s) => s.patientHistory);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    dispatch(fetchPatientHistory(patientId));
-    return () => { dispatch(resetPatientHistory()); };
+  const load = useCallback(() => {
+    if (patientId) dispatch(fetchPatientHistory(patientId));
   }, [dispatch, patientId]);
 
   useEffect(() => {
-    if (!loading && patient && !hasAnimated.current) {
-      hasAnimated.current = true;
-      fadeAnim.setValue(0);
-      slideAnim.setValue(20);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
+    load();
+    return () => {
+      dispatch(resetPatientHistory());
+    };
+  }, [dispatch, load]);
+
+  const shown = patient && patient.patientId === patientId ? patient : null;
+  const name = shown?.patientName || fallbackName || 'Patient';
+  const latestVisit = shown?.visits[0];
+
+  const body = () => {
+    if (!shown) {
+      if (error && !loading) return <ErrorState message={error} onRetry={load} />;
+      return <SkeletonCard lines={3} />;
     }
-  }, [loading, patient]);
+    const details = [shown.age > 0 ? `${shown.age} yrs` : '', genderWord(shown.gender), shown.bloodGroup].filter(Boolean).join(' · ');
 
-  const handleVisitPress = useCallback(
-    (visit: PastVisit) => dispatch(selectVisit(visit)),
-    [dispatch],
-  );
-
-  // ── Loading ───────────────────────────────────
-
-  if (loading && !patient) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <Text style={styles.headerTitle}>Patient History</Text>
-          <View style={styles.backBtn} />
-        </LinearGradient>
-        <View style={styles.centered}>
-          <View style={styles.loadingIconWrap}>
-            <ActivityIndicator size="large" color={THEME.primary} />
-          </View>
-          <Text style={styles.loadingText}>Loading patient history…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Error ─────────────────────────────────────
-
-  if (error && !patient) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <Text style={styles.headerTitle}>Patient History</Text>
-          <View style={styles.backBtn} />
-        </LinearGradient>
-        <View style={styles.centered}>
-          <LinearGradient colors={sh.grad(['#FEE2E2', '#FECACA'])} style={styles.errorIconWrap}>
-            <Ionicons name="alert-circle-outline" size={40} color={THEME.error} />
-          </LinearGradient>
-          <Text style={styles.errorTitle}>Failed to load history</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => dispatch(fetchPatientHistory(patientId))} activeOpacity={0.85}>
-            <LinearGradient colors={THEME.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.retryBtnGradient}>
-              <Ionicons name="refresh" size={16} color="#FFFFFF" />
-              <Text style={styles.retryBtnText}>Try Again</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!patient) return null;
-
-  // ── Render ────────────────────────────────────
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={THEME.gradient.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerNav}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Patient History</Text>
-            <Text style={styles.headerSubtitle}>{patient.visits.length} visit{patient.visits.length !== 1 ? 's' : ''} recorded</Text>
-          </View>
-          {/* A call button sat here with no onPress at all. Calling is scoped
-              to an APPOINTMENT — that is the room the realtime service
-              authorizes against — and this screen only has a patientId, so
-              there is no conversation to open from here. Doctors reach the
-              patient from the queue or the appointment, both of which do have
-              one. Kept as a spacer so the header stays centred. */}
-          <View style={styles.callBtn} />
-        </View>
-      </LinearGradient>
-
-      <Animated.ScrollView
-        style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Patient Info Card ── */}
-        <View style={styles.patientCard}>
-          <View style={styles.patientRow}>
-            <LinearGradient colors={THEME.gradient.primary} style={styles.patientAvatar}>
-              <MaterialCommunityIcons name="account" size={28} color="#FFFFFF" />
-            </LinearGradient>
-            <View style={styles.patientInfo}>
-              <Text style={styles.patientName}>{patient.patientName}</Text>
-              <Text style={styles.patientMeta}>
-                {patient.age} yrs  ·  {patient.gender}  ·  {patient.bloodGroup}
+      <>
+        <Card elevation="raised">
+          <View style={styles.identity}>
+            <Avatar name={name} size={52} />
+            <View style={styles.identityText}>
+              <Text style={styles.name}>{name}</Text>
+              {!!details && <Text style={styles.muted}>{details}</Text>}
+              <Text style={styles.muted}>
+                {shown.visits.length} visit{shown.visits.length === 1 ? '' : 's'} with you
               </Text>
-              {patient.phone ? (
-                <Text style={styles.patientPhone}>{patient.phone}</Text>
-              ) : null}
-            </View>
-            <View style={styles.visitCountBadge}>
-              <Text style={styles.visitCountNum}>{patient.visits.length}</Text>
-              <Text style={styles.visitCountLabel}>Visits</Text>
             </View>
           </View>
-        </View>
-
-        {/* ── Health Alerts Strip ── */}
-        {(patient.allergies.length > 0 || patient.chronicConditions.length > 0) && (
-          <View style={styles.alertsCard}>
-            {patient.allergies.length > 0 && (
-              <View style={styles.alertSection}>
-                <View style={styles.alertSectionHeader}>
-                  <View style={[styles.alertDot, { backgroundColor: THEME.error }]} />
-                  <Text style={[styles.alertSectionTitle, { color: THEME.error }]}>Allergies</Text>
-                </View>
-                <View style={styles.chipRow}>
-                  {patient.allergies.map((a, i) => (
-                    <View key={i} style={styles.allergyChip}>
-                      <Ionicons name="warning" size={11} color={THEME.error} />
-                      <Text style={styles.allergyChipText}>{a}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-            {patient.allergies.length > 0 && patient.chronicConditions.length > 0 && (
-              <View style={styles.alertsDivider} />
-            )}
-            {patient.chronicConditions.length > 0 && (
-              <View style={styles.alertSection}>
-                <View style={styles.alertSectionHeader}>
-                  <View style={[styles.alertDot, { backgroundColor: THEME.warning }]} />
-                  <Text style={[styles.alertSectionTitle, { color: THEME.warning }]}>Chronic Conditions</Text>
-                </View>
-                <View style={styles.chipRow}>
-                  {patient.chronicConditions.map((c, i) => (
-                    <View key={i} style={styles.conditionChip}>
-                      <MaterialCommunityIcons name="medical-bag" size={11} color={THEME.warning} />
-                      <Text style={styles.conditionChipText}>{c}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Visit History ── */}
-        <View style={styles.visitsSection}>
-          <View style={styles.visitsSectionHeader}>
-            <View style={styles.visitsSectionDot} />
-            <Text style={styles.visitsSectionTitle}>Visit History</Text>
-            <View style={styles.visitsCountBadge}>
-              <Text style={styles.visitsCountText}>{patient.visits.length}</Text>
-            </View>
-          </View>
-
-          {patient.visits.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
-                <MaterialCommunityIcons name="history" size={36} color={THEME.primary} />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>No Visit History</Text>
-              <Text style={styles.emptySubtitle}>This patient has no recorded visits yet</Text>
-            </View>
-          ) : (
-            <View style={styles.visitsList}>
-              {patient.visits.map((visit, i) => (
-                <VisitCard
-                  key={visit.visitId}
-                  visit={visit}
-                  index={i}
-                  onPress={() => handleVisitPress(visit)}
-                  isSelected={selectedVisit?.visitId === visit.visitId}
-                />
+          {(shown.allergies.length > 0 || shown.chronicConditions.length > 0) && (
+            <View style={styles.flags}>
+              {shown.allergies.map((a) => (
+                <ToneBadge key={`a-${a}`} label={`Allergy: ${a}`} tone="error" style={styles.flag} />
+              ))}
+              {shown.chronicConditions.map((cc) => (
+                <ToneBadge key={`c-${cc}`} label={cc} tone="warning" style={styles.flag} />
               ))}
             </View>
           )}
-        </View>
+        </Card>
 
-        <View style={{ height: 40 }} />
-      </Animated.ScrollView>
-    </SafeAreaView>
+        <Card style={styles.section}>
+          {!!latestVisit && (
+            <ListRow
+              icon="chatbubble-ellipses-outline"
+              title="Message"
+              onPress={() => navigation.navigate('DoctorConsultChat', { appointmentId: latestVisit.visitId, patientName: name })}
+            />
+          )}
+          {!!shown.phone && (
+            <ListRow
+              icon="call-outline"
+              title="Call"
+              subtitle={shown.phone}
+              onPress={() => Linking.openURL(`tel:${shown.phone}`)}
+              divider={!!latestVisit}
+            />
+          )}
+          <ListRow
+            icon="clipboard-outline"
+            title="Consultation notes"
+            onPress={() =>
+              navigation.navigate(DoctorRouteNames.ConsultationNotes, {
+                appointmentId: latestVisit?.visitId ?? '',
+                patientId,
+                patientName: name,
+              })
+            }
+            divider={!!latestVisit || !!shown.phone}
+          />
+        </Card>
+
+        <SectionHeader title="Visits" style={styles.section} />
+        {shown.visits.length === 0 ? (
+          <Card>
+            <EmptyState icon="time-outline" title="No visits yet" message="Visits with you appear here." />
+          </Card>
+        ) : (
+          <Card padded={false} style={styles.listCard}>
+            {shown.visits.map((visit, i) => (
+              <TouchableOpacity
+                key={visit.visitId}
+                style={[styles.visit, i > 0 && styles.divider]}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate(DoctorRouteNames.AppointmentDetail, { appointmentId: visit.visitId })}
+                accessibilityRole="button"
+                accessibilityLabel={`Visit on ${visit.date ? formatDateLabel(dateKeyOf(new Date(visit.date))) : 'unknown date'}`}
+              >
+                <View style={styles.visitIcon}>
+                  <Ionicons name={consultationIcon(visit.type) as any} size={18} color={colors.inkMuted} />
+                </View>
+                <View style={styles.visitBody}>
+                  <Text style={styles.strong}>
+                    {visit.date ? formatDateLabel(dateKeyOf(new Date(visit.date)), { weekday: false, year: true }) : 'Date unknown'}
+                  </Text>
+                  <Text style={styles.muted} numberOfLines={2}>
+                    {visit.diagnosis || `${consultationLabel(visit.type)} consultation`}
+                  </Text>
+                  <View style={styles.visitBadges}>
+                    {!!visit.prescriptionId && <ToneBadge label="Prescription" tone="accent" icon="medkit-outline" style={styles.flag} />}
+                    {!!visit.followUp && (
+                      <ToneBadge
+                        label={`Follow-up ${formatDateLabel(dateKeyOf(new Date(visit.followUp)), { weekday: false })}`}
+                        tone="info"
+                        style={styles.flag}
+                      />
+                    )}
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+              </TouchableOpacity>
+            ))}
+          </Card>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <Screen>
+      <AppBar title="Patient" subtitle={name} onBack={() => navigation.goBack()} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={loading && !!shown} onRefresh={load} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
+        {body()}
+        <View style={styles.bottomSpace} />
+      </ScrollView>
+    </Screen>
   );
 };
 
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    content: { paddingHorizontal: GUTTER, paddingTop: S.lg },
+    section: { marginTop: SECTION },
+    identity: { flexDirection: 'row', alignItems: 'center' },
+    identityText: { flex: 1, marginLeft: S.md },
+    name: { ...T.heading, color: c.ink },
+    muted: { ...T.body, color: c.inkMuted, marginTop: 2 },
+    strong: { ...T.bodyStrong, color: c.ink },
+    flags: { flexDirection: 'row', flexWrap: 'wrap', marginTop: S.md },
+    flag: { marginRight: S.xs, marginTop: S.xs },
+    listCard: { paddingHorizontal: S.lg },
+    visit: { flexDirection: 'row', alignItems: 'center', paddingVertical: S.md },
+    divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+    visitIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.surfaceSunken, alignItems: 'center', justifyContent: 'center' },
+    visitBody: { flex: 1, marginHorizontal: S.md },
+    visitBadges: { flexDirection: 'row', flexWrap: 'wrap' },
+    bottomSpace: { height: S.huge },
+  });
+
 export default PatientHistoryScreen;
-
-// ── Styles ─────────────────────────────────────
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-  },
-
-  // Loading / Error
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    gap: 10,
-  },
-  loadingIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-  errorIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-  },
-  errorSubtext: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  retryBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  retryBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-  },
-  retryBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-
-  // Header
-  headerGradient: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0,
-    paddingBottom: 14,
-  },
-  headerNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 1,
-  },
-  callBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Scroll
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  // Patient card
-  patientCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
-      android: { elevation: 3 },
-    }),
-  },
-  patientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  patientAvatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  patientInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  patientName: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.3,
-  },
-  patientMeta: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-  patientPhone: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-  },
-  visitCountBadge: {
-    alignItems: 'center',
-    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: sh.hue('#BFDBFE'),
-  },
-  visitCountNum: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: THEME.primary,
-    letterSpacing: -0.4,
-  },
-  visitCountLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: sh.hue('#93C5FD'),
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-
-  // Alerts card
-  alertsCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    gap: 14,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
-      android: { elevation: 3 },
-    }),
-  },
-  alertSection: {
-    gap: 8,
-  },
-  alertSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  alertDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  alertSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  alertsDivider: {
-    height: 1,
-    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  allergyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: sh.ground('#FECACA', '#EF4444'),
-  },
-  allergyChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.error,
-  },
-  conditionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: sh.hue('#FDE68A'),
-  },
-  conditionChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.warning,
-  },
-
-  // Visits section
-  visitsSection: {
-    gap: 14,
-  },
-  visitsSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  visitsSectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: THEME.primary,
-  },
-  visitsSectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  visitsCountBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: THEME.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  visitsCountText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: THEME.primary,
-  },
-
-  visitsList: {
-    gap: 10,
-  },
-
-  // Visit card
-  visitCard: {
-    flexDirection: 'row',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
-  },
-  visitCardSelected: {
-    borderColor: sh.hue('#BFDBFE'),
-    backgroundColor: sh.n('#FAFEFF', 'surfaceSunken'),
-  },
-  visitStripe: {
-    width: 5,
-    alignSelf: 'stretch',
-  },
-  visitBody: {
-    flex: 1,
-    padding: 14,
-    gap: 8,
-  },
-  visitHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  visitTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  visitTypeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  visitDateText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: sh.n('#94A3B8', 'inkFaint'),
-  },
-  visitDiagnosis: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.2,
-  },
-  symptomsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 5,
-  },
-  symptomTag: {
-    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  symptomText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-  moreText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: sh.n('#94A3B8', 'inkFaint'),
-  },
-  visitNotes: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: sh.n('#64748B', 'inkMuted'),
-    lineHeight: 17,
-  },
-  visitFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
-    gap: 8,
-  },
-  rxBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: THEME.primaryLight,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  rxBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
-  followUpBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: sh.hue('#FDE68A'),
-  },
-  followUpText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: THEME.warning,
-  },
-
-  // Empty
-  emptyCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    padding: 36,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: sh.hue('#374151'),
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    textAlign: 'center',
-  },
-});

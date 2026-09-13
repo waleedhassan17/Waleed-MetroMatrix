@@ -1,1045 +1,401 @@
-import { toLocalISODate } from '../../../../utils/date/localDate';
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-  StatusBar,
-  Switch,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { barStyleOn, useTheme } from '../../../../theme';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import React, { useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
-  setPatient,
-  setDiagnosis,
-  addSymptom,
-  removeSymptom,
+  AppBar,
+  Button,
+  Card,
+  Chip,
+  DateField,
+  EmptyState,
+  FormSheet,
+  Screen,
+  SectionHeader,
+  TextField,
+  showToast,
+} from '../../../../components/ui';
+import { E, GUTTER, S, SECTION, T } from '../../../../constants/theme';
+import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
+import { useUnsavedChangesGuard } from '../../../../hooks/useUnsavedChangesGuard';
+import type { Medication } from '../../../../models/healthcare/types';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { consultationLabel } from '../../../../utils/healthcare/doctorFormat';
+import { addDaysToKey, todayDateKey } from '../../../../utils/healthcare/timeRanges';
+import {
   addMedication,
-  removeMedication,
+  addSymptom,
   addTest,
-  removeTest,
-  setAdvice,
-  setFollowUpDate,
-  savePrescription,
   clearPrescription,
   DIAGNOSIS_SUGGESTIONS,
-  PrescriptionPatient,
+  removeMedication,
+  removeSymptom,
+  removeTest,
+  savePrescription,
+  setAdvice,
+  setDiagnosis,
+  setFollowUpDate,
+  setPatient,
 } from './prescriptionWriterSlice';
-import { Medication } from '../../../../models/healthcare/types';
 
-// ── Theme ─────────────────────────────────────
-import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+// ============================================================================
+// Write a prescription for a completed appointment.
+//
+// The form's section card, tag input and tag were components declared INSIDE
+// this screen's render, so every keystroke created new component types and
+// remounted the inputs — the keyboard dropped mid-word. Opened without a
+// patient (the old dashboard tile) it showed an error and bounced back. The
+// header icon beside the title wiped the whole form without asking.
+// ============================================================================
 
-// ── Constants ─────────────────────────────────
+const FREQUENCIES = ['Once a day', 'Twice a day', 'Three times a day', 'Every 8 hours', 'At bedtime', 'As needed'];
 
-const EMPTY_MED: Medication = {
-  name: '',
-  dosage: '',
-  frequency: '',
-  duration: '',
-  instructions: '',
+const EMPTY_MED: Medication = { name: '', dosage: '', frequency: '', duration: '', instructions: '' };
+
+/** A short list of values added one at a time — symptoms, tests. */
+const TagInput: React.FC<{
+  label: string;
+  placeholder: string;
+  values: string[];
+  onAdd: (value: string) => void;
+  onRemove: (value: string) => void;
+}> = ({ label, placeholder, values, onAdd, onRemove }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [text, setText] = useState('');
+
+  const add = () => {
+    if (text.trim()) onAdd(text.trim());
+    setText('');
+  };
+
+  return (
+    <View>
+      <TextField
+        label={label}
+        value={text}
+        onChangeText={setText}
+        placeholder={placeholder}
+        returnKeyType="done"
+        onSubmitEditing={add}
+        blurOnSubmit={false}
+        maxLength={80}
+        containerStyle={styles.tagField}
+        right={
+          text.trim() ? (
+            <TouchableOpacity onPress={add} accessibilityRole="button" accessibilityLabel={`Add to ${label}`}>
+              <Ionicons name="add-circle" size={22} color={colors.accentDeep} />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
+      {values.length > 0 && (
+        <View style={styles.chips}>
+          {values.map((v) => (
+            <Chip key={v} label={v} icon="close" selected onPress={() => onRemove(v)} style={styles.chip} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
 };
-
-// Tag color per section
-const SECTION_COLORS = {
-  symptoms: '#EF4444',
-  tests: THEME.primary,
-};
-
-// ── Component ─────────────────────────────────
 
 const PrescriptionWriterScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
+  const params = route.params || {};
 
-  const {
-    patient,
-    diagnosis,
-    symptoms,
-    medications,
-    tests,
-    advice,
-    followUpDate,
-    saving,
-    saveSuccess,
-    error,
-  } = useAppSelector((s) => s.prescriptionWriter);
+  const rx = useAppSelector((s) => s.prescriptionWriter);
+  const [submitted, setSubmitted] = useState(false);
+  const [medOpen, setMedOpen] = useState(false);
+  const [med, setMed] = useState<Medication>(EMPTY_MED);
+  const [medSubmitted, setMedSubmitted] = useState(false);
 
-  const [symptomInput, setSymptomInput] = useState('');
-  const [testInput, setTestInput] = useState('');
-  const [medForm, setMedForm] = useState<Medication>({ ...EMPTY_MED });
-  const [showDiagnosisSuggestions, setShowDiagnosisSuggestions] = useState(false);
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-  const successAnim = useRef(new Animated.Value(0)).current;
-  const sectionAnims = useRef([0, 1, 2, 3, 4, 5].map(() => new Animated.Value(0))).current;
+  const hasPatient = !!params.patientId && !!params.appointmentId;
 
   useEffect(() => {
-    // Accept either a full `patient` object (from the consultation screen) or a
-    // bare `patientId` (+ optional name) when launched from the patient queue.
-    const patientParam = route.params?.patient as PrescriptionPatient | undefined;
-    const fallbackId = route.params?.patientId as string | undefined;
-    const resolved: PrescriptionPatient | undefined =
-      patientParam ||
-      (fallbackId
-        ? {
-            patientId: fallbackId,
-            patientName: (route.params?.patientName as string) || 'Patient',
-            age: (route.params?.age as number) || 0,
-            gender: (route.params?.gender as PrescriptionPatient['gender']) || 'Male',
-            appointmentId: (route.params?.appointmentId as string) || '',
-            type: (route.params?.type as PrescriptionPatient['type']) || 'in-clinic',
-          }
-        : undefined);
-    if (!resolved) {
-      Alert.alert('Error', 'No patient selected for prescription.');
-      navigation.goBack();
-      return;
+    if (hasPatient) {
+      dispatch(
+        setPatient({
+          patientId: params.patientId,
+          patientName: params.patientName || 'Patient',
+          appointmentId: params.appointmentId,
+          type: params.type === 'video' ? 'video' : 'in-clinic',
+          age: typeof params.age === 'number' ? params.age : 0,
+          gender: params.gender === 'Male' || params.gender === 'Female' ? params.gender : 'Other',
+        })
+      );
     }
-    dispatch(setPatient(resolved));
+    return () => {
+      dispatch(clearPrescription());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, hasPatient]);
 
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      Animated.stagger(
-        80,
-        sectionAnims.map((a) =>
-          Animated.spring(a, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true })
-        )
-      ),
-    ]).start();
+  const dirty =
+    !!rx.diagnosis.trim() ||
+    rx.symptoms.length > 0 ||
+    rx.medications.length > 0 ||
+    rx.tests.length > 0 ||
+    !!rx.advice.trim() ||
+    !!rx.followUpDate;
+  const { sheet, allowLeave } = useUnsavedChangesGuard(dirty, { message: "This prescription hasn't been sent." });
 
-    return () => { dispatch(clearPrescription()); };
-  }, [dispatch, route.params]);
+  const diagnosisError = submitted && !rx.diagnosis.trim() ? 'Enter a diagnosis' : null;
+  const medsError = submitted && rx.medications.length === 0 ? 'Add at least one medication' : null;
 
-  // Success banner animation
-  useEffect(() => {
-    if (saveSuccess) {
-      Animated.spring(successAnim, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true }).start();
-    }
-  }, [saveSuccess]);
-
-  // ── Handlers ──────────────────────────────
-
-  const handleAddSymptom = useCallback(() => {
-    if (symptomInput.trim()) {
-      dispatch(addSymptom(symptomInput.trim()));
-      setSymptomInput('');
-    }
-  }, [symptomInput, dispatch]);
-
-  const handleAddMedication = useCallback(() => {
-    if (!medForm.name.trim()) { Alert.alert('Required', 'Medication name is required'); return; }
-    if (!medForm.dosage.trim()) { Alert.alert('Required', 'Dosage is required'); return; }
-    if (!medForm.frequency.trim()) { Alert.alert('Required', 'Frequency is required'); return; }
-    dispatch(addMedication(medForm));
-    setMedForm({ ...EMPTY_MED });
-  }, [medForm, dispatch]);
-
-  const handleAddTest = useCallback(() => {
-    if (testInput.trim()) {
-      dispatch(addTest(testInput.trim()));
-      setTestInput('');
-    }
-  }, [testInput, dispatch]);
-
-  const handleSave = useCallback(() => {
-    dispatch(savePrescription());
-    if (saveAsTemplate) {
-      // Future: dispatch action to save this prescription as a template
-    }
-  }, [dispatch, saveAsTemplate]);
-
-  const filteredSuggestions = diagnosis.length >= 2
-    ? DIAGNOSIS_SUGGESTIONS.filter((s) =>
-        s.toLowerCase().includes(diagnosis.toLowerCase())
-      ).slice(0, 5)
-    : [];
-
-  const isValid = diagnosis.trim() && medications.length > 0;
-
-  // ── Section card wrapper ───────────────────
-
-  const SectionCard: React.FC<{
-    title: string;
-    iconName: string;
-    iconLib?: 'ion' | 'mci';
-    accentColor?: string;
-    animIndex: number;
-    children: React.ReactNode;
-    badge?: number;
-  }> = ({ title, iconName, iconLib = 'ion', accentColor = THEME.primary, animIndex, children, badge }) => {
-    const a = sectionAnims[animIndex];
-    return (
-      <Animated.View
-        style={{
-          opacity: a,
-          transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-          marginBottom: 14,
-        }}
-      >
-        <View style={styles.card}>
-          <View style={styles.cardLabelRow}>
-            <View style={[styles.cardLabelIcon, { backgroundColor: `${accentColor}18` }]}>
-              {iconLib === 'mci' ? (
-                <MaterialCommunityIcons name={iconName as any} size={15} color={accentColor} />
-              ) : (
-                <Ionicons name={iconName as any} size={15} color={accentColor} />
-              )}
-            </View>
-            <Text style={styles.cardLabel}>{title}</Text>
-            {badge !== undefined && badge > 0 && (
-              <View style={[styles.cardBadge, { backgroundColor: `${accentColor}18` }]}>
-                <Text style={[styles.cardBadgeText, { color: accentColor }]}>{badge}</Text>
-              </View>
-            )}
-          </View>
-          {children}
-        </View>
-      </Animated.View>
-    );
+  const medErrors = {
+    name: medSubmitted && !med.name.trim() ? 'Enter the medicine' : null,
+    dosage: medSubmitted && !med.dosage.trim() ? 'Enter the dose, e.g. 500 mg' : null,
+    frequency: medSubmitted && !med.frequency.trim() ? 'Choose how often' : null,
   };
 
-  // ── Input Row ──────────────────────────────
+  const saveMed = () => {
+    setMedSubmitted(true);
+    if (!med.name.trim() || !med.dosage.trim() || !med.frequency.trim()) return;
+    dispatch(
+      addMedication({
+        name: med.name.trim(),
+        dosage: med.dosage.trim(),
+        frequency: med.frequency.trim(),
+        duration: med.duration.trim(),
+        instructions: med.instructions.trim(),
+      })
+    );
+    setMedOpen(false);
+  };
 
-  const InputWithAdd: React.FC<{
-    value: string;
-    onChange: (t: string) => void;
-    onAdd: () => void;
-    placeholder: string;
-    accentColor?: string;
-  }> = ({ value, onChange, onAdd, placeholder, accentColor = THEME.primary }) => (
-    <View style={styles.inputRow}>
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={styles.rowInput}
-          placeholder={placeholder}
-          placeholderTextColor="#CBD5E1"
-          value={value}
-          onChangeText={onChange}
-          onSubmitEditing={onAdd}
-          returnKeyType="done"
-        />
-      </View>
-      <TouchableOpacity style={styles.addIconBtn} onPress={onAdd} activeOpacity={0.85}>
-        <LinearGradient
-          colors={[accentColor, accentColor]}
-          style={styles.addIconBtnGradient}
-        >
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
+  const send = async () => {
+    setSubmitted(true);
+    if (!rx.diagnosis.trim() || rx.medications.length === 0 || rx.saving) return;
+    try {
+      await dispatch(savePrescription()).unwrap();
+      allowLeave();
+      showToast({ message: `Prescription sent to ${rx.patient?.patientName || 'the patient'}`, tone: 'success' });
+      navigation.goBack();
+    } catch (e) {
+      showToast({ message: typeof e === 'string' ? e : "We couldn't send this prescription", tone: 'error' });
+    }
+  };
 
-  // ── Tag chip ───────────────────────────────
-
-  const Tag: React.FC<{ label: string; color: string; onRemove: () => void }> = ({
-    label, color, onRemove,
-  }) => (
-    <View style={[styles.tagChip, { backgroundColor: `${color}15`, borderColor: `${color}30` }]}>
-      <Text style={[styles.tagText, { color }]}>{label}</Text>
-      <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="close-circle" size={15} color={color} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  // ── Render ────────────────────────────────────
-
-  if (!patient) {
+  if (!hasPatient) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.header}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Error</Text>
-          </View>
-          <View style={styles.headerBtn} />
-        </LinearGradient>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-           <Text style={{ fontSize: 16, color: sh.n('#64748B', 'inkMuted') }}>Patient data missing</Text>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <AppBar title="Prescription" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="medkit-outline"
+          title="Choose an appointment first"
+          message="Prescriptions are written from a completed appointment, so they reach the right patient."
+          actionLabel="Go back"
+          onAction={() => navigation.goBack()}
+        />
+      </Screen>
     );
   }
 
+  const query = rx.diagnosis.trim().toLowerCase();
+  const suggestions = DIAGNOSIS_SUGGESTIONS.filter(
+    (d) => d.toLowerCase() !== query && (!query || d.toLowerCase().includes(query))
+  ).slice(0, 6);
+  const details = [
+    params.patientName,
+    typeof params.age === 'number' && params.age > 0 ? `${params.age} yrs` : '',
+    params.gender && params.gender !== 'Other' ? params.gender : '',
+  ].filter(Boolean);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={barStyleOn(THEME.gradient.primary[0])} backgroundColor={THEME.gradient.primary[0]} />
+    <Screen>
+      <AppBar title="Prescription" subtitle={details.join(' · ')} onBack={() => navigation.goBack()} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.caption}>{consultationLabel(params.type)} consultation</Text>
 
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={THEME.gradient.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerNav}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Write Prescription</Text>
-            <Text style={styles.headerSubtitle}>
-              {medications.length} med{medications.length !== 1 ? 's' : ''} · {symptoms.length} symptom{symptoms.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => dispatch(clearPrescription())}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="refresh" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <Animated.ScrollView
-          style={[styles.flex, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-
-          {/* ── Patient Card ── */}
-          {patient && (
-            <Animated.View
-              style={{
-                opacity: sectionAnims[0],
-                transform: [{ translateY: sectionAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-                marginBottom: 14,
-              }}
-            >
-              <View style={styles.patientCard}>
-                <LinearGradient colors={THEME.gradient.primary} style={styles.patientAvatar}>
-                  <MaterialCommunityIcons name="account" size={24} color="#FFFFFF" />
-                </LinearGradient>
-                <View style={styles.patientInfo}>
-                  <Text style={styles.patientName}>{patient.patientName}</Text>
-                  <Text style={styles.patientMeta}>
-                    {patient.age} yrs  ·  {patient.gender}
-                  </Text>
-                  <Text style={styles.patientAppt}>Appt: {patient.appointmentId}</Text>
-                </View>
-                <View style={[
-                  styles.patientTypeChip,
-                  { backgroundColor: patient.type === 'video' ? '#EAF3FF' : THEME.primaryLight },
-                ]}>
-                  <Ionicons
-                    name={patient.type === 'video' ? 'videocam-outline' : 'business-outline'}
-                    size={13}
-                    color={patient.type === 'video' ? THEME.accent : THEME.primary}
-                  />
-                  <Text style={[styles.patientTypeText, {
-                    color: patient.type === 'video' ? THEME.accent : THEME.primary,
-                  }]}>
-                    {patient.type === 'video' ? 'Video' : 'In-Clinic'}
-                  </Text>
-                </View>
-              </View>
-            </Animated.View>
+          <SectionHeader title="Diagnosis" style={styles.sectionTight} />
+          <TextField
+            value={rx.diagnosis}
+            onChangeText={(t) => dispatch(setDiagnosis(t))}
+            placeholder="e.g. Upper respiratory infection"
+            error={diagnosisError}
+            maxLength={200}
+          />
+          {suggestions.length > 0 && (
+            <View style={styles.chips}>
+              {suggestions.map((d) => (
+                <Chip key={d} label={d} onPress={() => dispatch(setDiagnosis(d))} style={styles.chip} />
+              ))}
+            </View>
           )}
 
-          {/* ── Symptoms ── */}
-          <SectionCard
-            title="Symptoms"
-            iconName="bandage-outline"
-            accentColor="#EF4444"
-            animIndex={1}
-            badge={symptoms.length}
-          >
-            <InputWithAdd
-              value={symptomInput}
-              onChange={setSymptomInput}
-              onAdd={handleAddSymptom}
-              placeholder="e.g. Headache, Fever…"
-              accentColor="#EF4444"
-            />
-            {symptoms.length > 0 && (
-              <View style={styles.tagsWrap}>
-                {symptoms.map((s) => (
-                  <Tag key={s} label={s} color="#EF4444" onRemove={() => dispatch(removeSymptom(s))} />
-                ))}
-              </View>
-            )}
-          </SectionCard>
+          <TagInput
+            label="Symptoms"
+            placeholder="Add a symptom"
+            values={rx.symptoms}
+            onAdd={(v) => dispatch(addSymptom(v))}
+            onRemove={(v) => dispatch(removeSymptom(v))}
+          />
 
-          {/* ── Diagnosis ── */}
-          <SectionCard
-            title="Diagnosis *"
-            iconName="stethoscope"
-            iconLib="mci"
-            accentColor={THEME.primary}
-            animIndex={2}
-          >
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Type diagnosis…"
-                placeholderTextColor="#CBD5E1"
-                value={diagnosis}
-                onChangeText={(text) => {
-                  dispatch(setDiagnosis(text));
-                  setShowDiagnosisSuggestions(true);
+          <SectionHeader
+            title="Medications"
+            actionLabel="Add"
+            onAction={() => {
+              setMed(EMPTY_MED);
+              setMedSubmitted(false);
+              setMedOpen(true);
+            }}
+            style={styles.section}
+          />
+          {rx.medications.length === 0 ? (
+            <Card>
+              <Text style={styles.body}>No medications added.</Text>
+              <Button
+                label="Add medication"
+                icon="add"
+                variant="secondary"
+                size="sm"
+                fullWidth={false}
+                onPress={() => {
+                  setMed(EMPTY_MED);
+                  setMedSubmitted(false);
+                  setMedOpen(true);
                 }}
-                onBlur={() => setTimeout(() => setShowDiagnosisSuggestions(false), 200)}
+                style={styles.inlineButton}
               />
-            </View>
-
-            {/* Autocomplete */}
-            {showDiagnosisSuggestions && filteredSuggestions.length > 0 && (
-              <View style={styles.suggestionsBox}>
-                {filteredSuggestions.map((s, i) => (
-                  <TouchableOpacity
-                    key={s}
-                    style={[
-                      styles.suggestionItem,
-                      i < filteredSuggestions.length - 1 && styles.suggestionBorder,
-                    ]}
-                    onPress={() => {
-                      dispatch(setDiagnosis(s));
-                      setShowDiagnosisSuggestions(false);
-                    }}
-                  >
-                    <Ionicons name="search-outline" size={13} color="#94A3B8" />
-                    <Text style={styles.suggestionText}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </SectionCard>
-
-          {/* ── Medications ── */}
-          <SectionCard
-            title="Medications *"
-            iconName="pill"
-            iconLib="mci"
-            accentColor={THEME.accent}
-            animIndex={3}
-            badge={medications.length}
-          >
-            {/* Existing medications */}
-            {medications.length > 0 && (
-              <View style={styles.medList}>
-                {medications.map((med, idx) => (
-                  <View key={`${med.name}-${idx}`} style={styles.medCard}>
-                    <LinearGradient
-                      colors={THEME.gradient.secondary}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={styles.medStripe}
-                    />
-                    <View style={styles.medCardBody}>
-                      <View style={styles.medCardHeader}>
-                        <View style={styles.medIconWrap}>
-                          <MaterialCommunityIcons name="pill" size={14} color={THEME.accent} />
-                        </View>
-                        <Text style={styles.medName}>{med.name}</Text>
-                        <TouchableOpacity
-                          style={styles.medDeleteBtn}
-                          onPress={() => dispatch(removeMedication(idx))}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Ionicons name="trash-outline" size={15} color={THEME.error} />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.medTagRow}>
-                        <View style={[styles.medInfoChip, { backgroundColor: sh.ground('#F0F7FF', '#2A7FFF') }]}>
-                          <MaterialCommunityIcons name="flask-outline" size={10} color={THEME.primary} />
-                          <Text style={[styles.medInfoText, { color: THEME.primary }]}>{med.dosage}</Text>
-                        </View>
-                        <View style={[styles.medInfoChip, { backgroundColor: '#F0FDF4' }]}>
-                          <Ionicons name="time-outline" size={10} color={THEME.success} />
-                          <Text style={[styles.medInfoText, { color: THEME.success }]}>{med.frequency}</Text>
-                        </View>
-                        {med.duration ? (
-                          <View style={[styles.medInfoChip, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
-                            <MaterialCommunityIcons name="timer-outline" size={10} color={THEME.warning} />
-                            <Text style={[styles.medInfoText, { color: THEME.warning }]}>{med.duration}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      {med.instructions ? (
-                        <Text style={styles.medInstructions}>{med.instructions}</Text>
-                      ) : null}
-                    </View>
+            </Card>
+          ) : (
+            <Card padded={false} style={styles.listCard}>
+              {rx.medications.map((m, i) => (
+                <View key={`${m.name}-${i}`} style={[styles.medRow, i > 0 && styles.divider]}>
+                  <View style={styles.flex}>
+                    <Text style={styles.strong}>{m.name}</Text>
+                    <Text style={styles.caption}>{[m.dosage, m.frequency, m.duration].filter(Boolean).join(' · ')}</Text>
+                    {!!m.instructions && <Text style={styles.caption}>{m.instructions}</Text>}
                   </View>
-                ))}
-              </View>
-            )}
+                  <TouchableOpacity
+                    onPress={() => dispatch(removeMedication(i))}
+                    style={styles.iconButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${m.name}`}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.inkMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </Card>
+          )}
+          {!!medsError && <Text style={styles.error}>{medsError}</Text>}
 
-            {/* Add medication form */}
-            <View style={styles.medFormCard}>
-              <Text style={styles.medFormTitle}>Add Medication</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Medicine name *"
-                  placeholderTextColor="#CBD5E1"
-                  value={medForm.name}
-                  onChangeText={(t) => setMedForm((p) => ({ ...p, name: t }))}
-                />
-              </View>
-              <View style={styles.twoCol}>
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Dosage *"
-                    placeholderTextColor="#CBD5E1"
-                    value={medForm.dosage}
-                    onChangeText={(t) => setMedForm((p) => ({ ...p, dosage: t }))}
-                  />
-                </View>
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Frequency *"
-                    placeholderTextColor="#CBD5E1"
-                    value={medForm.frequency}
-                    onChangeText={(t) => setMedForm((p) => ({ ...p, frequency: t }))}
-                  />
-                </View>
-              </View>
-              <View style={styles.twoCol}>
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Duration"
-                    placeholderTextColor="#CBD5E1"
-                    value={medForm.duration}
-                    onChangeText={(t) => setMedForm((p) => ({ ...p, duration: t }))}
-                  />
-                </View>
-                <View style={[styles.inputWrapper, { flex: 1 }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Instructions"
-                    placeholderTextColor="#CBD5E1"
-                    value={medForm.instructions}
-                    onChangeText={(t) => setMedForm((p) => ({ ...p, instructions: t }))}
-                  />
-                </View>
-              </View>
-              <TouchableOpacity style={styles.addMedBtn} onPress={handleAddMedication} activeOpacity={0.85}>
-                <LinearGradient
-                  colors={THEME.gradient.secondary}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.addMedBtnGradient}
-                >
-                  <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.addMedBtnText}>Add Medication</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </SectionCard>
-
-          {/* ── Lab Tests ── */}
-          <SectionCard
-            title="Lab Tests"
-            iconName="flask-outline"
-            accentColor={THEME.success}
-            animIndex={4}
-            badge={tests.length}
-          >
-            <InputWithAdd
-              value={testInput}
-              onChange={setTestInput}
-              onAdd={handleAddTest}
-              placeholder="e.g. CBC, HbA1c…"
-              accentColor={THEME.success}
+          <View style={styles.section}>
+            <TagInput
+              label="Tests"
+              placeholder="Add a test, e.g. CBC"
+              values={rx.tests}
+              onAdd={(v) => dispatch(addTest(v))}
+              onRemove={(v) => dispatch(removeTest(v))}
             />
-            {tests.length > 0 && (
-              <View style={styles.tagsWrap}>
-                {tests.map((t) => (
-                  <Tag key={t} label={t} color={THEME.success} onRemove={() => dispatch(removeTest(t))} />
-                ))}
-              </View>
-            )}
-          </SectionCard>
-
-          {/* ── Advice ── */}
-          <SectionCard
-            title="Special Instructions / Advice"
-            iconName="information-circle-outline"
-            accentColor={THEME.warning}
-            animIndex={5}
-          >
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Dietary advice, precautions, lifestyle changes…"
-                placeholderTextColor="#CBD5E1"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                value={advice}
-                onChangeText={(t) => dispatch(setAdvice(t))}
-              />
-            </View>
-          </SectionCard>
-
-          {/* ── Follow-Up ── */}
-          <SectionCard
-            title="Follow-Up Date"
-            iconName="calendar-outline"
-            accentColor={THEME.primary}
-            animIndex={5}
-          >
-            <TouchableOpacity style={styles.inputWrapper} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
-              <Text style={[styles.textInput, !followUpDate && { color: sh.n('#CBD5E1', 'disabled'), paddingVertical: Platform.OS === 'ios' ? 12 : 8 }]}>
-                {followUpDate || 'Select Date (YYYY-MM-DD)'}
-              </Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={followUpDate ? new Date(followUpDate) : new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    dispatch(setFollowUpDate(toLocalISODate(selectedDate)));
-                  }
-                }}
-              />
-            )}
-          </SectionCard>
-
-          {/* ── Save As Template ── */}
-          <Animated.View style={{ opacity: sectionAnims[5] }}>
-            <View style={styles.templateToggleRow}>
-              <Text style={styles.templateToggleLabel}>Save as Template</Text>
-              <Switch
-                value={saveAsTemplate}
-                onValueChange={setSaveAsTemplate}
-                trackColor={{ false: '#E2E8F0', true: `${THEME.primary}55` }}
-                thumbColor={saveAsTemplate ? THEME.primary : '#CBD5E1'}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Error / Success */}
-          {error ? (
-            <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={15} color={THEME.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {saveSuccess ? (
-            <Animated.View
-              style={[
-                styles.successBanner,
-                {
-                  opacity: successAnim,
-                  transform: [{ translateY: successAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
-                },
-              ]}
-            >
-              <LinearGradient colors={THEME.gradient.success} style={styles.successBannerGradient}>
-                <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-                <Text style={styles.successText}>Prescription saved successfully!</Text>
-              </LinearGradient>
-            </Animated.View>
-          ) : null}
-
-          <View style={{ height: 120 }} />
-        </Animated.ScrollView>
-
-        {/* ── Bottom Save Bar ── */}
-        <View style={styles.bottomBar}>
-          {/* Summary */}
-          <View style={styles.bottomSummaryRow}>
-            <Text style={styles.bottomSummaryText}>
-              {medications.length === 0 ? 'Add at least 1 medication' : `${medications.length} medication${medications.length !== 1 ? 's' : ''}`}
-            </Text>
-            {!diagnosis.trim() && (
-              <Text style={styles.bottomSummaryText}> · Diagnosis required</Text>
-            )}
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveBtn, !isValid && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={saving || !isValid}
-            activeOpacity={0.85}
-          >
-            {isValid ? (
-              <LinearGradient
-                colors={THEME.gradient.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.saveBtnGradient}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
-                    <Text style={styles.saveBtnText}>Save Prescription</Text>
-                  </>
-                )}
-              </LinearGradient>
-            ) : (
-              <View style={styles.saveBtnGradient}>
-                <Ionicons name="checkmark-done" size={20} color="#94A3B8" />
-                <Text style={[styles.saveBtnText, { color: sh.n('#94A3B8', 'inkFaint') }]}>Complete form to save</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <TextField
+            label="Advice"
+            value={rx.advice}
+            onChangeText={(t) => dispatch(setAdvice(t))}
+            placeholder="Rest, fluids, diet, when to come back sooner"
+            multiline
+            maxLength={1000}
+          />
+
+          <DateField
+            label="Follow-up (optional)"
+            value={rx.followUpDate}
+            min={addDaysToKey(todayDateKey(), 1)}
+            onChange={(v) => dispatch(setFollowUpDate(v))}
+          />
+          {!!rx.followUpDate && (
+            <Button
+              label="Remove follow-up"
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              onPress={() => dispatch(setFollowUpDate(''))}
+              style={styles.inlineButton}
+            />
+          )}
+          <View style={styles.bottomSpace} />
+        </ScrollView>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + S.md }]}>
+          <Button label="Send prescription" icon="send-outline" onPress={send} loading={rx.saving} />
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+
+      <FormSheet
+        visible={medOpen}
+        title="Add medication"
+        onClose={() => setMedOpen(false)}
+        footer={<Button label="Add to prescription" onPress={saveMed} />}
+      >
+        <TextField label="Medicine" value={med.name} onChangeText={(name) => setMed({ ...med, name })} placeholder="e.g. Amoxicillin" error={medErrors.name} maxLength={80} />
+        <TextField label="Dose" value={med.dosage} onChangeText={(dosage) => setMed({ ...med, dosage })} placeholder="e.g. 500 mg" error={medErrors.dosage} maxLength={40} />
+        <Text style={styles.label}>How often</Text>
+        <View style={styles.chips}>
+          {FREQUENCIES.map((f) => (
+            <Chip key={f} label={f} selected={med.frequency === f} onPress={() => setMed({ ...med, frequency: f })} style={styles.chip} />
+          ))}
+        </View>
+        <TextField
+          value={FREQUENCIES.includes(med.frequency) ? '' : med.frequency}
+          onChangeText={(frequency) => setMed({ ...med, frequency })}
+          placeholder="Or write your own"
+          error={medErrors.frequency}
+          maxLength={60}
+        />
+        <TextField label="For how long" value={med.duration} onChangeText={(duration) => setMed({ ...med, duration })} placeholder="e.g. 5 days" maxLength={40} />
+        <TextField
+          label="Instructions"
+          value={med.instructions}
+          onChangeText={(instructions) => setMed({ ...med, instructions })}
+          placeholder="e.g. After meals"
+          maxLength={200}
+        />
+      </FormSheet>
+      {sheet}
+    </Screen>
   );
 };
 
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    content: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    section: { marginTop: SECTION },
+    sectionTight: { marginTop: S.md },
+    label: { ...T.label, color: c.inkMuted, marginBottom: S.sm },
+    caption: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    body: { ...T.body, color: c.inkMuted },
+    strong: { ...T.bodyStrong, color: c.ink },
+    error: { ...T.caption, color: c.error, marginTop: S.xs },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: S.md },
+    chip: { marginRight: S.sm, marginBottom: S.sm },
+    tagField: { marginBottom: S.sm },
+    inlineButton: { marginTop: S.md, alignSelf: 'flex-start' },
+    listCard: { paddingHorizontal: S.lg },
+    medRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: S.md },
+    divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+    iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    footer: {
+      paddingHorizontal: GUTTER,
+      paddingTop: S.md,
+      backgroundColor: c.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.line,
+      ...E.overlay,
+    },
+    bottomSpace: { height: S.huge * 2 },
+  });
+
 export default PrescriptionWriterScreen;
-
-// ── Styles ─────────────────────────────────────
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-  },
-  flex: { flex: 1 },
-
-  // Header
-  header: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0,
-    paddingBottom: 14,
-  },
-  headerNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.3 },
-  headerSubtitle: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
-
-  // Scroll
-  scrollContent: { padding: 20, paddingBottom: 40 },
-
-  // Patient card
-  patientCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    padding: 16,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
-  },
-  patientAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  patientInfo: { flex: 1, gap: 2 },
-  patientName: { fontSize: 16, fontWeight: '700', color: sh.n('#0F172A', 'ink') },
-  patientMeta: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted') },
-  patientAppt: { fontSize: 11, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint') },
-  patientTypeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  patientTypeText: { fontSize: 11, fontWeight: '700' },
-
-  // Card
-  card: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
-  },
-  cardLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    gap: 8,
-  },
-  cardLabelIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.n('#64748B', 'inkMuted'),
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    flex: 1,
-  },
-  cardBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardBadgeText: { fontSize: 11, fontWeight: '800' },
-
-  // Input
-  inputWrapper: {},
-  inputRow: { flexDirection: 'row', gap: 8 },
-  rowInput: {
-    flex: 1,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontWeight: '500',
-    color: sh.n('#0F172A', 'ink'),
-    borderWidth: 1.5,
-    borderColor: sh.n('#E2E8F0', 'line'),
-  },
-  textInput: {
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontWeight: '500',
-    color: sh.n('#0F172A', 'ink'),
-    borderWidth: 1.5,
-    borderColor: sh.n('#E2E8F0', 'line'),
-  },
-  textArea: { minHeight: 100, textAlignVertical: 'top' },
-  twoCol: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  addIconBtn: { borderRadius: 12, overflow: 'hidden' },
-  addIconBtnGradient: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Tags
-  tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  tagText: { fontSize: 12, fontWeight: '700' },
-
-  // Diagnosis autocomplete
-  suggestionsBox: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: sh.n('#E2E8F0', 'line'),
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10 },
-      android: { elevation: 4 },
-    }),
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  suggestionBorder: { borderBottomWidth: 1, borderBottomColor: sh.n('#F1F5F9', 'lineSoft') },
-  suggestionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: sh.hue('#374151'),
-  },
-
-  templateToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  templateToggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: THEME.textDark || sh.n('#0F172A', 'ink'),
-  },
-
-  // Meds list
-  medList: { gap: 8, marginBottom: 14 },
-  medCard: {
-    flexDirection: 'row',
-    backgroundColor: sh.n('#FAFBFF', 'surfaceSunken'),
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: sh.ground('#D6E8FF', '#5A9FFF'),
-  },
-  medStripe: { width: 4 },
-  medCardBody: { flex: 1, padding: 12, gap: 7 },
-  medCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  medIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  medName: { fontSize: 14, fontWeight: '700', color: sh.n('#0F172A', 'ink'), flex: 1 },
-  medDeleteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  medTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  medInfoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  medInfoText: { fontSize: 11, fontWeight: '700' },
-  medInstructions: { fontSize: 12, fontWeight: '500', color: sh.n('#64748B', 'inkMuted'), lineHeight: 16 },
-
-  // Med form
-  medFormCard: {
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: sh.n('#E2E8F0', 'line'),
-  },
-  medFormTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: sh.n('#64748B', 'inkMuted'),
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  addMedBtn: { borderRadius: 13, overflow: 'hidden', marginTop: 4 },
-  addMedBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-  },
-  addMedBtnText: { fontSize: 14, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Banners
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: sh.ground('#FECACA', '#EF4444'),
-  },
-  errorText: { fontSize: 13, fontWeight: '600', color: THEME.error, flex: 1 },
-  successBanner: { marginBottom: 10, borderRadius: 12, overflow: 'hidden' },
-  successBannerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  successText: { fontSize: 13, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse') },
-
-  // Bottom bar
-  bottomBar: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderTopWidth: 1,
-    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 18,
-    gap: 8,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12 },
-      android: { elevation: 8 },
-    }),
-  },
-  bottomSummaryRow: { flexDirection: 'row', justifyContent: 'center' },
-  bottomSummaryText: { fontSize: 12, fontWeight: '500', color: sh.n('#94A3B8', 'inkFaint') },
-  saveBtn: { borderRadius: 10, overflow: 'hidden' },
-  saveBtnDisabled: { backgroundColor: sh.n('#F1F5F9', 'lineSoft') },
-  saveBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-  },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: sh.n('#FFFFFF', 'inkInverse'), letterSpacing: -0.2 },
-});

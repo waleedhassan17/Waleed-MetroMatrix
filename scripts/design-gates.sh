@@ -24,6 +24,8 @@ SCOPE=(
   screens/user/homeservice
   screens/providers/homeservice
   screens/Shopping/Brand
+  screens/providers/healthcare
+  components/Healthcare/doctor
 )
 
 # Files that legitimately hold raw values: the token definitions themselves.

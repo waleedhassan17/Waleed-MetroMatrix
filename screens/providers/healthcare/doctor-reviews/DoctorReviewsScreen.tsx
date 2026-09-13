@@ -1,227 +1,223 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
-import { fetchMyReviewsApi } from '../../../../networks/healthcare/providerApi';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const C = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  star: '#F59E0B',
-  bg: '#F7F9FC',
-  surface: '#FFFFFF',
-  border: '#E5EAF2',
-  text: '#1A1A1A',
-  textSec: '#64748B',
-};
+import {
+  AppBar,
+  Avatar,
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SkeletonCard,
+} from '../../../../components/ui';
+import { GUTTER, R, S, T } from '../../../../constants/theme';
+import type { ReviewItem, ReviewStats } from '../../../../models/healthcare/doctorHub';
+import { fetchDoctorReviews } from '../../../../networks/healthcare/doctorHubApi';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { formatDateLabel } from '../../../../utils/healthcare/doctorFormat';
+import { dateKeyOf } from '../../../../utils/healthcare/timeRanges';
 
-type ReviewRow = {
-  id: string;
-  patientName: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
+// ============================================================================
+// Reviews.
+//
+// The average read `stats.average`, which the server never sent, so every
+// doctor was shown a 0.0 rating. Filtering happened client-side over the first
+// ten reviews only; it is a server query now, paged.
+// ============================================================================
+
+const PAGE = 10;
+
+const Stars: React.FC<{ rating: number; size?: number }> = ({ rating, size = 14 }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row' }} accessibilityLabel={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Ionicons
+          key={i}
+          name={i <= Math.round(rating) ? 'star' : 'star-outline'}
+          size={size}
+          color={colors.star}
+          style={{ marginRight: 1 }}
+        />
+      ))}
+    </View>
+  );
 };
 
 const DoctorReviewsScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  // react-native's SafeAreaView is a plain View on Android, so the back
-  // button was drawing against the status-bar icons.
-  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const [reviews, setReviews] = useState<ReviewRow[]>([]);
-  const [summary, setSummary] = useState<{ average: number; total: number; breakdown: Record<string, number> }>({
-    average: 0,
-    total: 0,
-    breakdown: {},
-  });
+
   const [filter, setFilter] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [page, setPage] = useState(0);
+  const [pages, setPages] = useState(1);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchMyReviewsApi();
-    if (res.success) {
-      const d: any = res.data || {};
-      const list = d.reviews || (Array.isArray(d) ? d : []);
-      setReviews(
-        list.map((r: any) => ({
-          id: String(r._id || r.id || r.reviewId),
-          patientName: r.patientId?.fullName || r.patientName || 'Patient',
-          rating: r.rating || 0,
-          comment: r.comment || '',
-          createdAt: r.createdAt || '',
-        }))
-      );
-      setSummary({
-        average: d.stats?.average ?? d.average ?? 0,
-        total: d.stats?.total ?? list.length,
-        breakdown: d.stats?.breakdown || {},
-      });
-    } else {
-      setError(res.message || 'Something went wrong');
-    }
-    setLoading(false);
-  }, []);
+  const load = useCallback(
+    async (nextPage: number, { refresh = false }: { refresh?: boolean } = {}) => {
+      if (nextPage === 1 && refresh) setRefreshing(true);
+      if (nextPage > 1) setLoadingMore(true);
+      const res = await fetchDoctorReviews({ rating: filter ?? undefined, page: nextPage, limit: PAGE });
+      setRefreshing(false);
+      setLoadingMore(false);
+      if (!res.success) {
+        setError(res.message || "We couldn't load your reviews");
+        if (nextPage === 1) setStatus((s) => (s === 'ready' && reviews.length ? 'ready' : 'error'));
+        return;
+      }
+      setError(null);
+      setStats(res.data.stats);
+      setReviews((prev) => (nextPage === 1 ? res.data.reviews : [...prev, ...res.data.reviews]));
+      setPage(nextPage);
+      setPages(res.data.pagination.pages || 1);
+      setStatus('ready');
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filter]
+  );
 
   useEffect(() => {
-    load();
+    setStatus('loading');
+    load(1);
   }, [load]);
 
-  const filtered = filter ? reviews.filter((r) => r.rating === filter) : reviews;
+  const breakdownMax = stats ? Math.max(...Object.values(stats.breakdown), 1) : 1;
 
-  const renderStars = (rating: number, size = 14) => (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons key={i} name={i <= rating ? 'star' : 'star-outline'} size={size} color={C.star} />
-      ))}
+  const header = (
+    <View>
+      {stats && (
+        <Card elevation="raised">
+          <View style={styles.summary}>
+            <View style={styles.average}>
+              <Text style={styles.averageValue}>{stats.total ? stats.average.toFixed(1) : '—'}</Text>
+              <Stars rating={stats.average} size={16} />
+              <Text style={styles.caption}>
+                {stats.total} review{stats.total === 1 ? '' : 's'}
+              </Text>
+            </View>
+            <View style={styles.breakdown}>
+              {(['5', '4', '3', '2', '1'] as const).map((star) => (
+                <TouchableOpacity
+                  key={star}
+                  style={styles.barRow}
+                  onPress={() => setFilter((f) => (f === Number(star) ? null : Number(star)))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${star} stars, ${stats.breakdown[star]} reviews. Filter`}
+                >
+                  <Text style={styles.barLabel}>{star}</Text>
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: `${Math.round((stats.breakdown[star] / breakdownMax) * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.barCount}>{stats.breakdown[star]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Card>
+      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        <Chip label="All" selected={filter === null} onPress={() => setFilter(null)} style={styles.chip} />
+        {[5, 4, 3, 2, 1].map((star) => (
+          <Chip
+            key={star}
+            label={`${star} star${star === 1 ? '' : 's'}`}
+            selected={filter === star}
+            onPress={() => setFilter(star)}
+            style={styles.chip}
+          />
+        ))}
+      </ScrollView>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={C.bg} />
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>My Reviews</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryLeft}>
-          <Text style={styles.avg}>{(summary.average || 0).toFixed(1)}</Text>
-          {renderStars(Math.round(summary.average), 16)}
-          <Text style={styles.total}>{summary.total} review{summary.total === 1 ? '' : 's'}</Text>
-        </View>
-        <View style={styles.filterCol}>
-          <TouchableOpacity
-            style={[styles.filterChip, filter === null && styles.filterChipOn]}
-            onPress={() => setFilter(null)}
-          >
-            <Text style={[styles.filterText, filter === null && styles.filterTextOn]}>All</Text>
-          </TouchableOpacity>
-          <View style={styles.filterRow}>
-            {[5, 4, 3, 2, 1].map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[styles.filterChip, filter === r && styles.filterChipOn]}
-                onPress={() => setFilter(filter === r ? null : r)}
-              >
-                <Text style={[styles.filterText, filter === r && styles.filterTextOn]}>{r}★</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-
+    <Screen>
+      <AppBar title="Reviews" onBack={() => navigation.goBack()} />
       <FlatList
-        data={filtered}
+        data={reviews}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, filtered.length === 0 && styles.listEmpty]}
-        refreshing={loading}
-        onRefresh={load}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.patient}>{item.patientName}</Text>
-              {renderStars(item.rating)}
-            </View>
-            {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
-            <Text style={styles.date}>
-              {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-            </Text>
-          </View>
-        )}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={header}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(1, { refresh: true })} tintColor={colors.accent} colors={[colors.accent]} />
+        }
         ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={C.primary} style={{ marginTop: 40 }} />
-          ) : error ? (
-            <View style={styles.center}>
-              <View style={[styles.medallion, styles.medallionError]}>
-                <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
-              </View>
-              <Text style={styles.emptyTitle}>Couldn't load</Text>
-              <Text style={styles.emptySub}>{error}</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                <Text style={styles.retryText}>Try Again</Text>
-              </TouchableOpacity>
-            </View>
+          status === 'loading' ? (
+            <SkeletonCard lines={2} />
+          ) : status === 'error' ? (
+            <ErrorState message={error} onRetry={() => load(1)} />
           ) : (
-            <View style={styles.center}>
-              <View style={styles.medallion}>
-                <Ionicons name="star-outline" size={34} color={C.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {filter ? `No ${filter}-star reviews` : 'No reviews yet'}
-              </Text>
-              <Text style={styles.emptySub}>
-                {filter
-                  ? 'Try clearing the filter to see all of your reviews.'
-                  : 'Patients can review you after a completed consultation.'}
-              </Text>
-            </View>
+            <EmptyState
+              icon="star-outline"
+              title={filter ? `No ${filter}-star reviews` : 'No reviews yet'}
+              message={filter ? 'Clear the filter to see all of your reviews.' : 'Patients can review you after a completed consultation.'}
+            />
           )
         }
+        renderItem={({ item }) => (
+          <Card style={styles.review}>
+            <View style={styles.reviewHeader}>
+              <Avatar uri={item.patientPhoto} name={item.patientName} size={36} />
+              <View style={styles.reviewWho}>
+                <Text style={styles.strong} numberOfLines={1}>
+                  {item.patientName}
+                </Text>
+                <Text style={styles.caption}>
+                  {item.createdAt ? formatDateLabel(dateKeyOf(new Date(item.createdAt)), { weekday: false, year: true }) : ''}
+                </Text>
+              </View>
+              <Stars rating={item.rating} />
+            </View>
+            {!!item.comment && <Text style={styles.comment}>{item.comment}</Text>}
+          </Card>
+        )}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (status === 'ready' && !loadingMore && page < pages) load(page + 1);
+        }}
+        ListFooterComponent={
+          <View style={styles.footer}>{loadingMore && <ActivityIndicator color={colors.accent} />}</View>
+        }
       />
-    </SafeAreaView>
+    </Screen>
   );
 };
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-
-  // Shared doctor-screen chrome: safe-area header + a centred empty state.
-  headerText: { flex: 1, alignItems: 'center' },
-  subtitle: { fontSize: 12, color: C.textSec, marginTop: 1 },
-  listEmpty: { flexGrow: 1, justifyContent: 'center' },
-  medallion: {
-    width: 84, height: 84, borderRadius: 42, backgroundColor: C.primaryLight,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  medallionError: { backgroundColor: sh.ground('#FEF2F2', '#EF4444') },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
-  emptySub: { fontSize: 13.5, color: C.textSec, textAlign: 'center', marginTop: 6, lineHeight: 20, paddingHorizontal: 24 },
-  container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
-  summaryCard: { flexDirection: 'row', backgroundColor: C.surface, marginHorizontal: 16, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border, gap: 16 },
-  summaryLeft: { alignItems: 'center', gap: 4 },
-  avg: { fontSize: 32, fontWeight: '800', color: C.text },
-  total: { fontSize: 12, color: C.textSec },
-  filterCol: { flex: 1, justifyContent: 'center', gap: 8 },
-  filterRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  filterChip: { borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
-  filterChipOn: { backgroundColor: C.primaryLight, borderColor: C.primary },
-  filterText: { fontSize: 12, fontWeight: '600', color: C.textSec },
-  filterTextOn: { color: C.primary },
-  list: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  patient: { fontSize: 14, fontWeight: '700', color: C.text },
-  comment: { fontSize: 13, color: C.textSec, lineHeight: 19 },
-  date: { fontSize: 11, color: C.textSec, marginTop: 6 },
-  center: { alignItems: 'center', paddingHorizontal: 8 },
-  errorText: { color: C.textSec, textAlign: 'center', marginBottom: 12 },
-  retryBtn: { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  emptyText: { color: C.textSec, marginTop: 10 },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    content: { paddingHorizontal: GUTTER, paddingTop: S.lg },
+    summary: { flexDirection: 'row', alignItems: 'center' },
+    average: { alignItems: 'center', marginRight: S.xl, minWidth: 88 },
+    averageValue: { ...T.display, color: c.ink },
+    caption: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    strong: { ...T.bodyStrong, color: c.ink },
+    breakdown: { flex: 1 },
+    barRow: { flexDirection: 'row', alignItems: 'center', minHeight: 24 },
+    barLabel: { ...T.caption, color: c.inkMuted, width: 14 },
+    barTrack: { flex: 1, height: 6, borderRadius: R.pill, backgroundColor: c.surfaceSunken, marginHorizontal: S.sm, overflow: 'hidden' },
+    barFill: { height: 6, borderRadius: R.pill, backgroundColor: c.star },
+    barCount: { ...T.caption, color: c.inkMuted, width: 24, textAlign: 'right' },
+    filters: { paddingVertical: S.md },
+    chip: { marginRight: S.sm },
+    review: { marginBottom: S.md },
+    reviewHeader: { flexDirection: 'row', alignItems: 'center' },
+    reviewWho: { flex: 1, marginHorizontal: S.md },
+    comment: { ...T.body, color: c.ink, marginTop: S.md },
+    footer: { height: S.huge * 2, alignItems: 'center', justifyContent: 'center' },
+  });
 
 export default DoctorReviewsScreen;

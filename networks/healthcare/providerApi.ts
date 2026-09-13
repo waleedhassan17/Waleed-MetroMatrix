@@ -597,9 +597,9 @@ export async function attachFileApi(
   noteId: string,
   attachment: NoteAttachment
 ): Promise<ApiResponse<NoteAttachment>> {
-  // File binary upload isn't backed yet; attachment metadata is persisted when the
-  // note is saved. Return the attachment so the UI can reflect it immediately.
-  return { success: true, data: attachment, message: 'File attached' };
+  // There is no upload endpoint. This used to return success without sending
+  // anything, so the UI showed a file attached that never left the device.
+  return { success: false, data: attachment, message: "File attachments aren't available yet" };
 }
 
 // ═══════════════════════════════════════════
@@ -821,10 +821,12 @@ export async function processPaymentApi(payment: {
   amount: number;
   method: 'cash' | 'card' | 'online' | 'insurance';
 }): Promise<ApiResponse<{ paymentId: string; status: string }>> {
+  // Not implemented. It returned a synthetic payment id with no request, which
+  // would report a payment that never happened if anything ever called it.
   return {
-    success: true,
-    data: { paymentId: `payatclinic-${payment.appointmentId}`, status: 'pending' },
-    message: 'Payment will be collected at the clinic',
+    success: false,
+    data: { paymentId: '', status: 'not_implemented' },
+    message: 'Payments are collected at the clinic',
   };
 }
 

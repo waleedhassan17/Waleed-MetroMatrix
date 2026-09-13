@@ -161,10 +161,12 @@ const audienceForUrl = (url?: string): Audience | null => {
 // Request interceptor for Main API
 MainAxiosInstance.interceptors.request.use(
   async (config) => {
-    if (config.url) {
-      console.log('🔍 API Request URL:', config.baseURL + '/' + config.url);
+    // Development only, and one line. Release builds used to write five logs
+    // per request — one pretty-printing every header — on every screen load
+    // and every background poll.
+    if (__DEV__ && config.url) {
+      console.log(`→ ${config.method?.toUpperCase()} ${config.baseURL}/${config.url}`);
     }
-    console.log('🔍 Request Method:', config.method?.toUpperCase());
     
     // Check if this endpoint should skip authentication
     const skipToken = UNAUTHENTICATED_ENDPOINTS.some(endpoint => 
@@ -172,31 +174,24 @@ MainAxiosInstance.interceptors.request.use(
     );
     
     if (skipToken) {
-      console.log('ℹ️ Skipping auth for unauthenticated endpoint:', config.url);
       // ✅ CRITICAL: Ensure NO Authorization header for unauthenticated endpoints
       if (config.headers.Authorization) {
         delete config.headers.Authorization;
-        console.log('🗑️ Removed Authorization header for unauthenticated endpoint');
       }
     } else {
       // ✅ If Authorization header is already set (e.g., by admin APIs), don't overwrite
-      if (config.headers.Authorization) {
-        console.log('✅ Authorization header already set, skipping interceptor token injection');
-      } else {
+      if (!config.headers.Authorization) {
         try {
           // Attach the token matching the route's audience. Falling back to
           // "admin token first" here used to hijack requests for a signed-in
           // user whenever a stale admin session sat in storage — a 403 on
           // routes like users/profile that reads as a broken screen.
-          const { token, source: tokenSource } = await tokenForRequest(
-            audienceForUrl(config.url)
-          );
+          const { token } = await tokenForRequest(audienceForUrl(config.url));
 
           if (isValidToken(token)) {
             config.headers.Authorization = `Bearer ${token}`;
             (config as any).__sentAuth = true;
-            console.log(`✅ Valid ${tokenSource} token injected by interceptor`);
-          } else {
+          } else if (__DEV__) {
             console.warn('⚠️ No valid token found for request to:', config.url);
           }
         } catch (tokenError) {
@@ -205,12 +200,6 @@ MainAxiosInstance.interceptors.request.use(
       }
     }
     
-    // Log final headers (without full token for security)
-    const logHeaders = { ...config.headers };
-    if (logHeaders.Authorization && typeof logHeaders.Authorization === 'string') {
-      logHeaders.Authorization = logHeaders.Authorization.substring(0, 30) + '...';
-    }
-    console.log('📤 Final Request Headers:', JSON.stringify(logHeaders, null, 2));
     
     return config;
   },

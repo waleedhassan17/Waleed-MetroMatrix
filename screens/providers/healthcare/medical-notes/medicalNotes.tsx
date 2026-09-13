@@ -1,1235 +1,384 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { BackHandler, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import ActionSheet from '../../../../components/ui/ActionSheet';
 import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+  AppBar,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SkeletonCard,
+  TextField,
+  showToast,
+} from '../../../../components/ui';
+import { E, GUTTER, S, SECTION, T } from '../../../../constants/theme';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
-import {
-  fetchPatientNotes,
-  saveNote,
-  deleteNote,
-  setCurrentNote,
-  updateCurrentNoteContent,
-  updateCurrentNoteTitle,
-  addTagToCurrentNote,
-  removeTagFromCurrentNote,
-  removeAttachmentFromCurrentNote,
-  createNewNote,
-  clearNotes,
-  MedicalNote,
-} from './medicalNotesSlice';
+import { useUnsavedChangesGuard } from '../../../../hooks/useUnsavedChangesGuard';
+import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
+import { ThemeColors, useTheme } from '../../../../theme';
+import { formatDateLabel } from '../../../../utils/healthcare/doctorFormat';
+import { dateKeyOf, todayDateKey } from '../../../../utils/healthcare/timeRanges';
+import { clearNotes, deleteNote, fetchPatientNotes, MedicalNote, saveNote } from './medicalNotesSlice';
 
-// ── Theme ─────────────────────────────────────
-import { DOCTOR_THEME as THEME } from '../../../../constants/DoctorTheme';
+// ============================================================================
+// Consultation notes — the doctor's private notes about a patient.
+//
+// The editor asked "discard changes?" only from its own close button, so
+// Android back and the iOS swipe silently threw a half-written note away. New
+// notes were also saved without the patient they belong to, which the server
+// rejects. The attach button reported uploads that never happened.
+// ============================================================================
 
-// ── Helpers ───────────────────────────────────
+interface Draft {
+  noteId: string;
+  appointmentId: string;
+  title: string;
+  content: string;
+  tags: string[];
+}
 
-const formatDate = (iso: string): string => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
-};
+const toDraft = (note: MedicalNote): Draft => ({
+  noteId: note.noteId,
+  appointmentId: note.appointmentId,
+  title: note.title,
+  content: note.content,
+  tags: [...note.tags],
+});
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1048576).toFixed(1)} MB`;
-};
-
-// Note card accent colors cycling through gradient themes
-const NOTE_ACCENTS: [string, string][] = [
-  THEME.gradient.primary,
-  THEME.gradient.secondary,
-  THEME.gradient.success,
-  THEME.gradient.warm,
-];
-
-// ── Note Card ─────────────────────────────────
-
-const NoteCard: React.FC<{
-  note: MedicalNote;
-  index: number;
-  onPress: () => void;
-  onDelete: () => void;
-}> = ({ note, index, onPress, onDelete }) => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const gradient = NOTE_ACCENTS[index % NOTE_ACCENTS.length];
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(anim, {
-      toValue: 1,
-      tension: 100,
-      friction: 8,
-      delay: index * 60,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={{
-        opacity: anim,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
-      }}
-    >
-      <TouchableOpacity style={styles.noteCard} onPress={onPress} activeOpacity={0.8}>
-        {/* Left gradient stripe */}
-        <LinearGradient
-          colors={gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.noteStripe}
-        />
-
-        <View style={styles.noteCardBody}>
-          {/* Header */}
-          <View style={styles.noteCardHeader}>
-            <View style={styles.noteDateChip}>
-              <Ionicons name="calendar-outline" size={12} color={gradient[0]} />
-              <Text style={[styles.noteDateText, { color: gradient[0] }]}>
-                {formatDate(note.date)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.noteDeleteBtn}
-              onPress={onDelete}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="trash-outline" size={16} color={THEME.error} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Title */}
-          <Text style={styles.noteCardTitle} numberOfLines={1}>
-            {note.title || 'Untitled Note'}
-          </Text>
-
-          {/* Preview */}
-          <Text style={styles.noteCardPreview} numberOfLines={2}>
-            {note.content || 'No content yet…'}
-          </Text>
-
-          {/* Footer */}
-          {(note.tags.length > 0 || note.attachments.length > 0) && (
-            <View style={styles.noteCardFooter}>
-              <View style={styles.noteTagsRow}>
-                {note.tags.slice(0, 3).map((tag) => (
-                  <View key={tag} style={[styles.miniTag, { backgroundColor: `${gradient[0]}15` }]}>
-                    <Text style={[styles.miniTagText, { color: gradient[0] }]}>{tag}</Text>
-                  </View>
-                ))}
-                {note.tags.length > 3 && (
-                  <Text style={styles.moreTagsText}>+{note.tags.length - 3}</Text>
-                )}
-              </View>
-              {note.attachments.length > 0 && (
-                <View style={styles.attachCountChip}>
-                  <Ionicons name="attach" size={11} color="#64748B" />
-                  <Text style={styles.attachCountText}>{note.attachments.length}</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-// ── Main Component ────────────────────────────
-
-const MedicalNotesScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+const ConsultationNotesScreen: React.FC = () => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useAppDispatch();
-  const routePatientId: string | undefined = route.params?.patientId;
-  const routeAppointmentId: string | undefined = route.params?.appointmentId;
-  const { patient, notes, currentNote, saving, loading, error } = useAppSelector(
-    (s) => s.medicalNotes,
-  );
+  const insets = useSafeAreaInsets();
 
+  const patientId: string = route.params?.patientId;
+  const appointmentId: string = route.params?.appointmentId || '';
+  const patientName: string | undefined = route.params?.patientName;
+
+  const { patient, notes, loading, saving, error } = useAppSelector((s) => s.medicalNotes);
+
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [original, setOriginal] = useState<Draft | null>(null);
   const [tagInput, setTagInput] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [menuFor, setMenuFor] = useState<MedicalNote | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<MedicalNote | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  const editorFadeAnim = useRef(new Animated.Value(0)).current;
-  const editorSlideAnim = useRef(new Animated.Value(20)).current;
+  const load = useCallback(() => {
+    if (patientId) dispatch(fetchPatientNotes(patientId));
+  }, [dispatch, patientId]);
 
-  // The list reveal fade is removed: gated on `loading`, it froze part-way when
-  // the loading branch unmounted it and the `hasAnimated` latch stopped it
-  // re-running, leaving the notes list invisible.
   useEffect(() => {
-    if (routePatientId) {
-      dispatch(fetchPatientNotes(routePatientId));
-    }
-    return () => { dispatch(clearNotes()); };
-  }, [dispatch, routePatientId]);
+    load();
+    return () => {
+      dispatch(clearNotes());
+    };
+  }, [dispatch, load]);
 
-  // Editor enter animation
-  useEffect(() => {
-    if (currentNote) {
-      editorFadeAnim.setValue(0);
-      editorSlideAnim.setValue(20);
-      Animated.parallel([
-        Animated.timing(editorFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(editorSlideAnim, { toValue: 0, tension: 80, friction: 9, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [!!currentNote]);
+  const dirty = !!draft && !!original && JSON.stringify(draft) !== JSON.stringify(original);
+  // Leaving the SCREEN with an open, edited note.
+  const { sheet, allowLeave } = useUnsavedChangesGuard(dirty, { message: 'This note has changes that have not been saved.' });
 
-  // Recording pulse
+  const closeEditor = useCallback(() => {
+    setDraft(null);
+    setOriginal(null);
+    setTagInput('');
+    setSubmitted(false);
+  }, []);
 
-  // ── Handlers ────────────────────────────────
+  const requestCloseEditor = useCallback(() => {
+    if (dirty) setConfirmDiscard(true);
+    else closeEditor();
+  }, [dirty, closeEditor]);
 
-  const handleNewNote = useCallback(() => dispatch(createNewNote()), [dispatch]);
-
-  const handleSelectNote = useCallback(
-    (note: MedicalNote) => dispatch(setCurrentNote({ ...note })),
-    [dispatch],
+  // Android back closes the editor first, not the screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!draft) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        requestCloseEditor();
+        return true;
+      });
+      return () => sub.remove();
+    }, [draft, requestCloseEditor])
   );
 
-  const handleDeleteNote = useCallback(
-    (noteId: string) => {
-      Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => dispatch(deleteNote(noteId)) },
-      ]);
-    },
-    [dispatch],
-  );
+  const startNew = () => {
+    const fresh: Draft = { noteId: '', appointmentId, title: '', content: '', tags: [] };
+    setDraft(fresh);
+    setOriginal(fresh);
+  };
 
-  const handleSaveNote = useCallback(() => {
-    if (!currentNote) return;
-    if (!currentNote.title.trim()) {
-      Alert.alert('Required', 'Please enter a note title');
-      return;
+  const startEdit = (note: MedicalNote) => {
+    setDraft(toDraft(note));
+    setOriginal(toDraft(note));
+  };
+
+  const addTag = () => {
+    const tag = tagInput.trim();
+    if (!draft || !tag) return;
+    if (!draft.tags.includes(tag)) setDraft({ ...draft, tags: [...draft.tags, tag] });
+    setTagInput('');
+  };
+
+  const contentError = submitted && draft && !draft.content.trim() ? 'Write the note before saving' : null;
+
+  const save = async () => {
+    if (!draft) return;
+    setSubmitted(true);
+    if (!draft.content.trim()) return;
+    const existing = notes.find((n) => n.noteId === draft.noteId);
+    const note = {
+      noteId: draft.noteId,
+      appointmentId: draft.appointmentId,
+      date: existing?.date || todayDateKey(),
+      title: draft.title.trim() || 'Consultation note',
+      content: draft.content.trim(),
+      attachments: existing?.attachments || [],
+      tags: draft.tags,
+      createdAt: existing?.createdAt || '',
+      updatedAt: existing?.updatedAt || '',
+      // The server files a note under its patient; without this it refuses.
+      patientId,
+    } as MedicalNote & { patientId: string };
+    try {
+      await dispatch(saveNote(note)).unwrap();
+      allowLeave();
+      closeEditor();
+      showToast({ message: 'Note saved', tone: 'success' });
+    } catch (e) {
+      showToast({ message: typeof e === 'string' ? e : "We couldn't save this note", tone: 'error' });
     }
-    if (!currentNote.content.trim()) {
-      Alert.alert('Required', 'Please enter note content');
-      return;
+  };
+
+  const remove = async (note: MedicalNote) => {
+    try {
+      await dispatch(deleteNote(note.noteId)).unwrap();
+      showToast({ message: 'Note deleted', tone: 'success' });
+    } catch (e) {
+      showToast({ message: typeof e === 'string' ? e : "We couldn't delete this note", tone: 'error' });
     }
-    dispatch(saveNote(currentNote));
-  }, [currentNote, dispatch]);
+  };
 
-  const handleAddTag = useCallback(() => {
-    if (tagInput.trim()) {
-      dispatch(addTagToCurrentNote(tagInput.trim()));
-      setTagInput('');
-    }
-  }, [tagInput, dispatch]);
+  const name = patient?.patientName || patientName || 'Patient';
 
-
-
-
-  const handleCloseEditor = useCallback(() => {
-    if (currentNote && (currentNote.title.trim() || currentNote.content.trim())) {
-      Alert.alert('Discard Changes?', 'You have unsaved changes. Discard them?', [
-        { text: 'Keep Editing', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => dispatch(setCurrentNote(null)) },
-      ]);
-    } else {
-      dispatch(setCurrentNote(null));
-    }
-  }, [currentNote, dispatch]);
-
-  const handleConvertToPrescription = useCallback(() => {
-    if (!currentNote) return;
-    navigation.navigate(DoctorRouteNames.PrescriptionWriter, {
-      patient,
-      patientId: routePatientId,
-      appointmentId: routeAppointmentId,
-      notes: currentNote.content,
-    });
-  }, [currentNote, patient, routePatientId, routeAppointmentId, navigation]);
-
-  // ── Loading ───────────────────────────────────
-
-  // A full-screen loader or error page is only legitimate when there is
-  // nothing to show. Gating on bare `loading`/`error` meant every refetch
-  // blanked a populated screen — and on the queue, one failed 30s poll
-  // replaced a working list with an error page.
-  if (loading && notes.length === 0) {
+  // ── Editor ──
+  if (draft) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBarPlaceholder />
-        <LinearGradient colors={THEME.gradient.primary} style={styles.headerGradient}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <Text style={styles.headerTitle}>Medical Notes</Text>
-          <View style={styles.headerIconBtn} />
-        </LinearGradient>
-        <View style={styles.centered}>
-          <View style={styles.loadingIconWrap}>
-            <ActivityIndicator size="large" color={THEME.primary} />
-          </View>
-          <Text style={styles.loadingText}>Loading patient notes…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Note Editor ───────────────────────────────
-
-  if (currentNote) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBarPlaceholder light />
-        <LinearGradient
-          colors={THEME.gradient.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.editorHeader}
-        >
-          <TouchableOpacity style={styles.headerIconBtn} onPress={handleCloseEditor}>
-            <Ionicons name="close" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>
-              {currentNote.noteId ? 'Edit Note' : 'New Note'}
-            </Text>
-            <Text style={styles.headerSubtitle}>{formatDate(currentNote.date)}</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.saveHeaderBtn, saving && { opacity: 0.6 }]}
-            onPress={handleSaveNote}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                <Text style={styles.saveHeaderBtnText}>Save</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
-
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Animated.ScrollView
-            style={[styles.flex, { opacity: editorFadeAnim, transform: [{ translateY: editorSlideAnim }] }]}
-            contentContainerStyle={styles.editorScrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Title */}
-            <TextInput
-              style={styles.titleInput}
-              placeholder="Note title…"
-              placeholderTextColor="#CBD5E1"
-              value={currentNote.title}
-              onChangeText={(t) => dispatch(updateCurrentNoteTitle(t))}
-            />
-
-            {/*
-              ── Editor Toolbar ──
-              This held six controls; five of them did not do what they showed,
-              and three were writing invented content into a patient's medical
-              record. Removed rather than left in place:
-
-                · mic — did NOT transcribe anything. Tapping it twice appended a
-                  hardcoded paragraph including fabricated vitals ("Blood
-                  pressure readings at home averaging 128/82") to the note. A
-                  control that inserts invented clinical observations into a
-                  medical record is a patient-safety problem, not a rough edge.
-                  Real dictation needs a speech-to-text service and must not
-                  ship as a canned paragraph in the meantime.
-
-                · image / attach — attached a fabricated attachment
-                  ("Photo_1724…​.jpg", uri: '') without opening any picker, and
-                  saveNoteApi persists `attachments`, so those fictions were
-                  written to the server as real records pointing at nothing.
-                  Wiring the real pickers alone would not fix it: the notes
-                  route has no upload middleware, so the file bytes have
-                  nowhere to go and the stored uri would be an unreadable local
-                  path. Bringing these back needs multer + Cloudinary on
-                  POST /doctors/me/notes, mirroring healthRecordUpload.js.
-
-                · text / list — no onPress at all, and this is a plain-text
-                  field with no formatting to apply.
-
-              Convert-to-prescription is kept: it is the one control here that
-              did what it claimed.
-            */}
-            <View style={styles.toolbarCard}>
-              <View style={styles.toolbarRow}>
-                <TouchableOpacity
-                  style={styles.toolbarBtn}
-                  onPress={handleConvertToPrescription}
-                  accessibilityRole="button"
-                  accessibilityLabel="Convert these notes into a prescription"
-                >
-                  <MaterialCommunityIcons name="prescription" size={17} color={THEME.primary} />
-                </TouchableOpacity>
-                <Text style={styles.toolbarHint}>Convert to prescription</Text>
-              </View>
-            </View>
-
-            {/* Note text area */}
-            <TextInput
-              style={styles.noteTextArea}
-              placeholder="Start writing your consultation notes here…"
-              placeholderTextColor="#CBD5E1"
-              multiline
-              textAlignVertical="top"
-              value={currentNote.content}
-              onChangeText={(t) => dispatch(updateCurrentNoteContent(t))}
-            />
-
-            {/* ── Attachments ── */}
-            {currentNote.attachments.length > 0 && (
-              <View style={styles.editorSection}>
-                <View style={styles.editorSectionHeader}>
-                  <View style={[styles.editorSectionDot, { backgroundColor: THEME.accent }]} />
-                  <Text style={styles.editorSectionTitle}>
-                    Attachments
-                  </Text>
-                  <View style={styles.editorSectionBadge}>
-                    <Text style={styles.editorSectionBadgeText}>{currentNote.attachments.length}</Text>
-                  </View>
-                </View>
-                {currentNote.attachments.map((att) => (
-                  <View key={att.id} style={styles.attachmentRow}>
-                    <View style={[
-                      styles.attachmentIconWrap,
-                      { backgroundColor: att.type === 'image' ? '#F0F7FF' : '#FEF2F2' },
-                    ]}>
-                      {att.type === 'image' ? (
-                        <Ionicons name="image" size={18} color={THEME.primary} />
-                      ) : (
-                        <MaterialCommunityIcons name="file-pdf-box" size={20} color={THEME.error} />
-                      )}
-                    </View>
-                    <View style={styles.attachmentInfo}>
-                      <Text style={styles.attachmentName} numberOfLines={1}>{att.name}</Text>
-                      <Text style={styles.attachmentSize}>{formatFileSize(att.size)}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.attachmentRemoveBtn}
-                      onPress={() => dispatch(removeAttachmentFromCurrentNote(att.id))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="close-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* ── Tags ── */}
-            <View style={styles.editorSection}>
-              <View style={styles.editorSectionHeader}>
-                <View style={[styles.editorSectionDot, { backgroundColor: THEME.warning }]} />
-                <Text style={styles.editorSectionTitle}>Tags</Text>
-              </View>
-              <View style={styles.tagInputRow}>
-                <View style={styles.tagInputWrapper}>
-                  <Ionicons name="pricetag-outline" size={15} color={THEME.primary} />
-                  <TextInput
-                    style={styles.tagTextInput}
-                    placeholder="Add tag…"
-                    placeholderTextColor="#CBD5E1"
-                    value={tagInput}
-                    onChangeText={setTagInput}
-                    onSubmitEditing={handleAddTag}
-                    returnKeyType="done"
-                  />
-                </View>
-                <TouchableOpacity style={styles.tagAddBtn} onPress={handleAddTag} activeOpacity={0.85}>
-                  <LinearGradient
-                    colors={THEME.gradient.primary}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.tagAddBtnGradient}
-                  >
-                    <Ionicons name="add" size={18} color="#FFFFFF" />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-              {currentNote.tags.length > 0 && (
-                <View style={styles.tagsWrap}>
-                  {currentNote.tags.map((tag) => (
-                    <View key={tag} style={styles.tagChip}>
-                      <Text style={styles.tagChipText}>{tag}</Text>
-                      <TouchableOpacity
-                        onPress={() => dispatch(removeTagFromCurrentNote(tag))}
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      >
-                        <Ionicons name="close-circle" size={14} color={THEME.primary} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Error */}
-            {error && (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={15} color={THEME.error} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <View style={{ height: 48 }} />
-          </Animated.ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-
-  // ── Notes List ────────────────────────────────
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBarPlaceholder light />
-
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={THEME.gradient.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerNav}>
-          <BackButton tone="onAccent" onPress={() => navigation.goBack()} />
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Medical Notes</Text>
-            <Text style={styles.headerSubtitle}>{notes.length} note{notes.length !== 1 ? 's' : ''}</Text>
-          </View>
-          <TouchableOpacity style={styles.newNoteBtn} onPress={handleNewNote} activeOpacity={0.85}>
-            <Ionicons name="add" size={20} color={THEME.primary} />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      <Animated.ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.listScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Patient Card ── */}
-        {patient && (
-          <View style={styles.patientCard}>
-            <View style={styles.patientRow}>
-              <LinearGradient colors={THEME.gradient.primary} style={styles.patientAvatar}>
-                <MaterialCommunityIcons name="account" size={24} color="#FFFFFF" />
-              </LinearGradient>
-              <View style={styles.patientInfo}>
-                <Text style={styles.patientName}>{patient.patientName}</Text>
-                <Text style={styles.patientMeta}>
-                  {patient.age} yrs  ·  {patient.gender}  ·  {patient.bloodGroup}
-                </Text>
-              </View>
-              <View style={styles.patientBadge}>
-                <Text style={styles.patientBadgeText}>Active</Text>
-              </View>
-            </View>
-
-            {/* Allergy / Chronic row */}
-            {(patient.allergies.length > 0 || patient.chronicConditions.length > 0) && (
-              <View style={styles.patientAlerts}>
-                {patient.allergies.length > 0 && (
-                  <View style={styles.alertChip}>
-                    <Ionicons name="warning" size={12} color={THEME.error} />
-                    <Text style={[styles.alertChipText, { color: THEME.error }]}>
-                      {patient.allergies.join(', ')}
-                    </Text>
-                  </View>
-                )}
-                {patient.chronicConditions.length > 0 && (
-                  <View style={[styles.alertChip, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B'), borderColor: '#FDE68A' }]}>
-                    <Ionicons name="fitness-outline" size={12} color={THEME.warning} />
-                    <Text style={[styles.alertChipText, { color: THEME.warning }]}>
-                      {patient.chronicConditions.join(', ')}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Notes Section Header ── */}
-        <View style={styles.notesSectionHeader}>
-          <View style={styles.notesSectionDot} />
-          <Text style={styles.notesSectionTitle}>Consultation Notes</Text>
-          {notes.length > 0 && (
-            <View style={styles.notesCountBadge}>
-              <Text style={styles.notesCountText}>{notes.length}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* ── Notes ── */}
-        {notes.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <LinearGradient colors={sh.grad(['#F0F7FF', '#D6E8FF'])} style={styles.emptyIconWrap}>
-              <MaterialCommunityIcons name="clipboard-text-outline" size={36} color={THEME.primary} />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>No Notes Yet</Text>
-            <Text style={styles.emptySubtitle}>Tap the + button to create a new consultation note</Text>
-            <TouchableOpacity style={styles.emptyAddBtn} onPress={handleNewNote} activeOpacity={0.85}>
-              <LinearGradient
-                colors={THEME.gradient.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.emptyAddBtnGradient}
-              >
-                <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.emptyAddBtnText}>New Note</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.notesList}>
-            {notes.map((note, i) => (
-              <NoteCard
-                key={note.noteId}
-                note={note}
-                index={i}
-                onPress={() => handleSelectNote(note)}
-                onDelete={() => handleDeleteNote(note.noteId)}
+      <Screen>
+        <AppBar title={draft.noteId ? 'Edit note' : 'New note'} subtitle={name} onBack={requestCloseEditor} />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <TextField
+            label="Title"
+            value={draft.title}
+            onChangeText={(title) => setDraft({ ...draft, title })}
+            placeholder="Consultation note"
+            maxLength={120}
+          />
+          <TextField
+            label="Note"
+            value={draft.content}
+            onChangeText={(content) => setDraft({ ...draft, content })}
+            placeholder="Findings, assessment, plan"
+            multiline
+            maxLength={5000}
+            error={contentError}
+            inputStyle={styles.noteInput}
+          />
+          <Text style={styles.label}>Tags</Text>
+          <View style={styles.tags}>
+            {draft.tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                icon="close"
+                selected
+                onPress={() => setDraft({ ...draft, tags: draft.tags.filter((t) => t !== tag) })}
+                style={styles.chip}
               />
             ))}
           </View>
-        )}
+          <TextField
+            value={tagInput}
+            onChangeText={setTagInput}
+            placeholder="Add a tag, e.g. follow-up"
+            returnKeyType="done"
+            onSubmitEditing={addTag}
+            maxLength={40}
+            right={
+              tagInput.trim() ? (
+                <TouchableOpacity onPress={addTag} accessibilityRole="button" accessibilityLabel="Add tag">
+                  <Ionicons name="add-circle" size={22} color={colors.accentDeep} />
+                </TouchableOpacity>
+              ) : undefined
+            }
+          />
+          <Text style={styles.caption}>File attachments aren't available yet.</Text>
+          <View style={styles.bottomSpace} />
+        </ScrollView>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + S.md }]}>
+          <Button label="Save note" onPress={save} loading={saving} disabled={!dirty && !!draft.noteId} />
+        </View>
+        <ActionSheet
+          visible={confirmDiscard}
+          title="Discard changes?"
+          message="This note has changes that have not been saved."
+          cancelLabel="Keep editing"
+          options={[{ label: 'Discard changes', icon: 'trash-outline', tone: 'destructive', onPress: closeEditor }]}
+          onClose={() => setConfirmDiscard(false)}
+        />
+        {sheet}
+      </Screen>
+    );
+  }
 
-        {error && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={15} color={THEME.error} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+  // ── List ──
+  return (
+    <Screen>
+      <AppBar title="Consultation notes" subtitle={name} onBack={() => navigation.goBack()} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={loading && !!patient} onRefresh={load} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
+        <View style={styles.actions}>
+          <Button label="New note" icon="add" onPress={startNew} fullWidth={false} style={styles.flex} />
+          {!!appointmentId && (
+            <Button
+              label="Prescription"
+              icon="create-outline"
+              variant="secondary"
+              fullWidth={false}
+              onPress={() =>
+                navigation.navigate(DoctorRouteNames.PrescriptionWriter, {
+                  patientId,
+                  patientName: name,
+                  appointmentId,
+                  type: route.params?.type === 'video' ? 'video' : 'in-clinic',
+                })
+              }
+              style={styles.secondaryAction}
+            />
+          )}
+        </View>
 
-        <View style={{ height: 40 }} />
-      </Animated.ScrollView>
-    </SafeAreaView>
+        {!patient && loading ? (
+          <SkeletonCard lines={3} />
+        ) : error && !patient ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : notes.length === 0 ? (
+          <Card style={styles.section}>
+            <EmptyState icon="clipboard-outline" title="No notes yet" message="Notes are private to you and visible only on this app." />
+          </Card>
+        ) : (
+          notes.map((note) => (
+            <Card key={note.noteId} style={styles.section} onPress={() => startEdit(note)}>
+              <View style={styles.noteHeader}>
+                <View style={styles.flex}>
+                  <Text style={styles.strong} numberOfLines={1}>
+                    {note.title || 'Consultation note'}
+                  </Text>
+                  <Text style={styles.caption}>
+                    {formatDateLabel(
+                      note.createdAt ? dateKeyOf(new Date(note.createdAt)) : note.date || todayDateKey(),
+                      { weekday: false, year: true }
+                    )}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setMenuFor(note)}
+                  style={styles.iconButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Note options"
+                >
+                  <Ionicons name="ellipsis-horizontal" size={20} color={colors.inkMuted} />
+                </TouchableOpacity>
+              </View>
+              {!!note.content && (
+                <Text style={styles.body} numberOfLines={4}>
+                  {note.content}
+                </Text>
+              )}
+              {note.tags.length > 0 && (
+                <View style={styles.tags}>
+                  {note.tags.map((tag) => (
+                    <Chip key={tag} label={tag} style={styles.chip} />
+                  ))}
+                </View>
+              )}
+            </Card>
+          ))
+        )}
+        <View style={styles.bottomSpace} />
+      </ScrollView>
+
+      <ActionSheet
+        visible={!!menuFor}
+        title={menuFor?.title || 'Consultation note'}
+        options={
+          menuFor
+            ? [
+                { label: 'Edit', icon: 'create-outline', onPress: () => startEdit(menuFor) },
+                { label: 'Delete', icon: 'trash-outline', tone: 'destructive', onPress: () => setConfirmDelete(menuFor) },
+              ]
+            : []
+        }
+        onClose={() => setMenuFor(null)}
+      />
+      <ActionSheet
+        visible={!!confirmDelete}
+        title="Delete this note?"
+        message="It can't be recovered."
+        options={[
+          {
+            label: 'Delete note',
+            icon: 'trash-outline',
+            tone: 'destructive',
+            onPress: () => confirmDelete && remove(confirmDelete),
+          },
+        ]}
+        onClose={() => setConfirmDelete(null)}
+      />
+      {sheet}
+    </Screen>
   );
 };
 
-// ── StatusBar placeholder (avoids importing StatusBar just for barStyle) ──
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    content: { paddingHorizontal: GUTTER, paddingTop: S.lg },
+    section: { marginTop: S.md },
+    actions: { flexDirection: 'row', marginBottom: S.sm },
+    secondaryAction: { marginLeft: S.sm },
+    label: { ...T.label, color: c.inkMuted, marginBottom: S.sm },
+    caption: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    body: { ...T.body, color: c.ink, marginTop: S.sm },
+    strong: { ...T.bodyStrong, color: c.ink },
+    noteInput: { minHeight: 200 },
+    tags: { flexDirection: 'row', flexWrap: 'wrap', marginTop: S.sm },
+    chip: { marginRight: S.sm, marginBottom: S.sm },
+    noteHeader: { flexDirection: 'row', alignItems: 'center' },
+    iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    footer: {
+      paddingHorizontal: GUTTER,
+      paddingTop: S.md,
+      backgroundColor: c.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.line,
+      ...E.overlay,
+    },
+    bottomSpace: { height: SECTION * 2 },
+  });
 
-const StatusBarPlaceholder: React.FC<{ light?: boolean }> = ({ light = false }) => {
-  const { StatusBar } = require('react-native');
-  return <StatusBar barStyle={light ? 'light-content' : 'dark-content'} backgroundColor={light ? THEME.primary : '#F8FBFF'} />;
-};
-
-export default MedicalNotesScreen;
-
-// ── Styles ─────────────────────────────────────
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-  },
-  flex: { flex: 1 },
-
-  // Loading
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    backgroundColor: sh.ground('#F0F7FF', '#2A7FFF'),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-
-  // Header (list)
-  headerGradient: {
-    paddingTop: Platform.OS === 'android' ? 24 : 0,
-    paddingBottom: 14,
-  },
-  headerNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 1,
-  },
-  newNoteBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6 },
-      android: { elevation: 3 },
-    }),
-  },
-
-  // Editor header
-  editorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    paddingTop: Platform.OS === 'android' ? 34 : 14,
-  },
-  saveHeaderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    minWidth: 64,
-    justifyContent: 'center',
-  },
-  saveHeaderBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-
-  // Scroll content
-  listScrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  editorScrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  // Patient card
-  patientCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 },
-      android: { elevation: 3 },
-    }),
-  },
-  patientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 12,
-  },
-  patientAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  patientInfo: { flex: 1 },
-  patientName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-  },
-  patientMeta: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: sh.n('#64748B', 'inkMuted'),
-    marginTop: 3,
-  },
-  patientBadge: {
-    backgroundColor: sh.ground('#DCFCE7', '#10B981'),
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  patientBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: sh.hue('#16A34A'),
-  },
-  patientAlerts: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  alertChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: sh.ground('#FECACA', '#EF4444'),
-  },
-  alertChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  // Notes section
-  notesSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    gap: 8,
-  },
-  notesSectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: THEME.primary,
-  },
-  notesSectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  notesCountBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: THEME.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notesCountText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: THEME.primary,
-  },
-
-  // Note cards
-  notesList: {
-    gap: 10,
-  },
-  noteCard: {
-    flexDirection: 'row',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
-  },
-  noteStripe: {
-    width: 5,
-    alignSelf: 'stretch',
-  },
-  noteCardBody: {
-    flex: 1,
-    padding: 14,
-  },
-  noteCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  noteDateChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  noteDateText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  noteDeleteBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noteCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-    marginBottom: 5,
-  },
-  noteCardPreview: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: sh.n('#64748B', 'inkMuted'),
-    lineHeight: 18,
-  },
-  noteCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  noteTagsRow: {
-    flexDirection: 'row',
-    gap: 5,
-    flex: 1,
-    alignItems: 'center',
-  },
-  miniTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  miniTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  moreTagsText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: sh.n('#94A3B8', 'inkFaint'),
-  },
-  attachCountChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  attachCountText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: sh.n('#64748B', 'inkMuted'),
-  },
-
-  // Empty
-  emptyCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 12,
-    padding: 36,
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-  },
-  emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: sh.hue('#374151'),
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  emptyAddBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  emptyAddBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  emptyAddBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-
-  // ── Editor styles ─────────────────────────────
-
-  // Title
-  titleInput: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.5,
-    paddingVertical: 4,
-    borderBottomWidth: 2,
-    borderBottomColor: sh.n('#E2E8F0', 'line'),
-    marginBottom: 16,
-  },
-
-  // Toolbar
-  toolbarCard: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: sh.n('#E2E8F0', 'line'),
-    marginBottom: 2,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-      android: { elevation: 1 },
-    }),
-  },
-  toolbarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    gap: 2,
-  },
-  toolbarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolbarHint: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: THEME.primary,
-    marginLeft: 4,
-  },
-  toolbarDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: sh.n('#E2E8F0', 'line'),
-    marginHorizontal: 4,
-  },
-
-  // Note textarea
-  noteTextArea: {
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderWidth: 1,
-    borderColor: sh.n('#E2E8F0', 'line'),
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    fontWeight: '400',
-    color: sh.n('#0F172A', 'ink'),
-    minHeight: 220,
-    textAlignVertical: 'top',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-
-  // Editor sections
-  editorSection: {
-    marginBottom: 20,
-  },
-  editorSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  editorSectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  editorSectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.n('#64748B', 'inkMuted'),
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    flex: 1,
-  },
-  editorSectionBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editorSectionBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: THEME.accent,
-  },
-
-  // Attachments
-  attachmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderRadius: 13,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: sh.n('#F1F5F9', 'lineSoft'),
-    gap: 12,
-  },
-  attachmentIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  attachmentInfo: { flex: 1 },
-  attachmentName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.n('#0F172A', 'ink'),
-  },
-  attachmentSize: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    marginTop: 2,
-  },
-  attachmentRemoveBtn: {
-    padding: 2,
-  },
-
-  // Tags
-  tagInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  tagInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: sh.n('#E2E8F0', 'line'),
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  tagTextInput: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: sh.n('#0F172A', 'ink'),
-    paddingVertical: 11,
-  },
-  tagAddBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  tagAddBtnGradient: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: THEME.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: sh.hue('#BFDBFE'),
-  },
-  tagChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
-
-  // Error
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: sh.ground('#FECACA', '#EF4444'),
-  },
-  errorText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: THEME.error,
-    flex: 1,
-  },
-});
+export default ConsultationNotesScreen;
