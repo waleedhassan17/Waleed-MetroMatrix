@@ -1,13 +1,32 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
 import { fetchSpecialtiesApi, fetchDoctorsApi, fetchNextAppointmentApi } from '../../../../networks/healthcare/doctorApi';
+import {
+  fetchAppointmentsApi,
+  fetchMedicalRecordsApi,
+  fetchMyPrescriptionsApi,
+} from '../../../../networks/healthcare/appointmentApi';
 
 // ── State Interface ─────────────────────────
+
+/**
+ * What this patient actually has on this service.
+ *
+ * Replaces a hardcoded "50,000+ Patients / 200+ Doctors / 4.8 Rating" bar —
+ * three figures nobody had measured, presented as fact. These are the
+ * patient's own, and every one of them is a real count from the API.
+ */
+export interface HealthcareHomeStats {
+  upcoming: number;
+  records: number;
+  prescriptions: number;
+}
 
 export interface HealthcareHomeState {
   featuredDoctors: Doctor[];
   specialties: Specialty[];
   nextAppointment: Appointment | null;
+  stats: HealthcareHomeStats;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -21,10 +40,13 @@ export interface HealthcareHomeState {
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+const EMPTY_STATS: HealthcareHomeStats = { upcoming: 0, records: 0, prescriptions: 0 };
+
 const initialState: HealthcareHomeState = {
   featuredDoctors: [],
   specialties: [],
   nextAppointment: null,
+  stats: EMPTY_STATS,
   loading: false,
   refreshing: false,
   error: null,
@@ -35,6 +57,35 @@ const initialState: HealthcareHomeState = {
 };
 
 // ── Async Thunks ────────────────────────────
+
+/**
+ * The patient's own three counts, for the "Your health" strip.
+ *
+ * Every one is best-effort and falls back to 0: these drive a summary band,
+ * and the home screen must not fail to load because a count did not come back.
+ *
+ * All three are counted from the returned rows rather than from a pagination
+ * total. The backend sends `pagination` as a SIBLING of `data`, and the
+ * healthcare envelope unwrapper returns only `data` — so the normalized
+ * pagination on these responses is always zeroed and cannot be counted on.
+ * A patient's pending + confirmed appointments ('confirmed' maps to the
+ * backend's `upcoming` bucket, which covers both) fit well inside one page.
+ */
+const STATS_PAGE = 100;
+
+async function fetchPatientStats(): Promise<HealthcareHomeStats> {
+  const [appointmentsRes, recordsRes, prescriptionsRes] = await Promise.all([
+    fetchAppointmentsApi({ status: 'confirmed', limit: STATS_PAGE }).catch(() => null),
+    fetchMedicalRecordsApi('').catch(() => null),
+    fetchMyPrescriptionsApi().catch(() => null),
+  ]);
+
+  return {
+    upcoming: appointmentsRes?.success ? appointmentsRes.data.appointments.length : 0,
+    records: recordsRes?.success ? recordsRes.data.length : 0,
+    prescriptions: prescriptionsRes?.success ? prescriptionsRes.data.length : 0,
+  };
+}
 
 export const fetchHomeData = createAsyncThunk(
   'healthcareHome/fetchHomeData',
@@ -51,14 +102,16 @@ export const fetchHomeData = createAsyncThunk(
         return {
           specialties,
           featuredDoctors,
+          stats: state.healthcareHome.stats,
           fromCache: true,
         };
       }
 
-      const [specialtiesRes, doctorsRes, appointmentRes] = await Promise.all([
+      const [specialtiesRes, doctorsRes, appointmentRes, stats] = await Promise.all([
         fetchSpecialtiesApi(),
         fetchDoctorsApi({ sort: 'rating', limit: 6 }),
         fetchNextAppointmentApi().catch(() => ({ success: false, data: null })),
+        fetchPatientStats(),
       ]);
 
       if (!specialtiesRes.success && !doctorsRes.success) {
@@ -69,6 +122,7 @@ export const fetchHomeData = createAsyncThunk(
         specialties: specialtiesRes.success ? specialtiesRes.data : [],
         featuredDoctors: doctorsRes.success ? doctorsRes.data.doctors : [],
         nextAppointment: appointmentRes.success ? appointmentRes.data : null,
+        stats,
         fromCache: false,
       };
     } catch (error: any) {
@@ -165,6 +219,7 @@ const healthcareHomeSlice = createSlice({
         if (action.payload.nextAppointment !== undefined) {
           state.nextAppointment = action.payload.nextAppointment;
         }
+        state.stats = action.payload.stats;
         if (!action.payload.fromCache) {
           state.lastUpdated = Date.now();
         }
@@ -184,6 +239,7 @@ const healthcareHomeSlice = createSlice({
         state.refreshing = false;
         state.specialties = action.payload.specialties;
         state.featuredDoctors = action.payload.featuredDoctors;
+        state.stats = action.payload.stats;
         state.lastUpdated = Date.now();
       })
       .addCase(refreshHomeData.rejected, (state, action) => {

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { fetchPrescriptionDetailApi } from '../../../../networks/healthcare/providerApi';
+import { downloadAndShareAuthedPdf } from '../../../../utils/healthcare/documents';
 
 // ── Types ───────────────────────────────────
 
@@ -41,6 +42,14 @@ export interface PrescriptionViewState {
   error: string | null;
   downloading: boolean;
   sharing: boolean;
+  /**
+   * Why the last download or share failed.
+   *
+   * Kept apart from `error`, which drives the whole-screen "could not load"
+   * state — a failed download must not blank out a prescription that is on
+   * screen and perfectly readable.
+   */
+  actionError: string | null;
 }
 
 const initialState: PrescriptionViewState = {
@@ -49,6 +58,7 @@ const initialState: PrescriptionViewState = {
   error: null,
   downloading: false,
   sharing: false,
+  actionError: null,
 };
 
 // ── Async Thunks ────────────────────────────
@@ -67,16 +77,34 @@ export const fetchPrescription = createAsyncThunk<
   }
 });
 
+/**
+ * The prescription PDF the backend renders with PDFKit.
+ *
+ * Both of these were `setTimeout` placeholders — the spinner ran, the promise
+ * resolved, and nothing whatsoever happened. The route is behind `requireUser`
+ * and only the patient or the prescribing doctor may read it, so the token has
+ * to travel with the request; that is what `downloadAndShareAuthedPdf` does
+ * before handing the file to the OS.
+ */
+const prescriptionPdfPath = (prescriptionId: string) =>
+  `/v1/healthcare/prescriptions/${encodeURIComponent(prescriptionId)}/pdf`;
+
+const shortId = (prescriptionId: string) =>
+  prescriptionId.slice(-8).toUpperCase() || 'document';
+
 export const downloadPDF = createAsyncThunk<
   void,
   string,
   { rejectValue: string }
 >('prescriptionView/downloadPDF', async (prescriptionId, { rejectWithValue }) => {
   try {
-    // TODO: Replace with real PDF generation / download logic
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } catch {
-    return rejectWithValue('Failed to download PDF');
+    await downloadAndShareAuthedPdf(
+      prescriptionPdfPath(prescriptionId),
+      `prescription-${shortId(prescriptionId)}.pdf`,
+      'Save prescription'
+    );
+  } catch (e: any) {
+    return rejectWithValue(e?.message || 'Failed to download PDF');
   }
 });
 
@@ -86,10 +114,16 @@ export const sharePrescription = createAsyncThunk<
   { rejectValue: string }
 >('prescriptionView/sharePrescription', async (prescriptionId, { rejectWithValue }) => {
   try {
-    // TODO: Replace with real share logic (e.g. react-native-share)
-    await new Promise((resolve) => setTimeout(resolve, 800));
-  } catch {
-    return rejectWithValue('Failed to share prescription');
+    // Same file, same sheet — only the wording of the prompt differs. Sharing a
+    // link instead would be useless to the recipient: the endpoint is PHI and
+    // answers nobody but this patient and their doctor.
+    await downloadAndShareAuthedPdf(
+      prescriptionPdfPath(prescriptionId),
+      `prescription-${shortId(prescriptionId)}.pdf`,
+      'Share prescription'
+    );
+  } catch (e: any) {
+    return rejectWithValue(e?.message || 'Failed to share prescription');
   }
 });
 
@@ -101,6 +135,9 @@ const prescriptionViewSlice = createSlice({
   reducers: {
     resetPrescription(state) {
       Object.assign(state, initialState);
+    },
+    clearActionError(state) {
+      state.actionError = null;
     },
   },
   extraReducers: (builder) => {
@@ -121,25 +158,29 @@ const prescriptionViewSlice = createSlice({
       // downloadPDF
       .addCase(downloadPDF.pending, (state) => {
         state.downloading = true;
+        state.actionError = null;
       })
       .addCase(downloadPDF.fulfilled, (state) => {
         state.downloading = false;
       })
-      .addCase(downloadPDF.rejected, (state) => {
+      .addCase(downloadPDF.rejected, (state, action) => {
         state.downloading = false;
+        state.actionError = action.payload ?? 'Failed to download PDF';
       })
       // sharePrescription
       .addCase(sharePrescription.pending, (state) => {
         state.sharing = true;
+        state.actionError = null;
       })
       .addCase(sharePrescription.fulfilled, (state) => {
         state.sharing = false;
       })
-      .addCase(sharePrescription.rejected, (state) => {
+      .addCase(sharePrescription.rejected, (state, action) => {
         state.sharing = false;
+        state.actionError = action.payload ?? 'Failed to share prescription';
       });
   },
 });
 
-export const { resetPrescription } = prescriptionViewSlice.actions;
+export const { resetPrescription, clearActionError } = prescriptionViewSlice.actions;
 export default prescriptionViewSlice.reducer;

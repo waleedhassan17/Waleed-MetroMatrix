@@ -14,7 +14,6 @@ import {
   Dimensions,
   TextInput,
   RefreshControl,
-  Share,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -50,11 +49,7 @@ import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
-import {
-  invoiceNumberFor,
-  downloadInvoicePdf,
-} from '../../../../utils/healthcare/invoice';
-import { getAccessToken } from '../../../../utils/storage_utils/storageUtils';
+import { downloadInvoicePdf } from '../../../../utils/healthcare/invoice';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -321,11 +316,7 @@ const AppointmentDetailScreen: React.FC = () => {
     if (!appointment) return;
     setDownloadingInvoice(true);
     try {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Please sign in again to download your invoice.');
-      const uri = await downloadInvoicePdf(appointment.appointmentId, token);
-      const number = invoiceNumberFor(appointment.appointmentId);
-      await Share.share({ url: uri, title: `${number}.pdf`, message: `MetroMatrix invoice ${number}` });
+      await downloadInvoicePdf(appointment.appointmentId);
     } catch (e: any) {
       Alert.alert('Download failed', e?.message || 'The invoice could not be downloaded.');
     } finally {
@@ -539,21 +530,12 @@ const AppointmentDetailScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.contactButtons}>
-            <TouchableOpacity style={styles.contactButton} activeOpacity={0.7}>
-              <View style={[styles.contactIconBg, { backgroundColor: '#DCFCE7' }]}>
-                <Ionicons name="call" size={16} color={THEME.success} />
-              </View>
-              <Text style={styles.contactButtonText}>Call</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.contactButton} activeOpacity={0.7}>
-              <View style={[styles.contactIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
-                <Ionicons name="chatbubble" size={16} color={THEME.primary} />
-              </View>
-              <Text style={styles.contactButtonText}>Message</Text>
-            </TouchableOpacity>
-          </View>
+          {/* There was a second Call/Message pair here, inside this card, with
+              no `onPress` on either button — two controls that looked live and
+              did nothing. The working pair is the `contactRow` further down,
+              which is also the one that belongs there: it is placed with the
+              other appointment-level actions and is hidden for a cancelled
+              appointment, which this one was not. */}
         </View>
 
         {/* Appointment Details Card */}
@@ -1127,7 +1109,9 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
   doctorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    // No trailing margin: the contact buttons that used to sit under this row
+    // are gone, so this is the last thing in the card and the card's own
+    // padding is the spacing.
   },
   doctorAvatar: {
     width: 56,
@@ -1152,33 +1136,6 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
     color: Colors.text.tertiary,
     marginTop: 2,
   },
-  contactButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  contactButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: sh.n('#F8FBFF', 'bg'),
-  },
-  contactIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contactButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-
   // Detail Row
   detailRow: {
     flexDirection: 'row',

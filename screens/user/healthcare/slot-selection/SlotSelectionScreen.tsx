@@ -146,13 +146,26 @@ const SlotSelectionScreen: React.FC = () => {
     ]).start();
   }, []);
 
+  // A clinic chosen on the previous screen fixes this as an in-clinic visit.
+  const selectedClinic = useAppSelector((s) => s.clinicSelection?.selectedClinic);
+  const lockedToClinic = !!selectedClinic;
+
+  // Only filter by clinic for an in-clinic visit — a video consultation has no
+  // clinic, and sending one would filter every slot away.
+  const slotClinicId =
+    consultationType === 'in-clinic' ? selectedClinic?.clinicId : undefined;
+
   useEffect(() => {
-    dispatch(fetchSlots({ doctorId, date: selectedDate, consultationType }));
-  }, [dispatch, doctorId, selectedDate, consultationType]);
+    dispatch(fetchSlots({ doctorId, date: selectedDate, consultationType, clinicId: slotClinicId }));
+  }, [dispatch, doctorId, selectedDate, consultationType, slotClinicId]);
 
   // Which of the next 14 days have anything at all. One request for the whole
   // strip, so empty days can be greyed out instead of the patient tapping
   // through them one by one hunting for availability.
+  //
+  // Filtered by the same clinic as the list above — otherwise a day is marked
+  // available because ANOTHER clinic has room that day, and tapping it shows
+  // nothing.
   useEffect(() => {
     const days = getNext14Days();
     dispatch(
@@ -161,9 +174,10 @@ const SlotSelectionScreen: React.FC = () => {
         from: days[0].date,
         to: days[days.length - 1].date,
         consultationType,
+        clinicId: slotClinicId,
       })
     );
-  }, [dispatch, doctorId, consultationType]);
+  }, [dispatch, doctorId, consultationType, slotClinicId]);
 
   useEffect(() => {
     return () => { dispatch(clearSelection()); };
@@ -195,10 +209,6 @@ const SlotSelectionScreen: React.FC = () => {
     (type: ConsultationType) => dispatch(setConsultationType(type)),
     [dispatch],
   );
-
-  // A clinic chosen on the previous screen fixes this as an in-clinic visit.
-  const selectedClinic = useAppSelector((s) => s.clinicSelection?.selectedClinic);
-  const lockedToClinic = !!selectedClinic;
 
   // Only offer the switch when this doctor actually consults over video, so we
   // never send someone to a slot list that can only ever be empty. Falls back to
@@ -599,7 +609,14 @@ const SlotSelectionScreen: React.FC = () => {
               <TouchableOpacity
                 style={styles.retryBtn}
                 onPress={() =>
-                  dispatch(fetchSlots({ doctorId, date: selectedDate, consultationType }))
+                  dispatch(
+                    fetchSlots({
+                      doctorId,
+                      date: selectedDate,
+                      consultationType,
+                      clinicId: slotClinicId,
+                    })
+                  )
                 }
                 activeOpacity={0.8}
               >

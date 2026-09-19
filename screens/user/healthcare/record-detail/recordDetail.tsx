@@ -10,7 +10,6 @@ import {
   Animated,
   Platform,
   Image,
-  Share,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -35,6 +34,7 @@ import {
   getRecordFileExtension,
   isImageRecord,
 } from '../../../../utils/healthcare/recordDisplay';
+import { shareRecord } from '../../../../utils/healthcare/recordActions';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { Colors } from '../../../../constants/Colors';
 import type { HealthcareStackParamList } from '../../../../models/healthcare/types';
@@ -162,19 +162,9 @@ const RecordDetailScreen: React.FC = () => {
     }
   }, [record?.fileUrl]);
 
-  const handleShare = useCallback(async () => {
-    if (!record) return;
-    try {
-      await Share.share({
-        title: record.title,
-        message: record.fileUrl
-          ? `${record.title}\n${record.fileUrl}`
-          : record.title,
-      });
-    } catch {
-      // User dismissed the sheet — nothing to report.
-    }
-  }, [record]);
+  // Shared with the health-records list, so the icons on a card and the one in
+  // this header do the same thing.
+  const handleShare = useCallback(() => shareRecord(record), [record]);
 
   const handleDelete = useCallback(() => {
     if (!record) return;

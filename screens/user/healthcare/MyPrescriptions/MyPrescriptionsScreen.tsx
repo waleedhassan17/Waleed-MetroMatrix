@@ -8,7 +8,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Linking,
+  Alert,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { fetchMyPrescriptionsApi } from '../../../../networks/healthcare/appointmentApi';
-import { API_URL } from '../../../../networks/network/network';
+import { downloadAndShareAuthedPdf } from '../../../../utils/healthcare/documents';
 import type { Prescription } from '../../../../models/healthcare/types';
 
 const C = {
@@ -42,6 +42,8 @@ const MyPrescriptionsScreen: React.FC = () => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Which row's PDF is being fetched, so only that icon spins. */
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,12 +58,24 @@ const MyPrescriptionsScreen: React.FC = () => {
     load();
   }, [load]);
 
-  const handleDownload = (prescriptionId: string) => {
-    // The PDF endpoint requires the auth token; opening in the browser works
-    // for demo purposes because the endpoint accepts the bearer session —
-    // in-app viewing goes through PrescriptionView.
-    Linking.openURL(`${API_URL}/v1/healthcare/prescriptions/${prescriptionId}/pdf`);
-  };
+  // This used to be `Linking.openURL(pdfEndpoint)`. The route is behind
+  // `requireUser`, and an external browser carries none of the app's session —
+  // so the button left the app and landed on a 401 every time. Fetch it here,
+  // with the token, and hand the file to the OS.
+  const handleDownload = useCallback(async (prescriptionId: string) => {
+    setDownloadingId(prescriptionId);
+    try {
+      await downloadAndShareAuthedPdf(
+        `/v1/healthcare/prescriptions/${encodeURIComponent(prescriptionId)}/pdf`,
+        `prescription-${prescriptionId.slice(-8).toUpperCase()}.pdf`,
+        'Save prescription'
+      );
+    } catch (e: any) {
+      Alert.alert('Download failed', e?.message || 'The prescription could not be downloaded.');
+    } finally {
+      setDownloadingId(null);
+    }
+  }, []);
 
   const renderItem = ({ item }: { item: Prescription }) => (
     <TouchableOpacity
@@ -83,8 +97,18 @@ const MyPrescriptionsScreen: React.FC = () => {
           {new Date(item.createdAt).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' })}
         </Text>
       </View>
-      <TouchableOpacity style={styles.pdfBtn} onPress={() => handleDownload(item.prescriptionId)}>
-        <Ionicons name="download-outline" size={18} color={C.primary} />
+      <TouchableOpacity
+        style={styles.pdfBtn}
+        onPress={() => handleDownload(item.prescriptionId)}
+        disabled={downloadingId === item.prescriptionId}
+        accessibilityRole="button"
+        accessibilityLabel={`Download ${item.diagnosis || 'prescription'} as PDF`}
+      >
+        {downloadingId === item.prescriptionId ? (
+          <ActivityIndicator size="small" color={C.primary} />
+        ) : (
+          <Ionicons name="download-outline" size={18} color={C.primary} />
+        )}
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -109,6 +133,9 @@ const MyPrescriptionsScreen: React.FC = () => {
         data={prescriptions}
         keyExtractor={(item) => item.prescriptionId}
         renderItem={renderItem}
+        // Cells are memoised on `item`, which does not change when a row starts
+        // downloading — without this the spinner never appears.
+        extraData={downloadingId}
         contentContainerStyle={[
           styles.list,
           // Centre the empty state in the space left over instead of pinning

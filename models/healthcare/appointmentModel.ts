@@ -151,7 +151,10 @@ export const FetchTimeSlotsParamsSchema = z.object({
 });
 
 export const FetchAppointmentsParamsSchema = z.object({
-  patientId: z.string(),
+  // Optional: the backend reads the patient off the auth token and
+  // `fetchAppointmentsApi` never sends this. Requiring it only ever produced
+  // placeholder values like 'patient-1' at the call sites.
+  patientId: z.string().optional(),
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no-show']).optional(),
   page: z.number().optional(),
   limit: z.number().optional(),

@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Animated,
+  Modal,
+  TextInput,
   Platform,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
@@ -20,7 +22,16 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { fromLocalISODate } from '../../../../utils/date/localDate';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { setActiveTab, fetchMyAppointments } from './myAppointmentsSlice';
+import {
+  setActiveTab,
+  fetchMyAppointments,
+  cancelMyAppointment,
+  openCancelSheet,
+  closeCancelSheet,
+  APPOINTMENT_PAGE,
+} from './myAppointmentsSlice';
+import { CANCELLATION_REASONS } from '../AppointmentDetail/appointmentDetailSlice';
+import { setAppointment as setRescheduleAppointment } from '../RescheduleAppointment/rescheduleAppointmentSlice';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
@@ -79,8 +90,11 @@ const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const isInTab = route.params?.isTab === true;
 
-  const { appointments, activeTab, loading } = useAppSelector((state) => state.myAppointments);
+  const { appointments, activeTab, loading, error, cancelTargetId, cancelling, cancelError } =
+    useAppSelector((state) => state.myAppointments);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelReason, setCancelReason] = useState<string | null>(null);
+  const [cancelReasonText, setCancelReasonText] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -117,29 +131,58 @@ const MyAppointmentsScreen: React.FC = () => {
 
   const handleTabPress = (tab: 'upcoming' | 'past') => dispatch(setActiveTab(tab));
 
-  // Upcoming is filtered on this device from one newest-first page, so the page
-  // must be big enough that a patient's older cancelled or past visits cannot
-  // push a real upcoming appointment off the end of it.
-  const APPOINTMENT_PAGE = 100;
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await dispatch(fetchMyAppointments({ patientId: 'patient-1', limit: APPOINTMENT_PAGE }));
+    await dispatch(fetchMyAppointments({ limit: APPOINTMENT_PAGE }));
     setRefreshing(false);
   }, [dispatch]);
 
-  // THE BUG: this list was only ever fetched on pull-to-refresh. Nothing loaded
-  // it when the tab opened, so a patient who had just booked saw "No Upcoming
-  // Appointments" until they happened to drag the list down. Load on every
+  // This list was once only ever fetched on pull-to-refresh. Load on every
   // focus — the tab stays mounted, so returning from a booking must refetch.
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchMyAppointments({ patientId: 'patient-1', limit: APPOINTMENT_PAGE }));
+      dispatch(fetchMyAppointments({ limit: APPOINTMENT_PAGE }));
     }, [dispatch])
   );
 
-  const handleCancel = (id: string) => {};
-  const handleReschedule = (id: string) => {};
+  // ── Cancel ────────────────────────────────
+
+  const handleCancel = useCallback(
+    (id: string) => {
+      setCancelReason(null);
+      setCancelReasonText('');
+      dispatch(openCancelSheet(id));
+    },
+    [dispatch],
+  );
+
+  const handleCancelDismiss = useCallback(() => dispatch(closeCancelSheet()), [dispatch]);
+
+  const handleCancelConfirm = useCallback(() => {
+    if (!cancelTargetId || !cancelReason) return;
+    dispatch(
+      cancelMyAppointment({
+        appointmentId: cancelTargetId,
+        reason: cancelReason,
+        reasonText: cancelReasonText,
+      }),
+    );
+  }, [dispatch, cancelTargetId, cancelReason, cancelReasonText]);
+
+  // ── Reschedule ────────────────────────────
+
+  // Seeding the slice first is required, not incidental: RescheduleAppointment
+  // renders from `state.rescheduleAppointment.appointment`, and arriving there
+  // with it unset leaves the patient on a screen with no appointment to move.
+  const handleReschedule = useCallback(
+    (appointment: Appointment) => {
+      dispatch(setRescheduleAppointment(appointment));
+      navigation.navigate(HealthcareRouteNames.RescheduleAppointment, {
+        appointmentId: appointment.appointmentId,
+      });
+    },
+    [dispatch, navigation],
+  );
 
   // Was `(a: Appointment) => {}` — an empty function, so the "Join Call" button
   // on every appointment card did nothing at all.
@@ -186,7 +229,6 @@ const MyAppointmentsScreen: React.FC = () => {
   const renderAppointmentCard = ({ item, index }: { item: Appointment; index: number }) => {
     const isUpcoming = item.status === 'pending' || item.status === 'confirmed';
     const isVideo = item.type === 'video';
-    const cardFade = new Animated.Value(1);
 
     return (
       <TouchableOpacity
@@ -287,7 +329,7 @@ const MyAppointmentsScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.actionReschedule}
-              onPress={() => handleReschedule(item.appointmentId)}
+              onPress={() => handleReschedule(item)}
               activeOpacity={0.7}
             >
               <Ionicons name="calendar-outline" size={15} color={THEME.primary} />
@@ -320,7 +362,43 @@ const MyAppointmentsScreen: React.FC = () => {
   // ── Empty State ──────────────────────────
 
   const renderEmpty = () => {
-    if (loading) return null;
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingIconWrap}>
+            <ActivityIndicator size="large" color={THEME.primary} />
+          </View>
+          <Text style={styles.loadingText}>Loading appointments…</Text>
+        </View>
+      );
+    }
+
+    // A failed load used to render as "No Upcoming Appointments" — the slice
+    // stored `error` and nothing read it, so a network failure was
+    // indistinguishable from genuinely having no appointments.
+    if (error) {
+      return (
+        <View style={styles.emptyContainer}>
+          <LinearGradient colors={sh.grad(['#FEF2F2', '#FEE2E2'])} style={styles.emptyIconWrap}>
+            <Ionicons name="cloud-offline-outline" size={40} color={THEME.error} />
+          </LinearGradient>
+          <Text style={styles.emptyTitle}>Couldn't load appointments</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+          <TouchableOpacity style={styles.emptyActionBtn} onPress={onRefresh} activeOpacity={0.85}>
+            <LinearGradient
+              colors={THEME.gradient.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.emptyActionBtnGradient}
+            >
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.emptyActionBtnText}>Try Again</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     const isUpcoming = activeTab === 'upcoming';
     return (
       <View style={styles.emptyContainer}>
@@ -439,35 +517,128 @@ const MyAppointmentsScreen: React.FC = () => {
         </View>
       </LinearGradient>
 
-      {/* Content */}
-      {loading && filteredAppointments.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingIconWrap}>
-            <ActivityIndicator size="large" color={THEME.primary} />
-          </View>
-          <Text style={styles.loadingText}>Loading appointments…</Text>
-        </View>
-      ) : (
-        <Animated.View style={[styles.listWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <FlatList
-            data={filteredAppointments}
-            renderItem={renderAppointmentCard}
-            keyExtractor={(item) => item.appointmentId}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={renderEmpty}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={[THEME.primary]}
-                tintColor={THEME.primary}
-                progressViewOffset={8}
+      {/* Content
+
+          One always-mounted list. The loading state used to be a sibling
+          branch, which meant the very first fetch swapped this Animated.View
+          out mid-entrance-animation: the native-driven `fadeAnim` was detached
+          part-way and never reached 1, so when the list came back it rendered
+          at a fraction of full opacity — present, but invisible. Leaving
+          Healthcare and re-entering remounted the screen and, with the data
+          already cached, never took the loading branch, so the list appeared.
+          That was the "go back and come again" bug. Loading, error and empty
+          are all ListEmptyComponent states now, so nothing unmounts. */}
+      <Animated.View style={[styles.listWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <FlatList
+          data={filteredAppointments}
+          renderItem={renderAppointmentCard}
+          keyExtractor={(item) => item.appointmentId}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmpty}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[THEME.primary]}
+              tintColor={THEME.primary}
+              progressViewOffset={8}
+            />
+          }
+        />
+      </Animated.View>
+
+      {/* Cancel sheet — the same reasons the detail screen offers, so an
+          appointment is cancelled the same way from either place. */}
+      <Modal
+        visible={!!cancelTargetId}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelDismiss}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIconWrap}>
+                <Ionicons name="alert-circle" size={30} color={THEME.error} />
+              </View>
+              <Text style={styles.modalTitle}>Cancel Appointment?</Text>
+              <Text style={styles.modalSubtitle}>
+                Please let us know why you're cancelling
+              </Text>
+            </View>
+
+            <View style={styles.reasonsWrap}>
+              {CANCELLATION_REASONS.map((reason) => {
+                const isSelected = cancelReason === reason.id;
+                return (
+                  <TouchableOpacity
+                    key={reason.id}
+                    style={[styles.reasonRow, isSelected && styles.reasonRowSelected]}
+                    onPress={() => setCancelReason(reason.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={reason.icon as any}
+                      size={16}
+                      color={isSelected ? THEME.primary : '#94A3B8'}
+                    />
+                    <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
+                      {reason.label}
+                    </Text>
+                    <View style={[styles.reasonRadio, isSelected && styles.reasonRadioSelected]}>
+                      {isSelected && <View style={styles.reasonRadioDot} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {cancelReason === 'other' && (
+              <TextInput
+                style={styles.reasonInput}
+                placeholder="Please specify…"
+                placeholderTextColor="#94A3B8"
+                value={cancelReasonText}
+                onChangeText={setCancelReasonText}
+                multiline
               />
-            }
-          />
-        </Animated.View>
-      )}
+            )}
+
+            {!!cancelError && (
+              <View style={styles.modalError}>
+                <Ionicons name="alert-circle" size={14} color={THEME.error} />
+                <Text style={styles.modalErrorText}>{cancelError}</Text>
+              </View>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalGhostBtn}
+                onPress={handleCancelDismiss}
+                disabled={cancelling}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalGhostBtnText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDangerBtn, !cancelReason && styles.modalDangerBtnDisabled]}
+                onPress={handleCancelConfirm}
+                // The backend requires a 3–500 character reason, so an empty
+                // submit could only ever come back as a validation error.
+                disabled={!cancelReason || cancelling}
+                activeOpacity={0.7}
+              >
+                {cancelling ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalDangerBtnText}>Yes, Cancel</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -872,6 +1043,151 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
   },
   emptyActionBtnText: {
     fontSize: 15,
+    fontWeight: '700',
+    color: sh.n('#FFFFFF', 'inkInverse'),
+  },
+
+  // Cancel sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: sh.n('#FFFFFF', 'surface'),
+    borderRadius: 16,
+    padding: 22,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  modalIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: sh.n('#0F172A', 'ink'),
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: sh.n('#64748B', 'inkMuted'),
+    textAlign: 'center',
+  },
+  reasonsWrap: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: sh.n('#E2E8F0', 'line'),
+  },
+  reasonRowSelected: {
+    borderColor: THEME.primary,
+    backgroundColor: THEME.primaryLight,
+  },
+  reasonText: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: sh.n('#475569', 'inkMuted'),
+  },
+  reasonTextSelected: {
+    color: THEME.primary,
+  },
+  reasonRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: sh.n('#CBD5E1', 'disabled'),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reasonRadioSelected: {
+    borderColor: THEME.primary,
+  },
+  reasonRadioDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: THEME.primary,
+  },
+  reasonInput: {
+    borderWidth: 1.5,
+    borderColor: sh.n('#E2E8F0', 'line'),
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 13.5,
+    color: sh.n('#0F172A', 'ink'),
+    minHeight: 72,
+    textAlignVertical: 'top',
+    marginBottom: 14,
+  },
+  modalError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: sh.ground('#FEE2E2', '#EF4444'),
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: THEME.error,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalGhostBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: sh.n('#E2E8F0', 'line'),
+  },
+  modalGhostBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: sh.n('#475569', 'inkMuted'),
+  },
+  modalDangerBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: THEME.error,
+  },
+  modalDangerBtnDisabled: {
+    backgroundColor: sh.n('#CBD5E1', 'disabled'),
+  },
+  modalDangerBtnText: {
+    fontSize: 14,
     fontWeight: '700',
     color: sh.n('#FFFFFF', 'inkInverse'),
   },

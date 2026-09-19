@@ -34,6 +34,7 @@ import {
   RecordCategory,
 } from './healthRecordsSlice';
 import { getRecordConfig } from '../../../../utils/healthcare/recordDisplay';
+import { shareRecord, downloadRecord } from '../../../../utils/healthcare/recordActions';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { MedicalRecord } from '../../../../models/healthcare/types';
 
@@ -485,19 +486,22 @@ const HealthRecordsScreen: React.FC = () => {
               )}
 
               <View style={styles.cardActions}>
+                {/* Both of these were an empty `onPress` with a comment inside.
+                    The handlers live in utils/healthcare/recordActions so this
+                    card and the record-detail screen do the same thing. */}
                 <TouchableOpacity
                   style={styles.cardActionButton}
-                  onPress={() => {
-                    // Share record
-                  }}
+                  onPress={() => shareRecord(record)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Share ${record.title}`}
                 >
                   <Ionicons name="share-outline" size={16} color={Colors.text.secondary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.cardActionButton}
-                  onPress={() => {
-                    // Download record
-                  }}
+                  onPress={() => downloadRecord(record)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Download ${record.title}`}
                 >
                   <Ionicons name="download-outline" size={16} color={Colors.text.secondary} />
                 </TouchableOpacity>

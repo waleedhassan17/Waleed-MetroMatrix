@@ -227,7 +227,7 @@ const HealthcareHomeScreen: React.FC = () => {
   const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { featuredDoctors, specialties, nextAppointment, loading, error } = useAppSelector(
+  const { featuredDoctors, specialties, nextAppointment, stats, loading, error } = useAppSelector(
     (state) => state.healthcareHome
   ) as HealthcareHomeState;
 
@@ -338,6 +338,20 @@ const HealthcareHomeScreen: React.FC = () => {
 
   const handleQuickAction = (route: string) => {
     navigation.navigate(route as never);
+  };
+
+  // The "Your health" tiles. Same destinations as the Quick Actions above, so
+  // a count and the shortcut to it lead to exactly the same screen.
+  const handleViewAppointments = () => {
+    navigation.navigate(HealthcareRouteNames.MyAppointments as never);
+  };
+
+  const handleViewRecords = () => {
+    navigation.navigate(HealthcareRouteNames.HealthRecords as never);
+  };
+
+  const handleViewPrescriptions = () => {
+    navigation.navigate(HealthcareRouteNames.MyPrescriptions as never);
   };
 
   const handleViewAllSpecialties = () => {
@@ -634,37 +648,59 @@ const HealthcareHomeScreen: React.FC = () => {
           </ScrollView>
         </View>
 
-        {/* ── Trust Stats Bar ──────────────────── */}
+        {/* ── Your Health At A Glance ───────────
+            This was a "trust bar" reading 50,000+ Patients, 200+ Doctors and a
+            4.8 Rating — three figures nobody had measured, stated as fact to
+            every patient. These are this patient's own counts, all of them
+            real, and each one goes somewhere. */}
         <View style={styles.trustBar}>
-          <View style={styles.trustItem}>
+          <TouchableOpacity
+            style={styles.trustItem}
+            onPress={handleViewAppointments}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${stats.upcoming} upcoming appointments`}
+          >
             <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
-              <Ionicons name="people" size={16} color="#2A7FFF" />
+              <Ionicons name="calendar" size={16} color="#2A7FFF" />
             </View>
-            <View>
-              <Text style={styles.trustValue}>50,000+</Text>
-              <Text style={styles.trustLabel}>Patients</Text>
+            <View style={styles.trustText}>
+              <Text style={styles.trustValue}>{stats.upcoming}</Text>
+              <Text style={styles.trustLabel} numberOfLines={1}>Upcoming</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={styles.trustDivider} />
-          <View style={styles.trustItem}>
+          <TouchableOpacity
+            style={styles.trustItem}
+            onPress={handleViewRecords}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${stats.records} health records`}
+          >
             <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#ECFDF5', '#10B981') }]}>
-              <MaterialCommunityIcons name="doctor" size={16} color="#10B981" />
+              <Ionicons name="document-text" size={16} color="#10B981" />
             </View>
-            <View>
-              <Text style={styles.trustValue}>200+</Text>
-              <Text style={styles.trustLabel}>Doctors</Text>
+            <View style={styles.trustText}>
+              <Text style={styles.trustValue}>{stats.records}</Text>
+              <Text style={styles.trustLabel} numberOfLines={1}>Records</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={styles.trustDivider} />
-          <View style={styles.trustItem}>
+          <TouchableOpacity
+            style={styles.trustItem}
+            onPress={handleViewPrescriptions}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${stats.prescriptions} prescriptions`}
+          >
             <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
-              <Ionicons name="star" size={16} color="#F59E0B" />
+              <MaterialCommunityIcons name="pill" size={16} color="#F59E0B" />
             </View>
-            <View>
-              <Text style={styles.trustValue}>4.8</Text>
-              <Text style={styles.trustLabel}>Rating</Text>
+            <View style={styles.trustText}>
+              <Text style={styles.trustValue}>{stats.prescriptions}</Text>
+              <Text style={styles.trustLabel} numberOfLines={1}>Prescriptions</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* ── Upcoming Appointment Card ────────── */}
@@ -1100,10 +1136,12 @@ const makeStyles = (
       android: { elevation: 2 },
     }),
   },
+  // Stacked, not icon-beside-text. These labels ("Prescriptions") are longer
+  // than the ones this bar used to carry ("Rating"), and a row layout left
+  // roughly 55pt for them on a narrow phone — enough to ellipsize the word.
   trustItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
     justifyContent: 'center',
   },
@@ -1114,8 +1152,11 @@ const makeStyles = (
     justifyContent: 'center',
     alignItems: 'center',
   },
+  trustText: {
+    alignItems: 'center',
+  },
   trustValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     color: sh.n('#0F172A', 'ink'),
     letterSpacing: -0.3,
@@ -1128,7 +1169,7 @@ const makeStyles = (
   },
   trustDivider: {
     width: 1,
-    height: 28,
+    height: 48,
     backgroundColor: sh.n('#E2E8F0', 'line'),
   },
 

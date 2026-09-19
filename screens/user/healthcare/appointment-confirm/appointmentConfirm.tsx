@@ -46,7 +46,6 @@ import {
   paymentMethodLabel as formatPaymentMethod,
   downloadInvoicePdf,
 } from '../../../../utils/healthcare/invoice';
-import { getAccessToken } from '../../../../utils/storage_utils/storageUtils';
 import { formatFee } from '../../../../utils/healthcare/doctorDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -285,14 +284,7 @@ const AppointmentConfirmScreen: React.FC = () => {
     if (!invoiceAppointmentId) return;
     setDownloadingInvoice(true);
     try {
-      const token = await getAccessToken();
-      if (!token) throw new Error('Please sign in again to download your invoice.');
-      const uri = await downloadInvoicePdf(invoiceAppointmentId, token);
-      await Share.share({
-        url: uri,
-        title: `${invoiceNumber}.pdf`,
-        message: `MetroMatrix invoice ${invoiceNumber}`,
-      });
+      await downloadInvoicePdf(invoiceAppointmentId);
     } catch (e: any) {
       Alert.alert(
         'Download failed',
@@ -301,7 +293,7 @@ const AppointmentConfirmScreen: React.FC = () => {
     } finally {
       setDownloadingInvoice(false);
     }
-  }, [invoiceAppointmentId, invoiceNumber]);
+  }, [invoiceAppointmentId]);
 
   return (
     <SafeAreaView style={styles.container}>

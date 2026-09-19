@@ -61,15 +61,25 @@ interface FetchSlotsParams {
   doctorId: string;
   date: string;
   consultationType: ConsultationType;
+  /**
+   * The clinic the patient chose, when this is an in-clinic visit.
+   *
+   * This was not sent, so after picking a clinic the patient was shown every
+   * clinic's times for that doctor — and could pick one belonging to a clinic
+   * they had not chosen, which the booking then submitted under the clinic they
+   * had. The availability summary must be filtered the same way or the date
+   * strip and this list disagree again.
+   */
+  clinicId?: string;
 }
 
 export const fetchSlots = createAsyncThunk<
   TimeSlot[],
   FetchSlotsParams,
   { rejectValue: string }
->('slotSelection/fetchSlots', async ({ doctorId, date, consultationType }, { rejectWithValue }) => {
+>('slotSelection/fetchSlots', async ({ doctorId, date, consultationType, clinicId }, { rejectWithValue }) => {
   try {
-    const res = await fetchTimeSlotsApi({ doctorId, date });
+    const res = await fetchTimeSlotsApi({ doctorId, date, clinicId });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     return res.data.filter(
       (s) =>
@@ -88,17 +98,26 @@ export const fetchSlots = createAsyncThunk<
  */
 export const fetchAvailabilitySummary = createAsyncThunk<
   AvailabilityDay[],
-  { doctorId: string; from: string; to: string; consultationType?: ConsultationType },
+  {
+    doctorId: string;
+    from: string;
+    to: string;
+    consultationType?: ConsultationType;
+    /** Must match what `fetchSlots` sends, or the strip marks days the list
+     *  cannot fill — which is the mismatch this whole hint exists to avoid. */
+    clinicId?: string;
+  },
   { rejectValue: string }
 >(
   'slotSelection/fetchAvailabilitySummary',
-  async ({ doctorId, from, to, consultationType }, { rejectWithValue }) => {
+  async ({ doctorId, from, to, consultationType, clinicId }, { rejectWithValue }) => {
     try {
       const res = await fetchAvailabilitySummaryApi({
         doctorId,
         from,
         to,
         type: consultationType,
+        clinicId,
       });
       if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
       return res.data?.days ?? [];

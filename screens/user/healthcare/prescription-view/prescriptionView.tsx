@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Animated,
+  Alert,
   Platform,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
@@ -22,11 +23,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import {
   fetchPrescription,
   downloadPDF,
   sharePrescription,
   resetPrescription,
+  clearActionError,
   Medication,
 } from './prescriptionViewSlice';
 
@@ -62,6 +65,10 @@ const PrescriptionViewScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<PrescriptionViewParams, 'PrescriptionView'>>();
   const dispatch = useAppDispatch();
+  // The action bar is pinned to the bottom of a react-native SafeAreaView,
+  // which applies no inset on Android — so both buttons sat half under the
+  // system navigation bar and the covered half swallowed taps.
+  const bottomBarPadding = useBottomBarPadding(20);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -80,7 +87,7 @@ const PrescriptionViewScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  const { prescription, loading, error, downloading, sharing } = useAppSelector(
+  const { prescription, loading, error, downloading, sharing, actionError } = useAppSelector(
     (state) => state.prescriptionView,
   );
 
@@ -90,6 +97,15 @@ const PrescriptionViewScreen: React.FC = () => {
     dispatch(fetchPrescription(prescriptionId));
     return () => { dispatch(resetPrescription()); };
   }, [dispatch, prescriptionId]);
+
+  // A download that fails has to say so. Both buttons used to resolve no matter
+  // what, so there was no difference on screen between "saved" and "nothing
+  // happened".
+  useEffect(() => {
+    if (!actionError) return;
+    Alert.alert('Prescription', actionError);
+    dispatch(clearActionError());
+  }, [actionError, dispatch]);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -380,11 +396,11 @@ const PrescriptionViewScreen: React.FC = () => {
       </Animated.ScrollView>
 
       {/* ── Bottom Action Bar ── */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: bottomBarPadding }]}>
         <TouchableOpacity
           style={styles.downloadButton}
           onPress={() => dispatch(downloadPDF(prescription.prescriptionId))}
-          disabled={downloading}
+          disabled={downloading || sharing}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -407,7 +423,7 @@ const PrescriptionViewScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.shareButton}
           onPress={() => dispatch(sharePrescription(prescription.prescriptionId))}
-          disabled={sharing}
+          disabled={sharing || downloading}
           activeOpacity={0.85}
         >
           {sharing ? (
@@ -855,7 +871,8 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
   bottomBar: {
     flexDirection: 'row',
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    // paddingBottom comes from useBottomBarPadding at the call site — it has to
+    // clear the Android navigation bar, whose height this file cannot know.
     gap: 12,
     backgroundColor: sh.n('#FFFFFF', 'surface'),
     borderTopWidth: 1,
