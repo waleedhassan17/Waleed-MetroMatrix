@@ -19,7 +19,6 @@ import {
   ChevronRight,
   CreditCard,
   Globe,
-  HelpCircle,
   LogOut,
   Trash2,
   Camera,
@@ -28,8 +27,6 @@ import {
   Moon,
   MapPin,
   Star,
-  FileText,
-  Clock,
   Settings,
   Calendar,
   Award,
@@ -44,7 +41,6 @@ import {
   fetchProfile,
   updateAvailability,
   toggleNotifications,
-  toggleLanguage,
 } from './profileSlice';
 import { selectBalance, selectCurrency, fetchWallet } from '../../../../services/wallet';
 import { performLogout } from '../../../../services/auth/logout';
@@ -52,12 +48,10 @@ import { contactSupport } from '../../../../utils/support/contactSupport';
 import { currencySymbol } from '../../../../constants/Currency';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { theme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, F, T } from '../../../../constants/theme';
+import { F, T } from '../../../../constants/theme';
 import { barStyleOn, ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
-import { HS } from '../../../../constants/HomeServiceTheme';
 import { selectThemePreference, setThemePreference } from '../../../../store/themeSlice';
 
 const { width } = Dimensions.get('window');

@@ -4,12 +4,10 @@ import type { RootState } from "../../../store/store";
 import {
   savePersonalInfoSession,
   loadPersonalInfoSession,
-  clearPersonalInfoSession,
   type PersonalInfoData,
   type PersonalInfoSession,
 } from '../../../utils/provider-utils/providerUtils';
-import * as DocumentPicker from 'expo-document-picker';
-import { saveData, KeyForStorage, retrieveData, removeData, getAccessToken } from '../../../utils/storage_utils/storageUtils';
+import { saveData, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
 
 // Types
 export type ProviderType = 'doctor' | 'home_service' | 'vendor';

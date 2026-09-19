@@ -13,8 +13,7 @@ import {
   updateProviderOnlineStatus,
   updateProviderProfile,
 } from '../../../../networks/serviceProviders/providerNetwork';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Card, Chip, Screen } from '../../../../components/ui';

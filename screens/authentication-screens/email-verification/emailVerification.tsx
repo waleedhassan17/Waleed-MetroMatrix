@@ -16,7 +16,7 @@ import { useTheme } from '../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
-import { retrieveData, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
+import { retrieveData } from '../../../utils/storage_utils/storageUtils';
 import {
   setEmail,
   setVerificationType,

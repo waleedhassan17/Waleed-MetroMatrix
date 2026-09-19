@@ -20,7 +20,6 @@ import { useAppDispatch, useAppSelector } from '../../../../../../hooks/useRedux
 import {
   setSearchQuery,
   setFilterStatus,
-  updateBookingStatus,
   selectStatusCount,
 } from './bookingsSlice';
 

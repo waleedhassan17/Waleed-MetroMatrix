@@ -10,7 +10,6 @@ import {
 import { darkShift, type DarkShift } from '../constants/darkShift';
 import { useTheme } from '../theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Fonts } from '../constants/Fonts';
 
 // Input Field Component
 interface InputFieldProps {

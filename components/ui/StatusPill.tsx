@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { bookingStatus } from '../../constants/HomeServiceTheme';
-import { F, R, S, T } from '../../constants/theme';
+import { R, S, T } from '../../constants/theme';
 import { useTheme } from '../../theme';
 
 /**

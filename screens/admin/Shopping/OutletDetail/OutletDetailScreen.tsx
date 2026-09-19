@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import {
   ChevronLeft,
   Check,
@@ -30,7 +30,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import type { AdminShoppingParamList, OutletColorScheme } from '../../../../types/shopping';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import {

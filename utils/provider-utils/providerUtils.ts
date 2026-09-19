@@ -1,4 +1,4 @@
-import { saveData, getData, removeData, clearAllData, saveMultipleData, KeyForStorage } from '../storage_utils/storageUtils';
+import { saveData, getData, removeData, saveMultipleData, KeyForStorage } from '../storage_utils/storageUtils';
 
 // ==================== Provider Selection Storage ====================
 

@@ -39,8 +39,7 @@ import { performLogout } from '../../../../services/auth/logout';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { flatTheme as theme } from '../providerTheme';
-import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { F, GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';

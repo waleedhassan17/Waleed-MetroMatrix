@@ -33,7 +33,7 @@ import {
   selectHistoryError,
 } from '../../../services/wallet';
 import type { WalletTransaction, TransactionModule } from '../../../models/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { Colors, Spacing, makeColors, type ColorType } from '../../../constants/Colors';
 import { useTheme } from '../../../theme';
 import {
   splitMoney,

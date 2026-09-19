@@ -24,7 +24,6 @@ import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks'
 import {
   fetchAllDoctors,
   verifyDoctor,
-  toggleDoctorAvailability,
   setSearchQuery,
   setVerificationFilter,
   selectFilteredDoctors,

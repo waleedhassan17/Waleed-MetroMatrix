@@ -22,7 +22,7 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { ErrorState, LoadingState } from '../../../../components/Shopping/ScreenState';

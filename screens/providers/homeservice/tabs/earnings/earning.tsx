@@ -8,7 +8,6 @@ import {
   RefreshControl,
   Animated,
   Dimensions,
-  Platform,
   Modal,
   TextInput,
   Alert,
@@ -49,8 +48,7 @@ import {
 } from './earningSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { theme } from '../../providerTheme';
-import { C, F, T } from '../../../../../constants/theme';
+import { F, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { AppBar, Screen } from '../../../../../components/ui';

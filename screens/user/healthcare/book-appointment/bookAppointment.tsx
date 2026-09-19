@@ -5,7 +5,6 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Animated,
@@ -31,8 +30,7 @@ import {
   selectNotes,
 } from './healthcareBookingSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { Colors } from '../../../../constants/Colors';
 import type { HealthcareStackParamList, Doctor, Clinic } from '../../../../models/healthcare/types';
 import type { RouteProp } from '@react-navigation/native';
 import { getDoctorName, getDoctorSpecialty, formatFee } from '../../../../utils/healthcare/doctorDisplay';

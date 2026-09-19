@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Switch, Text, View, ViewStyle } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { F, R, S, T } from '../../constants/theme';
+import { R, S, T } from '../../constants/theme';
 import { ThemeColors, useTheme } from '../../theme';
 import {
   selectThemePreference,

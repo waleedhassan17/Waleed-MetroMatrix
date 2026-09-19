@@ -25,7 +25,7 @@ import {
   Wallet,
   Warehouse,
 } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
+import { BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchBrandDashboard, selectBrandHome } from './brandHomeSlice';

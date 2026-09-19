@@ -11,7 +11,6 @@ import {
   Platform,
   Alert,
   Animated,
-  ScrollView,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
@@ -23,14 +22,9 @@ import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import {
   joinWaitingRoom,
   setDevicePermissions,
-  updateWaitingStatus,
   leaveWaitingRoom,
   type WaitingStatus,
-  type DevicePermissions,
 } from './videoWaitingRoomSlice';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
-import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 
 // ── Theme ─────────────────────────────────────
 

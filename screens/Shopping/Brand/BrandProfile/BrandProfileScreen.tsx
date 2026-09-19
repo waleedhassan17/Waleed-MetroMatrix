@@ -16,7 +16,6 @@ import { Store, Save } from 'lucide-react-native';
 import { Colors, BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from './brandProfileSlice';
-import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import BrandThemeEditor from '../../../../components/Shopping/BrandThemeEditor';
 import { ThemeColors, useTheme } from '../../../../theme';

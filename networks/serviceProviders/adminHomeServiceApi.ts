@@ -4,7 +4,7 @@
 // live under /api/admin/*; see backend modules/homeservice/routes/adminRoutes.
 // ============================================
 
-import { ApiResponse, Pagination } from '../../models/serviceProviders';
+import { ApiResponse } from '../../models/serviceProviders';
 import { apiRequest } from './config';
 
 // ---- Admin: bookings ----

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, Image, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC, makeHC, type HCPalette } from '../../constants/HealthcareTheme';
+import { makeHC, type HCPalette } from '../../constants/HealthcareTheme';
 import { useTheme } from '../../theme';
 import { getDoctorInitials } from '../../utils/healthcare/doctorDisplay';
 import type { Doctor } from '../../models/healthcare/types';

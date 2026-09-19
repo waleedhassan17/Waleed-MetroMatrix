@@ -1,0 +1,20 @@
+{
+  // eas.json carries `//` comments documenting what each build profile is for.
+  // EAS CLI parses that file permissively and accepts them, but VS Code's strict
+  // JSON validator does not, so every one of those comment lines showed up in the
+  // Problems panel as "Comments are not permitted in JSON" — 18 false errors that
+  // bury real ones. Treating the file as JSON-with-comments matches how EAS
+  // actually reads it, and keeps the documentation.
+  "files.associations": {
+    "eas.json": "jsonc"
+  },
+
+  // Build in the editor with the same compiler the CLI uses. VS Code currently
+  // bundles the same TypeScript this project pins (5.9.x), so this changes
+  // nothing today — it is here so the two cannot drift apart when VS Code
+  // updates its bundled version. The project needs 5.0+ regardless, because it
+  // resolves modules with "moduleResolution": "bundler" plus
+  // "customConditions": ["react-native"].
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

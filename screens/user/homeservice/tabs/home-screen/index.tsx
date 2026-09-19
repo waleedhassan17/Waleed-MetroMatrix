@@ -29,8 +29,8 @@ import {
   SectionHeader,
   Skeleton,
 } from '../../../../../components/ui';
-import { categoryAccent, HS } from '../../../../../constants/HomeServiceTheme';
-import { C, GUTTER, S, T } from '../../../../../constants/theme';
+import { categoryAccent } from '../../../../../constants/HomeServiceTheme';
+import { GUTTER, S, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { RootState } from '../../../../../store/store';
 import {

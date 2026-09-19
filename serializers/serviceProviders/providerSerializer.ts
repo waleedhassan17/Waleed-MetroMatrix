@@ -8,8 +8,6 @@ import {
   ProviderService,
   ProviderAvailability,
   GalleryItem,
-  Review,
-  Coordinates,
 } from '../../models/serviceProviders';
 import { reviewSerializer } from './reviewSerializer';
 import { toServiceCategory } from './commonSerializer';

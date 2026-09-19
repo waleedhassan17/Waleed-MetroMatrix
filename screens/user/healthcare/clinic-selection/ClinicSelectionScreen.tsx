@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,9 @@ import {
   fetchClinics,
   setSelectedClinic,
   clearClinicSelection,
-  selectClinicsWithAvailability,
 } from './clinicSelectionSlice';
 import type { Clinic, ClinicTiming, HealthcareStackParamList } from '../../../../models/healthcare/types';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { Colors } from '../../../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

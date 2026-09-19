@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,7 @@ import { resetNavigationMap } from '../map-screen/mapSlice';
 import { resetJobInProgress } from '../job-InProgress/jobInProgressSlice';
 import { resetAwaitingApproval } from '../awaiting-screen/awaitingScreenSlice';
 import { resetPaymentRequest } from '../payment-screen/paymentRequestSlice';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, T } from '../../../../constants/theme';
+import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

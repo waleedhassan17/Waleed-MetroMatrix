@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   StatusBar,
@@ -25,8 +24,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
 import {
   setRecordType,
   setTitle,
@@ -37,7 +34,6 @@ import {
   resetUploadRecord,
   RECORD_TYPE_OPTIONS,
   UploadRecordType,
-  PickedFile,
 } from './uploadRecordSlice';
 import { toLocalISODate } from '../../../../utils/date/localDate';
 

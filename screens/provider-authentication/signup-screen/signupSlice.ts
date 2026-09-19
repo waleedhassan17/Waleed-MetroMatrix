@@ -4,11 +4,9 @@ import {
   providerAuthRegister,
   checkProviderEmailAvailability
 } from '../../../networks/authcalls/providerSignup';
-import { sendVerificationEmailAPI } from '../../../networks/authcalls/emailVerification';
 import {
   KeyForStorage,
   saveData,
-  saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
 
 interface Provider {

@@ -31,7 +31,7 @@ import {
 } from '../../services/wallet';
 import type { WalletState } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 import { F } from '../../constants/theme';
 

@@ -36,8 +36,8 @@ import {
   Screen,
   SkeletonCard,
 } from '../../../../components/ui';
-import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
+import { GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { Provider } from '../../../../models/serviceProviders';
 import { RootState } from '../../../../store/store';

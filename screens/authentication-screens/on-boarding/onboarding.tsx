@@ -55,7 +55,6 @@ import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
 import { resolveLandingRoute } from '../../../navigation-maps/landingRoute';
 import useReducedMotion from '../../../hooks/useReducedMotion';
 import {
-  C,
   E,
   GUTTER,
   DARK_C,
@@ -65,7 +64,6 @@ import {
   type ThemeMode,
   type ThemeColors,
   useTheme,
-  ModulePalette,
   PROSE_WIDTH,
   R,
   S,

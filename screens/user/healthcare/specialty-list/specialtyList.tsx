@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
   Animated,
@@ -29,8 +28,6 @@ import {
   selectFilteredSpecialties,
 } from './specialtyListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
 import type { Specialty } from '../../../../models/healthcare/types';
 
 const { width } = Dimensions.get('window');

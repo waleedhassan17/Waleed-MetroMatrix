@@ -48,7 +48,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 // Route names are string literals here rather than `BaseRouteNames`: that lives
 // in navigation-maps/Base, which imports this screen, and importing it back
 // would close the cycle.
-import { barStyleOn, C, DARK_C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
+import { barStyleOn, DARK_C, ThemeProvider, useTheme, type ModuleName, type ThemeColors } from '../../../../theme';
 import { AA_BODY, lift, mix } from '../../../../theme/contrast';
 import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';

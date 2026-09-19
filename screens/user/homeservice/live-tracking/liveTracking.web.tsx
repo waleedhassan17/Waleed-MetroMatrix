@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { C, T } from '../../../../constants/theme';
+import { T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 
 // Web stub: MapLibre React Native is native-only. The live-tracking screen

@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   ScrollView,
@@ -11,7 +10,6 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../constants/darkShift';
 import { useTheme } from '../../../theme';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../../../hooks/useReduxHooks';
 import {

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
 import { useTheme } from '../../../theme';
 import HCButton from './HCButton';
 

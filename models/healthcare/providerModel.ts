@@ -3,7 +3,7 @@
 // ============================================
 
 import { z } from 'zod';
-import { AppointmentSchema, PaymentRecordSchema, MedicationSchema } from './appointmentModel';
+import { AppointmentSchema, MedicationSchema } from './appointmentModel';
 
 // ── Doctor Dashboard ────────────────────────
 

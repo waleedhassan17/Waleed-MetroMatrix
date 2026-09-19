@@ -3,7 +3,6 @@ import { UserInfo } from "../../models/user";
 import { ProviderInfo } from "../../models/provider";
 import { me, persistFcmToken } from "../../networks/authcalls/me";
 import {
-  removeKey,
   KeyForStorage,
   clearAuthData,
   isOnboardingComplete,

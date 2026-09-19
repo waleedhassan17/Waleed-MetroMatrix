@@ -19,8 +19,8 @@ import {
   Screen,
   SkeletonCard,
 } from '../../../../components/ui';
-import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, S, T } from '../../../../constants/theme';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
+import { GUTTER, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { FavoriteProvider } from '../../../../networks/serviceProviders/favoritesNetwork';

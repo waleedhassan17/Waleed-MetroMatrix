@@ -26,7 +26,6 @@
 // instead of a per-property rewrite.
 // ============================================================================
 
-import { HS } from '../../../constants/HomeServiceTheme';
 import { C, E, R, S, T } from '../../../constants/theme';
 import { MODULE_PALETTES, type ThemeColors } from '../../../theme';
 

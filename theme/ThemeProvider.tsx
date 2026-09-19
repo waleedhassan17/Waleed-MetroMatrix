@@ -24,7 +24,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 
 import {
-  C,
   E,
   F,
   GUTTER,

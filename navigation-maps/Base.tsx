@@ -28,7 +28,6 @@ import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewS
 import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
 import ServiceProvidersAdminScreen from "../screens/admin/providers/service-providers/tabs/index";
 
-import ProviderWaitingScreen from "../screens/provider-waiting/providerWaitingScreen";
 import ProviderApprovalPendingScreen from "../screens/authentication-screens/provider-approval-pending/providerApprovalPendingScreen";
 
 // Home Screens

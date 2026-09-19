@@ -20,7 +20,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';

@@ -14,8 +14,7 @@ import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, R, S, T } from '../../../../constants/theme';
+import { F, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ThemeProvider } from '../../../../theme';
 import UserProfileScreen from '../../shared/profile/UserProfileScreen';

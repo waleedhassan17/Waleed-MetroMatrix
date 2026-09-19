@@ -40,9 +40,7 @@ import {
 import {
   Provider,
   ProviderType,
-  VerificationStatus,
   PROVIDER_TYPE_CONFIG,
-  VERIFICATION_STATUS_CONFIG,
 } from '../../../models/admin';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

@@ -21,7 +21,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, makeColors, type ColorType } from '../../constants/Colors';
+import { makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 import { isCallingSupported } from '../../services/call/usePeerConnection';
 

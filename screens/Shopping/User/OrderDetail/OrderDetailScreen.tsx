@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, MapPin, CreditCard, PackageX, Truck, Star, RotateCcw } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
 import { AA_BODY, lift } from '../../../../theme/contrast';
 import { DARK_C, type ThemeMode } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';

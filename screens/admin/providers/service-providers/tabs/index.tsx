@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../../constants/darkShift';
 import { useTheme } from '../../../../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

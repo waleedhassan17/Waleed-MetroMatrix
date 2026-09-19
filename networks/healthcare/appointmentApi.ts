@@ -25,7 +25,6 @@ import {
   timeSlotSerializer,
   prescriptionSerializer,
   medicalRecordSerializer,
-  videoCallSerializer,
   normalizePagination,
 } from '../../serializers/healthcare/healthcareSerializer';
 

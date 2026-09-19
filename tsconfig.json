@@ -2,5 +2,24 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  // `include`/`exclude` are spelled out rather than inherited on purpose.
+  // expo/tsconfig.base writes its excludes as "${configDir}/android" etc., and
+  // that template only expands on TypeScript 5.5+. An editor resolving the
+  // project with an older bundled TypeScript leaves the pattern unexpanded,
+  // matches nothing, and — because the base config also sets allowJs — starts
+  // type-checking generated Android build output under android/. That is why
+  // the editor could report errors here that `npx tsc --noEmit` never showed.
+  // Listing the paths literally makes both agree on the same file set.
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "dist",
+    "web-build",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
+  ]
 }

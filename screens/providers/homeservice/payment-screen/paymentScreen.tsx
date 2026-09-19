@@ -25,7 +25,7 @@ import {
 import { setJobCompletionData } from '../job-completion/jobCompletionSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { checkJobApprovalStatus } from '../../../../networks/serviceProviders/jobNetwork';
-import { C, F, T } from '../../../../constants/theme';
+import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';

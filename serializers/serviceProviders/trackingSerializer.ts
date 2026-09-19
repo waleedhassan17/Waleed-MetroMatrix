@@ -6,7 +6,6 @@ import {
   TrackingProvider,
   TrackingData,
   RouteInfo,
-  Coordinates,
 } from '../../models/serviceProviders';
 import { toServiceCategory } from './commonSerializer';
 

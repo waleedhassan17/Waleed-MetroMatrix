@@ -1,5 +1,5 @@
 import { API } from "../network/network";
-import { UserAuthResponse, UserInfo } from "../../models/user";
+import { UserAuthResponse } from "../../models/user";
 
 /**
  * Social Auth Response interface

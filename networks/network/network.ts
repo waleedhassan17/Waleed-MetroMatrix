@@ -1,6 +1,5 @@
-import axios, { AxiosInstance as AxiosInstanceType } from "axios";
+import axios from "axios";
 import { Platform } from "react-native";
-import { store } from "../../store/store";
 import {
   clearAuthData,
   getRefreshToken,

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../constants/HealthcareTheme';
+import { HCRadius, HCShadow, makeHC, type HCPalette } from '../../constants/HealthcareTheme';
 import { useTheme } from '../../theme';
 import type { Doctor } from '../../models/healthcare/types';
 import DoctorAvatar from './DoctorAvatar';

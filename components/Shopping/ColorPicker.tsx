@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius, makeColors, type ColorType } from '../../constants/Colors';
+import { Spacing, makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 
 export interface ColorOption {

@@ -28,8 +28,11 @@ SCOPE=(
   components/Healthcare/doctor
 )
 
-# Files that legitimately hold raw values: the token definitions themselves.
-EXCLUDE='constants/theme.ts|constants/Fonts.ts|constants/HealthcareTheme.ts|constants/DoctorTheme.ts|constants/HomeServiceTheme.ts|constants/Colors.ts|constants/ProductColors.ts|screens/Shopping/Brand/theme.ts|theme/palettes.ts|theme/contrast.ts'
+# Files that legitimately hold raw values: the token definitions themselves, and
+# the tests that measure them. A contrast test asserts that a specific hex lands
+# at a specific ratio — the literal IS the assertion, so scanning test files here
+# only ever produces noise that trains people to ignore the gate.
+EXCLUDE='constants/theme.ts|constants/Fonts.ts|constants/HealthcareTheme.ts|constants/DoctorTheme.ts|constants/HomeServiceTheme.ts|constants/Colors.ts|constants/ProductColors.ts|screens/Shopping/Brand/theme.ts|theme/palettes.ts|theme/contrast.ts|__tests__/'
 
 fail=0
 

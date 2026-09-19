@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Truck, Package, CheckCircle2, Circle, Clock, Copy, Phone, XCircle, RotateCcw } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {

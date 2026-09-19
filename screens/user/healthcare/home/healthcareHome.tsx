@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   TouchableOpacity,
@@ -26,9 +25,9 @@ import { fetchHomeData, clearError } from './healthcareHomeSlice';
 import type { HealthcareHomeState } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { fromLocalISODate } from '../../../../utils/date/localDate';
-import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
+import { makeColors, Spacing, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
-import type { Doctor, Specialty, Appointment } from '../../../../models/healthcare/types';
+import type { Doctor, Specialty } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 

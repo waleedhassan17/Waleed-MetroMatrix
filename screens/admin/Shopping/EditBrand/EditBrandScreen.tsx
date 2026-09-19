@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   Check,
   Save,
-  X,
   Tag,
   Palette,
   Shield,
@@ -26,8 +25,7 @@ import {
   Package,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
+import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import type { AdminShoppingParamList } from '../../../../types/shopping';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -36,7 +34,6 @@ import {
   fetchBrandAsync,
   saveBrandAsync,
   updateBrandField,
-  clearChanges,
   clearError,
   resetEditBrand,
   selectBrand,

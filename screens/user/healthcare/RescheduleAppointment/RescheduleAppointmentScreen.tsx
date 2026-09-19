@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   FlatList,
   Animated,
@@ -15,7 +14,7 @@ import {
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
 import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,8 +26,6 @@ import {
   confirmReschedule,
   resetReschedule,
 } from './rescheduleAppointmentSlice';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
 import type { TimeSlot } from '../../../../models/healthcare/types';
 import { toLocalISODate } from '../../../../utils/date/localDate';
 

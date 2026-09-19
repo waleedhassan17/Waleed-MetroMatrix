@@ -40,7 +40,7 @@ import {
   Screen,
 } from '../../../../components/ui';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useReducedMotion } from '../../../../hooks/useReducedMotion';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';

@@ -8,7 +8,6 @@ import {
   Animated,
   Dimensions,
   RefreshControl,
-  Platform,
   Image,
   ActivityIndicator,
   Alert,
@@ -19,7 +18,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  ChevronRight,
   Filter,
   CheckCircle2,
   XCircle,
@@ -43,8 +41,7 @@ import {
 } from './jobSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { theme } from '../../providerTheme';
-import { C, F, T } from '../../../../../constants/theme';
+import { F, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { ActionSheet, AppBar, Screen } from '../../../../../components/ui';

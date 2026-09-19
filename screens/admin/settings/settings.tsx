@@ -33,7 +33,6 @@ import {
   updateLocalNotificationSettings,
   updateLocalSecuritySettings,
   updateLocalAppearanceSettings,
-  setActiveSection,
 } from './settingsSlice';
 
 type IconName = keyof typeof Ionicons.glyphMap;

@@ -34,8 +34,7 @@ import {
 } from './doctorSearchSlice';
 import { fetchSpecialties } from '../specialty-list/specialtyListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { makeColors, type ColorType } from '../../../../constants/Colors';
 import type { Doctor, Specialty } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import {

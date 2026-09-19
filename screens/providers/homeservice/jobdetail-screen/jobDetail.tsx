@@ -24,8 +24,8 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
 import { setJobDetail, startNavigation, startJobAsync, JobData } from './jobDetailSlice';
 import { setNavigationData } from '../map-screen/mapSlice';
-import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, T } from '../../../../constants/theme';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
+import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -483,7 +483,7 @@ const JobDetailScreen: React.FC = () => {
 
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   mapFallback: { alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceSunken },
-  mapFallbackText: { fontSize: 12, color: c.inkMuted },
+  mapFallbackText: { ...T.caption, color: c.inkMuted },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

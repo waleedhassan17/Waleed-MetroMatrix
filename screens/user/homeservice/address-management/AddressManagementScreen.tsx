@@ -29,8 +29,7 @@ import {
   Screen,
   Skeleton,
 } from '../../../../components/ui';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { F, GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
   addUserAddress,

@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ChevronLeft, Heart, Trash2 } from 'lucide-react-native';
-import { Colors, BorderRadius, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { BorderRadius, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';

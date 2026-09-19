@@ -44,8 +44,8 @@ import {
   SectionHeader,
   Skeleton,
 } from '../../../../components/ui';
-import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
+import { F, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { AppDispatch, RootState } from '../../../../store/store';

@@ -36,8 +36,8 @@ import {
   SectionHeader,
   Skeleton,
 } from '../../../../components/ui';
-import { categoryAccent, HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { categoryAccent } from '../../../../constants/HomeServiceTheme';
+import { F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';

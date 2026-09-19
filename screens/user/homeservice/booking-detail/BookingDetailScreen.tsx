@@ -27,8 +27,7 @@ import {
   Skeleton,
   StatusPill,
 } from '../../../../components/ui';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { fetchBookingDetail } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 import { cancelBooking } from '../../../../networks/serviceProviders/bookingNetwork';

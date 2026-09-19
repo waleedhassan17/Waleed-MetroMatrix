@@ -35,8 +35,7 @@ import {
   SkeletonCard,
   StatusPill,
 } from '../../../../../components/ui';
-import { HS } from '../../../../../constants/HomeServiceTheme';
-import { C, F, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
+import { F, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';

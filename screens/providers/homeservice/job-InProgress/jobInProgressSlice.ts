@@ -3,7 +3,6 @@ import { createAppSlice } from '../../../../store/createAppSlice';
 import {
   startJobWork,
   completeJobWork,
-  fetchJobDetail,
   fetchJobInProgressData,
 } from '../../../../networks/serviceProviders/jobNetwork';
 

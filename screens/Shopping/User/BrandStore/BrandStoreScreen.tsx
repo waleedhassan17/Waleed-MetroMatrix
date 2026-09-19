@@ -14,7 +14,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ChevronLeft, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
 import { barStyleOn, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import useBrandTheme from '../../../../hooks/useBrandTheme';

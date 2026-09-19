@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
@@ -34,8 +33,6 @@ import type { ConsultationType } from './slotSelectionSlice';
 import { clearSelectedClinic } from '../clinic-selection/clinicSelectionSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import type { TimeSlot, HealthcareStackParamList } from '../../../../models/healthcare/types';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { toLocalISODate } from '../../../../utils/date/localDate';
 

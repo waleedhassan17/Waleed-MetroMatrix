@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
 import { useTheme } from '../../../theme';
 
 interface HCSectionHeaderProps {

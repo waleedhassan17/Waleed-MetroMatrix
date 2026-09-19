@@ -19,10 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../../../../hooks/useReduxHooks';
 import {
   refreshDashboard,
-  setLoading,
-  updateStats,
-  updateCategories,
-  updateCities,
 } from './dashboardSlice';
 
 const { width } = Dimensions.get('window');

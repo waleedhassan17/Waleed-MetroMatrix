@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 import type { BrandConfig } from '../../types/shopping';
 

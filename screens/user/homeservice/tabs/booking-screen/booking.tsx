@@ -41,9 +41,8 @@ import {
 import {
   ACTIVE_STATUSES,
   categoryAccent,
-  HS,
 } from '../../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, T } from '../../../../../constants/theme';
+import { GUTTER, R, S, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import { isCallingSupported } from '../../../../../services/call/usePeerConnection';

@@ -11,7 +11,6 @@ import {
   Modal,
   ScrollView,
   TextInput,
-  Image,
   Animated,
   Dimensions,
   Platform,

@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  ScrollView,
   Modal,
   Animated,
   Platform,
@@ -44,9 +43,7 @@ import {
 } from './appointmentDetailSlice';
 import { setAppointment as setRescheduleAppointment } from '../RescheduleAppointment/rescheduleAppointmentSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
-import type { Appointment } from '../../../../models/healthcare/types';
+import { Colors } from '../../../../constants/Colors';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import { getAppointmentDoctorName } from '../../../../utils/healthcare/doctorDisplay';
 import { downloadInvoicePdf } from '../../../../utils/healthcare/invoice';

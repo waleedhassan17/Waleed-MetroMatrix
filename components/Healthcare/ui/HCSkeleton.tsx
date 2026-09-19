@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, StyleProp, ViewStyle, DimensionValue } from 'react-native';
-import { HC, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
-import { useTheme } from '../../../theme';
+import { HC } from '../../../constants/HealthcareTheme';
 
 interface HCSkeletonProps {
   width: DimensionValue;

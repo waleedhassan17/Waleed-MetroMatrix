@@ -8,7 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Heart, Star } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 import SaleBadge from './SaleBadge';
 import PriceDisplay from './PriceDisplay';

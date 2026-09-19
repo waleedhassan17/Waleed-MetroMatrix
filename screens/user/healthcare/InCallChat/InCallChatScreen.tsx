@@ -22,7 +22,6 @@ import {
   setInputText,
   sendMessageStart,
   sendMessageSuccess,
-  sendMessageFailure,
   clearChat,
   type InCallMessage,
   type Attachment,

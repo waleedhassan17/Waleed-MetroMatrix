@@ -32,8 +32,6 @@ import {
 } from './myAppointmentsSlice';
 import { CANCELLATION_REASONS } from '../AppointmentDetail/appointmentDetailSlice';
 import { setAppointment as setRescheduleAppointment } from '../RescheduleAppointment/rescheduleAppointmentSlice';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
 import type { Appointment } from '../../../../models/healthcare/types';
 import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';

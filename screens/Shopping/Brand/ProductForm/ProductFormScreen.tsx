@@ -43,7 +43,7 @@ import {
 } from './productFormSlice';
 import { swatchColor } from '../../../../constants/ProductColors';
 import { upsertProduct } from '../BrandProducts/brandProductsSlice';
-import { B, formatOrderNumber } from '../theme';
+import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';
@@ -568,7 +568,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 7,
     backgroundColor: c.accent,
   },
-  pendingTagText: { ...T.caption, fontFamily: F.bold, color: C.surface, fontSize: 10 },
+  pendingTagText: { ...T.micro, fontFamily: F.bold, color: C.surface },
   thumbAdd: {
     width: 96,
     height: 120,

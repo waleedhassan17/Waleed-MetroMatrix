@@ -26,8 +26,6 @@ import {
   selectStatus,
   selectSocialLoginStatus,
   selectError,
-  selectUserType,
-  selectIsAdmin,
   setEmail,
   setPassword,
   togglePasswordVisibility,

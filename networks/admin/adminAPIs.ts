@@ -7,7 +7,6 @@ import type {
   Provider,
   User,
   NotificationListResponse,
-  AdminNotification,
   SettingsResponse,
   AppSettings,
   ActionResponse,
@@ -17,7 +16,6 @@ import type {
 
 // API Configuration - centralized base URL from network.ts (Vercel host)
 export { API_URL } from '../network/network';
-import { API_URL } from '../network/network';
 
 // ============================================
 // HELPER FUNCTIONS

@@ -19,8 +19,6 @@ import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../../store/store';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { Fonts } from '../../constants/Fonts';
 import { 
   setProviderType, 
   selectProviderType, 

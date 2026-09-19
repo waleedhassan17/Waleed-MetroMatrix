@@ -4,8 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Briefcase, TrendingUp, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, R, S, T } from '../../../../constants/theme';
+import { F, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import DashboardScreen from './dashboard/dashboard';

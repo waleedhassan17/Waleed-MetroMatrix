@@ -41,7 +41,6 @@ import {
   relativeStart,
   uses24HourClock,
 } from '../../../../utils/healthcare/doctorFormat';
-import { todayDateKey } from '../../../../utils/healthcare/timeRanges';
 import { extendAvailability, fetchDashboard } from './doctorDashboardSlice';
 
 // ============================================================================
@@ -214,7 +213,6 @@ const DoctorHomeScreen: React.FC = () => {
     }
   };
 
-  const today = todayDateKey();
   const todayList = data?.todayAppointments ?? [];
   const next = data?.nextAppointment ?? null;
 

@@ -18,7 +18,6 @@ import {
   selectBrandCoupons,
   updateBrandCoupon,
 } from '../BrandCoupons/brandCouponsSlice';
-import { ShopColors } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { C, F, T } from '../../../../constants/theme';

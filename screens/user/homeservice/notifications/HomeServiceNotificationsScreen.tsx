@@ -21,8 +21,7 @@ import {
   Screen,
   Skeleton,
 } from '../../../../components/ui';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, R, S, T } from '../../../../constants/theme';
+import { GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
   fetchHSNotifications,

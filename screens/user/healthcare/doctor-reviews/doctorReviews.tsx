@@ -24,14 +24,12 @@ import {
   fetchReviews,
   loadMoreReviews,
   setFilterRating,
-  setSortBy,
   resetReviews,
   selectFilteredReviews,
   selectReviewStats,
 } from './doctorReviewsSlice';
 import type { FilterRating, SortOption } from './doctorReviewsSlice';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { Colors } from '../../../../constants/Colors';
 import type { DoctorReview } from '../../../../models/healthcare/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

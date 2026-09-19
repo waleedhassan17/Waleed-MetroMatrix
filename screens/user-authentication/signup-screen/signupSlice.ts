@@ -1,7 +1,6 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
 import { authRegister } from '../../../networks/authcalls/userSignup';
-import { sendVerificationEmailAPI } from '../../../networks/authcalls/emailVerification';
 import {
   googleLoginAPI,
   facebookLoginAPI,

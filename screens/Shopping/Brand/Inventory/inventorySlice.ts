@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { fetchInventoryApi, updateStockApi } from '../../../../networks/shopping/vendorApi';
 
 export interface InventoryRow {

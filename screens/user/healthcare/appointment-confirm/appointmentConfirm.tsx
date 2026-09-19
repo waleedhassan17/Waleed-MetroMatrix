@@ -26,7 +26,6 @@ import {
   setAppointmentId,
   setConfirmationCode,
   fetchConfirmedAppointment,
-  setShowConfetti,
   addToCalendar,
   shareAppointmentDetails,
   selectConfirmationDetails,
@@ -36,8 +35,7 @@ import {
   selectIsAddingToCalendar,
 } from './appointmentConfirmSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { Colors } from '../../../../constants/Colors';
 import type { HealthcareStackParamList } from '../../../../models/healthcare/types';
 import type { RouteProp } from '@react-navigation/native';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';

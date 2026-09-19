@@ -1,6 +1,6 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
-import { ProviderDetails, ProviderService, GalleryItem, Review } from '../../../../models/serviceProviders';
+import { ProviderDetails } from '../../../../models/serviceProviders';
 import { providerDetailsSerializer } from '../../../../serializers/serviceProviders/providerSerializer';
 import { fetchProviderDetails } from '../../../../networks/serviceProviders/providerNetwork';
 

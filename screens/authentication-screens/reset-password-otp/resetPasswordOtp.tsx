@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
   setUserType,
   setOtpDigit,
   setFullOtp,
-  clearOtp,
   decrementResendTimer,
   clearError,
   resetForm,

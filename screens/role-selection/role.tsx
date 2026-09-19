@@ -17,9 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { Fonts } from '../../constants/Fonts';
+import { Ionicons } from '@expo/vector-icons';
 import { setUserRole, selectUserRole, selectIsRoleSelected, selectRoleError } from './roleSlice';
 
 const { width, height } = Dimensions.get('window');

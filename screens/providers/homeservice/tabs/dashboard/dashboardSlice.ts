@@ -1,8 +1,7 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../../store/createAppSlice';
-import type { RootState } from '../../../../../store/store';
 import { DashboardData, DashboardJob } from '../../../../../models/serviceProviders';
-import { dashboardDataSerializer, dashboardJobSerializer } from '../../../../../serializers/serviceProviders';
+import { dashboardDataSerializer } from '../../../../../serializers/serviceProviders';
 import { fetchProviderDashboard } from '../../../../../networks/serviceProviders/dashboardNetwork';
 import { updateProviderOnlineStatus } from '../../../../../networks/serviceProviders/providerNetwork';
 import { acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';

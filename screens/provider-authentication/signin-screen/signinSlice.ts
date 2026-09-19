@@ -2,9 +2,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
 import {
   providerAuthLogin,
-  getProviderVerificationStatus,
-  ProviderLoginResponse
-} from '../../../networks/authcalls/providerSignin';
+  getProviderVerificationStatus} from '../../../networks/authcalls/providerSignin';
 import {
   KeyForStorage,
   saveData,

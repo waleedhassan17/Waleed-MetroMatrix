@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  ScrollView,
   RefreshControl,
   Dimensions,
   Linking,
@@ -37,8 +36,7 @@ import {
 } from './doctorDetailSlice';
 import type { DetailTab } from './doctorDetailSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { makeColors, type ColorType } from '../../../../constants/Colors';
 import type { Doctor, Clinic, DoctorReview } from '../../../../models/healthcare/types';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import {
@@ -47,7 +45,6 @@ import {
   getDoctorSpecialty,
   getQualificationsLine,
   getRating,
-  getExperienceLabel,
   formatPatientCount,
 } from '../../../../utils/healthcare/doctorDisplay';
 

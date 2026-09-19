@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
-  Switch,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
@@ -24,7 +23,7 @@ import {
   Store,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 
 import type { AdminShoppingParamList } from '../../../../types/shopping';

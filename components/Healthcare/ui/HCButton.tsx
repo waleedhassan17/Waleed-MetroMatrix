@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
 import { useTheme } from '../../../theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';

@@ -31,8 +31,7 @@ import type { RootState } from '../../../../store/store';
 import { updateProfile, fetchProfile } from '../profile-screen/profileSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { flatTheme as theme } from '../providerTheme';
-import { C, S, T } from '../../../../constants/theme';
+import { S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';

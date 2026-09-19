@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Animated,
-  ScrollView,
   Linking,
   Alert,
   StatusBar,
@@ -20,22 +19,16 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BackButton } from '../../../components/ui';
 import {
   RefreshCw,
-  ArrowDownLeft,
-  ArrowUpRight,
   Plus,
   X,
   Wallet,
   Eye,
   EyeOff,
-  Check,
-  Clock,
   AlertCircle,
   Send,
   Building2,
-  ShieldCheck,
   ChevronRight,
   RefreshCw as RefreshIcon,
-  Banknote,
   Lock,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
@@ -50,7 +43,7 @@ import {
 } from '../../../services/wallet';
 import type { WalletState } from '../../../services/wallet';
 import type { WalletTransaction, ConnectStatus } from '../../../models/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { Colors, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
 import { useTheme } from '../../../theme';
 import { F } from '../../../constants/theme';
 import { KeyForStorage, retrieveData } from '../../../utils/storage_utils/storageUtils';

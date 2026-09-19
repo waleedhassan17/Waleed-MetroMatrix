@@ -33,8 +33,7 @@ import {
 } from '../../../../networks/serviceProviders/notificationsNetwork';
 import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { F, GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';

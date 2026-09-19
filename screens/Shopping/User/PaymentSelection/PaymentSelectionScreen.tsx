@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Wallet, Banknote, TriangleAlert } from 'lucide-react-native';
-import { Colors, BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
+import { BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {

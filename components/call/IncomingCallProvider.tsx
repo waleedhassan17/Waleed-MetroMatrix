@@ -22,7 +22,6 @@ import {
   StyleSheet,
   Vibration,
   Platform,
-  Alert,
   AppState,
   type AppStateStatus,
 } from 'react-native';

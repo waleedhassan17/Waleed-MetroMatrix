@@ -17,7 +17,7 @@ import {
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
 import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -25,7 +25,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
   setPatientDetails,
-  setPaymentMethod,
   applyCoupon,
   removeCoupon,
   confirmBooking,
@@ -34,10 +33,9 @@ import {
   resetBookingStatus,
   selectFeeBreakdown,
 } from './bookingConfirmationSlice';
-import type { PatientDetails } from './bookingConfirmationSlice';
 import { selectBalance, fetchWallet } from '../../../../services/wallet';
-import type { HealthcareStackParamList, PaymentRecord, Doctor } from '../../../../models/healthcare/types';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import type { HealthcareStackParamList, Doctor } from '../../../../models/healthcare/types';
+import { Colors } from '../../../../constants/Colors';
 import DoctorAvatar from '../../../../components/Healthcare/DoctorAvatar';
 import {
   getDoctorName,
@@ -45,7 +43,6 @@ import {
   getRating,
   formatFee,
 } from '../../../../utils/healthcare/doctorDisplay';
-import { Typography } from '../../../../constants/Fonts';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 

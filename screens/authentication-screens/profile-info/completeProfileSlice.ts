@@ -5,8 +5,6 @@ import {
   completeProfileStep2, 
   completeProfileStep3,
   getUserProfile,
-  UPLOAD_ERROR_CODES,
-  UploadPhotoResponse,
 } from '../../../networks/authcalls/userProfile';
 import { saveUserInfo } from '../../../utils/storage_utils/storageUtils';
 

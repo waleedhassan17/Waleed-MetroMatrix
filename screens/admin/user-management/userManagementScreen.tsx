@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Modal,
   ScrollView,
   Animated,
   Dimensions,
@@ -31,10 +30,7 @@ import {
   selectPagination,
   selectIsLoading,
   selectStats,
-  setSelectedUser,
-  clearSelectedUser,
 } from './userManagementSlice';
-import { selectAccessToken } from '../admin-dashboard/adminSlice';
 import { User } from '../../../models/admin';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

@@ -28,7 +28,7 @@ import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import Screen from '../../../components/ui/Screen';
 import useReducedMotion from '../../../hooks/useReducedMotion';
-import { MODULE_PALETTES, modulePalette, S, T, ThemeColors, tint, useTheme } from '../../../theme';
+import { MODULE_PALETTES, S, T, ThemeColors, tint, useTheme } from '../../../theme';
 
 const RULE_WIDTH = 72;
 

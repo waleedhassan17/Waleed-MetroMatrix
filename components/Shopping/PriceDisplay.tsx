@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Spacing, makeColors, type ColorType } from '../../constants/Colors';
+import { Spacing, makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 
 interface PriceDisplayProps {

@@ -23,7 +23,6 @@ import type { NavigationProp, RouteProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../../../store/store';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Fonts } from '../../../constants/Fonts';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   setProviderInfo,
@@ -53,7 +52,6 @@ import {
 import { retrieveData, KeyForStorage } from '../../../utils/storage_utils/storageUtils';
 import {
   InputField,
-  PickerField,
   ProgressIndicator,
   FileUpload,
   InfoBox,

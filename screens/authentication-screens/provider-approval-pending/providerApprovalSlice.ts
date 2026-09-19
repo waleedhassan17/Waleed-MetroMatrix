@@ -1,7 +1,7 @@
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { createAppSlice } from "../../../store/createAppSlice";
 import { checkProviderApprovalStatus } from "../../../networks/authcalls/providerProfile";
-import { saveData, KeyForStorage, retrieveData } from "../../../utils/storage_utils/storageUtils";
+import { saveData, KeyForStorage } from "../../../utils/storage_utils/storageUtils";
 
 type ApprovalStatus = "pending_review" | "approved" | "rejected";
 

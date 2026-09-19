@@ -8,7 +8,7 @@ import BrandProductsScreen from '../BrandProducts/BrandProductsScreen';
 import BrandOrdersScreen from '../BrandOrders/BrandOrdersScreen';
 import BrandAnalyticsScreen from '../BrandAnalytics/BrandAnalyticsScreen';
 import BrandProfileScreen from '../BrandProfile/BrandProfileScreen';
-import { F, useTheme } from '../../../../theme';
+import { useTheme } from '../../../../theme';
 import { C, T } from '../../../../constants/theme';
 
 // The local `const COLORS` block that used to live here is gone. It hardcoded

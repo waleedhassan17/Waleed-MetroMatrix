@@ -5,7 +5,6 @@ import {
   markArrived,
   fetchNavigationData,
 } from '../../../../networks/serviceProviders/trackingNetwork';
-import { fetchJobDetail } from '../../../../networks/serviceProviders/jobNetwork';
 
 export interface Coordinates {
   latitude: number;

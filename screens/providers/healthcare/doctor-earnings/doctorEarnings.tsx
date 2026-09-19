@@ -17,7 +17,7 @@ import {
   ToneBadge,
 } from '../../../../components/ui';
 import { APP_CURRENCY, formatMoney } from '../../../../constants/Currency';
-import { GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { GUTTER, S, SECTION, T } from '../../../../constants/theme';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { EarningsRangeKey, EarningsReport } from '../../../../models/healthcare/doctorHub';
 import { ThemeColors, useTheme } from '../../../../theme';

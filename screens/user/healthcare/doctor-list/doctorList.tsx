@@ -34,7 +34,6 @@ import {
   setSearchQuery,
   selectFilteredDoctors,
   selectActiveFilterCount,
-  resetDoctorList,
 } from './doctorListSlice';
 import type {
   GenderFilter,
@@ -44,8 +43,7 @@ import type {
   DoctorFilters,
 } from './doctorListSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { makeColors, Spacing, BorderRadius, Shadows, type ColorType } from '../../../../constants/Colors';
-import { Typography } from '../../../../constants/Fonts';
+import { makeColors, type ColorType } from '../../../../constants/Colors';
 import type { Doctor } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
 

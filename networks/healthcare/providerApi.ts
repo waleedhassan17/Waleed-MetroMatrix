@@ -16,14 +16,11 @@ import {
   chartDataPointSerializer,
   consultationBreakdownSerializer,
   queuePatientSerializer,
-  dayScheduleSerializer,
-  vacationDateSerializer,
   medicalNoteSerializer,
   notePatientSerializer,
   prescriptionDetailSerializer,
   patientRecordSerializer,
   doctorProfileDataSerializer,
-  couponSerializer,
 } from '../../serializers/healthcare/providerSerializer';
 import {
   appointmentSerializer,

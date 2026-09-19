@@ -23,8 +23,7 @@ import {
 } from 'react-native';
 
 import { AppBar, Button, EmptyState, Screen, SectionHeader } from '../../../../components/ui';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
+import { GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { raiseDispute } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 

@@ -32,8 +32,7 @@ import {
 import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
 import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
-import { HS } from '../../../../constants/HomeServiceTheme';
-import { C, F, T } from '../../../../constants/theme';
+import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

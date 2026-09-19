@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   RefreshControl,
   StatusBar,
@@ -34,14 +33,13 @@ import {
 import type { 
   ProviderType, 
   RecentRegistration, 
-  VerificationStatus,
   ProviderTypeCount,
 } from '../../../models/admin';
 import { 
   PROVIDER_TYPE_CONFIG, 
   VERIFICATION_STATUS_CONFIG,
 } from '../../../models/admin';
-import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_GAP = 12;

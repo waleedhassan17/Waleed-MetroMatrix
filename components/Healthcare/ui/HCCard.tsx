@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { HC, HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
+import { HCRadius, HCShadow, makeHC, type HCPalette } from '../../../constants/HealthcareTheme';
 import { useTheme } from '../../../theme';
 
 interface HCCardProps {

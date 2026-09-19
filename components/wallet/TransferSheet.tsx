@@ -18,7 +18,6 @@ import {
   AlertCircle,
   Check,
   ArrowRight,
-  Send,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../hooks/useReduxHooks';
 import {
@@ -31,7 +30,7 @@ import {
 } from '../../services/wallet';
 import type { WalletState, CounterpartyType } from '../../services/wallet';
 import { generateIdempotencyKey } from '../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../constants/Colors';
+import { Shadows, makeColors, type ColorType } from '../../constants/Colors';
 import { useTheme } from '../../theme';
 import { F } from '../../constants/theme';
 

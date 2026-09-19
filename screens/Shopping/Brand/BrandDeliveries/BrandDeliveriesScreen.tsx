@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
-  AlertTriangle,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {

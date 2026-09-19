@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
-import { Shadows, Spacing } from '../../../../constants/Colors';
+import { Shadows } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import type { Product } from '../../../../types/shopping';

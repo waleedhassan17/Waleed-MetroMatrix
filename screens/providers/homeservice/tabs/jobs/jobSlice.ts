@@ -1,8 +1,8 @@
 import { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../../store/createAppSlice';
 import type { RootState } from '../../../../../store/store';
-import { Job as ApiJob, JobStats as ApiJobStats, Pagination } from '../../../../../models/serviceProviders';
-import { jobListSerializer, paginationSerializer } from '../../../../../serializers/serviceProviders';
+import { Job as ApiJob, Pagination } from '../../../../../models/serviceProviders';
+import { paginationSerializer } from '../../../../../serializers/serviceProviders';
 import { fetchProviderJobs, acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';
 
 // Types

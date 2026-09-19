@@ -23,13 +23,12 @@ import {
   Palette,
   Store,
   Link2,
-  Eye,
   Save,
   X,
   Clock,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
 import type { AdminShoppingParamList } from '../../../../types/shopping';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {

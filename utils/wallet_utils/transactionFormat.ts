@@ -7,7 +7,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Send,
-  Banknote,
   Building2,
   Wrench,
   Stethoscope,

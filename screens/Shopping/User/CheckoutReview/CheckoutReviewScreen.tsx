@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronLeft, Edit3, MapPin, Truck, CreditCard, ShoppingBag, AlertCircle } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
 import { useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { placeOrder, selectCheckoutError, selectCheckoutOrderSummary, selectCheckoutPlacing } from './checkoutReviewSlice';

@@ -6,7 +6,7 @@ import {
 } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Platform, ActivityIndicator, View, Linking } from "react-native";
+import { StyleSheet, ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../hooks/useReduxHooks";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -17,17 +17,8 @@ import { resolveLandingRoute } from "../../navigation-maps/landingRoute";
 import BaseNavigator from "../../navigators/BaseNavigator";
 
 import {
-  selectCurrentUser,
-  selectCurrentProvider,
-  selectStatus,
-  selectUserType,
   fetchMe,
-  logout,
-  persistFcmTokenAction,
   setAppIsReady,
-  selectIsAppReady,
-  selectIsOnboardingComplete,
-  selectSelectedRole,
   loadInitialState,
 } from "./appContainerSlice";
 

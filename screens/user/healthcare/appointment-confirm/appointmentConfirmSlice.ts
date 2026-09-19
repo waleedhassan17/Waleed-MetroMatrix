@@ -3,7 +3,6 @@ import type {
   Appointment,
   Doctor,
   Clinic,
-  TimeSlot,
 } from '../../../../models/healthcare/types';
 import { fetchAppointmentByIdApi } from '../../../../networks/healthcare/appointmentApi';
 import type { RootState } from '../../../../store/store';

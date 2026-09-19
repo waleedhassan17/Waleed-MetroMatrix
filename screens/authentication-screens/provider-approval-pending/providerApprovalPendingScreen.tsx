@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../constants/darkShift';
 import { useTheme } from '../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
 import {

@@ -15,7 +15,7 @@ import { WebView } from 'react-native-webview';
 import { ChevronLeft, Check, X, Lock } from 'lucide-react-native';
 import { useAppDispatch } from '../../../store/hooks';
 import { fetchWallet, clearWalletError } from '../../../services/wallet';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../constants/Colors';
 import { useTheme } from '../../../theme';
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;

@@ -2,8 +2,6 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type {
   Appointment,
   TimeSlot,
-  Doctor,
-  Clinic,
 } from '../../../../models/healthcare/types';
 import {
   fetchTimeSlotsApi,

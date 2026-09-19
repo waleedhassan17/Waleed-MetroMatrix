@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingCart, Wallet } from 'lucide-react-native';
+import { ShoppingCart, Wallet } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Colors, Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
+import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import type { Product } from '../../../../types/shopping';
@@ -36,7 +36,7 @@ import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice';
-import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
+import ProductCard from '../../../../components/Shopping/ProductCard';
 import BannerCarousel from '../../../../components/Shopping/BannerCarousel';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
