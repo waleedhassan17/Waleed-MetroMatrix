@@ -215,10 +215,16 @@ export const cancelAppointment = createAsyncThunk<
   }
 );
 
+/**
+ * Not currently dispatched by any screen — the detail screen hands off to the
+ * dedicated RescheduleAppointment screen. Kept because the slice's reschedule
+ * state is part of its public surface, but corrected to the real contract: the
+ * endpoint moves an appointment onto a concrete SLOT, and a date plus a
+ * wall-clock range cannot identify one.
+ */
 interface RescheduleParams {
   appointmentId: string;
-  newDate: string;
-  newTimeSlot: { start: string; end: string };
+  newSlotId: string;
 }
 
 export const rescheduleAppointment = createAsyncThunk<
@@ -227,10 +233,10 @@ export const rescheduleAppointment = createAsyncThunk<
   { rejectValue: string }
 >(
   'appointmentDetail/rescheduleAppointment',
-  async ({ appointmentId, newDate, newTimeSlot }, { rejectWithValue }) => {
+  async ({ appointmentId, newSlotId }, { rejectWithValue }) => {
     try {
-      const res = await rescheduleAppointmentApi({ appointmentId, date: newDate, timeSlot: newTimeSlot });
-      
+      const res = await rescheduleAppointmentApi({ appointmentId, newSlotId });
+
       if (!res.success) {
         return rejectWithValue(res.message ?? 'Reschedule failed');
       }

@@ -31,11 +31,13 @@ import { DoctorRouteNames, DoctorTabNames } from '../../../../navigation-maps/He
 import { selectTotalUnread } from '../../../../store/unreadSlice';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
+  CONSULT_LEAD_MINUTES,
   consultationIcon,
   consultationLabel,
   formatDuration,
   formatTimeRange,
   greeting,
+  isConsultationOpen,
   isLiveWindow,
   minutesBetween,
   relativeStart,
@@ -100,12 +102,18 @@ const NextUpCard: React.FC<{
   const live = isLiveWindow(a.startUtc, a.endUtc);
   const when = live ? 'Now' : relativeStart(a.startUtc, a.endUtc) || 'Next';
   const duration = formatDuration(minutesBetween(a.startTime, a.endTime));
+  // A video room opens only inside the consultation window — the same one the
+  // patient's own join button uses. Before this the doctor could start a call
+  // days early, into a room nobody could enter.
+  const consultOpen = isConsultationOpen(a.startUtc, a.endUtc);
   const primary =
     a.status === 'pending'
-      ? { label: 'Review request', icon: 'document-text-outline' }
+      ? { label: 'Review request', icon: 'document-text-outline', disabled: false }
       : a.type === 'video'
-        ? { label: 'Join video call', icon: 'videocam-outline' }
-        : { label: 'Open consultation', icon: 'clipboard-outline' };
+        ? consultOpen
+          ? { label: 'Join video call', icon: 'videocam-outline', disabled: false }
+          : { label: `Opens ${CONSULT_LEAD_MINUTES} min before`, icon: 'time-outline', disabled: true }
+        : { label: 'Open consultation', icon: 'clipboard-outline', disabled: false };
 
   return (
     <Card elevation="raised" accentRule={colors.accent} onPress={onOpen} accessibilityLabel={`Next: ${a.patientName}`}>
@@ -130,7 +138,13 @@ const NextUpCard: React.FC<{
           {a.symptoms}
         </Text>
       )}
-      <Button label={primary.label} icon={primary.icon} onPress={onPrimary} style={styles.nextButton} />
+      <Button
+        label={primary.label}
+        icon={primary.icon}
+        disabled={primary.disabled}
+        onPress={onPrimary}
+        style={styles.nextButton}
+      />
     </Card>
   );
 };

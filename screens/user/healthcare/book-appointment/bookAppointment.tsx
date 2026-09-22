@@ -209,10 +209,14 @@ const BookAppointmentScreen: React.FC = () => {
     }
   }, [currentStep, navigation]);
 
+  // Selecting a type is a CHOICE, not a navigation action. This used to
+  // `setTimeout(() => setCurrentStep(1), 200)`, so tapping "Video Consultation"
+  // to read its fee advanced the wizard before the fee had been on screen long
+  // enough to read — and the only way back to it was the back button.
+  // Continue moves the step now, like every other step.
   const handleSelectType = useCallback(
     (type: 'in-clinic' | 'video') => {
       dispatch(setAppointmentType(type));
-      setTimeout(() => setCurrentStep(1), 200);
     },
     [dispatch]
   );
@@ -385,8 +389,16 @@ const BookAppointmentScreen: React.FC = () => {
             <View style={styles.typeInfo}>
               <Text style={styles.typeLabel}>{type.label}</Text>
               <Text style={styles.typeDescription}>{type.description}</Text>
+              {/* Each card carries its OWN price. Without this the only way to
+                  learn what a video consult costs was to select it, which is
+                  what made the old auto-advance so costly. */}
+              <Text style={styles.typeFee}>
+                {formatFee(
+                  type.key === 'video' ? doctor?.videoConsultationFee : doctor?.consultationFee
+                ) ?? (doctorLoading ? 'Loading…' : 'On request')}
+              </Text>
             </View>
-            
+
             <View style={[styles.typeRadio, isSelected && styles.typeRadioSelected]}>
               {isSelected && (
                 <View style={styles.typeRadioInner}>
@@ -697,9 +709,9 @@ const BookAppointmentScreen: React.FC = () => {
         {currentStep === 2 && renderReviewStep()}
       </Animated.ScrollView>
 
-      {/* Footer */}
-      {currentStep > 0 && (
-        <View style={[styles.footer, { paddingBottom: bottomBarPadding }]}>
+      {/* Footer — on every step now, including the type chooser, which had
+          none: that is why selecting a type had to advance the wizard itself. */}
+      <View style={[styles.footer, { paddingBottom: bottomBarPadding }]}>
           <View style={styles.footerContent}>
             {currentStep === 2 && (
               <View style={styles.footerFeeInfo}>
@@ -707,7 +719,7 @@ const BookAppointmentScreen: React.FC = () => {
                 <Text style={styles.footerFeeAmount}>{feeLabel}</Text>
               </View>
             )}
-            
+
             <TouchableOpacity
               style={[
                 styles.continueButton,
@@ -737,8 +749,7 @@ const BookAppointmentScreen: React.FC = () => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -901,6 +912,13 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
     fontSize: 13,
     fontWeight: '500',
     color: Colors.text.secondary,
+  },
+  typeFee: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME.primary,
+    marginTop: 6,
+    letterSpacing: -0.2,
   },
   typeRadio: {
     width: 24,

@@ -135,19 +135,32 @@ export const BookAppointmentRequestSchema = z.object({
 
 export const RescheduleAppointmentRequestSchema = z.object({
   appointmentId: z.string(),
-  // Backend reschedules to a concrete slot.
-  newSlotId: z.string().optional(),
-  date: z.string(),
-  timeSlot: z.object({
-    start: z.string(),
-    end: z.string(),
-  }),
+  // The backend reschedules to a concrete slot and requires this — it is the
+  // ONLY field that goes on the wire. It used to be optional while `date` and
+  // `timeSlot` were required, which is backwards: the one caller dutifully
+  // filled in the two fields nothing reads and left out the one that matters,
+  // so every reschedule was rejected by the route's validator before it
+  // reached the controller.
+  newSlotId: z.string(),
+  // Kept for the caller's own bookkeeping; not sent.
+  date: z.string().optional(),
+  timeSlot: z
+    .object({
+      start: z.string(),
+      end: z.string(),
+    })
+    .optional(),
 });
 
 export const FetchTimeSlotsParamsSchema = z.object({
   doctorId: z.string(),
   date: z.string(),
   clinicId: z.string().optional(),
+  // The backend's /slots endpoint has always accepted `type`; nothing sent it,
+  // so the video list was narrowed only by a filter running on this device.
+  // Letting the server do it keeps the two consultation types symmetrical —
+  // in-clinic was already narrowed server-side by `clinicId`.
+  type: z.enum(['in-clinic', 'video']).optional(),
 });
 
 export const FetchAppointmentsParamsSchema = z.object({

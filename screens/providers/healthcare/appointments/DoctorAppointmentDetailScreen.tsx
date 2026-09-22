@@ -33,13 +33,16 @@ import {
 } from '../../../../networks/healthcare/doctorHubApi';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
+  CONSULT_LEAD_MINUTES,
   appointmentStatusMeta,
   consultationIcon,
   consultationLabel,
   formatDayHeading,
   formatDuration,
   formatTimeRange,
+  isConsultationOpen,
   minutesBetween,
+  todayKeyInZone,
   uses24HourClock,
 } from '../../../../utils/healthcare/doctorFormat';
 import { todayDateKey } from '../../../../utils/healthcare/timeRanges';
@@ -182,7 +185,17 @@ const DoctorAppointmentDetailScreen: React.FC = () => {
     const demographics = [a.patientAge ? `${a.patientAge} yrs` : '', genderLabel(a.patientGender) || '']
       .filter(Boolean)
       .join(' · ');
-    const canComplete = a.status === 'confirmed' && !!a.dateKey && a.dateKey <= today;
+    // `dateKey` is the day at the CLINIC, so "has today arrived?" has to be
+    // asked in the appointment's own zone — which is how the server decides it.
+    // Compared against the phone's day, a travelling doctor gained or lost this
+    // button a day early and then hit a 400 from the other side.
+    const canComplete =
+      a.status === 'confirmed' && !!a.dateKey && a.dateKey <= todayKeyInZone(a.timezone);
+    // The consultation can only be held inside its own window. Without this the
+    // call button rendered for any confirmed appointment, so a doctor could
+    // open a room weeks early that the patient — whose own join opens 15
+    // minutes before — could not enter, and then find no way to complete it.
+    const consultOpen = isConsultationOpen(a.startUtc, a.endUtc);
     const active = a.status === 'pending' || a.status === 'confirmed';
 
     const openNotes = () =>
@@ -261,7 +274,14 @@ const DoctorAppointmentDetailScreen: React.FC = () => {
           {a.status === 'confirmed' && (
             <>
               {a.type === 'video' ? (
-                <Button label="Start video call" icon="videocam-outline" onPress={() => call('video')} />
+                <Button
+                  label={consultOpen ? 'Start video call' : `Opens ${CONSULT_LEAD_MINUTES} min before`}
+                  icon={consultOpen ? 'videocam-outline' : 'time-outline'}
+                  // Disabled rather than hidden: a control that vanishes is
+                  // what made this confusing in the first place.
+                  disabled={!consultOpen}
+                  onPress={() => call('video')}
+                />
               ) : (
                 <Button label="Open consultation notes" icon="clipboard-outline" onPress={openNotes} />
               )}

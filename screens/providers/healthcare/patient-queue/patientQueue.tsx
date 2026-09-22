@@ -33,10 +33,12 @@ import type { DoctorAppointment, PatientSummary } from '../../../../models/healt
 import { DoctorRouteNames } from '../../../../navigation-maps/Healthcare';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
+  CONSULT_LEAD_MINUTES,
   consultationIcon,
   consultationLabel,
   formatDateLabel,
   formatTimeRange,
+  isConsultationOpen,
   isLiveWindow,
   relativeStart,
   uses24HourClock,
@@ -68,6 +70,7 @@ const CurrentCard: React.FC<{
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const live = isLiveWindow(a.startUtc, a.endUtc);
+  const consultOpen = isConsultationOpen(a.startUtc, a.endUtc);
 
   return (
     <Card elevation="raised" accentRule={live ? colors.success : colors.accent} onPress={onOpen} style={styles.current}>
@@ -92,9 +95,25 @@ const CurrentCard: React.FC<{
         </Text>
       )}
       <View style={styles.currentActions}>
+        {/* A video room can only be opened inside the consultation's own
+            window — the patient's join opens 15 minutes before, so an earlier
+            call can only ring out. In-clinic notes have no such constraint. */}
         <Button
-          label={a.type === 'video' ? 'Join video call' : 'Open consultation'}
-          icon={a.type === 'video' ? 'videocam-outline' : 'clipboard-outline'}
+          label={
+            a.type !== 'video'
+              ? 'Open consultation'
+              : consultOpen
+              ? 'Join video call'
+              : `Opens ${CONSULT_LEAD_MINUTES} min before`
+          }
+          icon={
+            a.type !== 'video'
+              ? 'clipboard-outline'
+              : consultOpen
+              ? 'videocam-outline'
+              : 'time-outline'
+          }
+          disabled={a.type === 'video' && !consultOpen}
           onPress={onPrimary}
           fullWidth={false}
           style={styles.flex}

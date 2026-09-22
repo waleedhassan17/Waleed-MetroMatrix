@@ -572,7 +572,12 @@ const AppointmentDetailScreen: React.FC = () => {
             value={isVideo ? 'Video Consultation' : 'In-Clinic Visit'}
           />
 
-          {appointment.clinicId && (
+          {/* `clinicId` is the raw ObjectId — it was rendered here verbatim, so
+              the Clinic row read "6a5d41212543...". The backend already
+              populates the clinic on this endpoint and the serializer lifts its
+              name and address out; gate on the NAME so a record whose populate
+              failed shows nothing rather than a hex string. */}
+          {!!appointment.clinicName && (
             <>
               <View style={styles.detailDivider} />
               <DetailRow
@@ -580,7 +585,9 @@ const AppointmentDetailScreen: React.FC = () => {
                 iconBg="#FEF3C7"
                 iconColor={THEME.warning}
                 label="Clinic"
-                value={appointment.clinicId}
+                value={[appointment.clinicName, appointment.clinicAddress]
+                  .filter(Boolean)
+                  .join(' · ')}
               />
             </>
           )}

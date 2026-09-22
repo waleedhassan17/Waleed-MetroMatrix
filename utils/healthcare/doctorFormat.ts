@@ -135,6 +135,53 @@ export function isLiveWindow(
   return t >= start - leadMinutes * 60000 && t < end;
 }
 
+/**
+ * How long before a consultation's start time it can be opened.
+ *
+ * Must match the patient side (`callJoinTime` in the patient's appointment
+ * detail slice): if the two disagree, one party is calling a room the other
+ * cannot enter.
+ */
+export const CONSULT_LEAD_MINUTES = 15;
+
+/**
+ * True when the consultation can actually be held right now.
+ *
+ * The doctor's "Start video call" button had NO time gate — it rendered for
+ * any confirmed appointment, so a doctor could open a call weeks early. The
+ * patient could not answer it (their join opens 15 minutes before), and the
+ * appointment was then stranded: the backend refuses to complete a future
+ * appointment, so there was no way to close it out and no payout.
+ */
+export function isConsultationOpen(
+  startUtc?: string | Date | null,
+  endUtc?: string | Date | null,
+  now: Date = new Date()
+): boolean {
+  return isLiveWindow(startUtc, endUtc, now, CONSULT_LEAD_MINUTES);
+}
+
+/**
+ * Today's `YYYY-MM-DD` in a given zone, falling back to the device's day.
+ *
+ * `dateKey` on an appointment is the calendar day AT THE CLINIC. Comparing it
+ * against the phone's day made controls appear or vanish a day early for a
+ * doctor in a different zone from their clinic — and the server, which decides
+ * the same question in the appointment's own zone, then disagreed with the app.
+ */
+export function todayKeyInZone(timeZone?: string | null, now: Date = new Date()): string {
+  if (timeZone) {
+    try {
+      // en-CA renders as YYYY-MM-DD, which is exactly the dateKey format.
+      return now.toLocaleDateString('en-CA', { timeZone });
+    } catch {
+      // An unknown zone string — fall through to the device day.
+    }
+  }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 export function greeting(now: Date = new Date()): string {
   const hour = now.getHours();
   if (hour < 12) return 'Good morning';

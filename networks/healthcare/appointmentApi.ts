@@ -37,6 +37,7 @@ export async function fetchTimeSlotsApi(
   const queryParams = new URLSearchParams({
     date: params.date,
     ...(params.clinicId && { clinicId: params.clinicId }),
+    ...(params.type && { type: params.type }),
   });
 
   const res = await healthcareApiRequest<any>(
@@ -223,7 +224,7 @@ export async function rescheduleAppointmentApi(
     `/appointments/${encodeURIComponent(data.appointmentId)}/reschedule`,
     {
       method: 'PATCH',
-      data: { newSlotId: (data as any).newSlotId },
+      data: { newSlotId: data.newSlotId },
     }
   );
   if (res.success) {

@@ -28,6 +28,7 @@ import {
 } from './rescheduleAppointmentSlice';
 import type { TimeSlot } from '../../../../models/healthcare/types';
 import { toLocalISODate } from '../../../../utils/date/localDate';
+import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 
 // ── Theme ────────────────────────────────────
 
@@ -42,6 +43,7 @@ const makeTHEME = (mode: ThemeMode) => {
   accent: hue('#5A9FFF'),
   success: hue('#10B981'),
   warning: hue('#F59E0B'),
+  error: hue('#EF4444'),
   gradient: {
     primary: grad(['#2A7FFF', '#1857C0']) as [string, string],
     soft: grad(['#EAF3FF', '#F0F7FF']) as [string, string],
@@ -111,6 +113,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(THEME, sh), [THEME, sh]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
+  const bottomBarPadding = useBottomBarPadding(20);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -129,7 +132,7 @@ const RescheduleAppointmentScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  const { appointment, newDate, newSlot, availableSlots, loading } = useAppSelector(
+  const { appointment, newDate, newSlot, availableSlots, loading, error } = useAppSelector(
     (state) => state.rescheduleAppointment,
   );
 
@@ -145,7 +148,15 @@ const RescheduleAppointmentScreen: React.FC = () => {
     (date: string) => {
       dispatch(setNewDate(date));
       if (appointment?.doctorId) {
-        dispatch(fetchAvailableSlots({ doctorId: appointment.doctorId, date }));
+        dispatch(
+          fetchAvailableSlots({
+            doctorId: appointment.doctorId,
+            date,
+            // Move the appointment, don't change what it is.
+            type: appointment.type,
+            clinicId: appointment.type === 'in-clinic' ? appointment.clinicId : undefined,
+          }),
+        );
       }
     },
     [dispatch, appointment],
@@ -158,8 +169,12 @@ const RescheduleAppointmentScreen: React.FC = () => {
 
   const handleConfirm = useCallback(async () => {
     if (!appointment || !newDate || !newSlot) return;
-    await dispatch(confirmReschedule());
-    navigation.goBack();
+    // Only leave on success. This used to go back unconditionally, so a failed
+    // reschedule closed the screen and the error the slice had just stored was
+    // never rendered — the patient saw the raw network alert and an appointment
+    // that had not moved.
+    const result = await dispatch(confirmReschedule());
+    if (confirmReschedule.fulfilled.match(result)) navigation.goBack();
   }, [dispatch, appointment, newDate, newSlot, navigation]);
 
   // ── Slot Chip ────────────────────────────────
@@ -441,7 +456,13 @@ const RescheduleAppointmentScreen: React.FC = () => {
       </Animated.ScrollView>
 
       {/* ── Footer Confirm Button ── */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: bottomBarPadding }]}>
+        {!!error && (
+          <View style={styles.footerError}>
+            <Ionicons name="alert-circle" size={15} color={THEME.error} />
+            <Text style={styles.footerErrorText}>{error}</Text>
+          </View>
+        )}
         {newSlot && (
           <View style={styles.footerSummaryRow}>
             <Text style={styles.footerSummaryLabel}>Rescheduling to</Text>
@@ -871,7 +892,8 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
     borderTopWidth: 1,
     borderTopColor: sh.n('#F1F5F9', 'lineSoft'),
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    // paddingBottom comes from useBottomBarPadding at the call site — the
+    // hardcoded value put "Confirm Reschedule" under the Android nav buttons.
     gap: 10,
     ...Platform.select({
       ios: {
@@ -888,6 +910,21 @@ const makeStyles = (THEME: ReturnType<typeof makeTHEME>, sh: DarkShift) => Style
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 4,
+  },
+  footerError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: sh.ground('#FEF2F2', '#EF4444'),
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  footerErrorText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: THEME.error,
   },
   footerSummaryLabel: {
     fontSize: 13,

@@ -26,17 +26,25 @@ const initialState: RescheduleAppointmentState = {
 
 export const fetchAvailableSlots = createAsyncThunk<
   TimeSlot[],
-  { doctorId: string; date: string },
+  { doctorId: string; date: string; type?: Appointment['type']; clinicId?: string },
   { rejectValue: string }
->('rescheduleAppointment/fetchAvailableSlots', async ({ doctorId, date }, { rejectWithValue }) => {
-  try {
-    const res = await fetchTimeSlotsApi({ doctorId, date });
-    if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
-    return res.data;
-  } catch {
-    return rejectWithValue('Failed to load available slots');
+>(
+  'rescheduleAppointment/fetchAvailableSlots',
+  async ({ doctorId, date, type, clinicId }, { rejectWithValue }) => {
+    try {
+      // Rescheduling MOVES an appointment; it does not change what kind of
+      // appointment it is. Unfiltered, this offered video times for an
+      // in-clinic visit — and the backend copies the new slot's clinic across
+      // while leaving `type` alone, so accepting one produced an in-clinic
+      // appointment sitting on a video slot.
+      const res = await fetchTimeSlotsApi({ doctorId, date, type, clinicId });
+      if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
+      return res.data;
+    } catch {
+      return rejectWithValue('Failed to load available slots');
+    }
   }
-});
+);
 
 export const confirmReschedule = createAsyncThunk<
   Appointment,
@@ -49,10 +57,14 @@ export const confirmReschedule = createAsyncThunk<
       return rejectWithValue('Missing reschedule data');
     }
 
+    // `newSlotId` is the only field the endpoint reads, and its validator
+    // requires it. This used to send `date` + `timeSlot` instead — neither of
+    // which goes on the wire — so every reschedule was rejected with a 400
+    // before the controller ever ran. The backend's release-then-claim of the
+    // old and new slots was correct all along; it was simply never reached.
     const res = await rescheduleAppointmentApi({
       appointmentId: appointment.appointmentId,
-      date: newDate,
-      timeSlot: { start: newSlot.startTime, end: newSlot.endTime },
+      newSlotId: newSlot.slotId,
     });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     return res.data;

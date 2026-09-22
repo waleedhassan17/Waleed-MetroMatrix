@@ -79,7 +79,11 @@ export const fetchSlots = createAsyncThunk<
   { rejectValue: string }
 >('slotSelection/fetchSlots', async ({ doctorId, date, consultationType, clinicId }, { rejectWithValue }) => {
   try {
-    const res = await fetchTimeSlotsApi({ doctorId, date, clinicId });
+    // `type` narrows on the SERVER. The in-clinic path was already narrowed
+    // there by `clinicId`, while video relied entirely on the filter below —
+    // so anything the server wrongly served as available reached the patient.
+    // The client filter stays as a second line of defence for older backends.
+    const res = await fetchTimeSlotsApi({ doctorId, date, clinicId, type: consultationType });
     if (!res.success) return rejectWithValue(res.message ?? 'Unknown error');
     return res.data.filter(
       (s) =>
