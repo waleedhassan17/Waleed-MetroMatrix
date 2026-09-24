@@ -498,3 +498,30 @@ export async function checkSymptomsApi(
     data: { symptoms },
   });
 }
+
+// ── Chat variant: the same triage as a back-and-forth instead of one form ──
+
+export interface SymptomChatMessage {
+  role: 'user' | 'bot';
+  text: string;
+}
+
+export interface SymptomChatReply {
+  reply: string;
+  done: boolean;
+  disclaimer: string;
+  // Present once `done` — the exact same shape as SymptomCheckResult's data
+  // (minus the top-level disclaimer, which travels alongside it instead),
+  // so the screen renders one recommendation-card component either way.
+  recommendation: Omit<SymptomCheckResult, 'disclaimer'> | null;
+}
+
+/** @param messages full transcript so far, oldest first, ending on the patient's latest message */
+export async function chatSymptomCheckApi(
+  messages: SymptomChatMessage[]
+): Promise<ApiResponse<SymptomChatReply>> {
+  return healthcareApiRequest<SymptomChatReply>('/symptom-checker/chat', {
+    method: 'POST',
+    data: { messages },
+  });
+}
