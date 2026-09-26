@@ -21,7 +21,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -42,7 +41,8 @@ import { categoryAccent } from '../../../../constants/HomeServiceTheme';
 import { GUTTER, PROSE_WIDTH, R, S, SECTION, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
-import { fetchWallet, selectBalance, selectCurrency } from '../../../../services/wallet';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
+import { fetchWallet, selectBalance } from '../../../../services/wallet';
 import { AppDispatch, RootState } from '../../../../store/store';
 import { formatAmount } from '../../../../utils/homeservice/format';
 import {
@@ -55,9 +55,9 @@ import {
   selectIsPaymentValid,
   selectPaymentAmount,
   ServiceCategory,
-  setCustomAmount,
+  markPaymentConfirmed,
+  reopenPaymentChoice,
   setSelectedMethod,
-  toggleCustomAmount,
 } from './paymentSlice';
 
 // The wallet is the only method that debits a balance; cash is settled
@@ -68,6 +68,7 @@ const WALLET_BACKED_METHODS: PaymentMethodType[] = ['wallet'];
 type RouteParams = {
   bookingId?: string;
   category?: ServiceCategory;
+  /** Accepted from older call sites and ignored: the server's bill is the amount. */
   paymentData?: { amount?: number; suggestedAmount?: number };
 };
 
@@ -79,13 +80,13 @@ export default function PaymentScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const bottomPad = useBottomBarPadding(GUTTER);
 
-  const { bookingId = 'default', category = 'ac-repairers', paymentData } = route.params || {};
+  const { bookingId, category = 'ac-repairers' } = route.params || {};
   const accent = categoryAccent(category, mode);
 
   const recipient = useSelector((state: RootState) => state.payment?.recipient);
   const paymentDetails = useSelector((state: RootState) => state.payment?.paymentDetails);
   const selectedMethod = useSelector((state: RootState) => state.payment?.selectedMethod);
-  const useCustomAmount = useSelector((state: RootState) => state.payment?.useCustomAmount);
+  const paidWith = useSelector((state: RootState) => state.payment?.transaction.method);
   const isLoading = useSelector((state: RootState) => state.payment?.isLoading);
   const isProcessing = useSelector((state: RootState) => state.payment?.isProcessing);
   const paymentStatus = useSelector((state: RootState) => state.payment?.paymentStatus);
@@ -98,11 +99,9 @@ export default function PaymentScreen() {
   // Wallet balance — same slice, same source, as healthcare's and shopping's
   // payment screens, so all three treat insufficient balance identically.
   const walletBalance = useSelector(selectBalance) as number;
-  const walletCurrency = useSelector(selectCurrency) as string;
   const isWalletBacked = selectedMethod ? WALLET_BACKED_METHODS.includes(selectedMethod) : false;
   const insufficientBalance = isWalletBacked && walletBalance < paymentAmount;
 
-  const [manualAmount, setManualAmount] = useState('');
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
 
   useEffect(() => {
@@ -111,15 +110,19 @@ export default function PaymentScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      dispatch(
-        initializePayment({
-          bookingId,
-          category,
-          amount: paymentData?.amount || paymentData?.suggestedAmount,
-        })
-      );
-    }, [bookingId, category, paymentData, dispatch])
+      if (bookingId) dispatch(initializePayment({ bookingId, category }));
+    }, [bookingId, category, dispatch])
   );
+
+  // Cash: the provider confirms receipt on their phone, and this screen hears
+  // it live (the backend emits `payment_received` to the booking's room) — so
+  // "Pay in cash" turns into "Payment confirmed" without a refresh.
+  const { payment: roomPayment } = useRoomSocket(bookingId, 'homeservice');
+  useEffect(() => {
+    if (roomPayment?.status === 'paid' && paymentStatus === 'awaiting_cash') {
+      dispatch(markPaymentConfirmed());
+    }
+  }, [roomPayment, paymentStatus, dispatch]);
 
   // A completed payment used to navigate to a PaymentSuccess route. No such
   // screen exists anywhere in the app and it was never registered, so the one
@@ -135,18 +138,29 @@ export default function PaymentScreen() {
     navigation.goBack();
   }, [dispatch, navigation, isProcessing]);
 
-  const handleAmountChange = useCallback(
-    (text: string) => {
-      const numericValue = text.replace(/[^0-9]/g, '');
-      setManualAmount(numericValue);
-      dispatch(setCustomAmount(parseInt(numericValue) || null));
-    },
-    [dispatch]
-  );
-
   const confirmPayment = useCallback(() => {
+    if (!bookingId) return;
+    // `amount` is only a check that the customer saw the current bill: if the
+    // provider changed it since this screen loaded, the server says so and
+    // charges nothing.
     dispatch(processPayment({ bookingId, amount: paymentAmount, method: selectedMethod }));
   }, [dispatch, bookingId, paymentAmount, selectedMethod]);
+
+  if (!bookingId) {
+    return (
+      <Screen>
+        <AppBar title="Payment" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="alert-circle-outline"
+          tone="error"
+          title="This payment can't be opened"
+          message="Open it again from the booking you want to pay for."
+          actionLabel="Go to bookings"
+          onAction={() => navigation.navigate('HomeServiceLayout')}
+        />
+      </Screen>
+    );
+  }
 
   if (isLoading || !recipient) {
     return (
@@ -164,15 +178,44 @@ export default function PaymentScreen() {
   // Paid. This is the screen's terminal state — the back chevron is gone
   // because there is nothing to go back and change.
   if (paymentStatus === 'completed') {
+    const byCash = paidWith === 'cash';
     return (
       <Screen>
         <AppBar title="Payment" hideBack />
         <EmptyState
           icon="checkmark-circle-outline"
-          title="Payment sent"
-          message={`${formattedAmount} is on its way to ${recipient.name}.`}
+          title={byCash ? 'Payment confirmed' : 'Payment sent'}
+          message={
+            byCash
+              ? `${recipient.name} confirmed your cash payment of ${formattedAmount}.`
+              : `${formattedAmount} was paid to ${recipient.name} from your wallet.`
+          }
           actionLabel="Rate this service"
           onAction={() => navigation.navigate('ReviewRating', { bookingId, category })}
+        />
+        <View style={styles.secondaryAction}>
+          <Button
+            label="Back to bookings"
+            variant="ghost"
+            onPress={() => navigation.navigate('HomeServiceLayout')}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
+  // Cash chosen, not yet confirmed. Nothing has been charged; the provider
+  // confirms receipt and this state turns into "Payment confirmed".
+  if (paymentStatus === 'awaiting_cash') {
+    return (
+      <Screen>
+        <AppBar title="Payment" onBack={handleBackPress} />
+        <EmptyState
+          icon="cash-outline"
+          title={`Pay ${formattedAmount} in cash`}
+          message={`Hand the cash to ${recipient.name}. They'll confirm it in the app, and this screen will update when they do.`}
+          actionLabel="Pay from wallet instead"
+          onAction={() => dispatch(reopenPaymentChoice())}
         />
         <View style={styles.secondaryAction}>
           <Button
@@ -192,8 +235,9 @@ export default function PaymentScreen() {
     : !selectedMethod
       ? 'Choose how you want to pay.'
       : paymentAmount <= 0
-        ? 'Enter an amount above zero.'
+        ? 'This job has no amount to pay yet.'
         : null;
+  const payLabel = selectedMethod === 'cash' ? "I'll pay in cash" : `Pay ${formattedAmount}`;
 
   return (
     <Screen>
@@ -252,53 +296,11 @@ export default function PaymentScreen() {
               <View style={styles.amountBlock}>
                 <View style={styles.amountHeader}>
                   <Text style={styles.rowKey}>Amount</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      dispatch(toggleCustomAmount());
-                      if (useCustomAmount) setManualAmount('');
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={styles.link}>{useCustomAmount ? 'Use quoted' : 'Change'}</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.quoted}>{formatAmount(paymentDetails?.originalAmount)}</Text>
                 </View>
-
-                {useCustomAmount ? (
-                  <>
-                    <View style={styles.amountField}>
-                      <Text style={styles.currency}>PKR</Text>
-                      <TextInput
-                        style={styles.amountInput}
-                        value={manualAmount}
-                        onChangeText={handleAmountChange}
-                        placeholder="0"
-                        placeholderTextColor={colors.inkFaint}
-                        keyboardType="number-pad"
-                        autoFocus
-                        accessibilityLabel="Payment amount"
-                      />
-                    </View>
-                    {!!paymentDetails?.originalAmount && (
-                      <TouchableOpacity
-                        style={styles.restore}
-                        onPress={() => {
-                          const amount = paymentDetails.originalAmount;
-                          setManualAmount(String(amount));
-                          dispatch(setCustomAmount(amount));
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.link}>
-                          Restore the quoted {formatAmount(paymentDetails.originalAmount)}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
-                ) : (
-                  <Text style={styles.quoted}>
-                    {formatAmount(paymentDetails?.originalAmount)}
-                  </Text>
-                )}
+                {/* The provider sets the price; the customer can check it here
+                    but not type their own. */}
+                <Text style={styles.meta}>Set by {recipient.name} for this job</Text>
               </View>
 
               <View style={styles.total}>
@@ -349,9 +351,7 @@ export default function PaymentScreen() {
             {/* Insufficient balance — same treatment as healthcare/shopping
                 payment screens, same slice, same top-up link. */}
             {isWalletBacked && !insufficientBalance && (
-              <Text style={styles.balance}>
-                Wallet balance {walletCurrency.toUpperCase()} {walletBalance.toLocaleString()}
-              </Text>
+              <Text style={styles.balance}>Wallet balance {formatAmount(walletBalance)}</Text>
             )}
             {insufficientBalance && (
               <TouchableOpacity
@@ -361,8 +361,7 @@ export default function PaymentScreen() {
               >
                 <Ionicons name="alert-circle-outline" size={17} color={colors.error} />
                 <Text style={styles.bannerText}>
-                  Your wallet is {walletCurrency.toUpperCase()}{' '}
-                  {(paymentAmount - walletBalance).toLocaleString()} short. Top up
+                  Your wallet is {formatAmount(paymentAmount - walletBalance)} short. Top up
                 </Text>
                 <Ionicons name="chevron-forward" size={15} color={colors.error} />
               </TouchableOpacity>
@@ -375,30 +374,35 @@ export default function PaymentScreen() {
 
       <View style={[styles.footer, { paddingBottom: bottomPad }]}>
         <Button
-          label={isProcessing ? 'Paying' : `Pay ${formattedAmount}`}
+          label={isProcessing ? 'Paying' : payLabel}
           onPress={() => setShowConfirmSheet(true)}
           disabled={blocked}
           loading={!!isProcessing}
         />
         <Text style={styles.footerNote}>
-          {blockedReason ?? 'Payments are encrypted end to end.'}
+          {blockedReason ??
+            (selectedMethod === 'cash'
+              ? 'Nothing is charged now. Pay the provider in person.'
+              : "You'll be charged exactly this amount.")}
         </Text>
       </View>
 
       <ActionSheet
         visible={showConfirmSheet}
-        title={`Pay ${formattedAmount}?`}
+        title={selectedMethod === 'cash' ? `Pay ${formattedAmount} in cash?` : `Pay ${formattedAmount}?`}
         message={
-          selectedMethodName
-            ? `This will be charged to ${selectedMethodName} and sent to ${recipient.name}.`
-            : undefined
+          selectedMethod === 'cash'
+            ? `You'll hand the cash to ${recipient.name}, who confirms it once received.`
+            : selectedMethodName
+              ? `This will be charged to your ${selectedMethodName} and sent to ${recipient.name}.`
+              : undefined
         }
         cancelLabel="Not yet"
         onClose={() => setShowConfirmSheet(false)}
         options={[
           {
-            label: `Pay ${formattedAmount}`,
-            icon: 'card-outline',
+            label: payLabel,
+            icon: selectedMethod === 'cash' ? 'cash-outline' : 'card-outline',
             onPress: confirmPayment,
           },
         ]}
@@ -481,38 +485,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: S.sm,
+    marginBottom: S.xs,
   },
   quoted: {
     ...T.heading,
     color: c.ink,
   },
-  amountField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 52,
-    paddingHorizontal: S.md,
-    borderRadius: R.control,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.accent,
-    backgroundColor: c.surface,
-  },
-  currency: {
-    ...T.bodyStrong,
-    color: c.inkMuted,
-    marginRight: S.sm,
-  },
-  amountInput: {
-    flex: 1,
-    ...T.heading,
-    color: c.ink,
-    padding: 0,
-  },
-  restore: {
-    alignSelf: 'flex-start',
-    marginTop: S.md,
-  },
-
   total: {
     flexDirection: 'row',
     alignItems: 'center',

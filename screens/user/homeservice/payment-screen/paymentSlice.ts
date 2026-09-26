@@ -34,7 +34,13 @@ export const normalizePaymentMethod = (
   // Everything else that ever existed was the wallet wearing a different name.
   return 'wallet';
 };
-export type PaymentStatusType = 'idle' | 'processing' | 'completed' | 'failed';
+/**
+ * 'awaiting_cash' — the customer chose cash; nothing has moved yet and the
+ * provider confirms receipt. It used to be reported as 'completed', so the
+ * screen told the customer "Payment sent … on its way" before any money had
+ * changed hands.
+ */
+export type PaymentStatusType = 'idle' | 'processing' | 'awaiting_cash' | 'completed' | 'failed';
 export type ServiceCategory = 'electricians' | 'plumbers' | 'ac-repairers';
 
 export interface PaymentRecipient {
@@ -84,7 +90,6 @@ export interface PaymentState {
   paymentDetails: PaymentDetails | null;
   transaction: PaymentTransaction;
   selectedMethod: PaymentMethodType;
-  useCustomAmount: boolean;
   paymentStatus: PaymentStatusType;
   isLoading: boolean;
   isProcessing: boolean;
@@ -103,7 +108,6 @@ const initialState: PaymentState = {
     timestamp: null,
   },
   selectedMethod: null,
-  useCustomAmount: false,
   paymentStatus: 'idle',
   isLoading: false,
   isProcessing: false,
@@ -119,7 +123,7 @@ const initialState: PaymentState = {
     {
       id: 'cash',
       name: 'Cash',
-      subtitle: 'Pay the provider in cash on completion',
+      subtitle: 'Pay the provider in person; they confirm it here',
       icon: 'cash-outline',
       enabled: true,
     },
@@ -157,20 +161,22 @@ const paymentSlice = createAppSlice({
   reducers: (create) => ({
     // Async Thunks
     initializePayment: create.asyncThunk(
-      async (
-        params: { bookingId: string; category: ServiceCategory; amount?: number },
-        { rejectWithValue }
-      ) => {
+      // The amount is the server's bill, always. A route param used to
+      // override it, so a screen opened from a stale booking card showed — and
+      // tried to charge — whatever figure that card had.
+      async (params: { bookingId: string; category: ServiceCategory }, { rejectWithValue }) => {
         const response = await fetchPaymentData(params.bookingId);
         if (!response.success || !response.data) {
           return rejectWithValue(response.message || 'Failed to initialize payment');
         }
         const serialized = paymentDataSerializer(response.data);
         const mapped = mapApiPaymentToLocal(serialized);
-        if (params.amount) {
-          mapped.paymentDetails.originalAmount = params.amount;
-        }
-        return mapped;
+        const raw = response.data as any;
+        return {
+          ...mapped,
+          serverStatus: (raw?.paymentStatus as string) || 'unpaid',
+          serverMethod: (raw?.method as string) || null,
+        };
       },
       {
         pending: (state) => {
@@ -182,6 +188,19 @@ const paymentSlice = createAppSlice({
           state.recipient = action.payload.recipient;
           state.paymentDetails = action.payload.paymentDetails;
           state.transaction.amount = action.payload.paymentDetails.originalAmount;
+          // Open on where the payment really stands, so a customer coming back
+          // to a job they already paid (or chose cash for) is not offered the
+          // money again.
+          if (action.payload.serverStatus === 'paid') {
+            state.paymentStatus = 'completed';
+            state.transaction.method = normalizePaymentMethod(action.payload.serverMethod);
+          } else if (action.payload.serverStatus === 'requested' && action.payload.serverMethod === 'cash') {
+            state.paymentStatus = 'awaiting_cash';
+            state.selectedMethod = 'cash';
+            state.transaction.method = 'cash';
+          } else if (state.paymentStatus !== 'processing') {
+            state.paymentStatus = 'idle';
+          }
         },
         rejected: (state, action) => {
           state.isLoading = false;
@@ -206,7 +225,9 @@ const paymentSlice = createAppSlice({
         return {
           transactionId: response.data.transactionId,
           timestamp: response.data.paidAt,
-          status: 'completed' as const,
+          // 'pending' is the server's answer for cash: nothing has moved yet.
+          status: (response.data.status === 'pending' ? 'awaiting_cash' : 'completed') as PaymentStatusType,
+          method: params.method,
         };
       },
       {
@@ -217,7 +238,8 @@ const paymentSlice = createAppSlice({
         },
         fulfilled: (state, action) => {
           state.isProcessing = false;
-          state.paymentStatus = 'completed';
+          state.paymentStatus = action.payload.status;
+          state.transaction.method = action.payload.method;
           state.transaction.transactionId = action.payload.transactionId;
           state.transaction.timestamp = action.payload.timestamp;
         },
@@ -241,19 +263,21 @@ const paymentSlice = createAppSlice({
       state.transaction.method = action.payload;
     }),
 
-    setCustomAmount: create.reducer((state, action: PayloadAction<number | null>) => {
-      if (state.paymentDetails) {
-        state.paymentDetails.customAmount = action.payload;
-        state.transaction.amount = action.payload || state.paymentDetails.originalAmount;
-      }
+    // The customer's own "Change amount" field is gone: the provider sets the
+    // price and the server charges exactly that. It let a customer pay Rs. 1
+    // for a Rs. 2,000 job.
+
+    /** The provider confirmed the cash (room event `payment_received`). */
+    markPaymentConfirmed: create.reducer((state) => {
+      state.paymentStatus = 'completed';
+      state.isProcessing = false;
     }),
 
-    toggleCustomAmount: create.reducer((state) => {
-      state.useCustomAmount = !state.useCustomAmount;
-      if (!state.useCustomAmount && state.paymentDetails) {
-        state.paymentDetails.customAmount = null;
-        state.transaction.amount = state.paymentDetails.originalAmount;
-      }
+    /** Leave the "waiting for cash" state to pay from the wallet instead. */
+    reopenPaymentChoice: create.reducer((state) => {
+      state.paymentStatus = 'idle';
+      state.selectedMethod = null;
+      state.transaction.method = null;
     }),
 
     resetPaymentState: create.reducer((state) => {
@@ -261,7 +285,6 @@ const paymentSlice = createAppSlice({
       state.paymentDetails = null;
       state.transaction = initialState.transaction;
       state.selectedMethod = null;
-      state.useCustomAmount = false;
       state.paymentStatus = 'idle';
       state.error = null;
     }),
@@ -284,7 +307,6 @@ const paymentSlice = createAppSlice({
     selectPaymentDetails: (state) => state.paymentDetails,
     selectTransaction: (state) => state.transaction,
     selectSelectedMethod: (state) => state.selectedMethod,
-    selectUseCustomAmount: (state) => state.useCustomAmount,
     selectPaymentStatus: (state) => state.paymentStatus,
     selectIsLoading: (state) => state.isLoading,
     selectIsProcessing: (state) => state.isProcessing,
@@ -298,8 +320,8 @@ export const {
   initializePayment,
   processPayment,
   setSelectedMethod,
-  setCustomAmount,
-  toggleCustomAmount,
+  markPaymentConfirmed,
+  reopenPaymentChoice,
   resetPaymentState,
   clearPaymentError,
   setPaymentMethodEnabled,
@@ -311,7 +333,6 @@ export const {
   selectPaymentDetails,
   selectTransaction,
   selectSelectedMethod,
-  selectUseCustomAmount,
   selectPaymentStatus,
   selectIsLoading,
   selectIsProcessing,
@@ -324,14 +345,12 @@ export const selectPaymentAmount = (state: { payment?: PaymentState }) => {
   const paymentState = state.payment;
   if (!paymentState?.paymentDetails) return 0;
 
-  return (
-    paymentState.paymentDetails.customAmount || paymentState.paymentDetails.originalAmount
-  );
+  return paymentState.paymentDetails.originalAmount;
 };
 
 export const selectFormattedPaymentAmount = (state: { payment?: PaymentState }) => {
   const amount = selectPaymentAmount(state);
-  return `Rs ${amount.toLocaleString()}`;
+  return `Rs. ${amount.toLocaleString('en-PK')}`;
 };
 
 export const selectIsPaymentValid = (state: { payment?: PaymentState }) => {
