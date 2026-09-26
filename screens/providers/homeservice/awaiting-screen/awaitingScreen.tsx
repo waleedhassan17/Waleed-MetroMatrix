@@ -18,7 +18,7 @@ import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Screen } from '../../../../components/ui';
 
 type RootStackParamList = {
   PaymentRequest: undefined;
@@ -35,7 +35,6 @@ const AwaitingApprovalScreen: React.FC = () => {
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
   // notch. Real insets, not StatusBar.currentHeight.
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use awaitingApproval slice
@@ -175,14 +174,22 @@ const AwaitingApprovalScreen: React.FC = () => {
 
   if (!jobId) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <Screen edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </Screen>
     );
   }
 
+  // Screen, not a bare View: it paints the ground from the live ramp and
+  // mounts the StatusBar with the right glyph colour for the mode. This screen
+  // had neither, so on dark it kept light-mode status icons and took its top
+  // inset by hand. No AppBar — there is nothing to navigate back to while a
+  // job is awaiting approval, and a chevron that does nothing is worse than
+  // no chevron.
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <Screen edges={['top']}>
       {/* Gradient Background Top */}
       <View style={styles.gradientTop} />
 
@@ -350,7 +357,7 @@ const AwaitingApprovalScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </Screen>
   );
 };
 

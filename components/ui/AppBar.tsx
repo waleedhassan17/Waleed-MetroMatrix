@@ -64,7 +64,7 @@ export interface AppBarProps {
    * Override the module's bar tone for this screen. Use sparingly — a header
    * that changes between two screens of the same flow reads as a bug.
    */
-  tone?: 'surface' | 'accent' | 'underlined';
+  tone?: 'surface' | 'accent';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -89,12 +89,7 @@ const AppBar: React.FC<AppBarProps> = ({
   // still can, per `tone`. It gets the module's deep tinted ground rather than
   // the light accent: `accentDeep` inverts to a LIGHT tone on dark, and a
   // bright band across the top of a dark screen is not a header, it is a flare.
-  const resolved = tone ?? colors.barTone;
-  const accented = resolved === 'accent';
-  // A white bar that still carries the module, via a rule rather than a slab.
-  // Titles go left in this tone: with no colour block to centre against, a
-  // centred title floats, and the leading edge is where the eye already is.
-  const underlined = resolved === 'underlined';
+  const accented = (tone ?? colors.barTone) === 'accent';
   const ground = accented ? (isDark ? colors.accentSoft : colors.accentDeep) : colors.surface;
   const ink = accented ? textOn(ground, colors.ink, colors.inkInverse) : colors.ink;
   // Hierarchy by opacity is only safe here because the value was measured.
@@ -106,8 +101,7 @@ const AppBar: React.FC<AppBarProps> = ({
         styles.bar,
         { paddingTop: insets.top + S.sm, backgroundColor: ground },
         // A coloured bar is its own edge. A rule on top of it is a seam.
-        !accented && !underlined && !borderless && styles.ruled,
-        underlined && !borderless && { borderBottomWidth: 3, borderBottomColor: colors.accent },
+        !accented && !borderless && styles.ruled,
         style,
       ]}
     >
@@ -125,15 +119,9 @@ const AppBar: React.FC<AppBarProps> = ({
         {!hideBack && <BackButton onPress={onBack ?? (() => {})} color={ink} />}
       </View>
 
-      <View
-        style={[styles.titles, underlined && styles.titlesLeading]}
-        pointerEvents="none"
-      >
+      <View style={styles.titles} pointerEvents="none">
         {!!title && (
-          <Text
-            style={[styles.title, underlined && styles.titleLeading, { color: ink }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.title, { color: ink }]} numberOfLines={1}>
             {title}
           </Text>
         )}
@@ -200,20 +188,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  // Leading-aligned, and pulled back over the 40pt back-button slot's padding
-  // so the title lines up with the screen gutter rather than floating inside it.
-  titlesLeading: {
-    alignItems: 'flex-start',
-    marginLeft: S.sm,
-  },
   title: {
     ...T.barTitle,
-  },
-  // A white bar can carry a larger title than a coloured one: there is no
-  // block of colour competing with it, so `heading` reads as composed here
-  // where it would look shouted on the slab.
-  titleLeading: {
-    ...T.heading,
   },
   // 13, matching the subtitle under healthcare's and shopping's headers. At
   // `caption` (12) it sat a size below both.

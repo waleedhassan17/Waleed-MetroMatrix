@@ -19,7 +19,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -33,10 +32,16 @@ import {
 } from '../../../../networks/serviceProviders/notificationsNetwork';
 import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
-import { F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { F, GUTTER, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
-import { AppBar, Screen } from '../../../../components/ui';
+import {
+  AppBar,
+  EmptyState,
+  ErrorState,
+  Screen,
+  SkeletonCard,
+} from '../../../../components/ui';
 
 /**
  * Icon and tint per event, so the list is scannable without reading it.
@@ -200,18 +205,24 @@ export default function ProviderNotificationsScreen() {
         }
       />
 
+      {/* The three states now come from the shared primitives rather than
+          three hand-rolled blocks: skeletons that hold the shape of the rows
+          instead of a spinner on an empty page, and an ErrorState that keeps
+          the same retry affordance every other screen offers. */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={ACCENT} />
+        <View accessibilityLabel="Loading notifications" style={styles.skeletonList}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <SkeletonCard lines={2} />
+            </View>
+          ))}
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={44} color={colors.inkFaint} />
-          <Text style={styles.stateText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
-            <Text style={styles.retryText}>Try again</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState
+          title="We couldn't load your notifications"
+          message={error}
+          onRetry={() => load()}
+        />
       ) : (
         <FlatList
           data={rows}
@@ -222,13 +233,11 @@ export default function ProviderNotificationsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={ACCENT} />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="notifications-off-outline" size={48} color={colors.inkFaint} />
-              <Text style={styles.emptyTitle}>You're all caught up</Text>
-              <Text style={styles.stateText}>
-                New bookings, messages and job updates will appear here.
-              </Text>
-            </View>
+            <EmptyState
+              icon="notifications-off-outline"
+              title="You're all caught up"
+              message="New jobs, messages and status changes land here."
+            />
           }
         />
       )}
@@ -237,9 +246,10 @@ export default function ProviderNotificationsScreen() {
 }
 
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
+  skeletonList: { paddingHorizontal: GUTTER, paddingTop: S.lg },
+  skeletonRow: { marginBottom: S.md },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxxl },
   emptyContent: { flexGrow: 1 },
   row: {
     flexDirection: 'row',
@@ -259,14 +269,4 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   time: { ...T.caption, color: c.inkFaint },
   message: { ...T.body, color: c.inkMuted, marginTop: 3 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent },
-  emptyTitle: { ...T.heading, color: c.ink, marginTop: S.md + 2 },
-  stateText: { ...T.body, color: c.inkMuted, textAlign: 'center', marginTop: S.sm },
-  retryBtn: {
-    marginTop: S.lg + 2,
-    paddingHorizontal: S.xxl + 2,
-    paddingVertical: S.md - 1,
-    borderRadius: R.pill,
-    backgroundColor: c.accent,
-  },
-  retryText: { ...T.label, fontFamily: F.bold, color: c.inkInverse },
 });

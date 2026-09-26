@@ -155,33 +155,6 @@ describe('light module palettes', () => {
     expect(contrastRatio(modulePalette(name, 'light').accentDeep, C.surface))
       .toBeGreaterThanOrEqual(AA_BODY);
   });
-
-  // The 'underlined' bar tone: a white app bar that signs itself with a 3pt
-  // rule in the module accent instead of a full-bleed slab. Two things have to
-  // hold for that to be a header rather than a decoration.
-  describe("the 'underlined' bar tone", () => {
-    it('home services asks for it, and only in light', () => {
-      expect(modulePalette('homeservice', 'light').barTone).toBe('underlined');
-      // Dark already had a surface bar; a light rule on a dark bar would be
-      // the flare the palette header warns about.
-      expect(modulePalette('homeservice', 'dark').barTone).toBe('surface');
-    });
-
-    it('the rule is visible against the bar it underlines', () => {
-      // Not body text, so AA_LARGE is the bar — the same threshold the system
-      // uses for icons. The home-service accent measures ~3.8 on white, which
-      // is why it can be a RULE but could never have been the title colour.
-      expect(contrastRatio(modulePalette('homeservice', 'light').accent, C.surface))
-        .toBeGreaterThanOrEqual(AA_LARGE);
-    });
-
-    it('its title is far more readable than the slab it replaces', () => {
-      const slab = contrastRatio(C.inkInverse, modulePalette('homeservice', 'light').accentDeep);
-      const underlined = contrastRatio(C.ink, C.surface);
-      expect(slab).toBeGreaterThanOrEqual(AA_BODY); // the old bar did pass
-      expect(underlined).toBeGreaterThan(slab * 2); // the new one is not close
-    });
-  });
 });
 
 describe('brandPalette on dark', () => {

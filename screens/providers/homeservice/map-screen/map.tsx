@@ -35,7 +35,7 @@ import { updateProviderLocation as updateProviderLocationApi } from '../../../..
 import { F, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Screen } from '../../../../components/ui';
 
 const { width, height } = Dimensions.get('window');
 
@@ -61,7 +61,6 @@ const NavigationMapScreen: React.FC = () => {
   // These screens rendered a bare View as their root, so on Android their
   // headers sat under the status bar and on notched iPhones under the
   // notch. Real insets, not StatusBar.currentHeight.
-  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   
   // Use navigationMap slice
@@ -320,8 +319,13 @@ const NavigationMapScreen: React.FC = () => {
   }
   const { Camera, GeoJSONSource, Layer, Map, Marker, UserLocation } = ML;
 
+  // Screen, not a bare View: the ground and the status-bar glyph colour come
+  // from the live ramp instead of being assumed. The top inset it applies is
+  // the same one this screen was taking by hand, so the map sits where it did.
+  // No AppBar — the navigation controls are the overlay, and a header would
+  // eat the map this screen exists to show.
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <Screen edges={['top']}>
       {/* Map */}
       <Map
         style={styles.map}
@@ -472,7 +476,7 @@ const NavigationMapScreen: React.FC = () => {
           </Text>
         )}
       </View>
-    </View>
+    </Screen>
   );
 };
 
