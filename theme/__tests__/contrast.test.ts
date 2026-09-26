@@ -1,6 +1,6 @@
 import { Colors, makeColors } from '../../constants/Colors';
 import { C, DARK_C, Ramp, ThemeMode } from '../../constants/theme';
-import { AA_BODY, AA_LARGE, barStyleOn, contrastRatio, lift } from '../contrast';
+import { AA_BODY, AA_LARGE, barStyleOn, contrastRatio, lift, mix } from '../contrast';
 import { brandPalette, ModuleName, modulePalette } from '../palettes';
 
 // ============================================================================
@@ -154,6 +154,53 @@ describe('light module palettes', () => {
   it.each(LIGHT_OK)('%s: accentDeep is readable as text on white', (name) => {
     expect(contrastRatio(modulePalette(name, 'light').accentDeep, C.surface))
       .toBeGreaterThanOrEqual(AA_BODY);
+  });
+});
+
+// ============================================================================
+// AppBar's 'gradient' tone.
+//
+// The header runs a gradient behind a white title and a 90%-white subtitle, so
+// the subtitle has to clear AA_BODY against BOTH stops — not just the dark one.
+// This was got wrong once: the gradient ran accent -> accentDeep, and on the
+// home-service accent the subtitle measured 3.35:1. The gradient is now
+// accentDeep -> accentDeep mixed 22% toward ink, and this pins that.
+//
+// Nothing here can be checked by eye. A gradient degrades gracefully to the
+// look of a slightly different green while quietly failing on half its area.
+// ============================================================================
+
+describe("AppBar 'gradient' tone", () => {
+  /** `inkInverseSoft` is rgba(255,255,255,0.9) — composite it for a real ratio. */
+  const soft = (over: string): string => {
+    const [r, g, b] = (over.replace('#', '').match(/../g) ?? []).map((h) => parseInt(h, 16));
+    const blend = (c: number) => Math.round(0.9 * 255 + 0.1 * c);
+    const hex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${hex(blend(r))}${hex(blend(g))}${hex(blend(b))}`;
+  };
+
+  /** Must mirror AppBar's stops exactly. */
+  const stops = (name: ModuleName): [string, string] => {
+    const deep = modulePalette(name, 'light').accentDeep;
+    return [deep, mix(deep, C.ink, 0.22)];
+  };
+
+  it('home services: the subtitle clears AA body on BOTH stops', () => {
+    for (const stop of stops('homeservice')) {
+      expect(contrastRatio(soft(stop), stop)).toBeGreaterThanOrEqual(AA_BODY);
+    }
+  });
+
+  it('home services: the title clears AA large on BOTH stops', () => {
+    for (const stop of stops('homeservice')) {
+      expect(contrastRatio(C.inkInverse, stop)).toBeGreaterThanOrEqual(AA_LARGE);
+    }
+  });
+
+  it('starting the gradient at `accent` would fail — which is why it does not', () => {
+    // The regression this guards against, asserted rather than described.
+    const accent = modulePalette('homeservice', 'light').accent;
+    expect(contrastRatio(soft(accent), accent)).toBeLessThan(AA_BODY);
   });
 });
 
