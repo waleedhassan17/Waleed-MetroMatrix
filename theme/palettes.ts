@@ -43,12 +43,20 @@ export interface ModulePalette {
    *              own colour (a store full of product photography).
    *   'accent'   the module's own colour, edge to edge. Right for a module that
    *              wants to announce which part of the app you are in.
+   *   'underlined'
+   *              white ground and ink title like 'surface', plus a 3pt rule in
+   *              the module accent along the bottom edge. The module still
+   *              signs the screen, but with a stripe rather than a slab: the
+   *              title is ink on white (~15:1) instead of white on the accent
+   *              (5.48:1 on the home-service green, which only just clears AA),
+   *              and it matches what every module already does in dark mode.
+   *              Shopping's BrandHeader reached the same answer independently.
    *
    * A screen can still override it per instance, but the module's answer is the
    * default so a header cannot drift screen by screen — which is exactly how
    * this codebase ended up with seventeen different ones.
    */
-  barTone: 'surface' | 'accent';
+  barTone: 'surface' | 'accent' | 'underlined';
 }
 
 /**
@@ -83,9 +91,11 @@ const homeservice: ModulePalette = {
   accentSoft: HS.accentSoft,
   accentLine: HS.accentLine,
   onAccent: C.inkInverse,
-  // Home services announces itself. The bar is painted in the module green —
-  // see AppBar for why it uses `accentDeep` rather than `accent`.
-  barTone: 'accent',
+  // Home services still signs its screens, but as a stripe under a white bar
+  // rather than a green slab across the top. The slab put white on #047857 at
+  // 5.48:1 — passing, but the weakest title contrast in the app — and it was
+  // light-mode-only, so the module changed shape between modes.
+  barTone: 'underlined',
 };
 
 /** Shopping orange — the default a brand overrides. */

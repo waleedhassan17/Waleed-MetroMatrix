@@ -95,7 +95,7 @@ const JobCard = React.memo(function JobCard({ job, onCall, onMessage, onDecide }
   const rating = job.customer.rating;
 
   return (
-    <Card accentRule={category.tint} style={styles.card}>
+    <Card elevation="raised" accentRule={category.tint} style={styles.card}>
       <View style={styles.top}>
         <Text style={styles.title} numberOfLines={1}>
           {job.title}

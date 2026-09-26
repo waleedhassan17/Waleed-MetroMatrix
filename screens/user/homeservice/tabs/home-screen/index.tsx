@@ -46,8 +46,8 @@ const ServiceCardSkeleton: React.FC = () => {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-  <Card padded={false} style={styles.card}>
-    <Skeleton height={140} radius={0} />
+  <Card padded={false} elevation="raised" style={styles.card}>
+    <Skeleton height={104} radius={0} />
     <View style={styles.cardBody}>
       <Skeleton width="55%" height={16} />
       <Skeleton width="80%" height={11} style={styles.skeletonGap} />
@@ -113,7 +113,17 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
   }, [imageUri]);
 
   return (
-    <Card padded={false} onPress={onPress} accessibilityLabel={service.name} style={styles.card}>
+    <Card
+      padded={false}
+      elevation="raised"
+      // The category's one structural job. Every other card in the module
+      // already carries this rule; the picker that introduces the categories
+      // was the only place it was missing.
+      accentRule={category.tint}
+      onPress={onPress}
+      accessibilityLabel={service.name}
+      style={styles.card}
+    >
       <View style={styles.media}>
         {imageFailed ? (
           // Flat tinted ground with the category glyph. `/user/home` does not
@@ -144,13 +154,16 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
       <View style={styles.cardBody}>
         <View style={styles.cardBodyText}>
           {imageFailed && <Text style={styles.cardTitle}>{service.name}</Text>}
-          <Text style={styles.cardDescription} numberOfLines={2}>
+          <Text style={styles.cardDescription} numberOfLines={1}>
             {service.description && saysSomethingNew(service.description, service.name)
               ? service.description
               : category.summary}
           </Text>
           {!!service.providerCount && (
-            <Text style={styles.cardCount}>{service.providerCount}</Text>
+            <View style={styles.cardMetaRow}>
+              <Ionicons name={category.icon as any} size={13} color={category.tint} />
+              <Text style={styles.cardCount}>{service.providerCount}</Text>
+            </View>
           )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
@@ -267,7 +280,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: S.md,
   },
   media: {
-    height: 140,
+    // 140 fitted two and a half cards on a phone, for a list of three. At 104
+    // the whole choice is on screen at once, which is the point of a picker.
+    height: 104,
     backgroundColor: c.surfaceSunken,
     justifyContent: 'flex-end',
   },
@@ -306,10 +321,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     ...T.body,
     color: c.inkMuted,
   },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.xs + 2,
+    marginTop: S.xs,
+  },
   cardCount: {
     ...T.caption,
     color: c.inkFaint,
-    marginTop: S.xs,
   },
 
   skeletonGap: {
