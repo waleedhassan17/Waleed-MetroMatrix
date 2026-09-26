@@ -1,6 +1,14 @@
 import { Colors, makeColors } from '../../constants/Colors';
 import { C, DARK_C, Ramp, ThemeMode } from '../../constants/theme';
-import { AA_BODY, AA_LARGE, barStyleOn, contrastRatio, lift, mix } from '../contrast';
+import {
+  AA_BODY,
+  AA_LARGE,
+  barStyleOn,
+  contrastRatio,
+  headerGradientStops,
+  lift,
+  softInkOn,
+} from '../contrast';
 import { brandPalette, ModuleName, modulePalette } from '../palettes';
 
 // ============================================================================
@@ -170,37 +178,60 @@ describe('light module palettes', () => {
 // look of a slightly different green while quietly failing on half its area.
 // ============================================================================
 
-describe("AppBar 'gradient' tone", () => {
-  /** `inkInverseSoft` is rgba(255,255,255,0.9) — composite it for a real ratio. */
-  const soft = (over: string): string => {
-    const [r, g, b] = (over.replace('#', '').match(/../g) ?? []).map((h) => parseInt(h, 16));
-    const blend = (c: number) => Math.round(0.9 * 255 + 0.1 * c);
-    const hex = (n: number) => n.toString(16).padStart(2, '0');
-    return `#${hex(blend(r))}${hex(blend(g))}${hex(blend(b))}`;
-  };
+describe('module page header gradients', () => {
+  // Every module that paints this header goes through headerGradientStops, so
+  // this covers the home-service AppBar and shopping's ShoppingHeader from one
+  // place — and would cover healthcare the day it adopts it.
+  const HEADER_MODULES: ModuleName[] = ['homeservice', 'shopping'];
 
-  /** Must mirror AppBar's stops exactly. */
-  const stops = (name: ModuleName): [string, string] => {
-    const deep = modulePalette(name, 'light').accentDeep;
-    return [deep, mix(deep, C.ink, 0.22)];
-  };
-
-  it('home services: the subtitle clears AA body on BOTH stops', () => {
-    for (const stop of stops('homeservice')) {
-      expect(contrastRatio(soft(stop), stop)).toBeGreaterThanOrEqual(AA_BODY);
+  it.each(HEADER_MODULES)(
+    '%s: a 90%% white subtitle clears AA body on BOTH stops',
+    (name) => {
+      const deep = modulePalette(name, 'light').accentDeep;
+      for (const stop of headerGradientStops(deep)) {
+        expect(contrastRatio(softInkOn(stop), stop)).toBeGreaterThanOrEqual(AA_BODY);
+      }
     }
-  });
+  );
 
-  it('home services: the title clears AA large on BOTH stops', () => {
-    for (const stop of stops('homeservice')) {
+  it.each(HEADER_MODULES)('%s: a white title clears AA large on BOTH stops', (name) => {
+    const deep = modulePalette(name, 'light').accentDeep;
+    for (const stop of headerGradientStops(deep)) {
       expect(contrastRatio(C.inkInverse, stop)).toBeGreaterThanOrEqual(AA_LARGE);
     }
   });
 
-  it('starting the gradient at `accent` would fail — which is why it does not', () => {
-    // The regression this guards against, asserted rather than described.
+  it('the two stops actually differ, or it is not a gradient', () => {
+    for (const name of HEADER_MODULES) {
+      const [a, b] = headerGradientStops(modulePalette(name, 'light').accentDeep);
+      expect(a).not.toBe(b);
+    }
+  });
+
+  // The two modules need DIFFERENT answers from the same rule, which is the
+  // whole reason this is derived rather than written down.
+  it('home services starts at accentDeep; shopping has to start darker', () => {
+    const hsDeep = modulePalette('homeservice', 'light').accentDeep;
+    const shDeep = modulePalette('shopping', 'light').accentDeep;
+
+    expect(headerGradientStops(hsDeep)[0]).toBe(hsDeep);
+    expect(headerGradientStops(shDeep)[0]).not.toBe(shDeep);
+  });
+
+  it('the regression it guards: starting at `accent` WOULD fail', () => {
+    // Asserted rather than described, because this was shipped once.
     const accent = modulePalette('homeservice', 'light').accent;
-    expect(contrastRatio(soft(accent), accent)).toBeLessThan(AA_BODY);
+    expect(contrastRatio(softInkOn(accent), accent)).toBeLessThan(AA_BODY);
+  });
+
+  it('measuring pure white instead of the 90% ink overstates it', () => {
+    // Why softInkOn exists: an alpha colour has no ratio until it is
+    // flattened, and the gap here is the difference between pass and fail.
+    const deep = modulePalette('shopping', 'light').accentDeep;
+    expect(contrastRatio(C.inkInverse, deep)).toBeGreaterThan(
+      contrastRatio(softInkOn(deep), deep)
+    );
+    expect(contrastRatio(softInkOn(deep), deep)).toBeLessThan(AA_BODY);
   });
 });
 

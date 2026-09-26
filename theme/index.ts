@@ -31,11 +31,13 @@ export {
   AA_LARGE,
   barStyleOn,
   contrastRatio,
+  headerGradientStops,
   isHexColor,
   lift,
   mix,
   parseHex,
   relativeLuminance,
+  softInkOn,
   textOn,
   tint,
 } from './contrast';

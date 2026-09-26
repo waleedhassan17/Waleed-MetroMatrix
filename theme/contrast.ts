@@ -201,3 +201,55 @@ export const lift = (hex: string, target: number, ground: string): string => {
   }
   return out;
 };
+
+/**
+ * A 90%-white subtitle, composited against the ground it sits on.
+ *
+ * `inkInverseSoft` is `rgba(255,255,255,0.9)`, and an alpha colour has no
+ * contrast ratio of its own — it has to be flattened against what is behind it
+ * before it can be measured. Measuring the pure white instead overstates the
+ * result by roughly a point and a half, which is the difference between
+ * passing and failing on every accent in this app.
+ */
+export const softInkOn = (ground: string, alpha = 0.9): string => {
+  const rgb = parseHex(ground);
+  if (!rgb) return C.inkInverse;
+  const blend = (c: number) => Math.round(alpha * 255 + (1 - alpha) * c);
+  const hex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${hex(blend(rgb.r))}${hex(blend(rgb.g))}${hex(blend(rgb.b))}`;
+};
+
+/**
+ * The two stops of a module page header's gradient, derived from the module's
+ * `accentDeep`.
+ *
+ * THE RULE IS A MEASUREMENT, NOT A NUMBER. The header carries a white title
+ * and a 90%-white subtitle, so EVERY point of the gradient has to clear
+ * AA_BODY for that subtitle — not just the dark end. A gradient that fails
+ * across part of its area does not look broken; it looks like a slightly
+ * different colour, which is why this is computed rather than eyeballed.
+ *
+ * Home services and shopping needed different answers from the same intent:
+ *
+ *   home services  accentDeep #047857  subtitle 4.78  already passes
+ *   shopping       accentDeep #D35400  subtitle 3.67  needs one step darker
+ *
+ * Orange is intrinsically lighter than green at the same role, so hard-coding
+ * "start at accentDeep" was right for one module and wrong for the other.
+ * This darkens toward ink until the subtitle clears, then takes one more step
+ * for the far stop — so the gradient is always visible and never illegible.
+ *
+ * Pass the result through `darkShift(mode).grad()` at the call site; dark mode
+ * is a separate concern and belongs with the component.
+ */
+export const headerGradientStops = (accentDeep: string): [string, string] => {
+  const STEP = 0.22;
+  let start = accentDeep;
+  // At most a handful of steps: each removes ~22% of the remaining lightness,
+  // so anything legible is reached well inside this bound.
+  for (let i = 0; i < 8; i += 1) {
+    if (contrastRatio(softInkOn(start), start) >= AA_BODY) break;
+    start = mix(start, C.ink, STEP);
+  }
+  return [start, mix(start, C.ink, STEP)];
+};

@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { C, GUTTER, R, S, T, W } from '../../constants/theme';
+import { GUTTER, R, S, T, W } from '../../constants/theme';
 import { darkShift } from '../../constants/darkShift';
-import { mix, textOn, ThemeColors, useTheme } from '../../theme';
+import { headerGradientStops, textOn, ThemeColors, useTheme } from '../../theme';
 import BackButton from './BackButton';
 
 /**
@@ -116,22 +116,14 @@ const AppBar: React.FC<AppBarProps> = ({
         // of it — a saturated band across the top of a dark screen is a
         // flare, not a header.
         //
-        // BOTH stops are at least `accentDeep`, and that is a contrast
-        // requirement rather than a taste one. This used to run
-        // accent -> accentDeep, which reintroduced the exact problem
-        // `accentDeep` exists to solve: on the home-service accent (#059669)
-        // the 13pt subtitle — white at 90% — measures 3.35:1 and fails AA for
-        // body text, where on accentDeep it measures 4.78:1 and passes. A
-        // gradient that starts light leaves the subtitle legible over half the
-        // bar and not the other half.
-        //
-        // So it runs accentDeep -> accentDeep mixed 22% toward ink: still
-        // visibly a gradient, never lighter than the tone the palette already
-        // measured.
-        colors={darkShift(mode).grad([
-          colors.accentDeep,
-          mix(colors.accentDeep, C.ink, 0.22),
-        ])}
+        // Stops are DERIVED, not chosen: headerGradientStops darkens from
+        // accentDeep until a 90%-white subtitle clears AA_BODY across the whole
+        // bar. This used to run accent -> accentDeep, which reintroduced the
+        // exact problem `accentDeep` exists to solve — on the home-service
+        // accent the subtitle measured 3.35:1. Shopping's header needs a darker
+        // start than this one does, because orange is lighter than green at the
+        // same role, so the rule has to be a measurement rather than a number.
+        colors={darkShift(mode).grad(headerGradientStops(colors.accentDeep))}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.gradientFill, { paddingTop: insets.top + S.xl }, style]}
