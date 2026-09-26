@@ -6,7 +6,7 @@ import {
 } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, ActivityIndicator, View } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppDispatch, useAppSelector } from "../../hooks/useReduxHooks";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -34,7 +34,8 @@ import {
   registerForPushNotifications,
 } from "../../services/push/pushNotifications";
 import { useNotificationRouting } from "../../services/push/useNotificationRouting";
-import { useTheme } from "../../theme";
+import { useTheme, MODULE_PALETTES, S, T } from "../../theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Configure once at module load, before any notification can arrive.
 configureNotificationHandler();
@@ -167,7 +168,23 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
         style={[styles.loadingContainer, { backgroundColor: colors.bg }]}
         onLayout={onLayout}
       >
-        <ActivityIndicator size="large" color={colors.ink} />
+        {/* The end state of screens/authentication-screens/on-boarding/splash.tsx,
+            held still. This frame used to be a bare ActivityIndicator — the one
+            un-designed moment in the boot chain, sitting between the native
+            splash and the animated one. Painting the same wordmark and the same
+            three-vertical rule makes the hand-off continuous instead of a flash
+            of spinner, and it costs nothing: no animation, no timers, and it is
+            only on screen while init is still running. */}
+        <View style={styles.bootRule}>
+          <LinearGradient
+            colors={BOOT_SPECTRUM}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.bootRuleFill}
+          />
+        </View>
+        <Text style={[styles.bootWordmark, { color: colors.ink }]}>MetroMatrix</Text>
+        <Text style={[styles.bootTagline, { color: colors.inkMuted }]}>Smart City Services</Text>
       </View>
     );
   }
@@ -274,6 +291,14 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   );
 };
 
+/** The three verticals, in the order onboarding introduces them. Matches
+ *  SPECTRUM in splash.tsx so the two frames read as the same mark. */
+const BOOT_SPECTRUM: [string, string, string] = [
+  MODULE_PALETTES.homeservice.accent,
+  MODULE_PALETTES.healthcare.accent,
+  MODULE_PALETTES.shopping.accent,
+];
+
 const styles = StyleSheet.create({
   gestureStyle: {
     flex: 1,
@@ -290,6 +315,17 @@ const styles = StyleSheet.create({
     // Ground comes from the ramp — the boot screen was hardcoded black, which
     // is a jarring flash ahead of a light app and the wrong black for a dark one.
   },
+  // Geometry copied from splash.tsx's resting state so the two do not disagree.
+  bootRule: {
+    width: 72,
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: S.xxl,
+  },
+  bootRuleFill: { flex: 1 },
+  bootWordmark: { ...T.display, marginBottom: S.sm },
+  bootTagline: { ...T.body },
 });
 
 export default AppContainer;

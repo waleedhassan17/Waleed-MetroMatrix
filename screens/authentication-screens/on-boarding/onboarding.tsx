@@ -55,9 +55,9 @@ import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
 import { resolveLandingRoute } from '../../../navigation-maps/landingRoute';
 import useReducedMotion from '../../../hooks/useReducedMotion';
 import {
+  C,
   E,
   GUTTER,
-  DARK_C,
   MODULE_PALETTES,
   modulePalette,
   type ModuleName,
@@ -246,8 +246,8 @@ const TRACK = WORM + PITCH * (SLIDES.length - 1);
 // ============================================================================
 
 const Onboarding: React.FC = () => {
-  const { colors, mode } = useTheme();
-  const s = useMemo(() => makeSheet(colors), [colors]);
+  const { colors, mode, isDark } = useTheme();
+  const s = useMemo(() => makeSheet(colors, isDark), [colors, isDark]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { width } = useWindowDimensions();
@@ -496,8 +496,8 @@ const Onboarding: React.FC = () => {
 // ── Preview card ────────────────────────────────────────────────────────────
 
 const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
-  const { colors, mode } = useTheme();
-  const s = useMemo(() => makeSheet(colors), [colors]);
+  const { colors, mode, isDark } = useTheme();
+  const s = useMemo(() => makeSheet(colors, isDark), [colors, isDark]);
   const { paletteKey, card, badges } = slide;
   const palette = paletteFor(paletteKey, mode);
 
@@ -576,7 +576,7 @@ export default Onboarding;
 
 // ============================================================================
 
-const makeSheet = (c: ThemeColors) => StyleSheet.create({
+const makeSheet = (c: ThemeColors, isDark: boolean) => StyleSheet.create({
   list: { flex: 1 },
   slide: { flex: 1, justifyContent: 'center' },
   slideBody: { paddingHorizontal: S.xxxl, alignItems: 'center' },
@@ -673,13 +673,13 @@ const makeSheet = (c: ThemeColors) => StyleSheet.create({
     // dark screen and pulls the eye off the copy it is meant to follow. It gets
     // the brand emerald instead — the same green the sign-in CTA uses, so the
     // primary action looks like one action across the whole entry flow.
-    backgroundColor: c.bg === DARK_C.bg ? BRAND_GREEN : c.accent,
+    backgroundColor: isDark ? BRAND_GREEN : c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaText: {
     ...T.subhead,
-    color: c.bg === DARK_C.bg ? '#FFFFFF' : c.onAccent,
+    color: isDark ? C.inkInverse : c.onAccent,
   },
   link: { paddingVertical: S.md },
   linkText: { ...T.body, color: c.inkMuted },
