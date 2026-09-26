@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import {
   Platform,
@@ -12,7 +13,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GUTTER, S, T, W } from '../../constants/theme';
+import { GUTTER, R, S, T, W } from '../../constants/theme';
+import { darkShift } from '../../constants/darkShift';
 import { textOn, ThemeColors, useTheme } from '../../theme';
 import BackButton from './BackButton';
 
@@ -64,7 +66,7 @@ export interface AppBarProps {
    * Override the module's bar tone for this screen. Use sparingly — a header
    * that changes between two screens of the same flow reads as a bug.
    */
-  tone?: 'surface' | 'accent';
+  tone?: 'surface' | 'accent' | 'gradient';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -82,14 +84,83 @@ const AppBar: React.FC<AppBarProps> = ({
   style,
 }) => {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // In dark, no module asks for an accent bar (see palettes.ts) — but a screen
   // still can, per `tone`. It gets the module's deep tinted ground rather than
   // the light accent: `accentDeep` inverts to a LIGHT tone on dark, and a
   // bright band across the top of a dark screen is not a header, it is a flare.
-  const accented = (tone ?? colors.barTone) === 'accent';
+  const resolved = tone ?? colors.barTone;
+
+  // The module-page header, modelled on the healthcare screens: a diagonal
+  // accent gradient, a soft bottom radius, and a large leading title with its
+  // subtitle underneath. 25 of healthcare's 28 customer screens build this by
+  // hand; this is that shape as one component, so the two modules stop
+  // disagreeing about what a header is.
+  //
+  // It is a taller, louder header than `accent`, and that is the point — it
+  // announces the section. Use it on a module's own pages, not on a sheet.
+  if (resolved === 'gradient') {
+    const ink = textOn(colors.accentDeep, colors.ink, colors.inkInverse);
+    return (
+      <View
+        style={[
+          styles.gradientWrap,
+          { paddingTop: insets.top + S.xl },
+          style,
+        ]}
+      >
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <LinearGradient
+          // Mixed into the dark surface in dark mode rather than laid on top
+          // of it — a saturated band across the top of a dark screen is a
+          // flare, not a header.
+          colors={darkShift(mode).grad([colors.accent, colors.accentDeep])}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientFill}
+        >
+          <View style={styles.gradientRow}>
+            {!hideBack && <BackButton tone="onAccent" onPress={onBack ?? (() => {})} />}
+            <View style={styles.gradientText}>
+              {!!title && (
+                <Text style={[styles.gradientTitle, { color: ink }]} numberOfLines={1}>
+                  {title}
+                </Text>
+              )}
+              {!!subtitle && (
+                <Text
+                  style={[styles.gradientSubtitle, { color: colors.inkInverseSoft }]}
+                  numberOfLines={1}
+                >
+                  {subtitle}
+                </Text>
+              )}
+            </View>
+            {right ??
+              (rightIcon ? (
+                <TouchableOpacity
+                  onPress={onRightPress}
+                  style={styles.iconButton}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name={rightIcon as any} size={22} color={ink} />
+                  {!!rightBadge && rightBadge > 0 && (
+                    <View style={[styles.badge, { borderWidth: 2, borderColor: colors.accentDeep }]}>
+                      <Text style={styles.badgeText}>{rightBadge > 9 ? '9+' : rightBadge}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : null)}
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  const accented = resolved === 'accent';
   const ground = accented ? (isDark ? colors.accentSoft : colors.accentDeep) : colors.surface;
   const ink = accented ? textOn(ground, colors.ink, colors.inkInverse) : colors.ink;
   // Hierarchy by opacity is only safe here because the value was measured.
@@ -168,6 +239,38 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   ruled: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.line,
+  },
+
+  // ── gradient tone ─────────────────────────────────────────────────────────
+  // The wrapper carries the status-bar inset so the gradient itself can own a
+  // bottom radius without the inset squaring it off.
+  gradientWrap: {
+    backgroundColor: c.accentDeep,
+    borderBottomLeftRadius: R.sheet,
+    borderBottomRightRadius: R.sheet,
+    overflow: 'hidden',
+  },
+  gradientFill: {
+    paddingHorizontal: GUTTER,
+    paddingBottom: S.xxxl,
+    paddingTop: S.xl,
+  },
+  gradientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.md,
+  },
+  gradientText: {
+    flex: 1,
+  },
+  // Large and leading. A centred 18pt title in a header this tall reads as a
+  // label floating in a coloured field; the page's own name should lead it.
+  gradientTitle: {
+    ...T.title,
+  },
+  gradientSubtitle: {
+    ...T.label,
+    marginTop: S.xs,
   },
   // Equal-width side slots keep the title optically centred whether or not
   // there is a trailing action.

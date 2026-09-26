@@ -43,12 +43,17 @@ export interface ModulePalette {
    *              own colour (a store full of product photography).
    *   'accent'   the module's own colour, edge to edge. Right for a module that
    *              wants to announce which part of the app you are in.
+   *   'gradient' a taller page header: a diagonal accent gradient, a soft
+   *              bottom radius and a large leading title over its subtitle.
+   *              This is the shape 25 of healthcare's 28 customer screens
+   *              build by hand; naming it here is what stops two modules in
+   *              one app disagreeing about what a header is.
    *
    * A screen can still override it per instance, but the module's answer is the
    * default so a header cannot drift screen by screen — which is exactly how
    * this codebase ended up with seventeen different ones.
    */
-  barTone: 'surface' | 'accent';
+  barTone: 'surface' | 'accent' | 'gradient';
 }
 
 /**
@@ -83,9 +88,10 @@ const homeservice: ModulePalette = {
   accentSoft: HS.accentSoft,
   accentLine: HS.accentLine,
   onAccent: C.inkInverse,
-  // Home services announces itself. The bar is painted in the module green —
-  // see AppBar for why it uses `accentDeep` rather than `accent`.
-  barTone: 'accent',
+  // The healthcare page header, in green. A flat 18pt centred bar next to
+  // healthcare's 28pt gradient header was the difference that read as one
+  // module being less finished than the other.
+  barTone: 'gradient',
 };
 
 /** Shopping orange — the default a brand overrides. */
@@ -165,7 +171,7 @@ const homeserviceDark: ModulePalette = {
   accentSoft: '#0F2C23',
   accentLine: '#1E5546',
   onAccent: textOn('#34D399'),
-  barTone: 'surface',
+  barTone: 'gradient',
 };
 
 const shoppingDark: ModulePalette = {
