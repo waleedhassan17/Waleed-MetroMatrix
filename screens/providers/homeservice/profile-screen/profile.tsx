@@ -488,10 +488,10 @@ export default function ProviderProfileScreen() {
                 would break the alignment of the column it sits in. The shared
                 component is for screens with no row system of their own.
 
-                Language below is still disabled, and still honestly so: there
-                is no i18n layer at all. A control that flips and does nothing
-                reads as broken. */}
-            <View style={[styles.menuItem, styles.menuItemBorder]}>
+                There is no Language row: the app has no Urdu translation to
+                switch to, and a disabled "coming soon" control reads as
+                unfinished. */}
+            <View style={styles.menuItem}>
               <View style={[styles.menuIconContainer, { backgroundColor: colors.surfaceSunken }]}>
                 <Moon size={20} color={theme.colors.primary} />
               </View>
@@ -512,29 +512,6 @@ export default function ProviderProfileScreen() {
                 accessibilityLabel="Dark mode"
                 accessibilityState={{ checked: themePreference === 'dark' }}
               />
-            </View>
-
-            {/* Language */}
-            <View style={[styles.menuItem, styles.menuItemDisabled]}>
-              <View style={[styles.menuIconContainer, { backgroundColor: colors.surfaceSunken }]}>
-                <Globe size={20} color={colors.inkFaint} />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Language</Text>
-                <Text style={styles.menuSubtitle}>English · more coming soon</Text>
-              </View>
-              <View style={styles.languageToggle}>
-                <Text style={[styles.langText, styles.langTextActive]}>EN</Text>
-                <Switch
-                  value={false}
-                  disabled
-                  trackColor={{ false: colors.line, true: theme.colors.primaryLight }}
-                  thumbColor={colors.surfaceSunken}
-                  ios_backgroundColor={colors.line}
-                  style={styles.langSwitch}
-                />
-                <Text style={styles.langText}>اردو</Text>
-              </View>
             </View>
           </View>
         </View>

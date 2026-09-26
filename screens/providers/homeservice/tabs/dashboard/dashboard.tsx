@@ -225,12 +225,16 @@ const PerformanceSection: React.FC<{ insights: DashboardInsight[] }> = ({ insigh
                 </Text>
                 <View style={styles.insightTrend}>
                   {/* Both directions used to render TrendingUp, recoloured —
-                      so a falling metric showed a rising arrow. */}
-                  <Ionicons
-                    name={down ? 'trending-down' : 'trending-up'}
-                    size={13}
-                    color={down ? colors.error : colors.success}
-                  />
+                      so a falling metric showed a rising arrow. And every
+                      tile claimed a rise: a figure with nothing to compare
+                      against ('neutral') now draws no arrow at all. */}
+                  {insight.trend !== 'neutral' && (
+                    <Ionicons
+                      name={down ? 'trending-down' : 'trending-up'}
+                      size={13}
+                      color={down ? colors.error : colors.success}
+                    />
+                  )}
                   {!!insight.subtitle && (
                     <Text style={styles.insightSubtitle} numberOfLines={1}>
                       {insight.subtitle}
@@ -519,19 +523,19 @@ export default function Dashboard() {
       serviceType: job.title,
       category: job.category,
       customerName: job.customer,
-      customerPhone: job.phone || 'N/A',
+      customerPhone: job.phone || '',
       // `customerAvatar` is nullable on the dashboard payload but optional on
       // JobData; Avatar downstream treats both as "no photo".
       customerImage: job.customerAvatar ?? undefined,
       address: location,
-      city: location.split(',').pop()?.trim() || '',
+      city: job.city || location.split(',').pop()?.trim() || '',
       date: job.date,
       time: job.time,
       estimatedPrice: job.price,
-      coordinates: {
-        latitude: 31.5204, // Default coordinates — should come from job data
-        longitude: 74.3587,
-      },
+      specialInstructions: job.specialInstructions,
+      // The customer's address. This was a hardcoded city-centre position,
+      // so the job map and navigation pointed at central Lahore.
+      coordinates: job.coordinates ?? { latitude: 31.5204, longitude: 74.3587 },
     };
   };
 

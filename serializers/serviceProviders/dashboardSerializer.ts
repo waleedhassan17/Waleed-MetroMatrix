@@ -20,6 +20,12 @@ export function dashboardJobSerializer(data: any): DashboardJob {
     price: data?.price || data?.estimatedPrice || 0,
     status: data?.status || 'pending',
     phone: data?.phone || data?.customerPhone,
+    city: data?.city || '',
+    coordinates:
+      data?.coordinates && Number.isFinite(data.coordinates.latitude) && Number.isFinite(data.coordinates.longitude)
+        ? { latitude: data.coordinates.latitude, longitude: data.coordinates.longitude }
+        : null,
+    specialInstructions: data?.specialInstructions || '',
   };
 }
 
@@ -43,7 +49,8 @@ export function dashboardDataSerializer(payload: any): DashboardData {
       id: insight?.id || '',
       title: insight?.title || '',
       value: insight?.value || '',
-      trend: insight?.trend || 'up',
+      // No claim of a rise without data behind it.
+      trend: insight?.trend === 'up' || insight?.trend === 'down' ? insight.trend : 'neutral',
       color: insight?.color || '#10B981',
       bgColor: insight?.bgColor || '#D1FAE5',
     })),

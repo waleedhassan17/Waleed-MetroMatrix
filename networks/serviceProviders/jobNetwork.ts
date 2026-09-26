@@ -56,7 +56,7 @@ export async function startJob(
 
 export async function completeJob(data: {
   jobId: string;
-  finalAmount: number;
+  finalAmount?: number;
   notes?: string;
   photos?: string[];
 }): Promise<ApiResponse<{ success: boolean }>> {

@@ -244,7 +244,8 @@ const jobDetailSlice = createAppSlice({
       async (params: { jobId: string; finalAmount?: number; notes?: string }, { rejectWithValue }) => {
         const response = await completeJobApi({
           jobId: params.jobId,
-          finalAmount: params.finalAmount || 0,
+          // Only a real amount is sent; none means "bill the estimate".
+          ...(params.finalAmount && params.finalAmount > 0 ? { finalAmount: params.finalAmount } : {}),
           notes: params.notes,
         });
         if (!response.success) {

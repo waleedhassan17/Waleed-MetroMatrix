@@ -32,7 +32,7 @@ export interface DashboardInsight {
   icon?: string;
   bgColor?: string;
   color: string;
-  trend: 'up' | 'down';
+  trend: 'up' | 'down' | 'neutral';
   subtitle?: string;
 }
 
@@ -48,6 +48,9 @@ export interface DashboardJobLocal {
   price: number;
   category: string;
   phone?: string;
+  city?: string;
+  coordinates?: { latitude: number; longitude: number } | null;
+  specialInstructions?: string;
 }
 
 export interface RecentActivity {
@@ -127,6 +130,9 @@ const mapDashboardData = (data: DashboardData): Partial<DashboardState> => {
     price: job.price,
     category: job.category,
     phone: job.phone,
+    city: job.city,
+    coordinates: job.coordinates ?? null,
+    specialInstructions: job.specialInstructions,
   });
 
   return {

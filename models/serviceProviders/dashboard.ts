@@ -22,7 +22,8 @@ export interface DashboardInsight {
   id: string;
   title: string;
   value: string;
-  trend: 'up' | 'down';
+  /** 'neutral' when there is nothing to compare against — no arrow is drawn. */
+  trend: 'up' | 'down' | 'neutral';
   color: string;
   bgColor: string;
 }
@@ -39,6 +40,9 @@ export interface DashboardJob {
   price: number;
   status: 'pending' | 'accepted' | 'in_progress' | 'completed';
   phone?: string;
+  city?: string;
+  coordinates?: { latitude: number; longitude: number } | null;
+  specialInstructions?: string;
 }
 
 export interface RecentActivity {
