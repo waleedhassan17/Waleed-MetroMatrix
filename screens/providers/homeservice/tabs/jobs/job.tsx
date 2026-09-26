@@ -6,27 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
-  Dimensions,
   RefreshControl,
-  Image,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getSocket } from '../../../../../services/socket/socketClient';
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Filter,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Phone,
-  MessageSquare,
-  Star,
-  Sliders,
-} from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../../store/store';
 import {
@@ -41,77 +26,210 @@ import {
 } from './jobSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { F, T } from '../../../../../constants/theme';
+import { F, R, S, T, type Tone } from '../../../../../constants/theme';
+import { categoryAccent } from '../../../../../constants/HomeServiceTheme';
+import { formatPrice } from '../../../../../utils/homeservice/format';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
-import { ActionSheet, AppBar, Screen } from '../../../../../components/ui';
-
-const { width } = Dimensions.get('window');
+import {
+  ActionSheet,
+  AppBar,
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  Screen,
+  SkeletonCard,
+  ToneBadge,
+} from '../../../../../components/ui';
 
 // Design System - Matching reference design
 
 // Status configurations matching reference colors
-// A function of the ramp: the `*Soft` grounds below invert between modes.
-const makeStatusConfig = (
-  c: ThemeColors,
-): Record<string, { color: string; bg: string; label: string; icon: any }> => ({
-  upcoming: {
-    color: c.warning,
-    bg: c.warningSoft,
-    label: 'Upcoming',
-    icon: AlertCircle,
-  },
-  active: {
-    color: c.info,
-    bg: c.infoSoft,
-    label: 'In Progress',
-    icon: Clock,
-  },
-  completed: {
-    color: c.success,
-    bg: c.successSoft,
-    label: 'Completed',
-    icon: CheckCircle2,
-  },
-  cancelled: {
-    color: c.error,
-    bg: c.errorSoft,
-    label: 'Cancelled',
-    icon: XCircle,
-  },
-  available: {
-    color: c.success,
-    bg: c.successSoft,
-    label: 'Available',
-    icon: Calendar,
-  },
-  today: {
-    // Was a purple that exists in no palette. 'Available' already owns success,
-    // so 'Today' takes info — the remaining semantic slot, not a new hue.
-    color: c.info,
-    bg: c.infoSoft,
-    label: 'Today',
-    icon: Calendar,
-  },
+// Status -> label, tone and glyph. Tone only: ToneBadge resolves the actual
+// colours from the live ramp, so this no longer has to be a function of `c`
+// and no longer duplicates the soft-ground pairs that constants/theme.ts owns.
+// Labels are sentence case, matching bookingStatus() in HomeServiceTheme.ts.
+const JOB_STATUS: Record<string, { label: string; tone: Tone; icon: string }> = {
+  upcoming: { label: 'Upcoming', tone: 'warning', icon: 'alert-circle-outline' },
+  active: { label: 'In progress', tone: 'info', icon: 'time-outline' },
+  completed: { label: 'Completed', tone: 'success', icon: 'checkmark-done-outline' },
+  cancelled: { label: 'Cancelled', tone: 'error', icon: 'close-circle-outline' },
+  available: { label: 'Available', tone: 'success', icon: 'calendar-outline' },
+  // Was a purple that exists in no palette. 'Available' already owns success,
+  // so 'Today' takes info — the remaining semantic slot, not a new hue.
+  today: { label: 'Today', tone: 'info', icon: 'calendar-outline' },
+};
+
+const HIT = { top: 6, bottom: 6, left: 6, right: 6 };
+
+// ── Job card ────────────────────────────────────────────────────────────────
+// Hoisted to module scope and memoised. This used to be declared INSIDE the
+// screen's render body with its own useRef/useEffect, which creates a NEW
+// component type on every render: React cannot match it against the previous
+// tree, so it unmounted and remounted every row — replaying a 400ms entrance
+// animation and dropping scroll position whenever any state on the screen
+// changed. The animation is gone for the same reason the customer's Bookings
+// list removed it (tabs/booking-screen/booking.tsx): a list that re-animates
+// on every change reads as jitter, not polish.
+//
+// The shape deliberately mirrors the customer's BookingCard — same Card, same
+// accent rule, same avatar / status / meta / footer order — because "the
+// provider side looks like a different app" is the thing being fixed. The
+// category thumbnail is gone with the Unsplash map that fed it: a category is
+// identity, not decoration, and it earns a 3px rule and a tinted glyph
+// (constants/HomeServiceTheme.ts).
+interface JobCardProps {
+  job: Job;
+  onCall: (job: Job) => void;
+  onMessage: (job: Job) => void;
+  onDecide: (job: Job, action: 'accept' | 'reject') => void;
+}
+
+const JobCard = React.memo(function JobCard({ job, onCall, onMessage, onDecide }: JobCardProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => makeCardStyles(colors), [colors]);
+  const category = categoryAccent(job.category, mode);
+  const status = JOB_STATUS[job.status] ?? JOB_STATUS.available;
+  const contactable = job.status === 'active' || job.status === 'upcoming';
+  const rating = job.customer.rating;
+
+  return (
+    <Card accentRule={category.tint} style={styles.card}>
+      <View style={styles.top}>
+        <Text style={styles.title} numberOfLines={1}>
+          {job.title}
+        </Text>
+        <ToneBadge label={status.label} tone={status.tone} icon={status.icon} />
+      </View>
+
+      <View style={styles.customerRow}>
+        <Avatar
+          uri={job.customer.avatar || undefined}
+          name={job.customer.name}
+          size={28}
+          tint={category.tintSoft}
+          color={category.tint}
+        />
+        <Text style={styles.customerName} numberOfLines={1}>
+          {job.customer.name}
+        </Text>
+
+        {contactable && (
+          <View style={styles.contactRow}>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => onCall(job)}
+              hitSlop={HIT}
+              accessibilityRole="button"
+              accessibilityLabel={`Call ${job.customer.name}`}
+            >
+              <Ionicons name="call-outline" size={16} color={colors.accentDeep} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => onMessage(job)}
+              hitSlop={HIT}
+              accessibilityRole="button"
+              accessibilityLabel={`Message ${job.customer.name}`}
+            >
+              <Ionicons name="chatbubble-outline" size={16} color={colors.accentDeep} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.metaRow}>
+        <Ionicons name="calendar-outline" size={13} color={colors.inkFaint} />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {[job.schedule.date, job.schedule.time].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      <View style={styles.metaRow}>
+        <Ionicons name="location-outline" size={13} color={colors.inkFaint} />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {[job.location.address, job.location.city].filter(Boolean).join(', ')}
+        </Text>
+      </View>
+
+      <View style={styles.footer}>
+        {/* A job is priced on completion, so zero means "not yet quoted" —
+            formatPrice says that rather than printing PKR 0. */}
+        <Text style={styles.price}>{formatPrice(job.pricing.amount)}</Text>
+        {job.status === 'completed' && typeof rating === 'number' ? (
+          <View style={styles.ratedRow}>
+            <Ionicons name="star" size={13} color={colors.star} />
+            <Text style={styles.ratedText}>{rating.toFixed(1)}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* A request the customer is waiting on. Full width under the price
+          rather than squeezed beside it: these are the two most consequential
+          taps on the screen, and Decline is terminal. */}
+      {job.status === 'available' && (
+        <View style={styles.decisionRow}>
+          <Button
+            label="Decline"
+            variant="destructive"
+            size="sm"
+            icon="close-circle-outline"
+            fullWidth={false}
+            onPress={() => onDecide(job, 'reject')}
+            style={styles.decisionButton}
+          />
+          <Button
+            label="Accept"
+            size="sm"
+            icon="checkmark-circle-outline"
+            fullWidth={false}
+            onPress={() => onDecide(job, 'accept')}
+            style={styles.decisionButton}
+          />
+        </View>
+      )}
+    </Card>
+  );
 });
 
-// Service images mapping
-const serviceImages: Record<string, string> = {
-  'AC': 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&h=400&fit=crop',
-  'Plumbing': 'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=400&h=400&fit=crop',
-  'Electrical': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&h=400&fit=crop',
-  'Cleaning': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=400&fit=crop',
-  'Painting': 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=400&h=400&fit=crop',
-  'Carpentry': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&h=400&fit=crop',
-  'Garden': 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop',
-  'default': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=400&fit=crop',
-};
+const makeCardStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: { marginBottom: S.md },
+    top: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+    title: { ...T.subhead, color: c.ink, flex: 1 },
+    customerRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.sm },
+    customerName: { ...T.body, color: c.inkMuted, flex: 1 },
+    contactRow: { flexDirection: 'row', gap: S.sm },
+    contactButton: {
+      width: 32,
+      height: 32,
+      borderRadius: R.control,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.accentSoft,
+    },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, marginTop: S.xs + 2 },
+    metaText: { ...T.caption, color: c.inkMuted, flex: 1 },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: S.md,
+      paddingTop: S.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.lineSoft,
+    },
+    price: { ...T.bodyStrong, color: c.ink },
+    ratedRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
+    ratedText: { ...T.caption, color: c.inkMuted },
+    decisionRow: { flexDirection: 'row', gap: S.sm, marginTop: S.md },
+    decisionButton: { flex: 1, alignSelf: 'stretch' },
+  });
 
 const JobsScreen: React.FC = () => {
   const { colors } = useTheme();
   const theme = useMemo(() => makeProviderTheme(colors), [colors]);
   const styles = useMemo(() => makeStyles(colors, theme), [colors, theme]);
-  const statusConfig = useMemo(() => makeStatusConfig(colors), [colors]);
 
   const dispatch = useAppDispatch();
   const navigation = useNavigation<any>();
@@ -187,6 +305,32 @@ const JobsScreen: React.FC = () => {
     };
   }, [dispatch]);
 
+  // Stable identities so the memoised JobCard does not re-render the whole
+  // list whenever this screen's state changes. `job.id` is the booking id.
+  const handleCall = useCallback(
+    (job: Job) =>
+      navigation.navigate('ProviderCallScreen', {
+        bookingId: job.id,
+        customerName: job.customer.name,
+        customerImage: job.customer.avatar || undefined,
+      }),
+    [navigation]
+  );
+
+  const handleMessage = useCallback(
+    (job: Job) =>
+      navigation.navigate('ProviderJobChat', {
+        bookingId: job.id,
+        customerName: job.customer.name,
+      }),
+    [navigation]
+  );
+
+  const handleDecide = useCallback(
+    (job: Job, action: 'accept' | 'reject') => setPendingDecision({ job, action }),
+    []
+  );
+
   const handleFilterPress = useCallback(
     (filterKey: JobStatus | 'all') => {
       dispatch(setFilter(filterKey));
@@ -237,189 +381,6 @@ const JobsScreen: React.FC = () => {
     dispatch(fetchJobs());
   }, [dispatch, pendingDecision]);
 
-  const getServiceImage = (title: string): string => {
-    for (const key of Object.keys(serviceImages)) {
-      if (title.toLowerCase().includes(key.toLowerCase())) {
-        return serviceImages[key];
-      }
-    }
-    return serviceImages.default;
-  };
-
-  const getStatusBorderColor = (status: string): string => {
-    return statusConfig[status]?.color || theme.colors.primary;
-  };
-
-  // Job Card Component - Matching reference design exactly
-  const JobCard = ({ job, index }: { job: Job; index: number }) => {
-    const status = statusConfig[job.status] || statusConfig.available;
-    const StatusIcon = status.icon;
-    const cardAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.timing(cardAnim, {
-        toValue: 1,
-        duration: 400,
-        delay: index * 80,
-        useNativeDriver: true,
-      }).start();
-    }, [index]);
-
-    return (
-      <Animated.View
-        style={[
-          styles.jobCard,
-          {
-            opacity: cardAnim,
-            transform: [
-              {
-                translateY: cardAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        {/* Status Border Line - Left side */}
-        <View style={[styles.statusBorder, { backgroundColor: status.color }]} />
-
-        <View style={styles.cardContent}>
-          {/* Service Image */}
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: getServiceImage(job.title) }}
-              style={styles.serviceImage}
-            />
-            {/* Category Tag */}
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryText}>
-                {job.category?.toUpperCase() || 'SERVICE'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Job Details */}
-          <View style={styles.jobDetails}>
-            {/* Provider Row */}
-            <View style={styles.providerRow}>
-              <View style={styles.providerInfo}>
-                <View style={styles.providerAvatar}>
-                  <Text style={styles.providerInitial}>
-                    {job.customer.name.charAt(0)}
-                  </Text>
-                </View>
-                <Text style={styles.providerName} numberOfLines={1}>
-                  {job.customer.name}
-                </Text>
-              </View>
-              {/* Status Badge */}
-              <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-                <StatusIcon size={12} color={status.color} />
-                <Text style={[styles.statusText, { color: status.color }]}>
-                  {status.label}
-                </Text>
-              </View>
-            </View>
-
-            {/* Job Title */}
-            <Text style={styles.jobTitle} numberOfLines={1}>
-              {job.title}
-            </Text>
-
-            {/* Date & Time Row */}
-            <View style={styles.detailRow}>
-              <Calendar size={14} color={theme.colors.text.tertiary} />
-              <Text style={styles.detailText}>{job.schedule.date}</Text>
-              <Clock size={14} color={theme.colors.text.tertiary} style={{ marginLeft: 12 }} />
-              <Text style={styles.detailText}>{job.schedule.time}</Text>
-            </View>
-
-            {/* Location Row */}
-            <View style={styles.detailRow}>
-              <MapPin size={14} color={theme.colors.text.tertiary} />
-              <Text style={styles.detailText} numberOfLines={1}>
-                {job.location.address}, {job.location.city}
-              </Text>
-            </View>
-
-            {/* Price & Actions Row */}
-            <View style={styles.priceRow}>
-              <Text style={styles.price}>PKR {job.pricing.amount?.toLocaleString() || '0'}</Text>
-              
-              {/* Show rating for completed, actions for active */}
-              {job.status === 'completed' ? (
-                <View style={styles.ratingBadge}>
-                  <Star size={14} color={colors.warning} fill={colors.warning} />
-                  <Text style={styles.ratingText}>{job.customer.rating?.toFixed(1) || '5.0'}</Text>
-                </View>
-              ) : job.status === 'active' || job.status === 'upcoming' ? (
-                // These two rendered but did nothing — no onPress at all — so
-                // the Jobs list looked like it offered contact and did not.
-                // Both now open the in-app room for the job, matching every
-                // other provider surface. `job.id` is the booking id.
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() =>
-                      navigation.navigate('ProviderCallScreen', {
-                        bookingId: job.id,
-                        customerName: job.customer.name,
-                        customerImage: job.customer.avatar || undefined,
-                      })
-                    }
-                    accessibilityLabel={`Call ${job.customer.name}`}
-                  >
-                    <Phone size={16} color={theme.colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() =>
-                      navigation.navigate('ProviderJobChat', {
-                        bookingId: job.id,
-                        customerName: job.customer.name,
-                      })
-                    }
-                    accessibilityLabel={`Message ${job.customer.name}`}
-                  >
-                    <MessageSquare size={16} color={theme.colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-            </View>
-
-            {/* A request the customer is waiting on. Full width under the
-                price rather than squeezed beside it: these are the two most
-                consequential taps on the screen, and Decline is terminal. */}
-            {job.status === 'available' && (
-              <View style={styles.decisionRow}>
-                <TouchableOpacity
-                  style={styles.declineBtn}
-                  onPress={() => setPendingDecision({ job, action: 'reject' })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Decline ${job.title} for ${job.customer.name}`}
-                >
-                  <XCircle size={15} color={colors.error} />
-                  <Text style={styles.declineText}>Decline</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.acceptBtn}
-                  onPress={() => setPendingDecision({ job, action: 'accept' })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Accept ${job.title} for ${job.customer.name}`}
-                >
-                  <CheckCircle2 size={15} color={colors.inkInverse} />
-                  <Text style={styles.acceptText}>Accept</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Animated.View>
-    );
-  };
-
   return (
     <Screen>
       {/* These two strings were copied verbatim from the CUSTOMER bookings
@@ -431,7 +392,7 @@ const JobsScreen: React.FC = () => {
         hideBack
         right={
           <TouchableOpacity style={styles.filterButton} accessibilityRole="button">
-            <Sliders size={20} color={colors.inkInverse} />
+            <Ionicons name="options-outline" size={20} color={colors.inkInverse} />
           </TouchableOpacity>
         }
       />
@@ -453,7 +414,7 @@ const JobsScreen: React.FC = () => {
             >
               {isSelected && option.key === 'all' && (
                 <View style={styles.filterIcon}>
-                  <Filter size={14} color={theme.colors.text.inverse} />
+                  <Ionicons name="funnel-outline" size={14} color={theme.colors.text.inverse} />
                 </View>
               )}
               <Text
@@ -489,7 +450,7 @@ const JobsScreen: React.FC = () => {
             tappable-but-inert, which is what the customer screen already
             does with its own Sort control. */}
         <TouchableOpacity style={[styles.sortButton, styles.controlDisabled]} disabled>
-          <Filter size={16} color={theme.colors.text.tertiary} />
+          <Ionicons name="funnel-outline" size={16} color={theme.colors.text.tertiary} />
           <Text style={styles.sortText}>Sort</Text>
         </TouchableOpacity>
       </View>
@@ -508,26 +469,49 @@ const JobsScreen: React.FC = () => {
           />
         }
       >
+        {/* Skeletons rather than a spinner, and only on a cold load: they hold
+            the shape the rows will take, so nothing jumps when the data lands.
+            An ActivityIndicator over "Loading bookings..." also said the wrong
+            noun — a provider has jobs, not bookings. */}
         {loading && filteredJobs.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Loading bookings...</Text>
+          <View accessibilityLabel="Loading jobs">
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.skeletonRow}>
+                <SkeletonCard lines={2} />
+              </View>
+            ))}
           </View>
         ) : filteredJobs.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Calendar size={48} color={theme.colors.text.tertiary} />
-            <Text style={styles.emptyTitle}>No bookings found</Text>
-            <Text style={styles.emptyText}>
-              Your bookings will appear here
-            </Text>
-          </View>
+          // Same distinction the customer's Bookings tab makes: an empty
+          // filter is not an empty account, and telling someone their work
+          // will "appear here" when it is one tap away under All is wrong.
+          currentFilter && currentFilter !== 'all' ? (
+            <EmptyState
+              icon="funnel-outline"
+              title="Nothing under this filter"
+              message="The rest of your jobs are under another filter."
+              actionLabel="Show all jobs"
+              onAction={() => handleFilterPress('all' as any)}
+            />
+          ) : (
+            <EmptyState
+              icon="calendar-outline"
+              title="No jobs yet"
+              message="New requests land here as soon as a customer books you."
+            />
+          )
         ) : (
-          filteredJobs.map((job, index) => (
-            <JobCard key={job.id} job={job} index={index} />
+          filteredJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              onCall={handleCall}
+              onMessage={handleMessage}
+              onDecide={handleDecide}
+            />
           ))
         )}
 
-        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       {/* Same confirm-then-act shape the dashboard uses for these two
@@ -564,11 +548,8 @@ const JobsScreen: React.FC = () => {
 };
 
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
-  headerSubtitle: {
-    ...T.body,
-
-    color: theme.colors.text.secondary,
-  },
+  // Cold-load placeholders share the card rhythm so nothing shifts.
+  skeletonRow: { marginBottom: S.md },
   filterButton: {
     width: 44,
     height: 44,
@@ -662,222 +643,10 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   scrollContent: {
     paddingHorizontal: theme.spacing.xl,
   },
-  jobCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.lg,
-    overflow: 'hidden',
-    shadowColor: c.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-    flexDirection: 'row',
-  },
-  statusBorder: {
-    width: 4,
-    borderTopLeftRadius: theme.borderRadius.lg,
-    borderBottomLeftRadius: theme.borderRadius.lg,
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    padding: theme.spacing.md,
-  },
-  imageContainer: {
-    position: 'relative',
-    marginRight: theme.spacing.md,
-  },
-  serviceImage: {
-    width: 110,
-    height: 130,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: c.surfaceSunken,
-  },
-  categoryTag: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  categoryText: {
-    ...T.caption,
-    fontFamily: F.bold,
-    color: theme.colors.text.inverse,
-    letterSpacing: 0.5,
-  },
-  jobDetails: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  providerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  providerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  providerAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: theme.colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6,
-  },
-  providerInitial: {
-    ...T.caption,
-    fontFamily: F.semibold,
-    color: theme.colors.primary,
-  },
-  providerName: {
-    ...T.caption,
-
-    color: theme.colors.text.secondary,
-    flex: 1,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    ...T.caption,
-    fontFamily: F.semibold,
-  },
-  jobTitle: {
-    ...T.body,
-    fontFamily: F.bold,
-    color: theme.colors.text.primary,
-    marginBottom: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailText: {
-    ...T.caption,
-
-    color: theme.colors.text.secondary,
-    marginLeft: 6,
-    flex: 1,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  price: {
-    ...T.subhead,
-    fontFamily: F.bold,
-    color: theme.colors.primary,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: c.warningSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  ratingText: {
-    ...T.label,
-    fontFamily: F.semibold,
-    color: c.warning,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    backgroundColor: theme.colors.primaryLight,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   decisionRow: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 10,
-  },
-  declineBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  declineText: {
-    ...T.label,
-    color: c.error,
-  },
-  acceptBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: theme.colors.primary,
-  },
-  acceptText: {
-    ...T.label,
-    color: c.inkInverse,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    marginTop: 12,
-    ...T.body,
-
-    color: theme.colors.text.secondary,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    ...T.subhead,
-    color: theme.colors.text.primary,
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  emptyText: {
-    ...T.body,
-
-    color: theme.colors.text.secondary,
-  },
-  bottomSpacer: {
-    height: 100,
   },
 });
 

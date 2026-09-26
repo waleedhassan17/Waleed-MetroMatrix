@@ -56,6 +56,28 @@ const ServiceCardSkeleton: React.FC = () => {
   );
 };
 
+// `/user/home` sends a generated description — "Professional electricians
+// services" under a card already titled "Electricians". Two lines carrying one
+// line of meaning. It won because the expression here was
+// `service.description || category.summary`, so any non-empty string from the
+// server beat the curated copy in HomeServiceTheme.ts ("Wiring, installation
+// and repairs"), which is the line that actually tells someone what the trade
+// does.
+//
+// A description earns its place only when it says something the title does not.
+// Strip the filler a generator reaches for, fold the plural, and compare what
+// is left with the title; if they are the same word, use the curated summary.
+const FILLER =
+  /\b(professional|expert|experts|trusted|reliable|affordable|best|top|quality|services?)\b/g;
+
+const reduceToSubject = (value: string): string =>
+  value.toLowerCase().replace(FILLER, '').replace(/[^a-z]+/g, '').replace(/s$/, '');
+
+const saysSomethingNew = (description: string, title: string): boolean => {
+  const subject = reduceToSubject(description);
+  return subject.length > 0 && subject !== reduceToSubject(title);
+};
+
 interface ServiceCardProps {
   service: {
     id: string;
@@ -123,7 +145,9 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
         <View style={styles.cardBodyText}>
           {imageFailed && <Text style={styles.cardTitle}>{service.name}</Text>}
           <Text style={styles.cardDescription} numberOfLines={2}>
-            {service.description || category.summary}
+            {service.description && saysSomethingNew(service.description, service.name)
+              ? service.description
+              : category.summary}
           </Text>
           {!!service.providerCount && (
             <Text style={styles.cardCount}>{service.providerCount}</Text>

@@ -7,7 +7,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
@@ -54,11 +54,28 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
   const error = useAppSelector(selectFavoritesError);
   const loaded = useAppSelector(selectFavoritesLoaded);
 
+  // Refetch whenever the tab is focused, so a provider saved from a profile
+  // two screens away is already here. This is deliberately SILENT: it must not
+  // drive the RefreshControl, because `loading` is true for this fetch too and
+  // Android renders that spinner as a floating disc over the top of the list —
+  // landing on the first row's name on every single visit to the tab.
   useFocusEffect(
     useCallback(() => {
       dispatch(fetchFavorites());
     }, [dispatch])
   );
+
+  // Only a real pull spins the control. Tracked locally rather than derived
+  // from `loading`, which cannot tell the two callers apart.
+  const [pulling, setPulling] = useState(false);
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true);
+    try {
+      await dispatch(fetchFavorites());
+    } finally {
+      setPulling(false);
+    }
+  }, [dispatch]);
 
   const renderItem = useCallback(
     ({ item }: { item: FavoriteProvider }) => {
@@ -185,8 +202,8 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={loading && loaded}
-            onRefresh={() => dispatch(fetchFavorites())}
+            refreshing={pulling}
+            onRefresh={onPullRefresh}
             colors={[colors.accent]}
             tintColor={colors.accent}
           />

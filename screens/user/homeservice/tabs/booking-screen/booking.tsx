@@ -206,11 +206,25 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
         )}
       </View>
 
-      <Text style={styles.meta} numberOfLines={1}>
-        {[category.label, formatBookingWhen(booking.date, booking.time), booking.address]
-          .filter(Boolean)
-          .join(' · ')}
-      </Text>
+      {/* Was one dot-chain: "Electrician · Sat, Sept 5 · 09:00 AM · Garden
+          town, Lahore". The first segment restated the card title directly
+          above it, and the remaining three ran together into a line nobody
+          scans — when and where are different questions and answering both on
+          one row makes the reader parse the separators to tell them apart. */}
+      <View style={styles.metaRow}>
+        <Ionicons name="calendar-outline" size={13} color={colors.inkFaint} />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {formatBookingWhen(booking.date, booking.time)}
+        </Text>
+      </View>
+      {!!booking.address && (
+        <View style={styles.metaRow}>
+          <Ionicons name="location-outline" size={13} color={colors.inkFaint} />
+          <Text style={styles.metaText} numberOfLines={1}>
+            {booking.address}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.cardFooter}>
         {/* A booking is priced on completion, so before then there is no
@@ -567,10 +581,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginLeft: S.sm,
   },
 
-  meta: {
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.xs + 2,
+    marginTop: S.xs + 2,
+  },
+  metaText: {
     ...T.caption,
     color: c.inkMuted,
-    marginTop: S.sm,
+    flex: 1,
   },
 
   cardFooter: {
