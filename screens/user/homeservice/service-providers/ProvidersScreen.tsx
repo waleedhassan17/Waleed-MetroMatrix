@@ -165,15 +165,19 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
       </TouchableOpacity>
 
       <View style={styles.availabilityRow}>
+        {/* Online is what the provider set on their dashboard. This used to
+            read `available`, which every provider has, so someone offline for
+            days showed "Available now · Replies in ~1 hour". */}
         <View
           style={[
             styles.dot,
-            { backgroundColor: item.available ? colors.success : colors.inkFaint },
+            { backgroundColor: item.isOnline ? colors.success : colors.inkFaint },
           ]}
         />
         <Text style={styles.metaText}>
-          {item.available ? 'Available now' : 'Busy'}
+          {item.isOnline ? 'Online now' : 'Offline'}
           {item.responseTime ? ` · Replies in ${item.responseTime}` : ''}
+          {typeof item.distanceKm === 'number' ? ` · ${item.distanceKm} km away` : ''}
         </Text>
       </View>
 

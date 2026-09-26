@@ -266,6 +266,11 @@ export default function BookingScreen() {
                 >
                   {slot.time}
                 </Text>
+                {/* Why a time is closed — booked, passed, outside their hours —
+                    rather than a grey box that could mean anything. */}
+                {!slot.available && !!slot.reasonLabel && !isLoading && (
+                  <Text style={styles.timeSlotReason}>{slot.reasonLabel}</Text>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -376,6 +381,13 @@ export default function BookingScreen() {
 
           {isLoading && !!selectedDate && (
             <Text style={styles.timeGroupLabel}>Checking available times…</Text>
+          )}
+          {!isLoading && !!selectedDate && timeSlots.length > 0 && !timeSlots.some((t) => t.available) && (
+            <Text style={styles.dayNote}>
+              {timeSlots.every((t) => t.reason === 'day_off')
+                ? `${provider.name} doesn't work on this day. Pick another date.`
+                : 'No times left on this day. Pick another date.'}
+            </Text>
           )}
           {PERIODS.map((p) => renderTimeGroup(p.key, p.label))}
         </View>
@@ -602,6 +614,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   timeSlotTextDisabled: {
     color: c.disabled,
     textDecorationLine: 'line-through',
+  },
+  timeSlotReason: {
+    ...T.caption,
+    color: c.inkFaint,
+    marginTop: 2,
+  },
+  dayNote: {
+    ...T.body,
+    color: c.inkMuted,
+    marginBottom: S.md,
   },
 
   instructions: {

@@ -33,6 +33,8 @@ export interface Provider {
   languages: string[];
   completedJobs: number;
   jobSuccessRate: number;
+  /** Kilometres from the customer's address; null when the app has no location for them. */
+  distanceKm?: number | null;
   coordinates: Coordinates;
   createdAt: string;
   updatedAt: string;

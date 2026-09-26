@@ -2,6 +2,7 @@
 // USER NETWORK APIs
 // ============================================
 
+import { resetSearchOrigin } from './providerNetwork';
 import { ApiResponse } from '../../models/serviceProviders';
 import { apiRequest } from './config';
 
@@ -123,6 +124,7 @@ export async function updateUserAvatar(avatarUri: string): Promise<ApiResponse<{
 export async function addUserAddress(
   address: Omit<UserAddress, 'id'>
 ): Promise<ApiResponse<UserAddress>> {
+    resetSearchOrigin();
     return apiRequest<UserAddress>('/user/addresses', {
     method: 'POST',
     body: JSON.stringify(address),
@@ -130,6 +132,7 @@ export async function addUserAddress(
 }
 
 export async function deleteUserAddress(addressId: string): Promise<ApiResponse<{ addressId: string }>> {
+    resetSearchOrigin();
     return apiRequest(`/user/addresses/${addressId}`, {
     method: 'DELETE',
   });

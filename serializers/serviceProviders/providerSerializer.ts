@@ -40,6 +40,7 @@ export function providerSerializer(data: any): Provider {
     languages: data?.languages || [],
     completedJobs: data?.completedJobs || data?.jobsCompleted || 0,
     jobSuccessRate: data?.jobSuccessRate || 0,
+    distanceKm: typeof data?.distanceKm === 'number' ? data.distanceKm : null,
     coordinates: {
       latitude: data?.coordinates?.latitude || data?.coordinates?.lat || 0,
       longitude: data?.coordinates?.longitude || data?.coordinates?.lng || 0,

@@ -18,6 +18,9 @@ export interface TimeSlot {
   time: string;
   available: boolean;
   period: 'morning' | 'afternoon' | 'evening';
+  /** Why it cannot be booked, when it cannot: the server's own words. */
+  reason?: 'day_off' | 'outside_hours' | 'past' | 'too_soon' | 'booked';
+  reasonLabel?: string;
 }
 
 export interface BookingProvider {

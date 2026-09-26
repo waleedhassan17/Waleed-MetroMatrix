@@ -33,6 +33,9 @@ export interface TimeSlot {
   time: string;
   available: boolean;
   period: 'morning' | 'afternoon' | 'evening';
+  /** Why it cannot be booked, when it cannot: the server's own words. */
+  reason?: 'day_off' | 'outside_hours' | 'past' | 'too_soon' | 'booked';
+  reasonLabel?: string;
 }
 
 export interface ProviderInfo {
@@ -161,6 +164,8 @@ const mapApiBookingDataToLocal = (apiData: ReturnType<typeof bookingDataSerializ
     time: slot.time,
     available: slot.available,
     period: slot.period as TimeSlot['period'],
+    reason: (slot as any).reason,
+    reasonLabel: (slot as any).reasonLabel,
   }));
 
   return { provider, addresses, timeSlots };
