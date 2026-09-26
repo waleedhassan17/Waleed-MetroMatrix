@@ -63,6 +63,8 @@ export enum KeyForStorage {
   lastLoginDate = 'lastLoginDate',
   deviceId = 'deviceId',
   fcmToken = 'fcmToken',
+  /** '1' when the user switched notifications off in settings — see services/push. */
+  pushOptOut = 'pushOptOut',
   appLanguage = 'appLanguage',
   themeMode = 'themeMode',
   

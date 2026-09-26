@@ -5,13 +5,15 @@
 // screen to send it to. This is that screen: the account-level switches that
 // genuinely persist, plus the support and legal entry points.
 //
-// Dark mode and language are deliberately NOT here. Their Redux actions exist
-// but nothing consumes them — there is no theme provider and no i18n layer —
-// so they are shown as disabled "coming soon" rows on the profile screen
-// rather than repeated here as if they worked.
+// Both switches do what they say. "Online" is the provider's status on the
+// server (customers see it on every card). "Notifications" registers or
+// unregisters this phone for pushes and remembers the choice across
+// sign-ins — it used to flip a Redux flag that nothing read.
+//
+// Dark mode lives on the profile screen with the other appearance options.
 // ============================================================================
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -34,7 +36,8 @@ import {
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { RootState } from '../../../../store/store';
-import { updateAvailability, toggleNotifications } from '../profile-screen/profileSlice';
+import { updateAvailability } from '../profile-screen/profileSlice';
+import { isPushEnabled, setPushEnabled } from '../../../../services/push/pushNotifications';
 import { performLogout } from '../../../../services/auth/logout';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 // Values come from the shared tokens via the provider bridge — see
@@ -55,9 +58,31 @@ export default function ProviderSettingsScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
 
-  const { isAvailable, notificationsEnabled } = useAppSelector(
-    (state: RootState) => state.profile
-  );
+  const { isAvailable } = useAppSelector((state: RootState) => state.profile);
+
+  const [pushOn, setPushOn] = useState(true);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => {
+    isPushEnabled().then(setPushOn);
+  }, []);
+
+  const togglePush = useCallback(async (next: boolean) => {
+    setPushBusy(true);
+    setPushOn(next);
+    const ok = await setPushEnabled(next);
+    setPushBusy(false);
+    if (!ok) {
+      setPushOn(false);
+      Alert.alert(
+        'Notifications are blocked',
+        'Allow notifications for MetroMatrix in your phone settings, then switch this on again.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+    }
+  }, []);
 
   const openExternal = useCallback(async (url: string, label: string) => {
     try {
@@ -123,9 +148,11 @@ export default function ProviderSettingsScreen() {
               <Shield size={20} color={theme.primary} />
             </View>
             <View style={styles.rowContent}>
-              <Text style={styles.rowTitle}>Available for Jobs</Text>
+              <Text style={styles.rowTitle}>Online</Text>
               <Text style={styles.rowSubtitle}>
-                {isAvailable ? "You're visible to customers" : "You won't receive new jobs"}
+                {isAvailable
+                  ? 'Customers see you are online and ready for jobs'
+                  : 'You show as offline. Customers can still book ahead, and you are notified'}
               </Text>
             </View>
             <Switch
@@ -145,15 +172,18 @@ export default function ProviderSettingsScreen() {
             </View>
             <View style={styles.rowContent}>
               <Text style={styles.rowTitle}>Notifications</Text>
-              <Text style={styles.rowSubtitle}>Job alerts and messages</Text>
+              <Text style={styles.rowSubtitle}>
+                {pushOn
+                  ? 'New jobs, messages and calls, even when the app is closed'
+                  : 'Off on this phone. You will only see updates inside the app'}
+              </Text>
             </View>
             <Switch
-              value={notificationsEnabled}
-              onValueChange={() => {
-                dispatch(toggleNotifications());
-              }}
+              value={pushOn}
+              disabled={pushBusy}
+              onValueChange={togglePush}
               trackColor={{ false: colors.disabled, true: theme.primaryLight }}
-              thumbColor={notificationsEnabled ? theme.primary : colors.lineSoft}
+              thumbColor={pushOn ? theme.primary : colors.lineSoft}
               ios_backgroundColor={colors.disabled}
             />
           </View>

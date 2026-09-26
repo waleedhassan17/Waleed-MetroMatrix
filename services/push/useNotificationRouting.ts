@@ -14,14 +14,68 @@
 
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import { useDispatch } from 'react-redux';
 import { navigate } from '../../navigation-maps/navigationRef';
 import { KeyForStorage, retrieveData } from '../../utils/storage_utils/storageUtils';
 import { routeFromNotification, NotificationRoute } from './pushNotifications';
 import { useIncomingCall } from '../../components/call/IncomingCallProvider';
+import { fetchJobDetailData } from '../../screens/providers/homeservice/jobdetail-screen/jobDetailSlice';
+import { setPaymentRequestData } from '../../screens/providers/homeservice/payment-screen/paymentRequestSlice';
+import { initializeProviderPayment } from '../../networks/serviceProviders/paymentNetwork';
 
-async function openRoute(route: NotificationRoute, presentCall: (c: any) => void) {
+/**
+ * A home-service job push. The customer lands on the booking (or straight on
+ * the payment screen when they are being asked to pay); the provider on the
+ * job — loaded fresh, because the job screen renders the job it is handed —
+ * or on the payment screen when the push is about money.
+ */
+async function openBooking(route: NotificationRoute, isProvider: boolean, dispatch: any) {
+  const bookingId = route.bookingId || route.roomId;
+  if (!bookingId) return;
+
+  if (!isProvider) {
+    if (route.pushType === 'payment_requested') {
+      navigate('PaymentScreen', { bookingId });
+    } else {
+      navigate('BookingDetail', { bookingId });
+    }
+    return;
+  }
+
+  if (route.pushType === 'payment_update' || route.pushType === 'payment_received') {
+    const res = await initializeProviderPayment(bookingId);
+    if (res.success && res.data) {
+      dispatch(
+        setPaymentRequestData({
+          jobId: bookingId,
+          serviceType: res.data.serviceType,
+          customerName: res.data.customerName,
+          serviceCharge: res.data.amount,
+        })
+      );
+      navigate('PaymentRequest');
+      return;
+    }
+  }
+
+  try {
+    const job = await dispatch(fetchJobDetailData(bookingId)).unwrap();
+    navigate('JobDetail', { job });
+  } catch {
+    // The job could not be loaded (network, or it is no longer this
+    // provider's). The jobs list is the honest fallback.
+    navigate('HomeServiceProviderDashboard', { screen: 'Jobs' });
+  }
+}
+
+async function openRoute(route: NotificationRoute, presentCall: (c: any) => void, dispatch: any) {
   const userType = await retrieveData(KeyForStorage.userType);
   const isProvider = userType === 'provider';
+
+  if (route.type === 'booking') {
+    await openBooking(route, isProvider, dispatch);
+    return;
+  }
 
   if (route.type === 'appointment') {
     // A doctor opens the appointment itself — a new request is approved from
@@ -66,13 +120,14 @@ async function openRoute(route: NotificationRoute, presentCall: (c: any) => void
 
 export function useNotificationRouting() {
   const { present } = useIncomingCall();
+  const dispatch = useDispatch();
   const handledColdStart = useRef(false);
 
   useEffect(() => {
     // Warm path: user tapped while the app was running or backgrounded.
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const route = routeFromNotification(response.notification.request.content.data);
-      if (route) openRoute(route, present);
+      if (route) openRoute(route, present, dispatch);
     });
 
     // Cold path: the tap is what launched the app.
@@ -84,10 +139,10 @@ export function useNotificationRouting() {
       const route = routeFromNotification(last.notification.request.content.data);
       if (route) {
         // Let the navigator finish mounting before pushing a screen onto it.
-        setTimeout(() => openRoute(route, present), 600);
+        setTimeout(() => openRoute(route, present, dispatch), 600);
       }
     })();
 
     return () => sub.remove();
-  }, [present]);
+  }, [present, dispatch]);
 }

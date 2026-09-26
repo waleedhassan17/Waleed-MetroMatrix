@@ -125,8 +125,16 @@ async function ensureAndroidChannels() {
  *
  * @returns the token, or null when unavailable (simulator, Expo Go, denied).
  */
-export async function registerForPushNotifications(): Promise<string | null> {
+export async function registerForPushNotifications(
+  opts: { force?: boolean } = {}
+): Promise<string | null> {
   try {
+    // Respect the settings switch: a user who turned notifications off must
+    // not be silently re-registered by the next sign-in.
+    if (!opts.force && (await retrieveData(KeyForStorage.pushOptOut)) === '1') {
+      console.log('[push] skipped — switched off in settings');
+      return null;
+    }
     await ensureAndroidChannels();
 
     // Push tokens require real hardware.
@@ -172,6 +180,38 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 }
 
+/** Whether notifications are on for this device (the settings switch). */
+export async function isPushEnabled(): Promise<boolean> {
+  try {
+    return (await retrieveData(KeyForStorage.pushOptOut)) !== '1';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * The settings switch. Off unregisters this device's token with the realtime
+ * service, so nothing is pushed to it at all; on registers it again. The
+ * switch used to flip a Redux flag that nothing read.
+ *
+ * @returns false when turning on failed — usually because the OS permission
+ * is denied — so the caller can say so and leave the switch off.
+ */
+export async function setPushEnabled(enabled: boolean): Promise<boolean> {
+  if (!enabled) {
+    await saveData(KeyForStorage.pushOptOut, '1');
+    await unregisterPushOnLogout();
+    return true;
+  }
+  await saveData(KeyForStorage.pushOptOut, '0');
+  const token = await registerForPushNotifications({ force: true });
+  if (!token) {
+    await saveData(KeyForStorage.pushOptOut, '1');
+    return false;
+  }
+  return true;
+}
+
 /** Call on logout so a shared device stops receiving the old account's calls. */
 export async function unregisterPushOnLogout(): Promise<void> {
   try {
@@ -190,16 +230,37 @@ export interface NotificationRoute {
    * 'message'     — opens the thread
    * 'appointment' — a booking, cancellation, payment or prescription update;
    *                 opens the appointment it is about
+   * 'booking'     — a home-service job update: a new request, accepted, on the
+   *                 way, arrived, done, cancelled, payment asked for or made;
+   *                 opens that booking (job, for a provider)
    */
-  type: 'call' | 'missed_call' | 'message' | 'appointment';
+  type: 'call' | 'missed_call' | 'message' | 'appointment' | 'booking';
   roomId: string;
   roomType: 'homeservice' | 'healthcare';
   callId?: string;
   callerName?: string;
   appointmentId?: string;
+  /** Home-service booking the push is about ('booking' routes). */
+  bookingId?: string;
+  /** The push type the server sent — decides which booking screen opens. */
+  pushType?: string;
 }
 
 const ROUTABLE_TYPES = ['call', 'missed_call', 'message'];
+
+/**
+ * Home-service job pushes (API server → realtime /internal/push). They carry a
+ * bookingId, not a roomId, and used to be dropped here — so tapping "New
+ * booking request" only opened the app wherever it happened to be.
+ */
+const BOOKING_PUSH_TYPES = [
+  'booking_created',
+  'booking_update',
+  'booking_cancelled',
+  'payment_requested',
+  'payment_received',
+  'payment_update',
+];
 
 /** Normalize a notification payload into something navigable, or null. */
 export function routeFromNotification(data: any): NotificationRoute | null {
@@ -211,6 +272,15 @@ export function routeFromNotification(data: any): NotificationRoute | null {
     /^(appointment|prescription|payment|review)_/.test(data.type)
   ) {
     return { type: 'appointment', roomId: '', roomType: 'healthcare', appointmentId: String(data.appointmentId) };
+  }
+  if (typeof data?.type === 'string' && BOOKING_PUSH_TYPES.includes(data.type) && data?.bookingId) {
+    return {
+      type: 'booking',
+      roomId: String(data.bookingId),
+      roomType: 'homeservice',
+      bookingId: String(data.bookingId),
+      pushType: data.type,
+    };
   }
   if (!data?.type || !data?.roomId) return null;
   if (!ROUTABLE_TYPES.includes(data.type)) return null;
