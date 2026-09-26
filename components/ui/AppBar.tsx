@@ -103,60 +103,59 @@ const AppBar: React.FC<AppBarProps> = ({
   // announces the section. Use it on a module's own pages, not on a sheet.
   if (resolved === 'gradient') {
     const ink = textOn(colors.accentDeep, colors.ink, colors.inkInverse);
+    // ONE surface, from the very top of the screen. The status-bar inset used
+    // to live on a wrapper painted flat `accentDeep`, with the gradient
+    // starting below it at the lighter `accent` — so every header read as two
+    // blocks: a dark strip under the clock and a lighter band under that (and
+    // in dark mode `accentDeep` inverts light, so the strip glared). The
+    // gradient now carries the inset itself, exactly as healthcare's
+    // hand-built headers do, and owns the rounded bottom.
     return (
-      <View
-        style={[
-          styles.gradientWrap,
-          { paddingTop: insets.top + S.xl },
-          style,
-        ]}
+      <LinearGradient
+        // Mixed into the dark surface in dark mode rather than laid on top
+        // of it — a saturated band across the top of a dark screen is a
+        // flare, not a header.
+        colors={darkShift(mode).grad([colors.accent, colors.accentDeep])}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.gradientFill, { paddingTop: insets.top + S.md }, style]}
       >
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <LinearGradient
-          // Mixed into the dark surface in dark mode rather than laid on top
-          // of it — a saturated band across the top of a dark screen is a
-          // flare, not a header.
-          colors={darkShift(mode).grad([colors.accent, colors.accentDeep])}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientFill}
-        >
-          <View style={styles.gradientRow}>
-            {!hideBack && <BackButton tone="onAccent" onPress={onBack ?? (() => {})} />}
-            <View style={styles.gradientText}>
-              {!!title && (
-                <Text style={[styles.gradientTitle, { color: ink }]} numberOfLines={1}>
-                  {title}
-                </Text>
-              )}
-              {!!subtitle && (
-                <Text
-                  style={[styles.gradientSubtitle, { color: colors.inkInverseSoft }]}
-                  numberOfLines={1}
-                >
-                  {subtitle}
-                </Text>
-              )}
-            </View>
-            {right ??
-              (rightIcon ? (
-                <TouchableOpacity
-                  onPress={onRightPress}
-                  style={styles.iconButton}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name={rightIcon as any} size={22} color={ink} />
-                  {!!rightBadge && rightBadge > 0 && (
-                    <View style={[styles.badge, { borderWidth: 2, borderColor: colors.accentDeep }]}>
-                      <Text style={styles.badgeText}>{rightBadge > 9 ? '9+' : rightBadge}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ) : null)}
+        <View style={styles.gradientRow}>
+          {!hideBack && <BackButton tone="onAccent" onPress={onBack ?? (() => {})} />}
+          <View style={styles.gradientText}>
+            {!!title && (
+              <Text style={[styles.gradientTitle, { color: ink }]} numberOfLines={1}>
+                {title}
+              </Text>
+            )}
+            {!!subtitle && (
+              <Text
+                style={[styles.gradientSubtitle, { color: colors.inkInverseSoft }]}
+                numberOfLines={1}
+              >
+                {subtitle}
+              </Text>
+            )}
           </View>
-        </LinearGradient>
-      </View>
+          {right ??
+            (rightIcon ? (
+              <TouchableOpacity
+                onPress={onRightPress}
+                style={styles.iconButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+              >
+                <Ionicons name={rightIcon as any} size={22} color={ink} />
+                {!!rightBadge && rightBadge > 0 && (
+                  <View style={[styles.badge, { borderWidth: 2, borderColor: colors.accentDeep }]}>
+                    <Text style={styles.badgeText}>{rightBadge > 9 ? '9+' : rightBadge}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ) : null)}
+        </View>
+      </LinearGradient>
     );
   }
 
@@ -242,18 +241,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
 
   // ── gradient tone ─────────────────────────────────────────────────────────
-  // The wrapper carries the status-bar inset so the gradient itself can own a
-  // bottom radius without the inset squaring it off.
-  gradientWrap: {
-    backgroundColor: c.accentDeep,
+  // The gradient runs under the status bar (its top inset is added inline)
+  // and owns the rounded bottom, so the header is one continuous surface.
+  gradientFill: {
+    paddingHorizontal: GUTTER,
+    paddingBottom: S.xxl,
     borderBottomLeftRadius: R.sheet,
     borderBottomRightRadius: R.sheet,
     overflow: 'hidden',
-  },
-  gradientFill: {
-    paddingHorizontal: GUTTER,
-    paddingBottom: S.xxxl,
-    paddingTop: S.xl,
   },
   gradientRow: {
     flexDirection: 'row',
