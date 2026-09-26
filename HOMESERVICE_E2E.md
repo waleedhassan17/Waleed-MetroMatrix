@@ -1,5 +1,9 @@
 # HOMESERVICE_E2E — Trace & Verification Notes
 
+> **Superseded 2026-09-26** by `QA_HOMESERVICE_CUSTOMER.md` and `QA_HOMESERVICE_PROVIDER.md`: a two-role
+> end-to-end run (`MetroMatrix-Backend/scripts/e2e-homeservice.js`, 117/117 on production) with a real socket per
+> role, and the fixes it led to. The notes below are the July record, kept for history.
+
 **How this was verified.** No physical device or emulator was available in this environment, so this is
 not a hands-on-device trace. What was actually done, in order of strength:
 
