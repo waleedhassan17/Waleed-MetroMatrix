@@ -17,6 +17,7 @@ import {
   setSelectedOption,
   type DeliveryOption,
 } from './checkoutDeliverySlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 const CheckoutDeliveryScreen: React.FC = () => {
   const { colors, mode } = useTheme();
@@ -77,17 +78,12 @@ const CheckoutDeliveryScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Checkout</Text>
-          <Text style={styles.headerSubtitle}>Step 2 of 4</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Checkout"
+        subtitle="Step 2 of 4 · Delivery"
+        showBack
+      />
 
       <View style={styles.stepCard}>
         <View style={styles.stepRow}>
@@ -142,11 +138,6 @@ const CheckoutDeliveryScreen: React.FC = () => {
 
 const makeStyles = (Colors: ColorType, c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
-  backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', ...Shadows.sm },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: Colors.text.primary },
-  headerSubtitle: { marginTop: 2, fontSize: 12, color: Colors.text.tertiary },
   stepCard: { marginHorizontal: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: '#FFF', ...Shadows.sm },
   stepRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   stepLabel: { fontSize: 12, fontWeight: '700', color: Colors.primary },

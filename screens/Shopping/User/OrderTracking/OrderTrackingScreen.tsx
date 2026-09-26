@@ -11,6 +11,7 @@ import {
   type OrderTrackingStatus,
   type TrackingStep,
 } from './orderTrackingSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -90,14 +91,11 @@ const OrderTrackingScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Track Order</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Track Order"
+        showBack
+      />
 
       {loading && steps.length === 0 && (
         <View style={styles.loaderWrap}>
@@ -178,9 +176,6 @@ const OrderTrackingScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: (StatusBar.currentHeight || 0) + 20, paddingBottom: Spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scrollContent: { padding: Spacing.lg },
   loaderWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
   helperText: { fontSize: 12, color: Colors.text.tertiary },

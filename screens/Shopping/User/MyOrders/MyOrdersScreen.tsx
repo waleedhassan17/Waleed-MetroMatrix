@@ -8,6 +8,7 @@ import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyOrders, selectMyOrders, setStatusFilter } from './myOrdersSlice';
 import { selectActiveBrand } from '../BrandList/brandListSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -49,6 +50,9 @@ const MyOrdersScreen: React.FC = () => {
   const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  // On the shopping bottom bar this screen is a tab, and a tab has no back.
+  // Opened on top of another screen, it keeps its back arrow.
+  const isTabRoot = route.name === 'Orders';
   const dispatch = useAppDispatch();
   const { orders, statusFilter, loading, error } = useAppSelector(selectMyOrders);
   const activeBrand = useAppSelector(selectActiveBrand);
@@ -81,21 +85,12 @@ const MyOrdersScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.titleWrap}>
-          <Text style={styles.title}>My Orders</Text>
-          {/* Say which set is on screen, so a brand-scoped list is not read as
-              "I have no orders". */}
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {scopedBrand ? scopedBrand.name : 'All brands'}
-          </Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="My Orders"
+        subtitle={scopedBrand ? scopedBrand.name : 'All brands'}
+        showBack={!isTabRoot}
+      />
       
       <View style={styles.filterWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -188,23 +183,6 @@ const MyOrdersScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundAlt },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: Spacing.lg, 
-    paddingTop: (StatusBar.currentHeight || 0) + 16, 
-    paddingBottom: Spacing.md,
-    backgroundColor: Colors.surface,
-  },
-  iconBtn: { 
-    width: 40, height: 40, borderRadius: BorderRadius.full, 
-    alignItems: 'center', justifyContent: 'center', 
-    backgroundColor: Colors.background, 
-  },
-  titleWrap: { flex: 1, alignItems: 'center' },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
-  subtitle: { fontSize: 12, color: Colors.text.tertiary, marginTop: 1 },
   
   filterWrapper: {
     backgroundColor: Colors.surface,

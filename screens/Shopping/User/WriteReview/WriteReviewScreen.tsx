@@ -6,6 +6,7 @@ import { BorderRadius, Shadows, Spacing, makeColors, type ColorType } from '../.
 import { useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { resetReview, selectWriteReview, setComment, setRating, setTitle, submitReview } from './writeReviewSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 const WriteReviewScreen: React.FC = () => {
   const { mode } = useTheme();
@@ -34,12 +35,11 @@ const WriteReviewScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}><ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} /></TouchableOpacity>
-        <Text style={styles.title}>Write Review</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Write a Review"
+        showBack
+      />
       <View style={styles.card}>
         <Text style={styles.label}>Rating</Text>
         <View style={styles.stars}>
@@ -62,11 +62,9 @@ const WriteReviewScreen: React.FC = () => {
 };
 
 const makeStyles = (Colors: ColorType) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Spacing.xl, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface, ...Shadows.sm },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.text.primary },
-  card: { marginTop: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: Colors.surface, ...Shadows.sm },
+  // No padding here: the gradient header runs edge to edge; the card carries the gutter.
+  container: { flex: 1, backgroundColor: Colors.background },
+  card: { marginTop: Spacing.lg, marginHorizontal: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: Colors.surface, ...Shadows.sm },
   label: { fontSize: 12, fontWeight: '700', color: Colors.text.secondary, marginBottom: 6 },
   stars: { flexDirection: 'row', gap: 8, marginBottom: Spacing.md },
   input: { marginBottom: Spacing.md, paddingHorizontal: Spacing.md, height: 48, borderRadius: BorderRadius.lg, backgroundColor: Colors.backgroundAlt, color: Colors.text.primary },

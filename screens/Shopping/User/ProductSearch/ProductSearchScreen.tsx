@@ -47,6 +47,7 @@ import { selectActiveBrandId } from '../BrandList/brandListSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -193,37 +194,21 @@ const ProductSearchScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Search Header ───────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-
-        <View style={styles.searchInputWrap}>
-          <Search size={16} stroke={Colors.text.tertiary} strokeWidth={1.75} />
-          <TextInput
-            ref={inputRef}
-            style={styles.searchInput}
-            placeholder="Search products"
-            placeholderTextColor={Colors.text.tertiary}
-            value={query}
-            onChangeText={handleQueryChange}
-            onSubmitEditing={handleSubmitSearch}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={handleClearQuery} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={16} stroke={Colors.text.tertiary} strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Search"
+        subtitle="Products from every brand"
+        showBack
+        showSearch
+        searchPlaceholder="Search products"
+        searchValue={query}
+        onSearchChange={handleQueryChange}
+        onClearSearch={handleClearQuery}
+        onSearchSubmit={handleSubmitSearch}
+        searchInputRef={inputRef}
+      />
 
       {showPreSearch ? (
         <FlatList
@@ -369,39 +354,6 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     backgroundColor: Colors.background,
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: (StatusBar.currentHeight || 0) + 20,
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.surface,
-    gap: Spacing.sm,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchInputWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.backgroundAlt,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    gap: Spacing.sm,
-    height: 42,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.text.primary,
-    paddingVertical: 0,
-  },
 
   // Pre-search
   preSearchContent: {

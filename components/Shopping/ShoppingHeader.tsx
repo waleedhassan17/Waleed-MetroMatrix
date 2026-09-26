@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { C, R, S, T } from '../../constants/theme';
 import { darkShift } from '../../constants/darkShift';
-import { MODULE_PALETTES, ThemeColors, mix, useTheme } from '../../theme';
+import { MODULE_PALETTES, ThemeColors, headerGradientStops, useTheme } from '../../theme';
 import BackButton from '../ui/BackButton';
 
 /**
@@ -37,15 +37,17 @@ export const Colors = makeColors({ ...C, ...MODULE_PALETTES.shopping });
  * The shopping page-header gradient — the same shape as the healthcare and
  * home-service headers, in shopping's own orange.
  *
- * It starts at the DEEP orange, not the brand orange: white measures 2.9:1 on
- * #E67E22 (fails even large text) but 5.4:1 on #D35400, and it only gets
- * darker from there, so the white title reads everywhere on the ramp. Built
- * from the LIGHT palette's value and then shifted for dark mode, because the
- * dark palette's accentDeep is lightened for text and would glow as a band.
+ * Stops come from theme's headerGradientStops(): darkened from accentDeep
+ * until the 90%-white subtitle clears AA body, then one step more. Orange is
+ * light, so for shopping that starts a step BELOW #D35400 (#AB4705 → #8C3D09);
+ * the rule, and why the brand orange can't be the first stop, is pinned in
+ * theme/__tests__/contrast.test.ts. Built from the LIGHT palette's value and
+ * shifted for dark mode, because the dark palette's accentDeep is lightened
+ * for text and would glow as a band.
  */
-const SHOP_DEEP = MODULE_PALETTES.shopping.accentDeep;
+const [SHOP_START] = headerGradientStops(MODULE_PALETTES.shopping.accentDeep);
 export const shoppingHeaderGradient = (mode: 'light' | 'dark'): [string, string] =>
-  darkShift(mode).grad([SHOP_DEEP, mix(SHOP_DEEP, '#000000', 0.22)]);
+  darkShift(mode).grad(headerGradientStops(MODULE_PALETTES.shopping.accentDeep));
 
 interface ShoppingHeaderProps {
   /**
@@ -67,6 +69,12 @@ interface ShoppingHeaderProps {
   onSearchChange?: (text: string) => void;
   onSearchPress?: () => void;
   onClearSearch?: () => void;
+  onSearchSubmit?: () => void;
+  searchAutoFocus?: boolean;
+  /** For screens that focus the field themselves (e.g. after clearing it). */
+  searchInputRef?: React.Ref<TextInput>;
+  /** Gradient tone only: extra content inside the header, under the title (step bars, tabs). */
+  children?: React.ReactNode;
 }
 
 export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
@@ -82,6 +90,10 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
   onSearchChange,
   onSearchPress,
   onClearSearch,
+  onSearchSubmit,
+  searchAutoFocus,
+  searchInputRef,
+  children,
 }) => {
   const { colors, mode } = useTheme();
   const Colors = useMemo(() => makeColors(colors), [colors]);
@@ -161,20 +173,46 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
           <View style={styles.headerRight}>{rightContent}</View>
         </View>
 
-        {showSearch && (
-          <TouchableOpacity
-            style={gradientStyles.search}
-            activeOpacity={0.85}
-            onPress={onSearchPress}
-            disabled={!onSearchPress}
-            accessibilityRole="search"
-          >
-            <Search size={18} stroke={colors.inkFaint} strokeWidth={2} />
-            <Text style={gradientStyles.searchText} numberOfLines={1}>
-              {searchPlaceholder}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {showSearch &&
+          (onSearchPress ? (
+            <TouchableOpacity
+              style={gradientStyles.search}
+              activeOpacity={0.85}
+              onPress={onSearchPress}
+              accessibilityRole="search"
+            >
+              <Search size={18} stroke={colors.inkFaint} strokeWidth={2} />
+              <Text style={gradientStyles.searchText} numberOfLines={1}>
+                {searchPlaceholder}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={gradientStyles.search}>
+              <Search size={18} stroke={colors.inkFaint} strokeWidth={2} />
+              <TextInput
+                ref={searchInputRef}
+                style={gradientStyles.searchInput}
+                placeholder={searchPlaceholder}
+                placeholderTextColor={colors.inkFaint}
+                value={searchValue}
+                onChangeText={onSearchChange}
+                returnKeyType="search"
+                autoFocus={searchAutoFocus}
+                onSubmitEditing={onSearchSubmit}
+                autoCorrect={false}
+              />
+              {searchValue.length > 0 && onClearSearch && (
+                <TouchableOpacity
+                  onPress={onClearSearch}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Clear search"
+                >
+                  <X size={16} stroke={colors.inkMuted} strokeWidth={2.5} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        {children}
       </LinearGradient>
     );
   }
@@ -247,6 +285,79 @@ const makeGradientStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.inkFaint,
     marginLeft: S.sm,
     flex: 1,
+  },
+  searchInput: {
+    ...T.body,
+    color: c.ink,
+    marginLeft: S.sm,
+    flex: 1,
+    paddingVertical: 0,
+  },
+});
+
+/**
+ * A header action on the gradient: a white circle with the icon in ink, and
+ * an optional count badge ringed in the header's orange. Every shopping
+ * screen's right-hand actions use this, so they all look alike.
+ */
+export const ShoppingHeaderAction: React.FC<{
+  onPress: () => void;
+  accessibilityLabel: string;
+  badge?: number;
+  children: React.ReactNode;
+}> = ({ onPress, accessibilityLabel, badge, children }) => {
+  const { colors } = useTheme();
+  const st = useMemo(() => makeActionStyles(colors), [colors]);
+  return (
+    <TouchableOpacity
+      style={st.btn}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+    >
+      {children}
+      {!!badge && badge > 0 && (
+        <View style={st.badge}>
+          <Text style={st.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+/** The ink colour for an icon inside ShoppingHeaderAction. */
+export const useShoppingHeaderIconColor = () => useTheme().colors.ink;
+
+const makeActionStyles = (c: ThemeColors) => StyleSheet.create({
+  btn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: c.error,
+    borderWidth: 2,
+    borderColor: SHOP_START,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    ...T.caption,
+    color: c.inkInverse,
+    fontSize: 10,
+    lineHeight: 12,
   },
 });
 

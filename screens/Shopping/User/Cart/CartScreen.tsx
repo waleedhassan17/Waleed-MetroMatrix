@@ -10,7 +10,7 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ChevronLeft,
   Minus,
@@ -43,6 +43,7 @@ import {
   selectCartLoading,
   selectCartError,
 } from './cartSlice';
+import { ShoppingHeader, ShoppingHeaderAction } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp — see the note in constants/Colors.ts.
 const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, success: c.success, danger: c.error });
@@ -54,6 +55,10 @@ const CartScreen: React.FC = () => {
   const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
   const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  // On the shopping bottom bar this screen is a tab, and a tab has no back.
+  // Opened on top of another screen, it keeps its back arrow.
+  const isTabRoot = route.name === 'CartTab';
   const dispatch = useAppDispatch();
 
   const cart = useAppSelector(selectCart);
@@ -112,14 +117,11 @@ const CartScreen: React.FC = () => {
   if (cart.items.length === 0) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Cart</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <ShoppingHeader
+          tone="gradient"
+          title="My Cart"
+          showBack={!isTabRoot}
+        />
         {loading ? (
           <LoadingState emoji="🛒" label="Loading your cart..." />
         ) : error ? (
@@ -142,21 +144,27 @@ const CartScreen: React.FC = () => {
     );
   }
 
+  const itemCount = cart.items.reduce((sum, i) => sum + i.quantity, 0);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Cart ({cart.items.reduce((s, i) => s + i.quantity, 0)} items)</Text>
-        <TouchableOpacity style={styles.clearBtn} onPress={() => Alert.alert('Clear Cart', 'Remove all items?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear', style: 'destructive', onPress: () => dispatch(clearCart()) },
-        ])}>
-          <Trash2 size={18} stroke={ShopColors.danger} strokeWidth={1.75} />
-        </TouchableOpacity>
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="My Cart"
+        subtitle={itemCount === 1 ? '1 item' : `${itemCount} items`}
+        showBack={!isTabRoot}
+        rightContent={
+          <ShoppingHeaderAction
+            accessibilityLabel="Clear cart"
+            onPress={() => Alert.alert('Clear Cart', 'Remove all items?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Clear', style: 'destructive', onPress: () => dispatch(clearCart()) },
+            ])}
+          >
+            <Trash2 size={18} stroke={ShopColors.danger} strokeWidth={1.75} />
+          </ShoppingHeaderAction>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {brandGroups.map((group) => {
@@ -307,10 +315,6 @@ const CartScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: (StatusBar.currentHeight || 0) + 20, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
-  clearBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, justifyContent: 'center', alignItems: 'center' },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: Colors.text.primary, marginTop: Spacing.lg },

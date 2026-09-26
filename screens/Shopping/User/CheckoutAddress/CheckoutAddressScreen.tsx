@@ -38,6 +38,7 @@ import {
   type CheckoutAddressForm,
   type SavedAddress,
 } from './checkoutAddressSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 const CURRENCY_NOTE = 'Step 1 of 4';
 
@@ -142,18 +143,13 @@ const CheckoutAddressScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Checkout</Text>
-          <Text style={styles.headerSubtitle}>{CURRENCY_NOTE}</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Checkout"
+        subtitle={CURRENCY_NOTE}
+        showBack
+      />
 
       <View style={styles.stepCard}>
         <View style={styles.stepRow}>
@@ -318,26 +314,6 @@ const makeStyles = (Colors: ColorType, c: ThemeColors) => StyleSheet.create({
   },
 
   container: { flex: 1, backgroundColor: Colors.surface },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.md,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    ...Shadows.sm,
-  },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: Colors.text.primary },
-  headerSubtitle: { marginTop: 2, fontSize: 12, color: Colors.text.tertiary },
   stepCard: {
     marginHorizontal: Spacing.lg,
     padding: Spacing.md,

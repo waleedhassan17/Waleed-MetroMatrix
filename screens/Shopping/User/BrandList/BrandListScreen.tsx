@@ -32,7 +32,7 @@ import { fetchHomeData, selectFeaturedBrands, selectFeaturedProducts, selectBann
 import type { Banner } from '../ShoppingHome/shoppingHomeSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import type { Product } from '../../../../types/shopping';
-import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
+import { ShoppingHeader, ShoppingHeaderAction } from '../../../../components/Shopping/ShoppingHeader';
 import BannerCarousel from '../../../../components/Shopping/BannerCarousel';
 
 // A function of the ramp, not a frozen table: every ground below is a
@@ -395,10 +395,9 @@ const BrandListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={ShopColors.surface} />
-
       {/* ── Header ──────────────────────────── */}
       <ShoppingHeader
+        tone="gradient"
         title="Explore"
         subtitle="Discover premium brands & stores"
         // BrandList is NOT a tab root — it is only ever reached by drilling in
@@ -415,15 +414,12 @@ const BrandListScreen: React.FC = () => {
           // one store each). That entry did not disappear with it: it is now a
           // My Orders row inside the profile, which is where an account-level
           // list belongs anyway.
-          <TouchableOpacity
-            style={styles.headerBtn}
+          <ShoppingHeaderAction
             onPress={() => navigation.navigate('UserProfileScreen', { module: 'shopping' })}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
             accessibilityLabel="Your profile"
           >
-            <User size={22} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
-          </TouchableOpacity>
+            <User size={20} stroke={ShopColors.textPrimary} strokeWidth={1.75} />
+          </ShoppingHeaderAction>
         }
         showSearch={true}
         searchPlaceholder="Search brands..."
@@ -792,10 +788,6 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
   },
   searchBarContainer: {
     backgroundColor: ShopColors.surface,
-  },
-  headerBtn: {
-    padding: 8,
-    marginLeft: 8,
   },
   productCard: {
     backgroundColor: ShopColors.surface,

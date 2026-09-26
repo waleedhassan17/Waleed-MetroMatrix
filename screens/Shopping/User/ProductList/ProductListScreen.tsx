@@ -45,6 +45,7 @@ import type { SortOption, ProductFilters } from './productListSlice';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -208,28 +209,14 @@ const ProductListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Header ──────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Products</Text>
-          {totalResults > 0 && (
-            // "On Sale Only" is applied on the client, so the server total
-            // would overstate what is actually on screen.
-            <Text style={styles.resultCount}>
-              {filters.onSale ? `${products.length} on sale` : `${totalResults} items`}
-            </Text>
-          )}
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Products"
+        subtitle={totalResults > 0 ? (filters.onSale ? `${products.length} on sale` : `${totalResults} items`) : undefined}
+        showBack
+      />
 
       {/* ── Sort & Filter Bar ───────────────── */}
       <View style={styles.toolBar}>
@@ -417,37 +404,6 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: (StatusBar.currentHeight || 0) + 20,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.surface,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  resultCount: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-    marginTop: 2,
   },
 
   // Toolbar

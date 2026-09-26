@@ -20,6 +20,7 @@ import { ShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { cancelSubOrder, clearOrderDetail, fetchOrderDetail, selectOrderDetail } from './orderDetailSlice';
 import type { Order, OrderStatus } from '../../../../types/shopping';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp — see the note in constants/Colors.ts.
 const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, success: c.success, danger: c.error });
@@ -85,14 +86,11 @@ const OrderDetailScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Order Details</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Order Details"
+        showBack
+      />
 
       {loading && !group && (
         <View style={styles.center}><ActivityIndicator color={ShopColors.primary} size="large" /></View>
@@ -253,9 +251,6 @@ const OrderDetailScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },
   retryBtn: { backgroundColor: ShopColors.primary, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },

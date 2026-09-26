@@ -536,24 +536,9 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     fontWeight: '700',
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: (StatusBar.currentHeight || 0) + 20,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.surface,
-  },
-  headerLeft: {},
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  // White pills on the orange header. The chip's text is the DEEP orange:
-  // the brand orange measured 2.7:1 on its pale chip and failed.
+  // White pills on the orange header. The chip's text is ink: at 12pt it
+  // needs 4.5:1, and even the deep orange only manages 4.17:1 on white (the
+  // brand orange on the old pale chip was 2.7:1). The icon carries the colour.
   walletChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -566,17 +551,7 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
   walletChipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: ShopColors.primaryDark,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '700',
     color: Colors.text.primary,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: Colors.text.secondary,
-    marginTop: 2,
   },
   cartBtn: {
     width: 44,

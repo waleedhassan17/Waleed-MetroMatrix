@@ -16,6 +16,7 @@ import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchAvailableCoupons, selectCouponList } from './couponListSlice';
 import { applyCouponAsync, removeCoupon, selectAppliedCoupon, selectCartSubtotal } from '../Cart/cartSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp — see the note in constants/Colors.ts.
 const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, success: c.success, danger: c.error });
@@ -57,14 +58,11 @@ const CouponListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Coupons</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Coupons"
+        showBack
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {loading && coupons.length === 0 && (
@@ -130,9 +128,6 @@ const CouponListScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 56, paddingBottom: Spacing.md },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.md },

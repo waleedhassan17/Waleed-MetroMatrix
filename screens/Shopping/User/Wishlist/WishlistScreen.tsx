@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { ChevronLeft, Heart, Trash2 } from 'lucide-react-native';
 import { BorderRadius, Spacing, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
@@ -10,6 +10,7 @@ import { clearWishlist, fetchWishlist, removeWishlistItem, selectWishlist, filte
 import { selectActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
+import { ShoppingHeader, ShoppingHeaderAction } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp — see the note in constants/Colors.ts.
 const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, danger: c.error });
@@ -20,6 +21,10 @@ const WishlistScreen: React.FC = () => {
   const ShopColors = useMemo(() => makeShopColors(colors), [colors]);
   const styles = useMemo(() => makeStyles(Colors, ShopColors), [Colors, ShopColors]);
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  // On the shopping bottom bar this screen is a tab, and a tab has no back.
+  // Opened on top of another screen, it keeps its back arrow.
+  const isTabRoot = route.name === 'WishlistTab';
   const dispatch = useAppDispatch();
   const { items: allItems, loading, error } = useAppSelector(selectWishlist);
   const { cardWidth, imageHeight } = useProductGridSizing();
@@ -146,20 +151,19 @@ const WishlistScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Wishlist ({items.length})</Text>
-        {items.length > 0 ? (
-          <TouchableOpacity style={styles.iconBtn} onPress={handleClearAll}>
-            <Trash2 size={18} stroke={ShopColors.danger} strokeWidth={2} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Wishlist"
+        subtitle={items.length === 1 ? '1 saved item' : `${items.length} saved items`}
+        showBack={!isTabRoot}
+        rightContent={
+          items.length > 0 ? (
+            <ShoppingHeaderAction onPress={handleClearAll} accessibilityLabel="Clear wishlist">
+              <Trash2 size={18} stroke={ShopColors.danger} strokeWidth={2} />
+            </ShoppingHeaderAction>
+          ) : null
+        }
+      />
 
       {loading && items.length === 0 ? (
         <FlatList
@@ -192,9 +196,6 @@ const WishlistScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: (StatusBar.currentHeight || 0) + 20, paddingBottom: Spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  iconBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   listContent: { padding: Spacing.lg, paddingBottom: Spacing.xl },
   columnWrapper: { justifyContent: 'space-between' },
   emptyContainer: { flex: 1, justifyContent: 'center' },

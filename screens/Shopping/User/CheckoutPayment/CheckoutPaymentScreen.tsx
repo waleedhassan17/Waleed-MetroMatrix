@@ -36,6 +36,7 @@ import {
   setSelectedMethod,
   type PaymentMethod,
 } from './checkoutPaymentSlice';
+import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp — see the note in constants/Colors.ts.
 const makeShopColors = (c: ThemeColors) => ({ primary: c.accent, primaryLight: c.accentSoft, badge: c.error });
@@ -141,19 +142,14 @@ const CheckoutPaymentScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Checkout</Text>
-          <Text style={styles.headerSubtitle}>Step 3 of 4</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Checkout"
+        subtitle="Step 3 of 4 · Payment"
+        showBack
+      />
 
       {/* Progress */}
       <View style={styles.stepCard}>
@@ -249,11 +245,6 @@ const CheckoutPaymentScreen: React.FC = () => {
 const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopColors>) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
-  backBtn: { width: 40, height: 40, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', ...Shadows.sm },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: Colors.text.primary },
-  headerSubtitle: { marginTop: 2, fontSize: 12, color: Colors.text.tertiary },
   stepCard: { marginHorizontal: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.xl, backgroundColor: '#FFF', ...Shadows.sm },
   stepRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   stepLabel: { fontSize: 12, fontWeight: '700', color: ShopColors.primary },

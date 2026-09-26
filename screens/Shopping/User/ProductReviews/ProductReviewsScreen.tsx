@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ChevronLeft, Star, Camera, X } from 'lucide-react-native';
+import { ChevronLeft, Star, Camera, X, Edit3 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Spacing, BorderRadius, makeColors, type ColorType } from '../../../../constants/Colors';
 import { ThemeColors, useTheme } from '../../../../theme';
@@ -31,6 +31,7 @@ import {
   selectFilterRating,
   selectHasPhotosOnly,
 } from './productReviewsSlice';
+import { ShoppingHeader, ShoppingHeaderAction } from '../../../../components/Shopping/ShoppingHeader';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
@@ -153,24 +154,21 @@ const ProductReviewsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
 
       {/* ── Header ──────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft size={22} stroke={Colors.text.primary} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Reviews</Text>
-        <TouchableOpacity
-          style={styles.writeBtn}
-          onPress={() => navigation.navigate(ShoppingRouteNames.WriteReview, { productId })}
-        >
-          <Text style={styles.writeBtnText}>Write</Text>
-        </TouchableOpacity>
-      </View>
+      <ShoppingHeader
+        tone="gradient"
+        title="Reviews"
+        showBack
+        rightContent={
+          <ShoppingHeaderAction
+            accessibilityLabel="Write a review"
+            onPress={() => navigation.navigate(ShoppingRouteNames.WriteReview, { productId })}
+          >
+            <Edit3 size={18} stroke={Colors.text.primary} strokeWidth={2} />
+          </ShoppingHeaderAction>
+        }
+      />
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -322,43 +320,6 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     alignItems: 'center',
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: (StatusBar.currentHeight || 0) + 20,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.surface,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  writeBtn: {
-    minWidth: 72,
-    height: 40,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  writeBtnText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
 
   // Summary
   summarySection: {
