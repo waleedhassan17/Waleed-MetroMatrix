@@ -1,12 +1,15 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, StatusBar } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Search, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import { C } from '../../constants/theme';
-import { MODULE_PALETTES, ThemeColors, useTheme } from '../../theme';
+import { C, R, S, T } from '../../constants/theme';
+import { darkShift } from '../../constants/darkShift';
+import { MODULE_PALETTES, ThemeColors, mix, useTheme } from '../../theme';
+import BackButton from '../ui/BackButton';
 
 /**
  * The header's own palette, as a function of the ramp.
@@ -30,7 +33,27 @@ const makeColors = (c: ThemeColors) => ({
 /** The light instance, for anything reading it outside a component. */
 export const Colors = makeColors({ ...C, ...MODULE_PALETTES.shopping });
 
+/**
+ * The shopping page-header gradient — the same shape as the healthcare and
+ * home-service headers, in shopping's own orange.
+ *
+ * It starts at the DEEP orange, not the brand orange: white measures 2.9:1 on
+ * #E67E22 (fails even large text) but 5.4:1 on #D35400, and it only gets
+ * darker from there, so the white title reads everywhere on the ramp. Built
+ * from the LIGHT palette's value and then shifted for dark mode, because the
+ * dark palette's accentDeep is lightened for text and would glow as a band.
+ */
+const SHOP_DEEP = MODULE_PALETTES.shopping.accentDeep;
+export const shoppingHeaderGradient = (mode: 'light' | 'dark'): [string, string] =>
+  darkShift(mode).grad([SHOP_DEEP, mix(SHOP_DEEP, '#000000', 0.22)]);
+
 interface ShoppingHeaderProps {
+  /**
+   * 'surface' — the white bar (default, unchanged for every existing screen).
+   * 'gradient' — the module-page header: shopping's orange gradient under the
+   * status bar, rounded bottom, large white title, search pill inside it.
+   */
+  tone?: 'surface' | 'gradient';
   title: string;
   subtitle?: string;
   showBack?: boolean;
@@ -47,6 +70,7 @@ interface ShoppingHeaderProps {
 }
 
 export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
+  tone = 'surface',
   title,
   subtitle,
   showBack = false,
@@ -59,9 +83,10 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
   onSearchPress,
   onClearSearch,
 }) => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const Colors = useMemo(() => makeColors(colors), [colors]);
   const styles = useMemo(() => makeStyles(Colors), [Colors]);
+  const gradientStyles = useMemo(() => makeGradientStyles(colors), [colors]);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -109,6 +134,51 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
     );
   };
 
+  if (tone === 'gradient') {
+    return (
+      <LinearGradient
+        colors={shoppingHeaderGradient(mode)}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          gradientStyles.wrap,
+          { paddingTop: insets.top + S.xl, paddingBottom: showSearch ? S.xxl : S.xxxl },
+        ]}
+      >
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        <View style={gradientStyles.row}>
+          {showBack && <BackButton tone="onAccent" onPress={handleBack} />}
+          <View style={gradientStyles.titles}>
+            <Text style={gradientStyles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            {!!subtitle && (
+              <Text style={gradientStyles.subtitle} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          <View style={styles.headerRight}>{rightContent}</View>
+        </View>
+
+        {showSearch && (
+          <TouchableOpacity
+            style={gradientStyles.search}
+            activeOpacity={0.85}
+            onPress={onSearchPress}
+            disabled={!onSearchPress}
+            accessibilityRole="search"
+          >
+            <Search size={18} stroke={colors.inkFaint} strokeWidth={2} />
+            <Text style={gradientStyles.searchText} numberOfLines={1}>
+              {searchPlaceholder}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </LinearGradient>
+    );
+  }
+
   return (
     <View style={[styles.headerWrapper, { paddingTop: insets.top + 12 }]}>
       <View style={styles.headerMain}>
@@ -137,6 +207,48 @@ export const ShoppingHeader: React.FC<ShoppingHeaderProps> = ({
     </View>
   );
 };
+
+const makeGradientStyles = (c: ThemeColors) => StyleSheet.create({
+  wrap: {
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: R.sheet,
+    borderBottomRightRadius: R.sheet,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.md,
+  },
+  titles: {
+    flex: 1,
+  },
+  title: {
+    ...T.title,
+    color: c.inkInverse,
+  },
+  subtitle: {
+    ...T.label,
+    color: c.inkInverseSoft,
+    marginTop: S.xs,
+  },
+  // A white pill on the orange, like the search field in healthcare's header.
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    borderRadius: R.control,
+    paddingHorizontal: S.lg,
+    paddingVertical: S.md,
+    marginTop: S.lg,
+  },
+  searchText: {
+    ...T.body,
+    color: c.inkFaint,
+    marginLeft: S.sm,
+    flex: 1,
+  },
+});
 
 const makeStyles = (Colors: ReturnType<typeof makeColors>) => StyleSheet.create({
   headerWrapper: {

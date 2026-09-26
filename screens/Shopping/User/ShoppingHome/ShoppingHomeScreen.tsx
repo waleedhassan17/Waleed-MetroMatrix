@@ -34,6 +34,7 @@ import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
+import { currencySymbol } from '../../../../constants/Currency';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard from '../../../../components/Shopping/ProductCard';
@@ -288,10 +289,15 @@ const ShoppingHomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
+      {/* Light glyphs over the orange header, drawn edge to edge under it. */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* ── Header ──────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────────
+          The module-page header healthcare and home services use — a
+          gradient under the status bar with a rounded bottom — in shopping's
+          orange (see ShoppingHeader's `tone`). */}
       <ShoppingHeader
+        tone="gradient"
         title={activeBrand?.name ?? 'Shop'}
         subtitle={activeBrand?.tagline ?? 'Discover amazing brands'}
         // Without this there is no in-app way back out of a brand to switch
@@ -304,13 +310,17 @@ const ShoppingHomeScreen: React.FC = () => {
               style={styles.walletChip}
               onPress={() => navigation.navigate('WalletScreen' as never)}
               activeOpacity={0.75}
+              accessibilityLabel="Wallet balance"
             >
-              <Wallet size={13} stroke={ShopColors.primary} strokeWidth={2} />
+              <Wallet size={13} stroke={ShopColors.primaryDark} strokeWidth={2} />
+              {/* Same symbol helper as the wallet card below, so the two agree;
+                  grouped digits so a balance reads "₨21,280", not "₨21280". */}
               <Text style={styles.walletChipText}>
-                {walletCurrency.toLowerCase() === 'pkr' ? '₨' : '$'}{walletBalance.toFixed(0)}
+                {currencySymbol(walletCurrency)}
+                {Math.round(walletBalance || 0).toLocaleString('en-PK')}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cartBtn} onPress={navigateToCart}>
+            <TouchableOpacity style={styles.cartBtn} onPress={navigateToCart} accessibilityLabel="Cart">
               <ShoppingCart size={22} stroke={Colors.text.primary} strokeWidth={1.75} />
               {cartItemCount > 0 && (
                 <View style={styles.cartBadge}>
@@ -542,21 +552,21 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     alignItems: 'center',
     gap: Spacing.sm,
   },
+  // White pills on the orange header. The chip's text is the DEEP orange:
+  // the brand orange measured 2.7:1 on its pale chip and failed.
   walletChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: ShopColors.primaryLight,
+    backgroundColor: ShopColors.surfaceElevated,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(230,126,34,0.2)',
   },
   walletChipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: ShopColors.primary,
+    color: ShopColors.primaryDark,
   },
   headerTitle: {
     fontSize: 26,
@@ -572,7 +582,7 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     width: 44,
     height: 44,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.background,
+    backgroundColor: ShopColors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
