@@ -118,7 +118,7 @@ const AppBar: React.FC<AppBarProps> = ({
         colors={darkShift(mode).grad([colors.accent, colors.accentDeep])}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.gradientFill, { paddingTop: insets.top + S.md }, style]}
+        style={[styles.gradientFill, { paddingTop: insets.top + S.xl }, style]}
       >
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
         <View style={styles.gradientRow}>
@@ -245,7 +245,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // and owns the rounded bottom, so the header is one continuous surface.
   gradientFill: {
     paddingHorizontal: GUTTER,
-    paddingBottom: S.xxl,
+    // S.xl above the title and S.xxxl below it, which is healthcare's header
+    // exactly (STATUS_BAR_HEIGHT + 20 / 32). These two were briefly trimmed to
+    // 12 and 24 while fixing the two-tone seam, but that seam came from the
+    // inset being painted on a second view — the header's height was never the
+    // cause, and trimming both left it 16pt shorter than the thing it is meant
+    // to match.
+    paddingBottom: S.xxxl,
     borderBottomLeftRadius: R.sheet,
     borderBottomRightRadius: R.sheet,
     overflow: 'hidden',
