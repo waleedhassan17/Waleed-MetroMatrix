@@ -196,7 +196,9 @@ const makeCardStyles = (c: ThemeColors) =>
   StyleSheet.create({
     card: { marginBottom: S.md },
     top: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-    title: { ...T.subhead, color: c.ink, flex: 1 },
+    // Bold to match the customer's booking card and healthcare's doctor
+    // card, both of which carry a heavier title than the scale's default.
+    title: { ...T.subhead, fontFamily: F.bold, color: c.ink, flex: 1 },
     customerRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.sm },
     customerName: { ...T.body, color: c.inkMuted, flex: 1 },
     contactRow: { flexDirection: 'row', gap: S.sm },

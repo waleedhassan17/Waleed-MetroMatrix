@@ -47,7 +47,7 @@ const ServiceCardSkeleton: React.FC = () => {
 
   return (
   <Card padded={false} elevation="raised" style={styles.card}>
-    <Skeleton height={104} radius={0} />
+    <Skeleton height={140} radius={0} />
     <View style={styles.cardBody}>
       <Skeleton width="55%" height={16} />
       <Skeleton width="80%" height={11} style={styles.skeletonGap} />
@@ -154,7 +154,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
       <View style={styles.cardBody}>
         <View style={styles.cardBodyText}>
           {imageFailed && <Text style={styles.cardTitle}>{service.name}</Text>}
-          <Text style={styles.cardDescription} numberOfLines={1}>
+          <Text style={styles.cardDescription} numberOfLines={2}>
             {service.description && saysSomethingNew(service.description, service.name)
               ? service.description
               : category.summary}
@@ -280,9 +280,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: S.md,
   },
   media: {
-    // 140 fitted two and a half cards on a phone, for a list of three. At 104
-    // the whole choice is on screen at once, which is the point of a picker.
-    height: 104,
+    // Back to 140. 104 fitted all three categories on one screen, but it left
+    // the cards reading as squat — a 104px band under a full-width card is
+    // wider than it is tall by a margin that looks like a cropping mistake
+    // rather than a decision.
+    height: 140,
     backgroundColor: c.surfaceSunken,
     justifyContent: 'flex-end',
   },

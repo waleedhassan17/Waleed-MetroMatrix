@@ -42,7 +42,7 @@ import {
   ACTIVE_STATUSES,
   categoryAccent,
 } from '../../../../../constants/HomeServiceTheme';
-import { GUTTER, R, S, T } from '../../../../../constants/theme';
+import { F, GUTTER, R, S, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
 import { isCallingSupported } from '../../../../../services/call/usePeerConnection';
@@ -549,7 +549,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   serviceName: {
+    // Bold, not the scale's default semibold. Healthcare's equivalent card
+    // title is fontSize 16 / fontWeight '800', so at the same 16pt its titles
+    // read heavier than these did and the two modules looked like different
+    // products side by side. Weight comes from the family here, never from
+    // fontWeight — on a named face Android synthesises a second bold on top
+    // of an already-bold file (constants/theme.ts).
     ...T.subhead,
+    fontFamily: F.bold,
     color: c.ink,
     flex: 1,
     marginRight: S.sm,
