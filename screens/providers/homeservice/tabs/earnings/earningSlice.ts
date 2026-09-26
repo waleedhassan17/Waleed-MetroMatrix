@@ -4,6 +4,7 @@ import type { RootState } from '../../../../../store/store';
 import { fetchProviderEarnings, requestPayout as requestPayoutApi } from '../../../../../networks/serviceProviders/earningsNetwork';
 import { earningsDataSerializer } from '../../../../../serializers/serviceProviders';
 import type { EarningsData } from '../../../../../models/serviceProviders';
+import type { EarningsPeriod, EarningsSeriesPoint } from '../../../../../models/serviceProviders/earnings';
 
 // Types
 export interface MonthlyData {
@@ -37,10 +38,21 @@ export interface EarningsStats {
 
 export interface PerformanceMetrics {
   avgRating: number;
-  onTimeRate: number;
+  onTimeRate: number | null;
   statusTier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
-  repeatCustomerRate: number;
+  repeatCustomerRate: number | null;
   responseTime: number;
+}
+
+/** The chosen period's headline, chart and payout figures, as the server computed them. */
+export interface EarningsSummary {
+  period: EarningsPeriod;
+  periodEarnings: number;
+  periodJobs: number;
+  series: EarningsSeriesPoint[];
+  seriesTitle: string;
+  availableBalance: number;
+  minPayoutAmount: number;
 }
 
 interface EarningsState {
@@ -48,6 +60,7 @@ interface EarningsState {
   monthlyData: MonthlyData[];
   recentPayments: Payment[];
   performanceMetrics: PerformanceMetrics;
+  summary: EarningsSummary;
   selectedPeriod: 'weekly' | 'monthly' | 'yearly' | 'all';
   loading: boolean;
   error: string | null;
@@ -74,10 +87,19 @@ const initialState: EarningsState = {
   recentPayments: [],
   performanceMetrics: {
     avgRating: 0,
-    onTimeRate: 0,
+    onTimeRate: null,
     statusTier: 'Bronze',
-    repeatCustomerRate: 0,
+    repeatCustomerRate: null,
     responseTime: 0,
+  },
+  summary: {
+    period: 'month',
+    periodEarnings: 0,
+    periodJobs: 0,
+    series: [],
+    seriesTitle: 'Last 6 months',
+    availableBalance: 0,
+    minPayoutAmount: 500,
   },
   selectedPeriod: 'monthly',
   loading: false,
@@ -123,13 +145,23 @@ const mapApiEarningsToLocal = (apiData: EarningsData) => {
 
   const performanceMetrics: PerformanceMetrics = {
     avgRating: apiData.performance?.avgRating || 0,
-    onTimeRate: apiData.performance?.onTimeRate || 0,
+    onTimeRate: apiData.performance?.onTimeRate ?? null,
     statusTier: (apiData.performance?.statusTier as PerformanceMetrics['statusTier']) || 'Bronze',
-    repeatCustomerRate: apiData.performance?.repeatCustomerRate || 0,
+    repeatCustomerRate: apiData.performance?.repeatCustomerRate ?? null,
     responseTime: 0, // Not in API
   };
 
-  return { stats, monthlyData, recentPayments, performanceMetrics };
+  const summary: EarningsSummary = {
+    period: apiData.period,
+    periodEarnings: apiData.periodEarnings,
+    periodJobs: apiData.periodJobs,
+    series: apiData.series,
+    seriesTitle: apiData.seriesTitle,
+    availableBalance: apiData.availableBalance,
+    minPayoutAmount: apiData.minPayoutAmount,
+  };
+
+  return { stats, monthlyData, recentPayments, performanceMetrics, summary };
 };
 
 const earningsSlice = createAppSlice({
@@ -138,8 +170,8 @@ const earningsSlice = createAppSlice({
   reducers: (create) => ({
     // Async Thunks
     fetchEarningsData: create.asyncThunk(
-      async (_params: void, { rejectWithValue }) => {
-        const response = await fetchProviderEarnings();
+      async (params: { period?: EarningsPeriod } | void, { rejectWithValue }) => {
+        const response = await fetchProviderEarnings({ period: (params && params.period) || 'month' });
         if (!response.success || !response.data) {
           return rejectWithValue(response.message || 'Failed to fetch earnings data');
         }
@@ -157,6 +189,7 @@ const earningsSlice = createAppSlice({
           state.monthlyData = action.payload.monthlyData;
           state.recentPayments = action.payload.recentPayments;
           state.performanceMetrics = action.payload.performanceMetrics;
+          state.summary = action.payload.summary;
           state.lastUpdated = new Date().toISOString();
         },
         rejected: (state, action) => {
@@ -167,8 +200,8 @@ const earningsSlice = createAppSlice({
     ),
 
     refreshEarnings: create.asyncThunk(
-      async (_params: void, { rejectWithValue }) => {
-        const response = await fetchProviderEarnings();
+      async (params: { period?: EarningsPeriod } | void, { rejectWithValue }) => {
+        const response = await fetchProviderEarnings({ period: (params && params.period) || 'month' });
         if (!response.success || !response.data) {
           return rejectWithValue(response.message || 'Failed to refresh earnings');
         }
@@ -184,6 +217,7 @@ const earningsSlice = createAppSlice({
           state.monthlyData = action.payload.monthlyData;
           state.recentPayments = action.payload.recentPayments;
           state.performanceMetrics = action.payload.performanceMetrics;
+          state.summary = action.payload.summary;
           state.lastUpdated = new Date().toISOString();
         },
         rejected: (state, action) => {
@@ -221,7 +255,11 @@ const earningsSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.loading = false;
           state.recentPayments.unshift(action.payload.payment);
-          state.stats.pendingPayouts -= action.payload.amount;
+          // A pending payout is money set aside: it ADDS to pending payouts
+          // and comes off what is available. This subtracted it from pending,
+          // the one figure that should go up.
+          state.stats.pendingPayouts += action.payload.amount;
+          state.summary.availableBalance = Math.max(0, state.summary.availableBalance - action.payload.amount);
         },
         rejected: (state, action) => {
           state.loading = false;
@@ -273,6 +311,7 @@ const earningsSlice = createAppSlice({
     selectMonthlyData: (state) => state.monthlyData,
     selectRecentPayments: (state) => state.recentPayments,
     selectPerformanceMetrics: (state) => state.performanceMetrics,
+    selectEarningsSummary: (state) => state.summary,
     selectSelectedPeriod: (state) => state.selectedPeriod,
     selectEarningsLoading: (state) => state.loading,
     selectEarningsError: (state) => state.error,
@@ -300,6 +339,7 @@ export const {
   selectMonthlyData,
   selectRecentPayments,
   selectPerformanceMetrics,
+  selectEarningsSummary,
   selectSelectedPeriod,
   selectEarningsLoading,
   selectEarningsError,

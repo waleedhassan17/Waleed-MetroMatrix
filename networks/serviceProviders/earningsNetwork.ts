@@ -3,10 +3,11 @@
 // ============================================
 
 import { EarningsData, ApiResponse } from '../../models/serviceProviders';
+import type { EarningsPeriod } from '../../models/serviceProviders/earnings';
 import { apiRequest } from './config';
 
 export async function fetchProviderEarnings(params?: {
-  period?: 'week' | 'month' | 'year';
+  period?: EarningsPeriod;
 }): Promise<ApiResponse<EarningsData>> {
     const queryParams = new URLSearchParams({
     ...(params?.period && { period: params.period }),

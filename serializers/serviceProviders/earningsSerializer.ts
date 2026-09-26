@@ -28,9 +28,24 @@ export function earningsDataSerializer(payload: any): EarningsData {
     })),
     performance: {
       avgRating: payload?.performance?.avgRating || 0,
-      onTimeRate: payload?.performance?.onTimeRate || 0,
-      statusTier: payload?.performance?.statusTier || 'Standard',
-      repeatCustomerRate: payload?.performance?.repeatCustomerRate || 0,
+      onTimeRate: typeof payload?.performance?.onTimeRate === 'number' ? payload.performance.onTimeRate : null,
+      statusTier: payload?.performance?.statusTier || 'Bronze',
+      repeatCustomerRate:
+        typeof payload?.performance?.repeatCustomerRate === 'number'
+          ? payload.performance.repeatCustomerRate
+          : null,
     },
+    period: payload?.period === 'week' || payload?.period === 'year' ? payload.period : 'month',
+    periodEarnings: payload?.periodEarnings || 0,
+    periodJobs: payload?.periodJobs || 0,
+    series: (payload?.series || []).map((p: any) => ({
+      key: p?.key || p?.label || '',
+      label: p?.label || '',
+      amount: p?.amount || 0,
+      jobs: p?.jobs || 0,
+    })),
+    seriesTitle: payload?.seriesTitle || 'Last 6 months',
+    availableBalance: typeof payload?.availableBalance === 'number' ? payload.availableBalance : 0,
+    minPayoutAmount: payload?.minPayoutAmount || 500,
   };
 }

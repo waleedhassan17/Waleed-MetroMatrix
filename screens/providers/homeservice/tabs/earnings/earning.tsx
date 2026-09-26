@@ -12,9 +12,10 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import {
-  DollarSign,
+  Banknote,
   TrendingUp,
   TrendingDown,
   Clock,
@@ -29,7 +30,6 @@ import {
   Target,
   Send,
   X,
-  ChevronRight,
   Activity,
   Wallet,
 } from 'lucide-react-native';
@@ -43,9 +43,11 @@ import {
   selectMonthlyData,
   selectRecentPayments,
   selectPerformanceMetrics,
+  selectEarningsSummary,
   selectEarningsLoading,
   selectEarningsError,
 } from './earningSlice';
+import type { EarningsPeriod } from '../../../../../models/serviceProviders/earnings';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { T, W } from '../../../../../constants/theme';
@@ -60,7 +62,6 @@ const { width } = Dimensions.get('window');
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (width - 40 - CARD_MARGIN) / 2;
 
-// Mock data
 interface PaymentItem {
   id: string;
   type: 'earning' | 'payout';
@@ -83,11 +84,24 @@ const PERIOD_OPTIONS = [
   { key: 'M', label: 'This month' },
   { key: 'Y', label: 'This year' },
 ] as const;
+type PeriodKey = (typeof PERIOD_OPTIONS)[number]['key'];
+
+/** The chips used to change nothing but their own highlight. They now choose what the server computes. */
+const PERIOD_API: Record<PeriodKey, EarningsPeriod> = { W: 'week', M: 'month', Y: 'year' };
 
 // Utility functions
 const formatCurrency = (amount: number): string => {
-  return `Rs ${amount.toLocaleString()}`;
+  return `Rs. ${Math.round(amount).toLocaleString('en-PK')}`;
 };
+
+/** Short bar label: 1350 → "1.4k", 800 → "800". */
+const formatBar = (amount: number): string =>
+  amount >= 1000 ? `${(amount / 1000).toFixed(amount >= 10000 ? 0 : 1)}k` : `${Math.round(amount)}`;
+
+const pct = (value: number | null): string => (value === null || value === undefined ? '—' : `${value}%`);
+
+/** A CSV cell: quoted, with quotes doubled. */
+const csvCell = (v: string | number) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -105,10 +119,12 @@ export default function EarningsScreen() {
   const monthlyData = useAppSelector(selectMonthlyData);
   const recentPayments = useAppSelector(selectRecentPayments);
   const performance = useAppSelector(selectPerformanceMetrics);
+  const summary = useAppSelector(selectEarningsSummary);
   const loading = useAppSelector(selectEarningsLoading);
   const error = useAppSelector(selectEarningsError);
 
-  const [selectedPeriod, setSelectedPeriod] = useState('M');
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('M');
+  const period = PERIOD_API[selectedPeriod];
   const [showPeriodFilter, setShowPeriodFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
@@ -124,30 +140,42 @@ export default function EarningsScreen() {
     }).start();
   }, []);
 
-  // Refetch on focus so a job completed since the last visit is reflected.
+  // Refetch on focus, and whenever the period changes, so a job completed
+  // since the last visit — or a different window — is what the screen shows.
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchEarningsData());
-    }, [dispatch])
+      dispatch(fetchEarningsData({ period }));
+    }, [dispatch, period])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await dispatch(refreshEarnings());
+      await dispatch(refreshEarnings({ period }));
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch]);
+  }, [dispatch, period]);
+
+  // What a payout may ask for is the server's figure: wallet balance minus
+  // commissions still owed on cash jobs and payouts already requested. The
+  // screen used to show — and check against — the PENDING payouts total,
+  // which is usually zero, so no provider could ever withdraw anything.
+  const available = summary.availableBalance;
+  const minPayout = summary.minPayoutAmount;
 
   const handleRequestPayout = useCallback(async () => {
-    const amount = parseFloat(payoutAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount');
+    const amount = Number(payoutAmount.replace(/[^0-9]/g, ''));
+    if (!amount || amount <= 0) {
+      Alert.alert('Enter an amount', 'Type how much you want to withdraw.');
       return;
     }
-    if (amount > stats.pendingPayouts) {
-      Alert.alert('Insufficient Balance', 'Amount exceeds available balance');
+    if (amount < minPayout) {
+      Alert.alert('Below the minimum', `The smallest payout is ${formatCurrency(minPayout)}.`);
+      return;
+    }
+    if (amount > available) {
+      Alert.alert('More than you can withdraw', `You can withdraw up to ${formatCurrency(available)} right now.`);
       return;
     }
 
@@ -159,15 +187,50 @@ export default function EarningsScreen() {
       await dispatch(requestPayout({ amount, method: 'bank' })).unwrap();
       setShowPayoutModal(false);
       setPayoutAmount('');
-      Alert.alert('Success', 'Payout request submitted successfully');
-      dispatch(fetchEarningsData());
+      Alert.alert('Payout requested', `${formatCurrency(amount)} will be sent to your bank once approved.`);
+      dispatch(fetchEarningsData({ period }));
     } catch (e) {
       Alert.alert(
         'Payout failed',
         typeof e === 'string' ? e : 'We could not submit your payout request.'
       );
     }
-  }, [dispatch, payoutAmount, stats.pendingPayouts]);
+  }, [dispatch, payoutAmount, available, minPayout, period]);
+
+  // Download: a CSV statement of the chosen period — the chart's buckets and
+  // the latest payments — handed to the share sheet (save to Files, Drive,
+  // email). Was a disabled "coming soon" button.
+  const handleExport = useCallback(async () => {
+    const periodLabel = PERIOD_OPTIONS.find((o) => o.key === selectedPeriod)?.label || '';
+    const lines = [
+      [csvCell('MetroMatrix earnings statement'), csvCell(periodLabel)].join(','),
+      [csvCell('Net earnings in period'), csvCell(summary.periodEarnings), csvCell(`${summary.periodJobs} paid jobs`)].join(','),
+      [csvCell('Available to withdraw'), csvCell(available)].join(','),
+      '',
+      [csvCell(summary.seriesTitle), csvCell('Net earnings (PKR)'), csvCell('Paid jobs')].join(','),
+      ...summary.series.map((p) => [csvCell(p.key), csvCell(p.amount), csvCell(p.jobs)].join(',')),
+      '',
+      [csvCell('Date'), csvCell('Type'), csvCell('Description'), csvCell('Status'), csvCell('Amount (PKR)')].join(','),
+      ...recentPayments.map((p) =>
+        [csvCell(p.date ? p.date.slice(0, 10) : ''), csvCell(p.type), csvCell(p.description), csvCell(p.status), csvCell(p.amount)].join(',')
+      ),
+    ];
+    const csv = lines.join('\n');
+    const fileName = `metromatrix-earnings-${PERIOD_API[selectedPeriod]}-${new Date().toISOString().slice(0, 10)}.csv`;
+    try {
+      const FileSystem = require('expo-file-system/legacy');
+      const Sharing = require('expo-sharing');
+      const uri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: 'utf8' });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'text/csv', dialogTitle: 'Earnings statement', UTI: 'public.comma-separated-values-text' });
+        return;
+      }
+    } catch {
+      // No file sharing on this build — fall through to plain-text share.
+    }
+    await Share.share({ title: fileName, message: csv });
+  }, [selectedPeriod, summary, available, recentPayments]);
 
   // Stats Card Component
   const StatsCard = ({
@@ -230,11 +293,6 @@ export default function EarningsScreen() {
       <View style={styles.performanceHeader}>
         <Activity size={20} color={theme.colors.primary} />
         <Text style={styles.performanceTitle}>Performance</Text>
-        {/* No performance-breakdown screen exists yet. */}
-        <TouchableOpacity style={[styles.detailsBtn, styles.controlDisabled]} disabled>
-          <Text style={styles.detailsBtnText}>Details</Text>
-          <ChevronRight size={14} color={theme.colors.text.tertiary} />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.metricsGrid}>
@@ -242,14 +300,14 @@ export default function EarningsScreen() {
           <View style={[styles.metricIcon, { backgroundColor: colors.warningSoft }]}>
             <Star size={18} color={theme.colors.warning} />
           </View>
-          <Text style={styles.metricValue}>{performance.avgRating}</Text>
+          <Text style={styles.metricValue}>{performance.avgRating ? performance.avgRating.toFixed(1) : '—'}</Text>
           <Text style={styles.metricLabel}>Rating</Text>
         </View>
         <View style={styles.metricItem}>
           <View style={[styles.metricIcon, { backgroundColor: colors.successSoft }]}>
             <Zap size={18} color={theme.colors.success} />
           </View>
-          <Text style={styles.metricValue}>{performance.onTimeRate}%</Text>
+          <Text style={styles.metricValue}>{pct(performance.onTimeRate)}</Text>
           <Text style={styles.metricLabel}>On-time</Text>
         </View>
         <View style={styles.metricItem}>
@@ -263,7 +321,7 @@ export default function EarningsScreen() {
           <View style={[styles.metricIcon, { backgroundColor: colors.infoSoft }]}>
             <Target size={18} color={theme.colors.info} />
           </View>
-          <Text style={styles.metricValue}>{performance.repeatCustomerRate}%</Text>
+          <Text style={styles.metricValue}>{pct(performance.repeatCustomerRate)}</Text>
           <Text style={styles.metricLabel}>Repeat</Text>
         </View>
       </View>
@@ -271,11 +329,14 @@ export default function EarningsScreen() {
   );
 
   // Chart Section
+  const chartData = summary.series.length
+    ? summary.series
+    : monthlyData.map((d) => ({ key: d.month, label: d.month, amount: d.amount, jobs: d.jobs }));
   const ChartSection = () => {
     // A provider with no completed jobs yet has an empty series. Math.max() of
     // nothing is -Infinity, which turned every bar height into NaN.
-    const maxAmount = monthlyData.length
-      ? Math.max(...monthlyData.map((d) => d.amount), 1)
+    const maxAmount = chartData.length
+      ? Math.max(...chartData.map((d) => d.amount), 1)
       : 1;
 
     return (
@@ -283,7 +344,7 @@ export default function EarningsScreen() {
         <View style={styles.chartHeader}>
           <View>
             <Text style={styles.chartTitle}>Earnings Trend</Text>
-            <Text style={styles.chartSubtitle}>Last 6 months</Text>
+            <Text style={styles.chartSubtitle}>{summary.seriesTitle}</Text>
           </View>
           <View style={styles.periodSelector}>
             {PERIOD_OPTIONS.map(({ key: period }) => (
@@ -309,15 +370,13 @@ export default function EarningsScreen() {
         </View>
 
         <View style={styles.chartContent}>
-          {monthlyData.map((data, index) => {
+          {chartData.map((data, index) => {
             const barHeight = Math.max((data.amount / maxAmount) * 100, 8);
-            const isActive = index === monthlyData.length - 1;
+            const isActive = index === chartData.length - 1;
 
             return (
-              <View key={index} style={styles.barContainer}>
-                <Text style={styles.barAmount}>
-                  {(data.amount / 1000).toFixed(0)}k
-                </Text>
+              <View key={data.key || index} style={styles.barContainer}>
+                <Text style={styles.barAmount}>{formatBar(data.amount)}</Text>
                 <View style={styles.barWrapper}>
                   <Animated.View
                     style={[
@@ -332,7 +391,7 @@ export default function EarningsScreen() {
                   />
                 </View>
                 <Text style={[styles.barMonth, isActive && styles.barMonthActive]}>
-                  {data.month}
+                  {data.label}
                 </Text>
               </View>
             );
@@ -385,7 +444,7 @@ export default function EarningsScreen() {
 
   // Period filter. The Filter button used to be inert even though the chart
   // already had a W/M/Y control — this just surfaces it from the header.
-  const PeriodFilterModal = () => (
+  const renderPeriodFilterModal = () => (
     <Modal
       visible={showPeriodFilter}
       transparent
@@ -435,8 +494,10 @@ export default function EarningsScreen() {
     </Modal>
   );
 
-  // Payout Modal
-  const PayoutModal = () => (
+  // Payout Modal. A render function, not a component: declared as a component
+  // inside this one it was a NEW component type on every render, so each
+  // keystroke in the amount field remounted the modal and dropped the keyboard.
+  const renderPayoutModal = () => (
     <Modal
       visible={showPayoutModal}
       transparent
@@ -454,10 +515,9 @@ export default function EarningsScreen() {
 
           <View style={styles.modalBody}>
             <View style={styles.availableBalance}>
-              <Text style={styles.availableLabel}>Available Balance</Text>
-              <Text style={styles.availableAmount}>
-                {formatCurrency(stats.pendingPayouts)}
-              </Text>
+              <Text style={styles.availableLabel}>Available to withdraw</Text>
+              <Text style={styles.availableAmount}>{formatCurrency(available)}</Text>
+              <Text style={styles.availableLabel}>Minimum payout {formatCurrency(minPayout)}</Text>
             </View>
 
             <View style={styles.inputContainer}>
@@ -465,9 +525,9 @@ export default function EarningsScreen() {
               <TextInput
                 style={styles.input}
                 value={payoutAmount}
-                onChangeText={setPayoutAmount}
-                placeholder="0.00"
-                keyboardType="numeric"
+                onChangeText={(t) => setPayoutAmount(t.replace(/[^0-9]/g, ''))}
+                placeholder={`${minPayout} or more`}
+                keyboardType="number-pad"
                 placeholderTextColor={theme.colors.text.tertiary}
               />
             </View>
@@ -501,14 +561,12 @@ export default function EarningsScreen() {
           >
             <Filter size={20} color={colors.inkInverse} />
           </TouchableOpacity>
-          {/* Export is not built yet. A disabled, dimmed control is honest;
-              a tappable one that does nothing is the bug QA reported. */}
           <TouchableOpacity
-            style={[styles.headerBtn, styles.headerBtnDisabled]}
-            disabled
-            accessibilityLabel="Download earnings report (coming soon)"
+            style={styles.headerBtn}
+            onPress={handleExport}
+            accessibilityLabel="Download earnings statement"
           >
-            <Download size={20} color={colors.disabled} />
+            <Download size={20} color={colors.inkInverse} />
           </TouchableOpacity>
         </View>
         }
@@ -534,7 +592,7 @@ export default function EarningsScreen() {
             <Text style={styles.errorText} numberOfLines={3}>{error}</Text>
             <TouchableOpacity
               style={styles.errorRetryBtn}
-              onPress={() => dispatch(fetchEarningsData())}
+              onPress={() => dispatch(fetchEarningsData({ period }))}
             >
               <Text style={styles.errorRetryText}>Retry</Text>
             </TouchableOpacity>
@@ -553,21 +611,21 @@ export default function EarningsScreen() {
           <StatsCard
             title="Total Earnings"
             value={formatCurrency(stats.totalEarnings)}
-            icon={DollarSign}
+            icon={Banknote}
             color={theme.colors.primary}
             bgColor={theme.colors.primaryLight}
           />
           <StatsCard
-            title="This Month"
-            value={formatCurrency(stats.thisMonthEarnings)}
+            title={PERIOD_OPTIONS.find((o) => o.key === selectedPeriod)?.label || 'This month'}
+            value={formatCurrency(summary.periodEarnings)}
             icon={TrendingUp}
-            trend={stats.monthlyGrowth}
+            trend={selectedPeriod === 'M' ? stats.monthlyGrowth : undefined}
             color={theme.colors.info}
             bgColor={colors.infoSoft}
           />
           <StatsCard
-            title="Available"
-            value={formatCurrency(stats.pendingPayouts)}
+            title="Available · tap to withdraw"
+            value={formatCurrency(available)}
             icon={Wallet}
             color={theme.colors.warning}
             bgColor={colors.warningSoft}
@@ -593,15 +651,9 @@ export default function EarningsScreen() {
             <View>
               <Text style={styles.transactionsTitle}>Recent Transactions</Text>
               <Text style={styles.transactionsSubtitle}>
-                {recentPayments.length} payments
+                {recentPayments.length ? `Latest ${recentPayments.length}` : 'No payments yet'}
               </Text>
             </View>
-            {/* The API returns the 10 most recent payments; there is no
-                paginated transaction history endpoint behind "View All". */}
-            <TouchableOpacity style={[styles.viewAllBtn, styles.controlDisabled]} disabled>
-              <Text style={styles.viewAllText}>View All</Text>
-              <ChevronRight size={14} color={theme.colors.text.tertiary} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.transactionsList}>
@@ -614,8 +666,8 @@ export default function EarningsScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      <PayoutModal />
-      <PeriodFilterModal />
+      {renderPayoutModal()}
+      {renderPeriodFilterModal()}
     </Screen>
   );
 }
