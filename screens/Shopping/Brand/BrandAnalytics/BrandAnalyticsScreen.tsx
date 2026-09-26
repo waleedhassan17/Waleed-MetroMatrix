@@ -31,7 +31,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 // The comparison label says out loud what the trend badge measures against.
 // It was previously a bare percentage next to a revenue figure, which reads as
@@ -257,7 +257,7 @@ const BrandAnalyticsScreen: React.FC = () => {
                       },
                     ]}
                   />
-                  <Text style={[styles.chartLabel, isMax && { color: colors.accent, fontFamily: F.bold }]}>
+                  <Text style={[styles.chartLabel, isMax && { color: colors.accent, fontWeight: W.bold }]}>
                     {point.label}
                   </Text>
                   <Text style={styles.chartOrders}>{point.orders} orders</Text>
@@ -358,10 +358,10 @@ const BrandAnalyticsScreen: React.FC = () => {
 // rules that live at module scope. Layout, spacing and type are unchanged.
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   stateWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
-  stateTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  stateTitle: { ...T.subhead, fontWeight: W.bold, color: B.text },
   stateBody: { ...T.body, color: B.textMuted, textAlign: 'center' },
   retryBtn: { marginTop: 12, paddingHorizontal: 26, paddingVertical: 12, borderRadius: 12 },
-  retryText: { ...T.label, fontFamily: F.bold, color: C.surface },
+  retryText: { ...T.label, fontWeight: W.bold, color: C.surface },
 
   container: { flex: 1, backgroundColor: B.bg },
   scrollContent: { padding: 16, paddingBottom: 40 },
@@ -378,7 +378,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: B.border,
   },
   periodChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-  periodText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  periodText: { ...T.caption, fontWeight: W.bold, color: B.textSec },
   periodTextActive: { color: C.surface },
 
   // Financial Grid
@@ -396,10 +396,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   finCardWide: { width: '100%' as any, flexDirection: 'row', alignItems: 'center', gap: 12 },
   finIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  finLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 8 },
-  finValue: { ...T.subhead, fontFamily: F.bold, color: B.text, marginTop: 2 },
-  finValueLg: { ...T.heading, fontFamily: F.bold, color: B.text, marginTop: 2 },
-  finSub: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 2 },
+  finLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, marginTop: 8 },
+  finValue: { ...T.subhead, fontWeight: W.bold, color: B.text, marginTop: 2 },
+  finValueLg: { ...T.heading, fontWeight: W.bold, color: B.text, marginTop: 2 },
+  finSub: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, marginTop: 2 },
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -408,7 +408,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  trendText: { ...T.caption, fontFamily: F.bold },
+  trendText: { ...T.caption, fontWeight: W.bold },
 
   // Cards
   card: {
@@ -423,7 +423,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     shadowRadius: 3,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  cardTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  cardTitle: { ...T.subhead, fontWeight: W.bold, color: B.text },
 
   // Chart
   chartContainer: {
@@ -434,9 +434,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingTop: 10,
   },
   chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  chartValue: { ...T.caption, fontFamily: F.bold, color: B.textMuted, marginBottom: 4 },
+  chartValue: { ...T.caption, fontWeight: W.bold, color: B.textMuted, marginBottom: 4 },
   chartBar: { width: 24, borderRadius: 6, marginBottom: 6 },
-  chartLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
+  chartLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted },
   chartOrders: { ...T.caption, color: B.textMuted, marginTop: 1 },
 
   // Category Breakdown
@@ -446,10 +446,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   catRowBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
   catLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   catDot: { width: 10, height: 10, borderRadius: 5 },
-  catName: { ...T.label, fontFamily: F.bold, color: B.text },
+  catName: { ...T.label, fontWeight: W.bold, color: B.text },
   catRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  catRevenue: { ...T.label, fontFamily: F.bold, color: B.text },
-  catPct: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, width: 36, textAlign: 'right' },
+  catRevenue: { ...T.label, fontWeight: W.bold, color: B.text },
+  catPct: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, width: 36, textAlign: 'right' },
 
   // Top Products
   prodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
@@ -461,11 +461,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  prodRankText: { ...T.caption, fontFamily: F.bold, color: c.accent },
+  prodRankText: { ...T.caption, fontWeight: W.bold, color: c.accent },
   prodInfo: { flex: 1 },
-  prodName: { ...T.label, fontFamily: F.bold, color: B.text },
+  prodName: { ...T.label, fontWeight: W.bold, color: B.text },
   prodMeta: { ...T.caption, color: B.textMuted, marginTop: 2 },
-  prodRevenue: { ...T.label, fontFamily: F.bold, color: B.text },
+  prodRevenue: { ...T.label, fontWeight: W.bold, color: B.text },
 
   // Metrics
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -476,8 +476,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     alignItems: 'center',
   },
-  metricValue: { ...T.heading, fontFamily: F.bold },
-  metricLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 4 },
+  metricValue: { ...T.heading, fontWeight: W.bold },
+  metricLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, marginTop: 4 },
 });
 
 export default BrandAnalyticsScreen;

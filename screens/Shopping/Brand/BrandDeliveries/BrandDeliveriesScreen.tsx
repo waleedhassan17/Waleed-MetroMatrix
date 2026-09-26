@@ -36,7 +36,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const STATUS_CONFIG: Record<DeliveryStatus, { label: string; color: string; bg: string; Icon: any }> = {
   pending_pickup: { label: 'Pending Pickup', color: B.amber, bg: B.amberLight, Icon: Clock },
@@ -156,7 +156,7 @@ const BrandDeliveriesScreen: React.FC = () => {
           {item.status !== 'delivered' && (
             <View style={styles.shipRow}>
               <Text style={styles.shipFieldLabel}>ETA</Text>
-              <Text style={[styles.shipFieldValue, { color: colors.accent, fontFamily: F.bold }]}>{item.estimatedDelivery}</Text>
+              <Text style={[styles.shipFieldValue, { color: colors.accent, fontWeight: W.bold }]}>{item.estimatedDelivery}</Text>
             </View>
           )}
         </View>
@@ -264,7 +264,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, ...T.body, color: B.text },
-  clearBtn: { ...T.caption, fontFamily: F.bold, color: c.accent },
+  clearBtn: { ...T.caption, fontWeight: W.bold, color: c.accent },
 
   // Filters
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginTop: 10, marginBottom: 4 },
@@ -277,7 +277,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: B.border,
   },
   filterChipActive: { backgroundColor: c.accent, borderColor: c.accent },
-  filterText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterText: { ...T.caption, fontWeight: W.bold, color: B.textSec },
   filterTextActive: { color: C.surface },
 
   listContent: { padding: 16, paddingBottom: 40 },
@@ -296,8 +296,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
-  kpiValue: { ...T.heading, fontFamily: F.bold },
-  kpiLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, marginTop: 2 },
+  kpiValue: { ...T.heading, fontWeight: W.bold },
+  kpiLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, marginTop: 2 },
 
   // Avg time
   avgTimeCard: {
@@ -309,8 +309,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
     marginBottom: 12,
   },
-  avgTimeLabel: { flex: 1, ...T.label, fontFamily: F.semibold, color: B.text },
-  avgTimeValue: { ...T.subhead, fontFamily: F.bold, color: c.accent },
+  avgTimeLabel: { flex: 1, ...T.label, fontWeight: W.semibold, color: B.text },
+  avgTimeValue: { ...T.subhead, fontWeight: W.bold, color: c.accent },
 
   // Courier
   courierCard: {
@@ -323,7 +323,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
   },
-  sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 12 },
+  sectionTitle: { ...T.body, fontWeight: W.bold, color: B.text, marginBottom: 12 },
   courierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   courierRowBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
   courierLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -335,10 +335,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  courierName: { ...T.label, fontFamily: F.bold, color: B.text },
+  courierName: { ...T.label, fontWeight: W.bold, color: B.text },
   courierMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
   successBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  successText: { ...T.caption, fontFamily: F.bold },
+  successText: { ...T.caption, fontWeight: W.bold },
 
   // Shipment Card
   shipCard: {
@@ -363,7 +363,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderBottomColor: B.border,
   },
   shipHeaderLeft: { gap: 1 },
-  shipOrderId: { ...T.label, fontFamily: F.bold, color: B.text },
+  shipOrderId: { ...T.label, fontWeight: W.bold, color: B.text },
   shipId: { ...T.caption, color: B.textMuted },
   statusBadge: {
     flexDirection: 'row',
@@ -373,16 +373,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusLabel: { ...T.caption, fontFamily: F.bold },
+  statusLabel: { ...T.caption, fontWeight: W.bold },
   shipBody: { padding: 14, gap: 6 },
   shipRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  shipFieldLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
-  shipFieldValue: { ...T.caption, fontFamily: F.semibold, color: B.text, textAlign: 'right', flex: 1, marginLeft: 16 },
+  shipFieldLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted },
+  shipFieldValue: { ...T.caption, fontWeight: W.semibold, color: B.text, textAlign: 'right', flex: 1, marginLeft: 16 },
 
   // Empty
   empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text, marginTop: 12 },
-  emptyDesc: { ...T.label, fontFamily: F.regular, color: B.textMuted, marginTop: 4 },
+  emptyTitle: { ...T.subhead, fontWeight: W.bold, color: B.text, marginTop: 12 },
+  emptyDesc: { ...T.label, fontWeight: W.regular, color: B.textMuted, marginTop: 4 },
 });
 
 export default BrandDeliveriesScreen;

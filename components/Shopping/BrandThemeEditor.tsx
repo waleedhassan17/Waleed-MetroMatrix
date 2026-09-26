@@ -30,7 +30,7 @@ import { darkShift, type DarkShift } from '../../constants/darkShift';
 import { useTheme } from '../../theme';
 
 import { AA_BODY, AA_LARGE, contrastRatio, isHexColor, textOn } from '../../theme';
-import { C, F, R, S, T } from '../../constants/theme';
+import { C, R, S, T, W } from '../../constants/theme';
 
 export interface BrandThemeValue {
   primaryColor: string;
@@ -369,7 +369,7 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
   },
   previewBadgeText: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
   previewBody: {
     padding: S.lg,

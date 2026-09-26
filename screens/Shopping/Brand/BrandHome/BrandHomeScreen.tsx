@@ -34,7 +34,7 @@ import { selectBalance, selectCurrency } from '../../../../services/wallet';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { B, statusTone, humanizeStatus, formatOrderNumber } from '../theme';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const BrandHomeScreen: React.FC = () => {
   const { colors, mode } = useTheme();
@@ -210,7 +210,7 @@ const BrandHomeScreen: React.FC = () => {
                       { height: barH, backgroundColor: isMax ? colors.accent : `${colors.accent}40` },
                     ]}
                   />
-                  <Text style={[styles.chartDay, isMax && { color: colors.accent, fontFamily: F.bold }]}>
+                  <Text style={[styles.chartDay, isMax && { color: colors.accent, fontWeight: W.bold }]}>
                     {dayLabels[index]}
                   </Text>
                 </View>
@@ -356,7 +356,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   brandMarkText: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   headerText: {
@@ -364,13 +364,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   headerTitle: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
     letterSpacing: -0.4,
   },
   brandLabel: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: B.textMuted,
     marginTop: 1,
   },
@@ -388,7 +388,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   walletChipText: {
     ...T.label,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   scrollContent: {
@@ -419,12 +419,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   kpiValue: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   kpiLabel: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: B.textMuted,
     marginTop: 2,
   },
@@ -457,7 +457,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   actionLabel: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.textSec,
     // Without this, a label that wraps sizes its box to the longest line and
     // the shorter line falls back to textAlign 'auto' — which is why "Add"
@@ -481,7 +481,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   cardTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   viewAllBtn: {
@@ -491,7 +491,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   viewAllText: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   loaderWrap: { paddingVertical: Spacing.lg, alignItems: 'center' },
@@ -504,8 +504,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.errorLight,
     marginBottom: Spacing.md,
   },
-  dashboardErrorText: { flex: 1, ...T.caption, fontFamily: F.semibold, color: B.error },
-  dashboardRetryText: { ...T.caption, fontFamily: F.bold, color: B.error, marginLeft: Spacing.sm },
+  dashboardErrorText: { flex: 1, ...T.caption, fontWeight: W.semibold, color: B.error },
+  dashboardRetryText: { ...T.caption, fontWeight: W.bold, color: B.error, marginLeft: Spacing.sm },
 
   // Chart
   chartContainer: {
@@ -522,7 +522,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   chartValue: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.textMuted,
     marginBottom: 4,
   },
@@ -533,7 +533,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   chartDay: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: B.textMuted,
   },
 
@@ -551,7 +551,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   orderLeft: { flex: 1 },
   orderCustomer: {
     ...T.body,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   orderMeta: {
@@ -566,7 +566,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   orderTotal: {
     ...T.body,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   statusPill: {
@@ -576,7 +576,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   statusText: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     textTransform: 'capitalize',
   },
 
@@ -604,7 +604,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   alertName: {
     ...T.label,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   alertSku: {
@@ -621,7 +621,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   stockBadgeText: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.error,
   },
 
@@ -653,7 +653,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   returnsCtaTitle: {
     ...T.body,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: B.text,
   },
   returnsCtaDesc: {

@@ -18,7 +18,7 @@ import { resetNavigationMap } from '../map-screen/mapSlice';
 import { resetJobInProgress } from '../job-InProgress/jobInProgressSlice';
 import { resetAwaitingApproval } from '../awaiting-screen/awaitingScreenSlice';
 import { resetPaymentRequest } from '../payment-screen/paymentRequestSlice';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -434,14 +434,14 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   successTitle: {
     ...T.title,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.inkInverse,
     textAlign: 'center',
     marginBottom: 8,
   },
   successSubtitle: {
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -470,7 +470,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   serviceName: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
     marginBottom: 8,
   },
@@ -482,7 +482,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   durationText: {
     marginLeft: 6,
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
   },
   cardDivider: {
@@ -497,13 +497,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   earningsLabel: {
     ...T.label,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
     marginBottom: 4,
   },
   earningsValue: {
     ...T.display,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   paymentBadge: {
@@ -522,7 +522,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   paymentBadgeText: {
     marginLeft: 6,
     ...T.label,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   cashBadgeText: {
     color: c.accent,
@@ -556,13 +556,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   statValue: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
     marginBottom: 2,
   },
   statLabel: {
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
   },
   statDivider: {
@@ -594,7 +594,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   secondaryButtonText: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.accent,
     marginLeft: 8,
   },
@@ -614,14 +614,14 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   primaryButtonText: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkInverse,
     marginLeft: 8,
   },
   autoRedirectText: {
     textAlign: 'center',
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkFaint,
   },
 });

@@ -28,7 +28,7 @@ import type { OrderStatus } from '../../../../types/shopping';
 import { B } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const STATUS_MAP: Record<OrderStatus, { bg: string; text: string; icon: any; label: string }> = {
   pending: { bg: B.warningLight, text: B.warning, icon: Clock, label: 'Pending' },
@@ -243,7 +243,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accent,
     borderColor: c.accent,
   },
-  filterText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterText: { ...T.caption, fontWeight: W.bold, color: B.textSec },
   filterTextActive: { color: C.surface },
   filterCount: {
     minWidth: 20,
@@ -255,7 +255,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 5,
   },
   filterCountActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
-  filterCountText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterCountText: { ...T.caption, fontWeight: W.bold, color: B.textSec },
   filterCountTextActive: { color: C.surface },
 
   // Content
@@ -282,11 +282,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   avatarText: {
     ...T.body,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   cardMid: { flex: 1 },
-  customerName: { ...T.body, fontFamily: F.bold, color: B.text },
+  customerName: { ...T.body, fontWeight: W.bold, color: B.text },
   orderId: { ...T.caption, color: B.textMuted, marginTop: 1 },
   statusPill: {
     flexDirection: 'row',
@@ -296,7 +296,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusText: { ...T.caption, fontFamily: F.bold },
+  statusText: { ...T.caption, fontWeight: W.bold },
   cardDivider: {
     height: 1,
     backgroundColor: B.border,
@@ -319,7 +319,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  total: { ...T.body, fontFamily: F.bold, color: B.text },
+  total: { ...T.body, fontWeight: W.bold, color: B.text },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
@@ -332,8 +332,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     marginBottom: 8,
   },
-  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  emptyText: { ...T.label, fontFamily: F.regular, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
+  emptyTitle: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  emptyText: { ...T.label, fontWeight: W.regular, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
   refreshBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,7 +344,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: c.accent,
   },
-  refreshText: { color: C.surface, ...T.body, fontFamily: F.bold },
+  refreshText: { color: C.surface, ...T.body, fontWeight: W.bold },
 });
 
 export default BrandOrdersScreen;

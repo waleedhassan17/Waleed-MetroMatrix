@@ -3,7 +3,7 @@ import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import ToneBadge from '../../ui/ToneBadge';
-import { F, S, T } from '../../../constants/theme';
+import { S, T, W } from '../../../constants/theme';
 import type { DoctorAppointment } from '../../../models/healthcare/doctorHub';
 import { ThemeColors, useTheme } from '../../../theme';
 import {
@@ -97,7 +97,7 @@ const makeStyles = (c: ThemeColors) =>
     end: { ...T.caption, color: c.inkMuted },
     rule: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: c.line, marginRight: S.md },
     body: { flex: 1, marginRight: S.sm },
-    name: { ...T.subhead, fontFamily: F.semibold, color: c.ink },
+    name: { ...T.subhead, fontWeight: W.semibold, color: c.ink },
     meta: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
     metaText: { ...T.caption, color: c.inkMuted, marginLeft: 4, flexShrink: 1 },
     badge: { marginTop: S.xs },

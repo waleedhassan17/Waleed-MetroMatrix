@@ -1,14 +1,3 @@
-// Imported per weight, not from the package index. The index is a barrel of
-// `require('./<weight>/<face>.ttf')` calls for all 18 Inter and 8 Sora faces,
-// and Metro does not tree-shake a module-level require — importing from it
-// bundled ~2MB of italics and hairline weights the app never asks for.
-import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
-import { Sora_600SemiBold } from '@expo-google-fonts/sora/600SemiBold';
-import { Sora_700Bold } from '@expo-google-fonts/sora/700Bold';
-import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback } from 'react';
 import { Provider } from 'react-redux';
@@ -17,9 +6,13 @@ import { store, persistor } from './store/store';
 import AppContainer from './components/app-container/appContainer';
 import { ThemeProvider, useResolvedMode } from './theme';
 
-// Hold the native splash until the faces are in memory. Without this the first
-// frame renders in San Francisco / Roboto and then reflows into Inter — the
-// text visibly jumps, because the two have different metrics.
+// Hold the native splash until the store has rehydrated, so the first frame
+// is painted in the appearance the user chose rather than the default.
+//
+// It used to also wait on Inter and Sora. The app renders in the platform
+// system face now (see `W` in constants/theme.ts), so there is nothing to
+// decode and nothing to reflow — which is one blocking step off every cold
+// start.
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Already hidden (fast refresh, or a second mount). Not an error.
 });
@@ -61,26 +54,13 @@ const ThemedApp: React.FC<{ onLayout: () => void }> = ({ onLayout }) => {
 };
 
 const App: React.FC = () => {
-  // The names here are what `fontFamily` resolves to app-wide — see `F` in
-  // constants/theme.ts. Keep the two lists in step.
-  const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
-
+  // Nothing to wait for before the tree can paint — the only thing that held
+  // the splash was the font load. `onReady` still fires from AppContainer's
+  // first layout, so the native splash comes down when there is something
+  // real behind it, not a frame earlier.
   const onReady = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded, fontError]);
-
-  // A font that fails to decode must not brick the app: fall through to the
-  // system face rather than holding the splash forever.
-  if (!fontsLoaded && !fontError) return null;
+    await SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   return (
     <Provider store={store}>

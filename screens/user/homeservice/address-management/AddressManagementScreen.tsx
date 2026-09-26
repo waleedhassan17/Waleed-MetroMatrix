@@ -29,7 +29,7 @@ import {
   Screen,
   Skeleton,
 } from '../../../../components/ui';
-import { F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { GUTTER, R, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import {
   addUserAddress,
@@ -348,7 +348,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   defaultChipText: {
     ...T.caption,
     color: c.accentDeep,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   cardAddress: {
     ...T.body,
@@ -422,7 +422,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   chipTextActive: {
     color: c.accentDeep,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   input: {
     height: 46,

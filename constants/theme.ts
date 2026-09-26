@@ -203,35 +203,38 @@ export const R = {
   pill: 999,
 } as const;
 
-// ── Font families ───────────────────────────────────────────────────────────
+// ── Type weights ────────────────────────────────────────────────────────────
 //
-// Inter carries the UI; Sora carries the large headings. Two families is the
-// most a product this size should have — Inter alone reads as unstyled default,
-// and a third face starts costing more than it says.
+// THE APP RENDERS IN THE PLATFORM SYSTEM FACE — Roboto on Android, San
+// Francisco on iOS. No custom family is loaded or named for UI text.
 //
-// The values are the exact names `useFonts` registers in App.tsx (the
-// @expo-google-fonts export identifiers). They are NOT CSS family names and
-// there is no synthesis: `Inter_700Bold` is a distinct loaded face, not Inter
-// plus a bold instruction.
+// This reverses the previous design, which loaded Inter and Sora and carried
+// weight in the FAMILY (`fontFamily: 'Inter_600SemiBold'`), chosen so Android
+// could not synthesise a fake bold over an already-bold file. The product
+// decision is now the other way: every module should match the healthcare
+// screens, and those never set a family at all — 44 screens, zero
+// `fontFamily`, weight expressed as `fontWeight`. Matching that app-wide means
+// the system face everywhere, and weight has to move back to `fontWeight`,
+// because the system face has no 600 or 700 family to point at on Android.
 //
-// WHY NOTHING BELOW SETS `fontWeight`
-// -----------------------------------
-// With a named face, `fontWeight` is at best redundant and at worst harmful:
-// Android will synthesise a fake bold ON TOP of an already-bold file, giving a
-// smeared, too-heavy header that looks nothing like iOS. To change weight,
-// change the family — `fontFamily: F.semibold`, never `fontWeight: '600'`.
+// `W` is the weight map and the ONLY way to shift weight. Do not reintroduce a
+// `fontFamily` for UI text.
+
+export const W = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+
+  /** Display roles. Separate names so the scale still reads as two registers,
+   *  even though both now resolve to the same system face. */
+  displaySemibold: '600',
+  displayBold: '700',
+} as const;
 
 export const F = {
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semibold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
-
-  /** Display face. Headings only — it has no regular weight loaded. */
-  displaySemibold: 'Sora_600SemiBold',
-  displayBold: 'Sora_700Bold',
-
-  /** Reference codes, transaction ids — anything meant to be compared by eye. */
+  /** The one real family left: reference codes and transaction ids, where
+   *  characters have to line up by eye. */
   mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) as string,
 } as const;
 
@@ -246,19 +249,19 @@ export const F = {
 // negative tracking than they did when both were the system face.
 
 const font = (
-  fontFamily: string,
+  fontWeight: TextStyle['fontWeight'],
   fontSize: number,
   lineHeight: number,
   letterSpacing = 0,
-): TextStyle => ({ fontFamily, fontSize, lineHeight, letterSpacing });
+): TextStyle => ({ fontWeight, fontSize, lineHeight, letterSpacing });
 
 export const T = {
   /** Screen-owning numbers: earnings totals, a paid amount. Rare. */
-  display: font(F.displayBold, 34, 40, -0.8),
+  display: font(W.displayBold, 34, 40, -0.8),
   /** Page title inside content (not the app bar). */
-  title: font(F.displayBold, 26, 32, -0.5),
+  title: font(W.displayBold, 26, 32, -0.5),
   /** Section heading. */
-  heading: font(F.displaySemibold, 20, 26, -0.3),
+  heading: font(W.displaySemibold, 20, 26, -0.3),
   /**
    * The app bar's own title, and only that.
    *
@@ -268,25 +271,25 @@ export const T = {
    * place whose header read a size smaller than everywhere else. A page header
    * is not a card title and does not have to share a role with one.
    */
-  barTitle: font(F.semibold, 18, 24),
+  barTitle: font(W.semibold, 18, 24),
   /** Card title and list-row primary line. */
-  subhead: font(F.semibold, 16, 22),
+  subhead: font(W.semibold, 16, 22),
   /** Body copy and most values. */
-  body: font(F.regular, 14, 20),
+  body: font(W.regular, 14, 20),
   /** Body weight-shifted for emphasis — prices, selected values. */
-  bodyStrong: font(F.semibold, 14, 20),
+  bodyStrong: font(W.semibold, 14, 20),
   /** Control labels, chips, buttons. */
-  label: font(F.medium, 13, 16),
+  label: font(W.medium, 13, 16),
   /** Metadata, timestamps, helper text. */
-  caption: font(F.regular, 12, 16),
+  caption: font(W.regular, 12, 16),
   /**
    * Counters and badges ONLY — a tab-bar label, a "3" on a cart, an unread
    * count. Below `caption` on purpose and not a general small size: if body
    * copy ends up here, the layout is wrong, not the type.
    */
-  micro: font(F.semibold, 11, 14),
+  micro: font(W.semibold, 11, 14),
   /** Codes and ids. Tabular by nature — never body copy. */
-  mono: font(F.mono, 13, 18),
+  mono: { fontFamily: F.mono, fontSize: 13, lineHeight: 18, letterSpacing: 0 } as TextStyle,
 } as const;
 
 /**

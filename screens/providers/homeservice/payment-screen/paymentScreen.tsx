@@ -25,7 +25,7 @@ import {
 import { setJobCompletionData } from '../job-completion/jobCompletionSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { checkJobApprovalStatus } from '../../../../networks/serviceProviders/jobNetwork';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
@@ -475,7 +475,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingText: {
     ...T.subhead,
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   content: {
     flex: 1,
@@ -512,12 +512,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   invoiceTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
   },
   invoiceNumber: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -529,12 +529,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   serviceName: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   customerName: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 4,
   },
@@ -548,7 +548,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   breakdownTitle: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkMuted,
     marginBottom: 12,
   },
@@ -560,12 +560,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   breakdownLabel: {
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
   },
   breakdownValue: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   editableRow: {
@@ -586,13 +586,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   inputPrefix: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
     marginRight: 4,
   },
   amountInput: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
     minWidth: 60,
     textAlign: 'right',
@@ -611,12 +611,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   totalLabel: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   totalValue: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.success,
   },
   paymentMethodsCard: {
@@ -632,7 +632,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   paymentMethodsTitle: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkMuted,
     marginBottom: 14,
   },
@@ -657,7 +657,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   paymentMethodText: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
   },
   waitingCard: {
@@ -679,13 +679,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   waitingTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.warning,
     marginBottom: 8,
   },
   waitingSubtitle: {
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.warning,
     textAlign: 'center',
     marginBottom: 16,
@@ -737,7 +737,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   cashButtonText: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.success,
     marginLeft: 8,
   },
@@ -757,7 +757,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   requestButtonText: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkInverse,
     marginLeft: 8,
   },

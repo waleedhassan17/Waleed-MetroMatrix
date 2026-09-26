@@ -49,7 +49,7 @@ import { currencySymbol } from '../../../../constants/Currency';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { barStyleOn, ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { selectThemePreference, setThemePreference } from '../../../../store/themeSlice';
@@ -644,7 +644,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   ratingValue: {
     ...T.label,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.inverse,
   },
   errorBanner: {
@@ -662,7 +662,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   errorText: {
     flex: 1,
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
 
     color: c.error,
   },
@@ -674,7 +674,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   retryBtnText: {
     ...T.label,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.inverse,
   },
   verifiedBadge: {
@@ -709,7 +709,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   profileName: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.inverse,
     marginBottom: 4,
   },
@@ -730,7 +730,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   memberBadgeText: {
     ...T.label,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.inverse,
   },
   memberSince: {
@@ -768,7 +768,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   statValue: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginBottom: 2,
   },
@@ -800,13 +800,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   rewardsTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.warning,
     marginBottom: 3,
   },
   rewardsSubtitle: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
 
     color: c.warning,
   },
@@ -849,12 +849,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   walletLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: 'rgba(255,255,255,0.85)',
   },
   walletBalance: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.inkInverse,
     marginTop: 2,
   },
@@ -918,7 +918,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   menuSubtitle: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
 
     color: theme.colors.text.secondary,
   },
@@ -935,7 +935,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   badgeText: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.primary,
   },
   languageToggle: {
@@ -950,7 +950,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   langTextActive: {
     color: theme.colors.primary,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   langSwitch: {
     transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],

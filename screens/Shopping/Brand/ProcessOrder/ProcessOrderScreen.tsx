@@ -39,7 +39,7 @@ import {
 import { B, formatOrderNumber } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; label: string }> = {
   pending: { color: B.warning, bg: B.warningLight, icon: Clock, label: 'Pending' },
@@ -363,7 +363,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusBadgeText: { ...T.caption, fontFamily: F.bold },
+  statusBadgeText: { ...T.caption, fontWeight: W.bold },
   content: { padding: 16, paddingBottom: 40 },
 
   // Card
@@ -386,10 +386,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  cardValue: { ...T.body, fontFamily: F.bold, color: B.text, marginTop: 1 },
+  cardLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  cardValue: { ...T.body, fontWeight: W.bold, color: B.text, marginTop: 1 },
   cardMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
-  totalText: { ...T.subhead, fontFamily: F.bold, color: B.text },
+  totalText: { ...T.subhead, fontWeight: W.bold, color: B.text },
   divider: { height: 1, backgroundColor: B.border, marginVertical: 12 },
 
   // Payment breakdown
@@ -404,7 +404,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   breakdownLabel: { ...T.body, color: B.textSec },
   breakdownValue: { ...T.body, color: B.text },
   breakdownTotalRow: { marginTop: 6, paddingTop: 10, borderTopWidth: 1, borderTopColor: B.border },
-  breakdownTotalLabel: { ...T.body, fontFamily: F.bold, color: B.text },
+  breakdownTotalLabel: { ...T.body, fontWeight: W.bold, color: B.text },
   deliveryLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   speedChip: {
     flexDirection: 'row',
@@ -414,11 +414,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  speedChipText: { ...T.caption, fontFamily: F.bold },
+  speedChipText: { ...T.caption, fontWeight: W.bold },
 
   // Section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  sectionTitle: { ...T.body, fontFamily: F.bold, color: B.text, marginBottom: 4 },
+  sectionTitle: { ...T.body, fontWeight: W.bold, color: B.text, marginBottom: 4 },
 
   // Items
   itemRow: {
@@ -427,12 +427,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 10,
   },
   itemBorder: { borderBottomWidth: 1, borderBottomColor: B.border },
-  itemName: { ...T.body, fontFamily: F.bold, color: B.text },
+  itemName: { ...T.body, fontWeight: W.bold, color: B.text },
   itemVariant: { ...T.caption, color: B.textMuted, marginTop: 2 },
-  itemPrice: { ...T.body, fontFamily: F.bold, color: B.text },
+  itemPrice: { ...T.body, fontWeight: W.bold, color: B.text },
 
   // Inputs
-  inputLabel: { ...T.caption, fontFamily: F.bold, color: B.textSec, marginBottom: 6, marginTop: 4 },
+  inputLabel: { ...T.caption, fontWeight: W.bold, color: B.textSec, marginBottom: 6, marginTop: 4 },
   input: {
     marginBottom: 10,
     paddingHorizontal: 14,
@@ -455,7 +455,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: c.accent,
   },
-  saveShippingText: { color: C.surface, ...T.label, fontFamily: F.bold },
+  saveShippingText: { color: C.surface, ...T.label, fontWeight: W.bold },
 
   // Actions
   actionsCard: {
@@ -479,7 +479,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
   },
-  actionText: { color: C.surface, ...T.label, fontFamily: F.bold },
+  actionText: { color: C.surface, ...T.label, fontWeight: W.bold },
 
   // Empty
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },

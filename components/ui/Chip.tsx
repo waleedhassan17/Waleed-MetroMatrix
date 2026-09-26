@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { F, R, S, T } from '../../constants/theme';
+import { R, S, T, W } from '../../constants/theme';
 import { ThemeColors, useTheme } from '../../theme';
 import { uiAccent } from './accentCompat';
 
@@ -78,7 +78,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   icon: { marginRight: 6 },
-  selectedText: { fontFamily: F.semibold },
+  selectedText: { fontWeight: W.semibold },
   count: {
     marginLeft: 6,
     minWidth: 18,

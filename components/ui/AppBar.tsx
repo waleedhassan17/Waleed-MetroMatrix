@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { F, GUTTER, S, T } from '../../constants/theme';
+import { GUTTER, S, T, W } from '../../constants/theme';
 import { textOn, ThemeColors, useTheme } from '../../theme';
 import BackButton from './BackButton';
 
@@ -211,7 +211,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   badgeText: {
     ...T.micro,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.inkInverse,
     lineHeight: Platform.OS === 'ios' ? 13 : 14,
   },

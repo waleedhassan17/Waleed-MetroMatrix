@@ -23,7 +23,7 @@
 // card on a dark page. That is the single failure mode of this migration.
 // ============================================================================
 
-export { C, DARK_C, E, F, GUTTER, PROSE_WIDTH, R, ramp, S, SECTION, T } from '../constants/theme';
+export { C, DARK_C, E, F, GUTTER, PROSE_WIDTH, R, ramp, S, SECTION, T, W } from '../constants/theme';
 export type { Ramp, ThemeMode, Tone } from '../constants/theme';
 
 export {

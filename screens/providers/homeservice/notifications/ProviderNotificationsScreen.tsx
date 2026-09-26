@@ -32,7 +32,7 @@ import {
 } from '../../../../networks/serviceProviders/notificationsNetwork';
 import { useAppDispatch } from '../../../../hooks/useReduxHooks';
 import { markNotificationsRead } from '../tabs/dashboard/dashboardSlice';
-import { F, GUTTER, S, T } from '../../../../constants/theme';
+import { GUTTER, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import {
@@ -265,7 +265,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { ...T.subhead, color: c.ink, flex: 1 },
-  titleUnread: { fontFamily: F.bold },
+  titleUnread: { fontWeight: W.bold },
   time: { ...T.caption, color: c.inkFaint },
   message: { ...T.body, color: c.inkMuted, marginTop: 3 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent },

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { E, F, R, S, T } from '../../constants/theme';
+import { E, R, S, T, W } from '../../constants/theme';
 import { ThemeColors, useTheme } from '../../theme';
 
 /**
@@ -82,7 +82,7 @@ const makeStyles = (c: ThemeColors, isDark: boolean) =>
       ...E.raised,
     },
     label: { ...T.label, color: c.inkMuted },
-    labelSelected: { fontFamily: F.semibold, color: c.ink },
+    labelSelected: { fontWeight: W.semibold, color: c.ink },
     count: {
       marginLeft: 6,
       minWidth: 18,

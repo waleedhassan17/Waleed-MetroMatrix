@@ -17,7 +17,7 @@ import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { RootState } from '../../../../store/store';
 import { startWorkAsync, completeWorkAsync } from './jobInProgressSlice';
 import { setAwaitingApprovalData } from '../awaiting-screen/awaitingScreenSlice';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -429,7 +429,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingText: {
     ...T.subhead,
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   content: {
     flex: 1,
@@ -461,7 +461,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   statusTitle: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   timerContainer: {
@@ -473,13 +473,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   timerText: {
     ...T.display,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
     marginTop: 8,
   },
   timerLabel: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 4,
   },
@@ -524,7 +524,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   stepLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkFaint,
   },
   stepLabelActive: {
@@ -535,7 +535,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   sectionLabel: {
     ...T.label,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkMuted,
     marginBottom: 10,
     marginLeft: 2,
@@ -571,12 +571,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   detailTitle: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   detailSubtitle: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -588,7 +588,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   priceText: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.accent,
   },
   customerCard: {
@@ -616,7 +616,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerInitial: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   customerInfo: {
@@ -625,12 +625,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerNameText: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   customerPhoneText: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -660,12 +660,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   locationAddress: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   locationCity: {
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -682,7 +682,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.warning,
     lineHeight: 20,
   },
@@ -713,7 +713,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   quickActionLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
   },
   bottomContainer: {
@@ -748,7 +748,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   startButtonText: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkInverse,
     marginLeft: 8,
   },
@@ -767,7 +767,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   completeButtonText: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkInverse,
     marginLeft: 8,
   },

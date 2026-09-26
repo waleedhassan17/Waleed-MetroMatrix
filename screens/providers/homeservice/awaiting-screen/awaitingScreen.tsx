@@ -15,7 +15,7 @@ import { RootState } from '../../../../store/store';
 import { approveJob, checkApprovalStatusAsync } from './awaitingScreenSlice';
 import { setPaymentRequestData } from '../payment-screen/paymentRequestSlice';
 import { useRoomSocket } from '../../../../hooks/useRoomSocket';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { Screen } from '../../../../components/ui';
@@ -374,7 +374,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingText: {
     ...T.subhead,
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   gradientTop: {
     position: 'absolute',
@@ -444,14 +444,14 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   statusTitle: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   statusSubtitle: {
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     textAlign: 'center',
     marginBottom: 16,
@@ -473,7 +473,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   waitingTimeText: {
     marginLeft: 8,
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
   },
   summaryCard: {
@@ -496,7 +496,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   summaryTitle: {
     marginLeft: 10,
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   summaryRow: {
@@ -507,12 +507,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   summaryLabel: {
     ...T.body,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
   },
   summaryValue: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
     maxWidth: '60%',
     textAlign: 'right',
@@ -556,7 +556,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   progressLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkFaint,
   },
   progressLabelActive: {
@@ -585,7 +585,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     lineHeight: 18,
   },
@@ -602,12 +602,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   manualApproveBtnText: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.inkMuted,
   },
   checkFailedText: {
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.error,
     textAlign: 'center',
     marginBottom: 8,

@@ -32,7 +32,7 @@ import {
 import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
 import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { Screen } from '../../../../components/ui';
@@ -493,7 +493,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   loadingText: {
     ...T.subhead,
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   map: {
     width: width,
@@ -543,7 +543,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   etaValue: {
     marginLeft: 6,
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   etaDivider: {
@@ -619,7 +619,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerInitialSmall: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
   },
   customerDetails: {
@@ -628,12 +628,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerNameText: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   serviceTypeText: {
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -667,12 +667,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   locationAddress: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: c.ink,
   },
   locationCity: {
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkMuted,
     marginTop: 2,
   },
@@ -694,7 +694,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   openMapsText: {
     marginLeft: 8,
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.accent,
   },
   arrivedButton: {
@@ -717,14 +717,14 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   arrivedButtonText: {
     marginLeft: 8,
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.inkInverse,
   },
   helperText: {
     textAlign: 'center',
     marginTop: 14,
     ...T.caption,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     color: c.inkFaint,
   },
 });

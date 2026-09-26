@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-import { F, R, S, T } from '../../constants/theme';
+import { R, S, T, W } from '../../constants/theme';
 import { ThemeColors, useTheme } from '../../theme';
 
 /**
@@ -143,7 +143,7 @@ const makeStyles = (c: ThemeColors) =>
       justifyContent: 'center',
       marginRight: S.xs,
     },
-    badgeText: { ...T.micro, fontFamily: F.bold, color: c.inkInverse },
+    badgeText: { ...T.micro, fontWeight: W.bold, color: c.inkInverse },
   });
 
 export default ListRow;

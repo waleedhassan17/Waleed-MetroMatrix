@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { F, R, S, T } from '../../../../constants/theme';
+import { R, S, T, W } from '../../../../constants/theme';
 import { useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { DoctorTabParamList } from '../../../../models/healthcare/types';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
@@ -118,7 +118,7 @@ const makeStyles = (c: ThemeColors) =>
       }),
     },
     item: { paddingTop: S.xs },
-    label: { ...T.caption, fontFamily: F.medium, marginTop: 2 },
+    label: { ...T.caption, fontWeight: W.medium, marginTop: 2 },
     icon: {
       width: 44,
       height: 30,

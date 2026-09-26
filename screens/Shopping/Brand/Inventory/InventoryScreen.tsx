@@ -18,7 +18,7 @@ import { fetchInventory, selectInventory, updateStock } from './inventorySlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 
 
 
@@ -204,8 +204,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  statNum: { ...T.subhead, fontFamily: F.bold },
-  statLabel: { ...T.caption, fontFamily: F.semibold },
+  statNum: { ...T.subhead, fontWeight: W.bold },
+  statLabel: { ...T.caption, fontWeight: W.semibold },
 
   // Search
   searchWrap: {
@@ -237,7 +237,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
-  productName: { ...T.body, fontFamily: F.bold, color: B.text },
+  productName: { ...T.body, fontWeight: W.bold, color: B.text },
   sku: { ...T.caption, color: B.textMuted, marginTop: 2 },
   levelBadge: {
     flexDirection: 'row',
@@ -248,7 +248,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
   },
   levelDot: { width: 6, height: 6, borderRadius: 3 },
-  levelText: { ...T.caption, fontFamily: F.bold },
+  levelText: { ...T.caption, fontWeight: W.bold },
   cardBottom: { flexDirection: 'row', justifyContent: 'flex-end' },
   qtySection: {
     flexDirection: 'row',
@@ -268,8 +268,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
   },
   qtyDisplay: { alignItems: 'center', minWidth: 42 },
-  qtyValue: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  qtyLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
+  qtyValue: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  qtyLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted },
 
   // Notice
   notice: {
@@ -285,7 +285,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyTitle: { ...T.body, fontFamily: F.bold, color: B.textMuted },
+  emptyTitle: { ...T.body, fontWeight: W.bold, color: B.textMuted },
 });
 
 export default InventoryScreen;

@@ -20,7 +20,7 @@ import {
 } from '../BrandCoupons/brandCouponsSlice';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const DAY_MS = 86400000;
 
@@ -160,16 +160,16 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
-  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: Colors.text.secondary, marginBottom: 4, marginTop: Spacing.sm },
+  fieldLabel: { ...T.caption, fontWeight: W.semibold, color: Colors.text.secondary, marginBottom: 4, marginTop: Spacing.sm },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: Colors.text.primary },
   inputDisabled: { backgroundColor: Colors.background, color: Colors.text.tertiary },
   typeRow: { flexDirection: 'row', gap: Spacing.sm },
   typeChip: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingVertical: 10, alignItems: 'center' },
   typeChipOn: { backgroundColor: c.accentSoft, borderColor: c.accent },
-  typeText: { ...T.label, fontFamily: F.semibold, color: Colors.text.secondary },
+  typeText: { ...T.label, fontWeight: W.semibold, color: Colors.text.secondary },
   typeTextOn: { color: c.accent },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
-  saveText: { color: C.surface, ...T.body, fontFamily: F.bold },
+  saveText: { color: C.surface, ...T.body, fontWeight: W.bold },
 });
 
 export default AddCouponScreen;

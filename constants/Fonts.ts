@@ -13,26 +13,28 @@
 // Every family slot below used to be the literal string 'System'. The app
 // referenced 'Inter-Regular' / 'Inter-SemiBold' etc. in 98 places while loading
 // no font at all, so every one of those silently fell back to San Francisco or
-// Roboto. Inter and Sora are now really loaded (App.tsx) and the names here are
-// the faces `useFonts` registers.
+// Roboto. That fallback is now the deliberate choice app-wide: no custom face
+// is loaded, and these names carry weight rather than a family.
 //
-// NO ENTRY BELOW SETS `fontWeight` — see the note on `F` in theme.ts. With a
-// named face, Android synthesises a second bold on top of the real one. Weight
-// is chosen by picking a family.
+// WEIGHT IS `fontWeight` HERE NOW — see the note on `W` in theme.ts. The app
+// renders in the platform system face and loads no custom family, so there is
+// no 600 or 700 family name to point at; weight has to be stated directly.
 // ============================================================================
 
-import { F } from './theme';
+import { F, W } from './theme';
 
 export const Fonts = {
-  regular: F.regular,
-  medium: F.medium,
-  semiBold: F.semibold,
-  bold: F.bold,
+  regular: W.regular,
+  medium: W.medium,
+  semiBold: W.semibold,
+  bold: W.bold,
 
-  /** Large headings only. Sora has no regular weight loaded. */
-  display: F.displayBold,
-  displaySemiBold: F.displaySemibold,
+  /** Large headings. Now the same system face as everything else, kept as a
+   *  distinct name only so the legacy scale below still reads. */
+  display: W.displayBold,
+  displaySemiBold: W.displaySemibold,
 
+  /** The one real family left. */
   mono: F.mono,
 } as const;
 
@@ -41,19 +43,19 @@ export const Typography = {
   // Display Styles (Large headers)
   display: {
     large: {
-      fontFamily: Fonts.display,
+      fontWeight: Fonts.display,
       fontSize: 34,
       lineHeight: 42,
       letterSpacing: -0.5,
     },
     medium: {
-      fontFamily: Fonts.display,
+      fontWeight: Fonts.display,
       fontSize: 28,
       lineHeight: 36,
       letterSpacing: -0.3,
     },
     small: {
-      fontFamily: Fonts.display,
+      fontWeight: Fonts.display,
       fontSize: 24,
       lineHeight: 32,
       letterSpacing: -0.2,
@@ -63,19 +65,19 @@ export const Typography = {
   // Headline Styles
   headline: {
     large: {
-      fontFamily: Fonts.displaySemiBold,
+      fontWeight: Fonts.displaySemiBold,
       fontSize: 22,
       lineHeight: 28,
       letterSpacing: 0,
     },
     medium: {
-      fontFamily: Fonts.displaySemiBold,
+      fontWeight: Fonts.displaySemiBold,
       fontSize: 20,
       lineHeight: 26,
       letterSpacing: 0,
     },
     small: {
-      fontFamily: Fonts.displaySemiBold,
+      fontWeight: Fonts.displaySemiBold,
       fontSize: 18,
       lineHeight: 24,
       letterSpacing: 0,
@@ -85,19 +87,19 @@ export const Typography = {
   // Title Styles
   title: {
     large: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 18,
       lineHeight: 24,
       letterSpacing: 0,
     },
     medium: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 16,
       lineHeight: 22,
       letterSpacing: 0,
     },
     small: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 14,
       lineHeight: 20,
       letterSpacing: 0,
@@ -107,19 +109,19 @@ export const Typography = {
   // Body Styles
   body: {
     large: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 16,
       lineHeight: 24,
       letterSpacing: 0.15,
     },
     medium: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 14,
       lineHeight: 20,
       letterSpacing: 0.1,
     },
     small: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 13,
       lineHeight: 18,
       letterSpacing: 0.1,
@@ -129,19 +131,19 @@ export const Typography = {
   // Label Styles
   label: {
     large: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 14,
       lineHeight: 20,
       letterSpacing: 0.1,
     },
     medium: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 12,
       lineHeight: 16,
       letterSpacing: 0.2,
     },
     small: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 11,
       lineHeight: 14,
       letterSpacing: 0.3,
@@ -151,19 +153,19 @@ export const Typography = {
   // Caption Styles
   caption: {
     large: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 12,
       lineHeight: 16,
       letterSpacing: 0.2,
     },
     medium: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 11,
       lineHeight: 14,
       letterSpacing: 0.3,
     },
     small: {
-      fontFamily: Fonts.regular,
+      fontWeight: Fonts.regular,
       fontSize: 10,
       lineHeight: 12,
       letterSpacing: 0.4,
@@ -173,19 +175,19 @@ export const Typography = {
   // Button Styles
   button: {
     large: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 16,
       lineHeight: 24,
       letterSpacing: 0.3,
     },
     medium: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 14,
       lineHeight: 20,
       letterSpacing: 0.3,
     },
     small: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 12,
       lineHeight: 16,
       letterSpacing: 0.4,
@@ -195,21 +197,21 @@ export const Typography = {
   // Badge/Tag Styles
   badge: {
     large: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 12,
       lineHeight: 16,
       letterSpacing: 0.5,
       textTransform: 'uppercase' as const,
     },
     medium: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 10,
       lineHeight: 14,
       letterSpacing: 0.6,
       textTransform: 'uppercase' as const,
     },
     small: {
-      fontFamily: Fonts.semiBold,
+      fontWeight: Fonts.semiBold,
       fontSize: 9,
       lineHeight: 12,
       letterSpacing: 0.7,
@@ -220,14 +222,14 @@ export const Typography = {
   // Tab Bar Styles
   tab: {
     active: {
-      fontFamily: Fonts.bold,
+      fontWeight: Fonts.bold,
       fontSize: 10,
       lineHeight: 14,
       letterSpacing: 0.8,
       textTransform: 'uppercase' as const,
     },
     inactive: {
-      fontFamily: Fonts.medium,
+      fontWeight: Fonts.medium,
       fontSize: 10,
       lineHeight: 14,
       letterSpacing: 0.8,
@@ -245,97 +247,97 @@ export const Typography = {
 
   // Flat aliases for convenience (e.g., Typography.displaySmall instead of Typography.display.small)
   displayLarge: {
-    fontFamily: Fonts.display,
+    fontWeight: Fonts.display,
     fontSize: 34,
     lineHeight: 42,
     letterSpacing: -0.5,
   },
   displayMedium: {
-    fontFamily: Fonts.display,
+    fontWeight: Fonts.display,
     fontSize: 28,
     lineHeight: 36,
     letterSpacing: -0.3,
   },
   displaySmall: {
-    fontFamily: Fonts.display,
+    fontWeight: Fonts.display,
     fontSize: 24,
     lineHeight: 32,
     letterSpacing: -0.2,
   },
   headlineLarge: {
-    fontFamily: Fonts.displaySemiBold,
+    fontWeight: Fonts.displaySemiBold,
     fontSize: 22,
     lineHeight: 28,
     letterSpacing: 0,
   },
   headlineMedium: {
-    fontFamily: Fonts.displaySemiBold,
+    fontWeight: Fonts.displaySemiBold,
     fontSize: 20,
     lineHeight: 26,
     letterSpacing: 0,
   },
   headlineSmall: {
-    fontFamily: Fonts.displaySemiBold,
+    fontWeight: Fonts.displaySemiBold,
     fontSize: 18,
     lineHeight: 24,
     letterSpacing: 0,
   },
   titleLarge: {
-    fontFamily: Fonts.semiBold,
+    fontWeight: Fonts.semiBold,
     fontSize: 18,
     lineHeight: 24,
     letterSpacing: 0,
   },
   titleMedium: {
-    fontFamily: Fonts.semiBold,
+    fontWeight: Fonts.semiBold,
     fontSize: 16,
     lineHeight: 22,
     letterSpacing: 0,
   },
   titleSmall: {
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.medium,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0,
   },
   bodyLarge: {
-    fontFamily: Fonts.regular,
+    fontWeight: Fonts.regular,
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: 0.15,
   },
   bodyMedium: {
-    fontFamily: Fonts.regular,
+    fontWeight: Fonts.regular,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.1,
   },
   bodySmall: {
-    fontFamily: Fonts.regular,
+    fontWeight: Fonts.regular,
     fontSize: 13,
     lineHeight: 18,
     letterSpacing: 0.1,
   },
   labelLarge: {
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.medium,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.1,
   },
   labelMedium: {
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.medium,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 0.2,
   },
   labelSmall: {
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.medium,
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 0.3,
   },
   overline: {
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.medium,
     fontSize: 10,
     lineHeight: 14,
     letterSpacing: 1.5,

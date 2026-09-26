@@ -54,13 +54,17 @@ gate() {
 echo "Design gates — scope: ${SCOPE[*]}"
 echo
 
-# A family literal means the token map was bypassed, and 'Inter-Regular' in
-# particular is a name no loaded face answers to.
+# A family literal means the token map was bypassed. Nothing should name a
+# family at all now except the mono token, which is why this looks for the
+# quote rather than for any fontFamily at all.
 gate "no font-family literals"      "fontFamily: '"
 
-# Emphasis picks a family. fontWeight on top of a named face is a no-op on iOS
-# and a synthesised double-bold on Android.
-gate "no fontWeight"               "fontWeight:"
+# The app renders in the platform system face and loads no custom family, so
+# weight IS fontWeight now — but it must come from the W map in
+# constants/theme.ts, never as a bare literal. `fontWeight: '600'` scattered
+# across screens is how the old code ended up with nine different ideas of
+# "semibold"; `fontWeight: W.semibold` has one.
+gate "no raw font weights"         "fontWeight: *['\"]"
 
 # Sizes come from the T scale.
 gate "no ad-hoc font sizes"        "fontSize: [0-9]"

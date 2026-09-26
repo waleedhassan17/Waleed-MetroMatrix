@@ -14,7 +14,7 @@ import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { F, R, S, T } from '../../../../constants/theme';
+import { R, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { ThemeProvider } from '../../../../theme';
 import UserProfileScreen from '../../shared/profile/UserProfileScreen';
@@ -154,7 +154,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginTop: 3,
   },
   labelActive: {
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
 });
 

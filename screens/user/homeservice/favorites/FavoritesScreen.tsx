@@ -20,7 +20,7 @@ import {
   SkeletonCard,
 } from '../../../../components/ui';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
-import { F, GUTTER, S, T } from '../../../../constants/theme';
+import { GUTTER, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import type { FavoriteProvider } from '../../../../networks/serviceProviders/favoritesNetwork';
@@ -246,7 +246,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     // fontWeight — on a named face Android synthesises a second bold on top
     // of an already-bold file (constants/theme.ts).
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
   },
   meta: {

@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 import { B, BRadius, BSpacing } from './theme';
 import { F, T, useTheme } from '../../../theme';
+import { W } from '../../../constants/theme';
 
 interface BrandHeaderProps {
   title: string;
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: B.textMuted,
     marginTop: 2,
   },

@@ -22,7 +22,7 @@ import { fetchBrandProducts,
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const getStockStyle = (qty: number) => {
   if (qty === 0) return { bg: B.errorLight, text: B.error, label: 'Out of stock' };
@@ -267,7 +267,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accent,
     borderColor: c.accent,
   },
-  filterText: { ...T.caption, fontFamily: F.bold, color: B.textSec },
+  filterText: { ...T.caption, fontWeight: W.bold, color: B.textSec },
   filterTextActive: { color: C.surface },
 
   // List
@@ -290,7 +290,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 8,
     backgroundColor: B.error,
   },
-  discountText: { ...T.caption, fontFamily: F.bold, color: C.surface },
+  discountText: { ...T.caption, fontWeight: W.bold, color: C.surface },
   stockTag: {
     position: 'absolute',
     bottom: 10,
@@ -303,13 +303,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
   },
   stockDot: { width: 6, height: 6, borderRadius: 3 },
-  stockTagText: { ...T.caption, fontFamily: F.bold },
+  stockTagText: { ...T.caption, fontWeight: W.bold },
   cardBody: { padding: 14 },
-  productName: { ...T.body, fontFamily: F.bold, color: B.text },
+  productName: { ...T.body, fontWeight: W.bold, color: B.text },
   productSku: { ...T.caption, color: B.textMuted, marginTop: 3 },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  price: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  oldPrice: { ...T.label, fontFamily: F.regular, color: B.textMuted, textDecorationLine: 'line-through' },
+  price: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  oldPrice: { ...T.label, fontWeight: W.regular, color: B.textMuted, textDecorationLine: 'line-through' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   editBtn: {
     flex: 1,
@@ -321,7 +321,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: c.accentSoft,
   },
-  editBtnText: { ...T.label, fontFamily: F.bold, color: c.accent },
+  editBtnText: { ...T.label, fontWeight: W.bold, color: c.accent },
   deleteBtn: {
     width: 40,
     height: 40,
@@ -342,8 +342,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     marginBottom: 8,
   },
-  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  emptyText: { ...T.label, fontFamily: F.regular, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
+  emptyTitle: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  emptyText: { ...T.label, fontWeight: W.regular, color: B.textMuted, textAlign: 'center', maxWidth: 240 },
   emptyCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,7 +354,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12,
     backgroundColor: c.accent,
   },
-  emptyCtaText: { ...T.body, fontFamily: F.bold, color: C.surface },
+  emptyCtaText: { ...T.body, fontWeight: W.bold, color: C.surface },
 });
 
 export default BrandProductsScreen;

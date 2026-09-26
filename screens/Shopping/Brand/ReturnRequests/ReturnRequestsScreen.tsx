@@ -22,7 +22,7 @@ import {
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 // Theme-parameterised for the same reason the stylesheet is: 'Picked Up' is
 // carried by the brand's own colour, and these maps live at module scope where
@@ -207,15 +207,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: c.accentSoft,
   },
-  avatarText: { ...T.body, fontFamily: F.bold, color: c.accent },
-  customerName: { ...T.body, fontFamily: F.bold, color: B.text },
+  avatarText: { ...T.body, fontWeight: W.bold, color: c.accent },
+  customerName: { ...T.body, fontWeight: W.bold, color: B.text },
   requestMeta: { ...T.caption, color: B.textMuted, marginTop: 1 },
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
   },
-  statusText: { ...T.caption, fontFamily: F.bold, textTransform: 'capitalize' },
+  statusText: { ...T.caption, fontWeight: W.bold, textTransform: 'capitalize' },
 
   // Reason
   reasonWrap: {
@@ -227,7 +227,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: B.bg,
   },
-  reason: { flex: 1, ...T.label, fontFamily: F.regular, color: B.text, lineHeight: 18 },
+  reason: { flex: 1, ...T.label, fontWeight: W.regular, color: B.text, lineHeight: 18 },
 
   // Bottom
   cardBottom: {
@@ -241,8 +241,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  refundText: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  refundLabel: { ...T.caption, fontFamily: F.semibold, color: B.textMuted },
+  refundText: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  refundLabel: { ...T.caption, fontWeight: W.semibold, color: B.textMuted },
   actions: { flexDirection: 'row', gap: 6 },
   actionBtn: {
     flexDirection: 'row',
@@ -252,10 +252,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
   },
-  actionText: { color: C.surface, ...T.caption, fontFamily: F.bold },
+  actionText: { color: C.surface, ...T.caption, fontWeight: W.bold },
   finalStateText: { ...T.caption, color: B.textMuted, fontStyle: 'italic' },
   retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: c.accent },
-  retryText: { color: C.surface, ...T.label, fontFamily: F.bold },
+  retryText: { color: C.surface, ...T.label, fontWeight: W.bold },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 8 },
@@ -268,8 +268,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: B.bg,
     marginBottom: 8,
   },
-  emptyTitle: { ...T.subhead, fontFamily: F.bold, color: B.text },
-  emptyText: { ...T.label, fontFamily: F.regular, color: B.textMuted, textAlign: 'center', maxWidth: 260 },
+  emptyTitle: { ...T.subhead, fontWeight: W.bold, color: B.text },
+  emptyText: { ...T.label, fontWeight: W.regular, color: B.textMuted, textAlign: 'center', maxWidth: 260 },
 });
 
 export default ReturnRequestsScreen;

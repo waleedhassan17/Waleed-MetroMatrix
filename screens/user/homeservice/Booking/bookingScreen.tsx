@@ -37,7 +37,7 @@ import {
   Skeleton,
 } from '../../../../components/ui';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
-import { F, GUTTER, R, S, SECTION, T } from '../../../../constants/theme';
+import { GUTTER, R, S, SECTION, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';
@@ -597,7 +597,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   timeSlotTextSelected: {
     color: c.accentDeep,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   timeSlotTextDisabled: {
     color: c.disabled,

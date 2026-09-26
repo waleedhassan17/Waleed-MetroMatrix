@@ -35,7 +35,7 @@ import {
   SkeletonCard,
   StatusPill,
 } from '../../../../../components/ui';
-import { F, GUTTER, R, S, SECTION, T } from '../../../../../constants/theme';
+import { GUTTER, R, S, SECTION, T, W } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { useAppDispatch, useAppSelector } from '../../../../../hooks/useReduxHooks';
@@ -752,7 +752,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   bellBadgeText: {
     color: c.inkInverse,
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
 
   content: {
@@ -804,7 +804,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   messagesBadgeText: {
     ...T.caption,
     color: c.inkInverse,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     textAlign: 'center',
   },
 
@@ -825,7 +825,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   errorRetry: {
     ...T.label,
     color: c.error,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
 
   loading: {
@@ -972,7 +972,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   jobPrimaryText: {
     ...T.label,
     color: c.inkInverse,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     marginLeft: 6,
   },
   jobDecline: {
@@ -987,7 +987,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   jobDeclineText: {
     ...T.label,
     color: c.error,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
 
   activityRow: {

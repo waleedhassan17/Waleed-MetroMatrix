@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Briefcase, TrendingUp, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { F, R, S, T } from '../../../../constants/theme';
+import { R, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import DashboardScreen from './dashboard/dashboard';
@@ -140,7 +140,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   tabBarLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     marginTop: 2,
   },
   tabBarItem: {

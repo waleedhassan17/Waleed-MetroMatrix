@@ -39,7 +39,7 @@ import { performLogout } from '../../../../services/auth/logout';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { F, GUTTER, R, S, T } from '../../../../constants/theme';
+import { GUTTER, R, S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
 import { AppBar, Screen } from '../../../../components/ui';
@@ -193,7 +193,7 @@ const makeStyles = (c: ThemeColors, theme: FlatProviderTheme) => StyleSheet.crea
   content: { padding: GUTTER, paddingBottom: 48 },
   sectionTitle: {
     ...T.label,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.textSecondary,
     letterSpacing: 0.6,
     marginBottom: S.sm + 2,

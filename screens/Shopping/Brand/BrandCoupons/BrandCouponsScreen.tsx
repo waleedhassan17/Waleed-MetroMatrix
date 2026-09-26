@@ -17,7 +17,7 @@ import { fetchBrandCoupons, selectBrandCoupons, updateBrandCoupon } from './bran
 import { ShopColors } from '../theme';
 import BrandHeader, { BrandHeaderAction } from '../BrandHeader';
 import { ThemeColors, tint, useTheme } from '../../../../theme';
-import { C, F, T } from '../../../../constants/theme';
+import { C, T, W } from '../../../../constants/theme';
 
 const CURRENCY = 'PKR';
 
@@ -128,18 +128,18 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   center: { alignItems: 'center', paddingVertical: Spacing.xl },
   errorText: { color: Colors.text.secondary, marginBottom: Spacing.md, textAlign: 'center' },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: C.surface, fontFamily: F.bold },
+  retryText: { color: C.surface, fontWeight: W.bold },
   emptyText: { color: Colors.text.secondary, marginTop: Spacing.sm },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  code: { ...T.subhead, fontFamily: F.bold, color: c.accent, letterSpacing: 0.5 },
+  code: { ...T.subhead, fontWeight: W.bold, color: c.accent, letterSpacing: 0.5 },
   stateChip: { borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 3 },
-  stateText: { ...T.caption, fontFamily: F.bold },
-  desc: { ...T.label, fontFamily: F.semibold, color: Colors.text.primary, marginTop: Spacing.xs },
+  stateText: { ...T.caption, fontWeight: W.bold },
+  desc: { ...T.label, fontWeight: W.semibold, color: Colors.text.primary, marginTop: Spacing.xs },
   meta: { ...T.caption, color: Colors.text.tertiary, marginTop: 2 },
   actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
   actionBtn: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: 14, paddingVertical: 7 },
-  actionText: { ...T.label, fontFamily: F.semibold, color: c.accent },
+  actionText: { ...T.label, fontWeight: W.semibold, color: c.accent },
 });
 
 export default BrandCouponsScreen;

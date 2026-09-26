@@ -25,7 +25,7 @@ import { RootState } from '../../../../store/store';
 import { setJobDetail, startNavigation, startJobAsync, JobData } from './jobDetailSlice';
 import { setNavigationData } from '../map-screen/mapSlice';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -495,7 +495,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
   content: {
     flex: 1,
@@ -538,7 +538,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerInitial: {
     ...T.title,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
   onlineIndicator: {
     position: 'absolute',
@@ -563,7 +563,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   customerName: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.ink,
     marginRight: 6,
   },
@@ -571,7 +571,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.inkMuted,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     marginBottom: 8,
   },
   badgesRow: {
@@ -590,7 +590,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   categoryText: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     marginLeft: 5,
   },
   statusBadge: {
@@ -612,7 +612,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.caption,
 
     color: c.accent,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   contactActions: {
     flexDirection: 'row',
@@ -636,7 +636,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.caption,
 
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
   },
 
   // Section Styles
@@ -658,7 +658,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   sectionTitle: {
     ...T.subhead,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
 
@@ -691,18 +691,18 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.caption,
 
     color: c.inkFaint,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     marginBottom: 2,
   },
   locationAddress: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
   locationCity: {
     ...T.label,
     color: c.inkMuted,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     marginTop: 2,
   },
 
@@ -736,7 +736,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   mapOverlayText: {
     color: c.inkInverse,
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     marginLeft: 6,
   },
 
@@ -769,12 +769,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.caption,
 
     color: c.inkFaint,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     marginBottom: 2,
   },
   scheduleValue: {
     ...T.body,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: c.ink,
   },
 
@@ -792,7 +792,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   timeOfDayLabel: {
     ...T.label,
     color: c.inkMuted,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     marginBottom: 12,
   },
   selectedTimeCard: {
@@ -806,7 +806,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   selectedTimeText: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: c.accent,
     marginLeft: 10,
   },
@@ -823,7 +823,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.warning,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     lineHeight: 22,
   },
 
@@ -848,13 +848,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.inkMuted,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
   },
   summaryValue: {
     ...T.body,
 
     color: c.ink,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     maxWidth: '60%',
     textAlign: 'right',
   },
@@ -862,7 +862,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.accent,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
   summaryDivider: {
     height: 1,
@@ -892,19 +892,19 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.body,
 
     color: c.accentDeep,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   earningsSubtext: {
     ...T.caption,
 
     color: c.accent,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
     marginTop: 2,
   },
   earningsValue: {
     ...T.heading,
     color: c.accent,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
 
   // Bottom Container
@@ -941,7 +941,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   navigateButtonText: {
     ...T.subhead,
     color: c.inkInverse,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     marginHorizontal: 10,
   },
 });

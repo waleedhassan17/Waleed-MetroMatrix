@@ -26,7 +26,7 @@ import {
 } from './jobSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { F, R, S, T, type Tone } from '../../../../../constants/theme';
+import { R, S, T, type Tone, W } from '../../../../../constants/theme';
 import { categoryAccent } from '../../../../../constants/HomeServiceTheme';
 import { formatPrice } from '../../../../../utils/homeservice/format';
 import { ThemeColors, useTheme } from '../../../../../theme';
@@ -198,7 +198,7 @@ const makeCardStyles = (c: ThemeColors) =>
     top: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
     // Bold to match the customer's booking card and healthcare's doctor
     // card, both of which carry a heavier title than the scale's default.
-    title: { ...T.subhead, fontFamily: F.bold, color: c.ink, flex: 1 },
+    title: { ...T.subhead, fontWeight: W.bold, color: c.ink, flex: 1 },
     customerRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.sm },
     customerName: { ...T.body, color: c.inkMuted, flex: 1 },
     contactRow: { flexDirection: 'row', gap: S.sm },
@@ -588,12 +588,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   filterText: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: theme.colors.text.secondary,
   },
   filterTextActive: {
     color: theme.colors.text.inverse,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   filterCount: {
     backgroundColor: c.surfaceSunken,
@@ -606,7 +606,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   filterCountText: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.secondary,
   },
   filterCountTextActive: {
@@ -621,7 +621,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   resultsText: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
 
     color: theme.colors.text.secondary,
   },
@@ -635,7 +635,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   sortText: {
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
 
     color: theme.colors.text.secondary,
   },

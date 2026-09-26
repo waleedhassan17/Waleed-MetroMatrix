@@ -20,7 +20,7 @@ import BrandHeader from '../BrandHeader';
 import BrandThemeEditor, { BrandThemeValue } from '../../../../components/Shopping/BrandThemeEditor';
 import DarkModeSwitch from '../../../../components/ui/DarkModeSwitch';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { F, T } from '../../../../constants/theme';
+import { T, W } from '../../../../constants/theme';
 import { SHOPPING_PAYMENT_VALUES, paymentMethodLabel } from '../../../../constants/shopping';
 
 // Same two rails, same values, one definition — see constants/shopping.ts.
@@ -190,7 +190,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   errorText: { color: c.inkMuted, textAlign: 'center', marginBottom: Spacing.md },
   retryBtn: { backgroundColor: c.accent, borderRadius: BorderRadius.md, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: c.onAccent, fontFamily: F.bold },
+  retryText: { color: c.onAccent, fontWeight: W.bold },
   scroll: { padding: Spacing.lg, paddingBottom: 40 },
   // A hairline as well as the shadow: a drop shadow is invisible against a dark
   // page, so without it the cards lose their edge entirely in dark.
@@ -203,15 +203,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: c.line,
     ...Shadows.sm,
   },
-  sectionTitle: { ...T.body, fontFamily: F.bold, color: c.ink, marginBottom: Spacing.md },
+  sectionTitle: { ...T.body, fontWeight: W.bold, color: c.ink, marginBottom: Spacing.md },
   sectionHelp: { ...T.caption, lineHeight: 17, color: c.inkMuted, marginBottom: Spacing.md },
-  fieldLabel: { ...T.caption, fontFamily: F.semibold, color: c.inkMuted, marginBottom: 4 },
+  fieldLabel: { ...T.caption, fontWeight: W.semibold, color: c.inkMuted, marginBottom: 4 },
   input: { borderWidth: 1, borderColor: c.line, borderRadius: BorderRadius.md, paddingHorizontal: 12, paddingVertical: 10, ...T.body, color: c.ink },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm },
   switchLabel: { ...T.body, color: c.ink },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
-  saveText: { color: c.onAccent, ...T.body, fontFamily: F.bold },
+  saveText: { color: c.onAccent, ...T.body, fontWeight: W.bold },
 });
 
 export default BrandSettingsScreen;

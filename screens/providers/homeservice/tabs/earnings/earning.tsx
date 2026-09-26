@@ -48,7 +48,7 @@ import {
 } from './earningSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { F, T } from '../../../../../constants/theme';
+import { T, W } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../../providerTheme';
 import { AppBar, Screen } from '../../../../../components/ui';
@@ -643,7 +643,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   errorText: {
     flex: 1,
     ...T.label,
-    fontFamily: F.regular,
+    fontWeight: W.regular,
 
     color: theme.colors.error,
   },
@@ -655,7 +655,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   errorRetryText: {
     ...T.label,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.inverse,
   },
   headerBtnDisabled: {
@@ -679,12 +679,12 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   periodOptionText: {
     flex: 1,
     ...T.body,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
     color: theme.colors.text.primary,
   },
   periodOptionTextActive: {
     color: theme.colors.primaryDark,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   headerSubtitle: {
     ...T.body,
@@ -750,17 +750,17 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   trendText: {
     ...T.caption,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
   statsValue: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   statsTitle: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
 
     color: theme.colors.text.secondary,
   },
@@ -782,7 +782,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   performanceTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginLeft: 8,
     flex: 1,
@@ -814,13 +814,13 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   metricValue: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginBottom: 2,
   },
   metricLabel: {
     ...T.caption,
-    fontFamily: F.medium,
+    fontWeight: W.medium,
 
     color: theme.colors.text.secondary,
   },
@@ -843,7 +843,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   chartTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
@@ -875,7 +875,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   periodBtnText: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.secondary,
   },
   periodBtnTextActive: {
@@ -893,7 +893,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   barAmount: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.secondary,
     marginBottom: 4,
   },
@@ -908,7 +908,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   barMonth: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
     color: theme.colors.text.tertiary,
   },
   barMonthActive: {
@@ -932,7 +932,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   transactionsTitle: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
@@ -994,11 +994,11 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   paymentStatus: {
     ...T.caption,
-    fontFamily: F.semibold,
+    fontWeight: W.semibold,
   },
   paymentAmount: {
     ...T.body,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
   },
   modalOverlay: {
     flex: 1,
@@ -1026,7 +1026,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   modalTitle: {
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
   },
   modalBody: {
@@ -1065,7 +1065,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     ...T.heading,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.primary,
   },
   submitBtn: {
@@ -1082,7 +1082,7 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   submitBtnText: {
     ...T.subhead,
-    fontFamily: F.bold,
+    fontWeight: W.bold,
     color: theme.colors.text.inverse,
   },
   bottomSpacer: {
