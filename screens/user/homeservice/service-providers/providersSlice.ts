@@ -106,6 +106,38 @@ const filterBySearch = (providers: Provider[], query: string): Provider[] => {
   );
 };
 
+/**
+ * THE UNFILTERED list for the current category — the one `filteredProviders` is
+ * always derived FROM, never the previous value of `filteredProviders` itself.
+ *
+ * Searching used to narrow `filteredProviders` in place, which made every
+ * keystroke destructive: the providers it pruned were gone from state, so
+ * clearing the box could only ever return whatever survived the last query.
+ * `filterBySearch('')` correctly returns its input unchanged — the input was
+ * simply already wrong. Only a refetch rebuilt the list, which is why leaving
+ * the screen and coming back appeared to fix it.
+ */
+const sourceFor = (state: ProvidersState): Provider[] => {
+  switch (state.currentCategory) {
+    case 'electricians':
+      return state.electricians;
+    case 'plumbers':
+      return state.plumbers;
+    case 'ac-repairers':
+      return state.acRepairers;
+    default:
+      return [];
+  }
+};
+
+/** Re-derive the visible list from the category list + current query + sort. */
+const reapply = (state: ProvidersState) => {
+  state.filteredProviders = sortProviders(
+    filterBySearch(sourceFor(state), state.searchQuery),
+    state.selectedSort
+  );
+};
+
 // Slice using createAppSlice
 const providersSlice = createAppSlice({
   name: 'serviceProviders',
@@ -147,7 +179,7 @@ const providersSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.isLoading = false;
           const { providers, pagination, category } = action.payload;
-          
+
           // Store in category-specific array
           switch (category) {
             case 'electricians':
@@ -160,13 +192,11 @@ const providersSlice = createAppSlice({
               state.acRepairers = providers;
               break;
           }
-          
-          state.filteredProviders = sortProviders(
-            filterBySearch(providers, state.searchQuery),
-            state.selectedSort
-          );
+
           state.pagination = pagination;
+          // Set BEFORE reapply: sourceFor reads currentCategory.
           state.currentCategory = category;
+          reapply(state);
         },
         rejected: (state, action) => {
           state.isLoading = false;
@@ -208,7 +238,7 @@ const providersSlice = createAppSlice({
         fulfilled: (state, action) => {
           state.isRefreshing = false;
           const { providers, pagination, category } = action.payload;
-          
+
           switch (category) {
             case 'electricians':
               state.electricians = providers;
@@ -220,12 +250,9 @@ const providersSlice = createAppSlice({
               state.acRepairers = providers;
               break;
           }
-          
-          state.filteredProviders = sortProviders(
-            filterBySearch(providers, state.searchQuery),
-            state.selectedSort
-          );
+
           state.pagination = pagination;
+          reapply(state);
         },
         rejected: (state, action) => {
           state.isRefreshing = false;
@@ -268,8 +295,27 @@ const providersSlice = createAppSlice({
         },
         fulfilled: (state, action) => {
           state.isLoadingMore = false;
-          state.filteredProviders = [...state.filteredProviders, ...action.payload.providers];
+          // Append to the CATEGORY list, not just the visible one. Appending
+          // only to `filteredProviders` was survivable while that array was
+          // mutated in place, but `reapply` rebuilds from the category list —
+          // so a page that never landed there would vanish the next time the
+          // query or sort changed. Ids are de-duplicated because a provider
+          // whose rating shifted between requests can arrive on two pages.
+          const seen = new Set(sourceFor(state).map((p) => p.id));
+          const added = action.payload.providers.filter((p) => !seen.has(p.id));
+          switch (state.currentCategory) {
+            case 'electricians':
+              state.electricians.push(...added);
+              break;
+            case 'plumbers':
+              state.plumbers.push(...added);
+              break;
+            case 'ac-repairers':
+              state.acRepairers.push(...added);
+              break;
+          }
           state.pagination = action.payload.pagination;
+          reapply(state);
         },
         rejected: (state, action) => {
           state.isLoadingMore = false;
@@ -281,15 +327,12 @@ const providersSlice = createAppSlice({
     // Sync reducers
     setSearchQuery: create.reducer((state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
-      state.filteredProviders = sortProviders(
-        filterBySearch(state.filteredProviders, action.payload),
-        state.selectedSort
-      );
+      reapply(state);
     }),
 
     setSelectedSort: create.reducer((state, action: PayloadAction<SortOption>) => {
       state.selectedSort = action.payload;
-      state.filteredProviders = sortProviders(state.filteredProviders, action.payload);
+      reapply(state);
     }),
 
     setFilters: create.reducer((state, action: PayloadAction<FilterOptions>) => {
@@ -298,10 +341,17 @@ const providersSlice = createAppSlice({
 
     setCategory: create.reducer((state, action: PayloadAction<ProviderCategory>) => {
       state.currentCategory = action.payload;
+      // The category IS what sourceFor reads, so the visible list has to follow
+      // it — otherwise switching category leaves the previous trade's providers
+      // on screen until a fetch lands. (No screen dispatches this today; the
+      // category arrives as a route param and is set by the fetch. Keeping it
+      // consistent means it stays correct for whoever reaches for it next.)
+      reapply(state);
     }),
 
     clearSearch: create.reducer((state) => {
       state.searchQuery = '';
+      reapply(state);
     }),
 
     clearSelectedProvider: create.reducer((state) => {

@@ -31,6 +31,10 @@ export function paymentDataSerializer(payload: any): PaymentData {
       enabled: method?.enabled ?? true,
       description: method?.description || '',
     })),
+    // Defaults to 'unpaid' — the safe reading. An older service that omits the
+    // field should leave the screen waiting on a price, not charging one.
+    paymentStatus: payload?.paymentStatus || 'unpaid',
+    method: payload?.method ?? null,
   };
 }
 

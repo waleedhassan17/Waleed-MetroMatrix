@@ -42,6 +42,7 @@ import { ThemeColors, useTheme } from '../../../../theme';
 import { useBottomBarPadding } from '../../../../hooks/useBottomBarPadding';
 import { AppDispatch, RootState } from '../../../../store/store';
 import { toLocalISODate } from '../../../../utils/date/localDate';
+import { formatMoney } from '../../../../constants/Currency';
 import {
   formatBookingDate,
   formatRating,
@@ -435,9 +436,28 @@ export default function BookingScreen() {
                 {selectedAddress?.address || 'Not set'}
               </Text>
             </View>
+            {/* THE VISIT CHARGE, not the bill.
+                This row said only "Quoted after the visit" while the bookings
+                tab showed a flat "PKR 500" for the same booking — the same
+                screen pair disagreeing about whether a price existed. The
+                provider's real call-out fee was on the slice all along and
+                never rendered. Show it as a floor, and say plainly that the
+                total is settled afterwards; the customer is no longer charged
+                anything until the provider confirms a final figure. */}
             <View style={[styles.summaryRow, styles.summaryTotal]}>
               <Text style={styles.summaryKey}>Price</Text>
-              <Text style={styles.summaryValue}>Quoted after the visit</Text>
+              <View style={styles.summaryStack}>
+                <Text style={[styles.summaryValue, styles.summaryValueStacked]}>
+                  {provider.basePrice > 0
+                    ? `From ${formatMoney(provider.basePrice)}`
+                    : 'Quoted after the visit'}
+                </Text>
+                {provider.basePrice > 0 && (
+                  <Text style={styles.summaryNote}>
+                    Visit charge. Final price confirmed after the visit.
+                  </Text>
+                )}
+              </View>
             </View>
           </Card>
         </View>
@@ -660,6 +680,21 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginLeft: S.lg,
     flexShrink: 1,
     textAlign: 'right',
+  },
+  // The price row carries a second, quieter line; every other summary row is a
+  // single value, so the stack is scoped to this one.
+  summaryStack: {
+    marginLeft: S.lg,
+    flexShrink: 1,
+    alignItems: 'flex-end',
+  },
+  // The stack already carries the gutter; summaryValue's own would double it.
+  summaryValueStacked: { marginLeft: 0 },
+  summaryNote: {
+    ...T.caption,
+    color: c.inkMuted,
+    textAlign: 'right',
+    marginTop: 2,
   },
 
   footer: {

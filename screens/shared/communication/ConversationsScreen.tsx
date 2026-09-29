@@ -37,7 +37,7 @@ import {
 import { normalizeRoomParams, type RoomParams } from './roomParams';
 import { useAppSelector } from '../../../hooks/useReduxHooks';
 import { selectTotalUnread } from '../../../store/unreadSlice';
-import { emitEvent } from '../../../services/socket/socketClient';
+import { emitEvent, joinBooking } from '../../../services/socket/socketClient';
 import { isCallingSupported } from '../../../services/call/usePeerConnection';
 
 /** Where tapping a row should land, per vertical and role. */
@@ -205,16 +205,29 @@ export default function ConversationsScreen() {
     // longer individually reachable from this list, so their unread would sit
     // on the badge forever. Clear the whole group; the chat screen clears the
     // target again on mount, which is harmless.
-    for (const room of c.rooms || []) {
-      if (room.roomId !== c.roomId && room.unread > 0) {
-        emitEvent('mark_read', {
+    //
+    // JOIN FIRST. Room membership is the server's authorization check for room
+    // events, and the socket has never joined these rooms: `join_booking` is
+    // the only way in and only the open chat screen calls it, for the one room
+    // it is mounted on. So every one of these emits was refused, and because
+    // this list is the only place a folded room is reachable from, nothing else
+    // would ever mark them — they stayed unread indefinitely. Awaited per room,
+    // and the result checked, so a refusal leaves the count alone rather than
+    // hiding it.
+    void (async () => {
+      for (const room of c.rooms || []) {
+        if (room.roomId === c.roomId || room.unread <= 0) continue;
+        await joinBooking(room.roomId, room.roomType);
+        await emitEvent('mark_read', {
           roomId: room.roomId,
           bookingId: room.roomId,
           roomType: room.roomType,
         });
       }
-    }
+      // Whatever landed is now server truth; the next focus re-reads it.
+    })();
 
+    // Navigate straight away — the tap must not wait on the network.
     navigation.navigate(CHAT_ROUTE[c.roomType][c.role], {
       roomId: c.roomId,
       bookingId: c.roomId,
@@ -257,6 +270,20 @@ export default function ConversationsScreen() {
           )}
         </View>
 
+        {/* WHAT THIS PERSON DOES — electrician, plumber, AC technician, or
+            whatever trade is added later. The server already sends it as
+            `subtitle`, but it used to render only as the preview's fallback,
+            so it disappeared the moment either side said anything: a list of
+            names with no way to tell who was here to fix the wiring and who
+            the plumbing. It is identity, not a placeholder, so it gets its own
+            line and stays. Healthcare rows get their consultation kind here on
+            the same field. */}
+        {!!item.subtitle && (
+          <Text style={styles.trade} numberOfLines={1}>
+            {item.subtitle}
+          </Text>
+        )}
+
         <View style={styles.rowTop}>
           <Text
             style={[styles.preview, item.unread > 0 && styles.previewUnread]}
@@ -264,7 +291,7 @@ export default function ConversationsScreen() {
           >
             {item.lastMessage
               ? `${item.lastMessage.fromSelf ? 'You: ' : ''}${item.lastMessage.text}`
-              : item.subtitle || 'No messages yet'}
+              : 'No messages yet'}
           </Text>
           {item.unread > 0 && (
             <View style={[styles.badge, { backgroundColor: theme.accent }]}>
@@ -395,6 +422,8 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { fontSize: 15, fontWeight: '700', color: sh.n('#111827', 'ink'), flex: 1 },
   time: { fontSize: 12, color: sh.n('#9CA3AF', 'inkFaint') },
+  // Quieter than the name, distinct from the preview: a label, not a message.
+  trade: { fontSize: 12, fontWeight: '600', color: sh.n('#6B7280', 'inkMuted') },
   preview: { fontSize: 13, color: sh.n('#6B7280', 'inkMuted'), flex: 1 },
   previewUnread: { color: sh.n('#111827', 'ink'), fontWeight: '600' },
   badge: {

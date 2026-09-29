@@ -18,19 +18,16 @@ import {
   User,
   ChevronRight,
   CreditCard,
-  Globe,
   LogOut,
   Trash2,
   Camera,
   Shield,
   Bell,
   Moon,
-  MapPin,
   Star,
   Settings,
   Calendar,
   Award,
-  Heart,
   Gift,
   Wallet,
   ArrowUpRight,
@@ -179,24 +176,12 @@ export default function ProviderProfileScreen() {
       // card-management screen has no backend behind it yet.
       onPress: () => (navigation as any).navigate('WalletScreen'),
     },
-    {
-      id: 'addresses',
-      title: 'My Addresses',
-      subtitle: 'Manage saved locations',
-      icon: MapPin,
-      color: colors.error,
-      bgColor: colors.errorSoft,
-      onPress: () => (navigation as any).navigate('AddressManagement'),
-    },
-    {
-      id: 'favorites',
-      title: 'Favorites',
-      subtitle: 'Providers you saved',
-      icon: Heart,
-      color: colors.info,
-      bgColor: colors.infoSoft,
-      onPress: () => (navigation as any).navigate('Favorites'),
-    },
+    // No 'My Addresses' or 'Favorites' here. Both are customer features that
+    // were copied into this menu wholesale — the Favorites row even kept the
+    // customer's own wording, "Providers you saved", which a provider has no
+    // use for. A provider works at the customer's address and does not save
+    // other providers. The routes themselves stay: the customer's account menu
+    // still uses both.
   ];
 
   const handleLogout = () => {

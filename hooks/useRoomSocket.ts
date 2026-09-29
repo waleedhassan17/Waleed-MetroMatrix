@@ -82,7 +82,18 @@ export interface CounterpartPresence {
   lastSeen: string | null;
 }
 
-export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice') {
+/**
+ * @param myRole Which side of the conversation the viewer is, when the caller
+ *   knows. Only the chat screen does — it gets it from the server, which
+ *   derives it from real booking/appointment membership rather than the token.
+ *   Used to decide whose bubbles a `messages_read` frame applies to; see
+ *   `onRead` below for what went wrong without it.
+ */
+export function useRoomSocket(
+  roomId?: string,
+  roomType: RoomType = 'homeservice',
+  myRole?: 'user' | 'provider'
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [providerLocation, setProviderLocation] = useState<ProviderLocationUpdate | null>(null);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
@@ -101,6 +112,12 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
   const socketRef = useRef<Socket | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const counterpartIdRef = useRef<string | null>(null);
+  // Read through a ref, not a dependency. `myRole` arrives from the server a
+  // moment after mount, and re-running the effect for it would tear down every
+  // listener, LEAVE the room and re-join — a membership flap that a mark_read
+  // or an incoming message could land in the middle of.
+  const myRoleRef = useRef(myRole);
+  myRoleRef.current = myRole;
 
   useEffect(() => {
     if (!roomId) return;
@@ -124,8 +141,14 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         joinBooking(roomId, roomType);
       };
       const onDisconnect = () => mounted && setConnected(false);
-      const onMessage = (m: ChatMessage) => {
+      const onMessage = (m: ChatMessage & { roomId?: string; bookingId?: string }) => {
         if (!mounted || !m?.id) return;
+        // The realtime service does not currently put a room on this payload
+        // (see SOCKET_API.md), so there is usually nothing to check — but when
+        // it is present it must be honoured, or a message for another room is
+        // appended to this one's list. Every sibling handler already does this.
+        const frameRoom = m.roomId || m.bookingId;
+        if (frameRoom && frameRoom !== roomId) return;
         setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
       };
       const onLocation = (loc: ProviderLocationUpdate) => {
@@ -212,9 +235,47 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
         if ((p.roomId || p.bookingId) !== roomId) return;
         setTyping(p.isTyping);
       };
-      const onRead = () => {
+      // ------------------------------------------------------------------
+      // WHOSE MESSAGES DID THE OTHER PERSON JUST READ?
+      //
+      // This used to flip `m.sender === 'user'` — a hardcoded role, in a hook
+      // shared by both sides of every conversation. `sender` is a ROLE, not an
+      // id, and the ticks render only on bubbles where `sender === myRole`.
+      // So for a customer it happened to flip their own messages (correct, by
+      // luck), and for a PROVIDER it flipped the customer's bubbles — which
+      // carry no ticks — while their own stayed 'delivered'. The provider's
+      // single grey tick only became a double blue one via the REST reload on
+      // mount or foreground resume: exactly the reported "go back and open the
+      // chat again".
+      //
+      // `readerRole` is the right field and the server already sends it
+      // (SOCKET_API.md: `messages_read { bookingId, readerRole }`). The reader
+      // read the messages they did NOT send, whoever either party is. Keying
+      // off it also makes a self-echo harmless: if the service broadcasts to
+      // the whole room including the reader, `readerRole` is the viewer's own
+      // role, so their own unread messages are left alone rather than being
+      // falsely marked read.
+      // ------------------------------------------------------------------
+      const onRead = (p?: {
+        bookingId?: string;
+        roomId?: string;
+        readerRole?: 'user' | 'provider';
+      }) => {
         if (!mounted) return;
-        setMessages((prev) => prev.map((m) => (m.sender === 'user' ? { ...m, status: 'read' } : m)));
+        // Every other handler here guards on the room; this one did not, and
+        // nine screens mount this hook — several can be alive at once with
+        // different rooms.
+        const frameRoom = p?.roomId || p?.bookingId;
+        if (frameRoom && frameRoom !== roomId) return;
+        const reader = p?.readerRole;
+        const mine = myRoleRef.current;
+        setMessages((prev) =>
+          prev.map((m) =>
+            (reader ? m.sender !== reader : !!mine && m.sender !== mine)
+              ? { ...m, status: 'read' }
+              : m
+          )
+        );
       };
 
       s.on('connect', onConnect);
@@ -344,6 +405,8 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
       cleanupRef.current = null;
       if (roomId) leaveBooking(roomId);
     };
+    // Deliberately NOT depending on `myRole` — onRead reads it through
+    // myRoleRef so a late role does not force a room re-join. See the ref.
   }, [roomId, roomType]);
 
   /** Socket first, REST fallback when the socket is down. */
@@ -391,8 +454,47 @@ export function useRoomSocket(roomId?: string, roomType: RoomType = 'homeservice
     [roomId, roomType]
   );
 
-  const markRead = useCallback(() => {
-    if (roomId) emitEvent('mark_read', { roomId, bookingId: roomId, roomType });
+  // ------------------------------------------------------------------
+  // MARK THE THREAD READ — AND KNOW WHETHER IT WORKED.
+  //
+  // This used to be fire-and-forget: it never awaited the ack, never checked
+  // `success`, and never retried. `emitEvent` resolves
+  // `{ success: false, reason: 'offline' }` after an 8s handshake timeout,
+  // silently, and read state has no REST fallback at all (chatNetwork exposes
+  // only history and send). Meanwhile the caller cleared the unread badge
+  // unconditionally — so a lost emit looked exactly like a successful one
+  // until the next `loadUnread()` re-seeded the old count from the server and
+  // the conversation went unread again. That is the "older chats still showing
+  // as unread after I opened them" report.
+  //
+  // Two further reasons it was lost, both fixed by joining first:
+  //   - `emitEvent` waits only for the socket handshake, not for the
+  //     `join_booking` ack. Mark-read is triggered by REST history landing, on
+  //     an independent timeline, so on a cold start it could reach the server
+  //     BEFORE the join — and room membership is the server's authorization
+  //     check for room events.
+  //
+  // The join is on the RETRY, not the first attempt: this runs again on every
+  // incoming message, and joining up front would add a round trip per message
+  // to a conversation that is already in the room. A refused mark_read is
+  // exactly the symptom of not being a member, so pay for the join only then.
+  //
+  // Returns whether the server accepted it, so the caller can clear the badge
+  // only when it is actually true.
+  // ------------------------------------------------------------------
+  const markRead = useCallback(async (): Promise<boolean> => {
+    if (!roomId) return false;
+    const payload = { roomId, bookingId: roomId, roomType };
+    const ack = await emitEvent('mark_read', payload);
+    if (ack.success) return true;
+
+    // Re-join and try once more. Covers both the cold-start ordering race and
+    // a reconnect that silently dropped membership. Anything past this is a
+    // real refusal or a dead network, and the next open — or the next
+    // loadUnread — is the correction path.
+    await joinBooking(roomId, roomType);
+    const retry = await emitEvent('mark_read', payload);
+    return !!retry.success;
   }, [roomId, roomType]);
 
   const seedMessages = useCallback((history: ChatMessage[]) => {

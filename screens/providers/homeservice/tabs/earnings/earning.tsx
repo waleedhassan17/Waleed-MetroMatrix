@@ -673,9 +673,6 @@ export default function EarningsScreen() {
 }
 
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
-  controlDisabled: {
-    opacity: 0.4,
-  },
   coldLoading: {
     paddingVertical: 32,
     alignItems: 'center',
@@ -709,9 +706,6 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     ...T.label,
     fontWeight: W.semibold,
     color: theme.colors.text.inverse,
-  },
-  headerBtnDisabled: {
-    opacity: 0.4,
   },
   periodOption: {
     flexDirection: 'row',
@@ -750,7 +744,19 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   headerBtn: {
     width: 44,
     height: 44,
-    backgroundColor: c.surfaceSunken,
+    // A TRANSLUCENT SCRIM, not a surface token.
+    //
+    // This was `c.surfaceSunken` — #F5F5F4 in light mode — under white
+    // `inkInverse` icons: 1.09:1, which is to say invisible. `inkInverse` is
+    // the right ink for the bar itself (home services renders a gradient
+    // header off `accentDeep`), but the pill put a near-white ground between
+    // the icon and that gradient and destroyed the contrast. Dark mode was
+    // fine, so the defect was light-mode only.
+    //
+    // Deriving the ground from the bar instead of naming a neutral keeps the
+    // icons legible in both modes, and matches the scrim the provider profile
+    // header already uses.
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',

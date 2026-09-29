@@ -116,7 +116,9 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
     connected,
     counterpartPresence,
     resumedAt,
-  } = useRoomSocket(roomId, roomType);
+    // `myRole` comes from the server (see loadHistory below) and is passed down
+    // so the hook can tell whose messages a read receipt applies to.
+  } = useRoomSocket(roomId, roomType, myRole);
 
   // ==========================================================================
   // WHOSE STATE IS THIS, ACTUALLY?
@@ -181,14 +183,20 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
   const unreadDispatch = useAppDispatch();
 
   // Tell the global unread listener which room is on screen, so it does not
-  // badge the conversation the user is reading. Clearing the count here too,
-  // because opening the thread IS reading it.
+  // badge the conversation the user is reading.
+  //
+  // This is deliberately unconditional and independent of whether the server
+  // ever records the read — it only suppresses badging for a thread that is
+  // literally on the display. Clearing the COUNT used to happen here too, and
+  // that was the bug: it cleared whether or not `mark_read` reached the
+  // server, so a dropped emit looked successful until the next sync brought
+  // the old count back. The count is now cleared in the effect below, on the
+  // server's word.
   useEffect(() => {
     if (!roomId) return;
     setActiveChatRoom(roomId);
-    unreadDispatch(roomRead({ roomId }));
     return () => setActiveChatRoom(null);
-  }, [roomId, unreadDispatch]);
+  }, [roomId]);
 
   useEffect(() => {
     loadHistory();
@@ -205,10 +213,19 @@ export const ChatThread: React.FC<ChatThreadProps> = ({
     if (resumedAt) loadHistory();
   }, [resumedAt, loadHistory]);
 
-  // Mark the thread read once it is open and history has landed.
+  // Mark the thread read once it is open and history has landed — and clear
+  // the badge only if the server accepted it. `markRead` joins the room,
+  // awaits the ack and retries once; see the note on it in useRoomSocket.
   useEffect(() => {
-    if (!loading && !error && messages.length) markRead();
-  }, [loading, error, messages.length, markRead]);
+    if (loading || error || !messages.length || !roomId) return;
+    let alive = true;
+    markRead().then((accepted) => {
+      if (alive && accepted) unreadDispatch(roomRead({ roomId }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [loading, error, messages.length, markRead, roomId, unreadDispatch]);
 
   useEffect(() => {
     if (messages.length) {

@@ -87,6 +87,14 @@ const BIND_RETRY_MS = 3000;
  */
 const LOCAL_RING_TIMEOUT_MS = 40_000;
 
+/**
+ * How long to wait before re-reading unread counts after a message arrives.
+ *
+ * Long enough that a back-and-forth exchange collapses into one request, short
+ * enough that the badge still feels immediate.
+ */
+const UNREAD_REFRESH_DEBOUNCE_MS = 400;
+
 export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ children }) => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
@@ -220,6 +228,18 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     let mounted = true;
     let detach: (() => void) | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
+    let unreadRefresh: ReturnType<typeof setTimeout> | null = null;
+
+    // Re-seed every room's unread count from the server, coalescing a burst of
+    // messages into one request. See `onAnyMessage` for why a refetch is the
+    // only option here.
+    const scheduleUnreadRefresh = () => {
+      if (unreadRefresh) clearTimeout(unreadRefresh);
+      unreadRefresh = setTimeout(() => {
+        unreadRefresh = null;
+        if (mounted) dispatch(loadUnread());
+      }, UNREAD_REFRESH_DEBOUNCE_MS);
+    };
 
     const onRing = (p: any) => {
       if (!mounted || !p?.callId) return;
@@ -249,11 +269,36 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     // Skipped for the room currently on screen: that screen appends the
     // message itself and marks it read, so counting it would show a badge for
     // something the user is looking at.
+    //
+    // THE PAYLOAD HAS NO ROOM ID, so this could never do its job.
+    //
+    // `new_message` is documented and emitted as
+    // `{ id, text, sender, timestamp, status }` (SOCKET_API.md §Chat, and
+    // `toChatMessage` in the backend's mirror of the serializer) — there is no
+    // bookingId, roomId or booking on it. So `roomId` resolved to '' and this
+    // early-returned on EVERY message: `messageReceived` was never dispatched
+    // once. The badge could only move when `loadUnread()` ran, which is on
+    // first bind and each reconnect — hence a count that appeared to update
+    // only after navigating away and back, and that during a session could go
+    // down (rooms get read) but never up.
+    //
+    // Fixing the payload means changing the realtime service, which is a
+    // separate repo. Until then, fall back to re-reading the server's
+    // authoritative counts. Debounced, so a rapid exchange costs one request
+    // rather than one per message. The increment path above is kept and tried
+    // first, so this gets faster for free if the payload ever grows a room id.
     const onAnyMessage = (m: any) => {
       if (!mounted || !m) return;
       const roomId = String(m.bookingId || m.roomId || m.booking || '');
-      if (!roomId || roomId === activeChatRoomId()) return;
-      dispatch(messageReceived({ roomId }));
+      if (roomId) {
+        // Skipped for the room on screen: that screen appends the message
+        // itself and marks it read, so counting it would badge something the
+        // user is looking at.
+        if (roomId === activeChatRoomId()) return;
+        dispatch(messageReceived({ roomId }));
+        return;
+      }
+      scheduleUnreadRefresh();
     };
 
     const bind = async () => {
@@ -303,6 +348,7 @@ export const IncomingCallProvider: React.FC<IncomingCallProviderProps> = ({ chil
     return () => {
       mounted = false;
       if (retry) clearTimeout(retry);
+      if (unreadRefresh) clearTimeout(unreadRefresh);
       if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
       appStateSubRef.current?.remove();
       appStateSubRef.current = null;

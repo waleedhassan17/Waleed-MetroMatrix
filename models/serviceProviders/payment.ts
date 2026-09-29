@@ -30,6 +30,18 @@ export interface PaymentData {
   recipient: PaymentRecipient;
   details: PaymentDetails;
   availableMethods: PaymentMethod[];
+  /**
+   * Where this payment already stands, server-side. The backend has always
+   * sent it; nothing read it, so the screen could not tell "the provider has
+   * not named a price yet" apart from "the price is zero" and offered to
+   * charge the booking's creation-time estimate either way.
+   *
+   * 'unpaid'     — job not yet priced by the provider; nothing to pay.
+   * 'requested'  — the provider has asked for a specific amount.
+   * 'paid'       — settled.
+   */
+  paymentStatus: 'unpaid' | 'requested' | 'paid';
+  method: string | null;
 }
 
 export interface Transaction {

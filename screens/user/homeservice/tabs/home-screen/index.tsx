@@ -33,6 +33,8 @@ import { categoryAccent } from '../../../../../constants/HomeServiceTheme';
 import { GUTTER, S, T } from '../../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../../theme';
 import { RootState } from '../../../../../store/store';
+import { useAppSelector } from '../../../../../hooks/useReduxHooks';
+import { selectTotalUnread } from '../../../../../store/unreadSlice';
 import {
   fetchHomeData,
   refreshHomeData,
@@ -185,6 +187,12 @@ export default function HomeScreen() {
   const isLoading = useSelector((state: RootState) => state.home.isLoading) as boolean;
   const error = useSelector((state: RootState) => state.home.error) as string | null;
 
+  // Messages were reachable only from the Profile tab, so a customer sitting on
+  // Home had no sign that a provider had replied — and no way to get to the
+  // thread without going through their account page. Same count and same
+  // destination as the Profile row, so the two can never disagree.
+  const unreadTotal = useAppSelector(selectTotalUnread);
+
   useEffect(() => {
     dispatch(fetchHomeData() as any);
   }, [dispatch]);
@@ -209,7 +217,15 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <AppBar title="Home services" onBack={() => navigation.goBack()} />
+      <AppBar
+        title="Home services"
+        onBack={() => navigation.goBack()}
+        rightIcon="chatbubbles-outline"
+        rightBadge={unreadTotal}
+        onRightPress={() =>
+          navigation.navigate('Conversations', { roomType: 'homeservice' })
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.content}

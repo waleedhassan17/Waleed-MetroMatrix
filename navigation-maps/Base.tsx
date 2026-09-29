@@ -884,7 +884,8 @@ export const BaseRoutes: IRoute[] = [
     options: { headerShown: false, animation: 'slide_from_right' }
   },
   // Saved providers — the destination for the profile heart and the Favorites
-  // rows in both account menus.
+  // row in the CUSTOMER's account menu. The provider menu no longer carries
+  // one: saving providers is not something a provider does.
   {
     component: FavoritesScreen,
     title: BaseRouteNames.Favorites,

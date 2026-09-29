@@ -292,7 +292,11 @@ export default function ProviderProfileScreen() {
         }),
     },
     { label: 'Directions', icon: 'navigate-outline', onPress: handleLocationPress },
-    { label: 'Schedule', icon: 'calendar-outline', onPress: () => handleTabChange('availability') },
+    // No 'Schedule' action here. It switched `selectedTab` to 'availability',
+    // but the tab strip and its content sit below the hero, the quick actions
+    // and the stats row — with no scroll, nothing in the viewport moved, so it
+    // read as a button that did nothing. The Schedule TAB below does the job
+    // and is the one place the weekly schedule lives.
   ];
 
   const renderOverview = () => (
@@ -463,16 +467,28 @@ export default function ProviderProfileScreen() {
   const renderAvailability = () => (
     <View style={styles.section}>
       <SectionHeader title="Weekly schedule" />
-      {provider.availability?.map((slot) => (
-        <View key={slot.id} style={styles.dayRow}>
-          <Text style={styles.dayName}>{slot.day}</Text>
-          {slot.available && slot.timeSlots.length > 0 ? (
-            <Text style={styles.dayHours}>{slot.timeSlots.join(', ')}</Text>
-          ) : (
-            <Text style={styles.dayClosed}>Closed</Text>
-          )}
-        </View>
-      ))}
+      {/* This tab is now the only route to the schedule, so an empty one must
+          say so rather than leaving a bare header under the chip — which is
+          what it did, and what made the whole section look broken. Matches
+          renderReviews and renderGallery above. */}
+      {provider.availability?.length ? (
+        provider.availability.map((slot) => (
+          <View key={slot.id} style={styles.dayRow}>
+            <Text style={styles.dayName}>{slot.day}</Text>
+            {slot.available && slot.timeSlots.length > 0 ? (
+              <Text style={styles.dayHours}>{slot.timeSlots.join(', ')}</Text>
+            ) : (
+              <Text style={styles.dayClosed}>Closed</Text>
+            )}
+          </View>
+        ))
+      ) : (
+        <EmptyState
+          icon="calendar-outline"
+          title="No hours published"
+          message="This provider hasn't set their weekly availability yet. Send them a message to agree a time."
+        />
+      )}
     </View>
   );
 

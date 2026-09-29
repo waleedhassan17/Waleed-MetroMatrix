@@ -54,6 +54,7 @@ import {
   selectFormattedPaymentAmount,
   selectIsPaymentValid,
   selectPaymentAmount,
+  selectProviderQuoted,
   ServiceCategory,
   markPaymentConfirmed,
   reopenPaymentChoice,
@@ -95,6 +96,7 @@ export default function PaymentScreen() {
   const formattedAmount = useSelector(selectFormattedPaymentAmount);
   const isPaymentValid = useSelector(selectIsPaymentValid);
   const paymentMethods = useSelector(selectEnabledPaymentMethods);
+  const providerQuoted = useSelector(selectProviderQuoted);
 
   // Wallet balance — same slice, same source, as healthcare's and shopping's
   // payment screens, so all three treat insufficient balance identically.
@@ -229,15 +231,29 @@ export default function PaymentScreen() {
   }
 
   const selectedMethodName = paymentMethods.find((m) => m.id === selectedMethod)?.name;
-  const blocked = !isPaymentValid || insufficientBalance;
-  const blockedReason = insufficientBalance
-    ? 'Top up your wallet or pick another method.'
-    : !selectedMethod
-      ? 'Choose how you want to pay.'
-      : paymentAmount <= 0
-        ? 'This job has no amount to pay yet.'
-        : null;
-  const payLabel = selectedMethod === 'cash' ? "I'll pay in cash" : `Pay ${formattedAmount}`;
+  // `!providerQuoted` is redundant today — an unquoted job has a zero amount,
+  // which already fails isPaymentValid — but it is the condition that actually
+  // matters here, so it is stated rather than inferred.
+  const blocked = !providerQuoted || !isPaymentValid || insufficientBalance;
+  // Order matters: an unpriced job is the FIRST thing to say. It used to fall
+  // through to the generic "no amount to pay yet", which read as a glitch —
+  // and before the server stopped reporting the creation-time estimate as the
+  // bill, this case could not arise at all: the screen simply offered to
+  // charge the visit charge.
+  const blockedReason = !providerQuoted
+    ? `Waiting for ${recipient.name} to confirm the final price for this job.`
+    : insufficientBalance
+      ? 'Top up your wallet or pick another method.'
+      : !selectedMethod
+        ? 'Choose how you want to pay.'
+        : paymentAmount <= 0
+          ? 'This job has no amount to pay yet.'
+          : null;
+  const payLabel = !providerQuoted
+    ? 'Waiting for the final price'
+    : selectedMethod === 'cash'
+      ? "I'll pay in cash"
+      : `Pay ${formattedAmount}`;
 
   return (
     <Screen>
@@ -296,16 +312,25 @@ export default function PaymentScreen() {
               <View style={styles.amountBlock}>
                 <View style={styles.amountHeader}>
                   <Text style={styles.rowKey}>Amount</Text>
-                  <Text style={styles.quoted}>{formatAmount(paymentDetails?.originalAmount)}</Text>
+                  {/* "Rs. 0" is not a price, and it is what this said before
+                      the provider had quoted — under a line claiming they had
+                      set it. Say the truth instead. */}
+                  <Text style={styles.quoted}>
+                    {providerQuoted ? formatAmount(paymentDetails?.originalAmount) : 'Not set yet'}
+                  </Text>
                 </View>
                 {/* The provider sets the price; the customer can check it here
                     but not type their own. */}
-                <Text style={styles.meta}>Set by {recipient.name} for this job</Text>
+                <Text style={styles.meta}>
+                  {providerQuoted
+                    ? `Set by ${recipient.name} for this job`
+                    : `${recipient.name} confirms the final price once the work is done`}
+                </Text>
               </View>
 
               <View style={styles.total}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>{formattedAmount}</Text>
+                <Text style={styles.totalValue}>{providerQuoted ? formattedAmount : '—'}</Text>
               </View>
             </Card>
           </View>

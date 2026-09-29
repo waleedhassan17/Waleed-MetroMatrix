@@ -388,15 +388,15 @@ const JobsScreen: React.FC = () => {
       {/* These two strings were copied verbatim from the CUSTOMER bookings
           screen. A provider does not have bookings — they have jobs, and they
           are not "managing appointments", they are working them. */}
+      {/* No trailing action. There was an `options-outline` button here with
+          no `onPress` at all — it could not do anything, and it duplicated the
+          filter chips immediately below, which already own filtering. It was
+          also white-on-white (`inkInverse` on `colors.surface`), visible only
+          by its hairline border. */}
       <AppBar
         title="Jobs"
         subtitle="Today's work and new requests"
         hideBack
-        right={
-          <TouchableOpacity style={styles.filterButton} accessibilityRole="button">
-            <Ionicons name="options-outline" size={20} color={colors.inkInverse} />
-          </TouchableOpacity>
-        }
       />
 
       {/* Filter Tabs - Matching reference design */}
@@ -443,18 +443,15 @@ const JobsScreen: React.FC = () => {
         })}
       </View>
 
-      {/* Jobs Count & Sort */}
+      {/* Jobs count. The greyed-out "Sort" control that used to sit opposite is
+          gone: it was hard-disabled with no handler, and there was no sort
+          state, reducer or API parameter behind it anywhere — purely
+          decorative. A dead control that advertises a feature is worse than no
+          control. */}
       <View style={styles.resultsHeader}>
         <Text style={styles.resultsText}>
           {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
         </Text>
-        {/* Sorting is not built. Dimmed and disabled rather than
-            tappable-but-inert, which is what the customer screen already
-            does with its own Sort control. */}
-        <TouchableOpacity style={[styles.sortButton, styles.controlDisabled]} disabled>
-          <Ionicons name="funnel-outline" size={16} color={theme.colors.text.tertiary} />
-          <Text style={styles.sortText}>Sort</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Jobs List */}
@@ -552,16 +549,6 @@ const JobsScreen: React.FC = () => {
 const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   // Cold-load placeholders share the card rhythm so nothing shifts.
   skeletonRow: { marginBottom: S.md },
-  filterButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: theme.spacing.xl,
@@ -613,27 +600,10 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     color: theme.colors.text.inverse,
   },
   resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.md,
   },
   resultsText: {
-    ...T.body,
-    fontWeight: W.medium,
-
-    color: theme.colors.text.secondary,
-  },
-  controlDisabled: {
-    opacity: 0.45,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sortText: {
     ...T.body,
     fontWeight: W.medium,
 
@@ -644,11 +614,6 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.xl,
-  },
-  decisionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
   },
 });
 

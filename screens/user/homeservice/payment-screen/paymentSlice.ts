@@ -60,6 +60,17 @@ export interface PaymentDetails {
   customAmount: number | null;
   dueDate: string;
   serviceDate: string;
+  /**
+   * Has the provider actually named a price for this job?
+   *
+   * A booking is stamped with the provider's visit charge as an estimate the
+   * moment it is created, which the server used to report as the amount due —
+   * so the moment a job was marked complete this screen offered to charge that
+   * estimate, whatever the provider billed afterwards. The server now sends
+   * zero until someone quotes; this says WHY it is zero, so the screen can
+   * explain the wait instead of showing an empty total.
+   */
+  providerQuoted: boolean;
 }
 
 export interface PaymentTransaction {
@@ -149,6 +160,12 @@ const mapApiPaymentToLocal = (apiData: ReturnType<typeof paymentDataSerializer>)
     customAmount: null,
     dueDate: 'Today',
     serviceDate: new Date().toISOString(),
+    // A bill exists once the provider has requested it or the job is settled.
+    // Belt and braces with the amount: either signal alone is enough.
+    providerQuoted:
+      apiData.paymentStatus === 'requested' ||
+      apiData.paymentStatus === 'paid' ||
+      apiData.details.amount > 0,
   };
 
   return { recipient, paymentDetails };
@@ -352,6 +369,14 @@ export const selectFormattedPaymentAmount = (state: { payment?: PaymentState }) 
   const amount = selectPaymentAmount(state);
   return `Rs. ${amount.toLocaleString('en-PK')}`;
 };
+
+/**
+ * Has the provider named a price yet? Distinguishes "nothing to pay because
+ * the job has not been priced" from "nothing to pay" — the screen needs the
+ * difference to say who it is waiting on rather than showing a blank total.
+ */
+export const selectProviderQuoted = (state: { payment?: PaymentState }) =>
+  state.payment?.paymentDetails?.providerQuoted ?? false;
 
 export const selectIsPaymentValid = (state: { payment?: PaymentState }) => {
   const paymentState = state.payment;
