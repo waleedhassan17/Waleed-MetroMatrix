@@ -36,7 +36,9 @@ export interface RouteInfo {
 
 export interface TrackingData {
   provider: TrackingProvider;
-  providerLocation: Coordinates;
+  /** The LIVE position only — null until the provider's first location ping
+   *  (the server never substitutes their stored service area). */
+  providerLocation: Coordinates | null;
   userLocation: Coordinates | null;
   route: RouteInfo | null;
   trackingStatus: TrackingStatus;

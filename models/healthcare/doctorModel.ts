@@ -101,8 +101,17 @@ export const FetchDoctorsParamsSchema = z.object({
   search: z.string().optional(),
   page: z.number().optional(),
   limit: z.number().optional(),
-  sort: z.enum(['rating', 'experience', 'fee-low', 'fee-high']).optional(),
+  sort: z.enum(['rating', 'experience', 'fee-low', 'fee-high', 'distance']).optional(),
   availableOnly: z.boolean().optional(),
+  // These used to be set by the screens and silently dropped here.
+  availableToday: z.boolean().optional(),
+  minRating: z.number().optional(),
+  minFee: z.number().optional(),
+  maxFee: z.number().optional(),
+  // The patient's position, for distance to each doctor's nearest clinic.
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  radiusKm: z.number().optional(),
 });
 
 export const FetchDoctorReviewsParamsSchema = z.object({

@@ -57,6 +57,7 @@ const makeTHEME = (mode: ThemeMode) => {
 
 const TYPE_COLORS: Record<UploadRecordType, { bg: string; color: string; gradient: [string, string] }> = {
   prescription: { bg: '#F0F7FF', color: '#1857C0', gradient: ['#2A7FFF', '#1E6AE1'] },
+  medication:   { bg: '#F5F3FF', color: '#6D28D9', gradient: ['#8B5CF6', '#6D28D9'] },
   report:       { bg: '#F0FDF4', color: '#16A34A', gradient: ['#10B981', '#059669'] },
   imaging:      { bg: '#EAF3FF', color: '#1E6AE1', gradient: ['#5A9FFF', '#1E6AE1'] },
   discharge:    { bg: '#ECFEFF', color: '#0891B2', gradient: ['#06B6D4', '#0891B2'] },

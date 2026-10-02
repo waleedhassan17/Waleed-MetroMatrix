@@ -3,7 +3,7 @@ import { createAppSlice } from '../../../../../store/createAppSlice';
 import { DashboardData, DashboardJob } from '../../../../../models/serviceProviders';
 import { dashboardDataSerializer } from '../../../../../serializers/serviceProviders';
 import { fetchProviderDashboard } from '../../../../../networks/serviceProviders/dashboardNetwork';
-import { updateProviderOnlineStatus } from '../../../../../networks/serviceProviders/providerNetwork';
+import { setProviderOnline } from '../../../../../services/provider/onlineStatus';
 import { acceptJob as acceptJobApi, rejectJob as rejectJobApi } from '../../../../../networks/serviceProviders/jobNetwork';
 
 // Types - keeping local types for backward compatibility
@@ -309,7 +309,7 @@ const dashboardSlice = createAppSlice({
         const state = (getState() as any).dashboard as DashboardState;
         const newStatus = !state.profile.isOnline;
         
-        const response = await updateProviderOnlineStatus(newStatus);
+        const response = await setProviderOnline(newStatus);
         
         if (!response.success) {
           return rejectWithValue(response.message || 'Failed to update status');

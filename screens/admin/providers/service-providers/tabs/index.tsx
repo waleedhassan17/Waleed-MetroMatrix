@@ -6,9 +6,12 @@ import { StyleSheet, View } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../../constants/darkShift';
 import { useTheme } from '../../../../../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DashboardScreen from './dashboard/dashboard';
-import BookingsScreen from './bookings/bookings';
-import AnalyticsScreen from './analytics/analytics';
+// Real data in every tab. These three used to be hardcoded slices that never
+// called the API; the bookings and analytics tabs now mount the live admin
+// screens, and the dashboard is the real home-service overview.
+import DashboardScreen from './overview/HomeServiceOverviewScreen';
+import BookingsScreen from '../../../homeservice/AdminBookings/AdminBookingsScreen';
+import AnalyticsScreen from '../../../homeservice/AdminHomeServiceAnalytics/AdminHomeServiceAnalyticsScreen';
 
 const Tab = createBottomTabNavigator();
 

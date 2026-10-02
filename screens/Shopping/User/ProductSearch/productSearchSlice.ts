@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { Category, Product } from '../../../../types/shopping';
-import { searchProductsApi } from '../../../../networks/shopping/productApi';
+import type {
+  Category,
+  InterpretationChipKey,
+  Product,
+  ProductQueryInterpretation,
+} from '../../../../types/shopping';
+import { searchProductsApi, suggestProductsApi } from '../../../../networks/shopping/productApi';
 import { fetchBrandCategoriesApi } from '../../../../networks/shopping/brandApi';
 
 // ── Popular searches ────────────────────────
@@ -63,6 +68,10 @@ export interface ProductSearchState {
   page: number;
   totalPages: number;
   hasMore: boolean;
+  /** What the server understood the query as (chips above the results). */
+  interpreted: ProductQueryInterpretation | null;
+  /** Chips the shopper removed for the current query; sent as `ignore`. */
+  ignored: InterpretationChipKey[];
 }
 
 const initialState: ProductSearchState = {
@@ -78,6 +87,8 @@ const initialState: ProductSearchState = {
   page: 1,
   totalPages: 1,
   hasMore: false,
+  interpreted: null,
+  ignored: [],
 };
 
 // ── Async Thunks ────────────────────────────
@@ -86,14 +97,16 @@ export const searchProducts = createAsyncThunk(
   'productSearch/searchProducts',
   async (
     { query, page = 1, brandId }: { query: string; page?: number; brandId?: string },
-    { rejectWithValue }
+    { getState, rejectWithValue }
   ) => {
     try {
       if (!query.trim()) {
-        return { results: [], page: 1, totalPages: 1, query };
+        return { results: [], page: 1, totalPages: 1, query, interpreted: null };
       }
 
-      const res = await searchProductsApi(query, { brandId, page, limit: 20 });
+      // Removed chips stay removed while paging through the same query.
+      const { ignored } = (getState() as { productSearch: ProductSearchState }).productSearch;
+      const res = await searchProductsApi(query, { brandId, page, limit: 20, ignore: ignored });
 
       if (!res.success) {
         return rejectWithValue('Search failed');
@@ -104,6 +117,7 @@ export const searchProducts = createAsyncThunk(
         page: res.pagination.page,
         totalPages: res.pagination.pages,
         query,
+        interpreted: res.interpretedAs ?? null,
       };
     } catch (error: any) {
       if (error.message?.includes('Network')) {
@@ -127,7 +141,7 @@ export const fetchSuggestions = createAsyncThunk(
 
       // Scoped to the storefront being browsed — an unscoped call suggested
       // products from other brands that the results list would never show.
-      const res = await searchProductsApi(query, { brandId, limit: 5 });
+      const res = await suggestProductsApi(query, { brandId, limit: 5 });
       if (res.success) {
         return res.data.map((p: Product) => p.name).slice(0, 5);
       }
@@ -162,6 +176,9 @@ const productSearchSlice = createSlice({
   initialState,
   reducers: {
     setSearchQuery(state, action: PayloadAction<string>) {
+      // A new query is understood afresh: chips removed from the old one no
+      // longer mean anything.
+      if (action.payload.trim() !== state.searchQuery.trim()) state.ignored = [];
       state.searchQuery = action.payload;
       if (!action.payload.trim()) {
         state.results = [];
@@ -178,8 +195,13 @@ const productSearchSlice = createSlice({
         ...state.recentSearches.filter((s) => s !== query),
       ].slice(0, 10);
     },
+    /** The shopper removed one understood filter; the screen then searches again. */
+    ignoreInterpretation(state, action: PayloadAction<InterpretationChipKey>) {
+      if (!state.ignored.includes(action.payload)) state.ignored.push(action.payload);
+    },
     /** Drops results but keeps what the shopper has typed so far. */
     clearResults(state) {
+      state.interpreted = null;
       state.results = [];
       state.suggestions = [];
       state.hasSearched = false;
@@ -194,6 +216,8 @@ const productSearchSlice = createSlice({
       state.recentSearches = [];
     },
     resetSearch(state) {
+      state.interpreted = null;
+      state.ignored = [];
       state.searchQuery = '';
       state.results = [];
       state.suggestions = [];
@@ -215,7 +239,7 @@ const productSearchSlice = createSlice({
         state.hasSearched = true;
       })
       .addCase(searchProducts.fulfilled, (state, action) => {
-        const { results, page, totalPages, query } = action.payload;
+        const { results, page, totalPages, query, interpreted } = action.payload;
 
         // Debounced typing puts several searches in flight at once and they do
         // not necessarily resolve in order — a slow response for "shi" landing
@@ -229,6 +253,7 @@ const productSearchSlice = createSlice({
         state.hasSearched = true;
         if (page === 1) {
           state.results = results;
+          state.interpreted = interpreted;
         } else {
           const existingIds = new Set(state.results.map((p) => p.productId));
           const newResults = results.filter((p: Product) => !existingIds.has(p.productId));
@@ -262,6 +287,7 @@ const productSearchSlice = createSlice({
 
 export const {
   setSearchQuery,
+  ignoreInterpretation,
   clearResults,
   addRecentSearch,
   removeRecentSearch,

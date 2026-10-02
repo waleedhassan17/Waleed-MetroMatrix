@@ -32,7 +32,7 @@ import {
 import { setJobInProgressData } from '../job-InProgress/jobInProgressSlice';
 import { emitEvent, joinBooking } from '../../../../services/socket/socketClient';
 import { updateProviderLocation as updateProviderLocationApi } from '../../../../networks/serviceProviders/trackingNetwork';
-import { T, W } from '../../../../constants/theme';
+import { S, T, W } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
 import { Screen } from '../../../../components/ui';
@@ -468,6 +468,18 @@ const NavigationMapScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Doorstep identity check — the customer can verify you as you arrive. */}
+        {!!job?.id && (
+          <TouchableOpacity
+            style={styles.showIdLink}
+            onPress={() => (navigation as any).navigate('ShowProviderId', { jobId: job.id, customerName: job.customerName })}
+            accessibilityRole="button"
+          >
+            <Icon name="card-account-details-outline" size={16} color={colors.accentDeep} />
+            <Text style={styles.showIdText}>Show my ID to the customer</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Helper Text */}
         {!isNearDestination && (
           <Text style={styles.helperText}>
@@ -710,6 +722,18 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  showIdLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: S.xs + 2,
+    marginTop: S.md,
+    paddingVertical: S.sm,
+  },
+  showIdText: {
+    ...T.label,
+    color: c.accentDeep,
   },
   arrivedButtonDisabled: {
     backgroundColor: c.accentLine,

@@ -10,6 +10,9 @@ import type {
   OrderGroupView,
   PaginatedResponse,
   SingleResponse,
+  Product,
+  ProductModeration,
+  ProductModerationStatus,
 } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
 
@@ -47,6 +50,8 @@ export interface ShoppingSettingsView {
   lowStockThreshold: number;
   defaultReturnDays: number;
   autoApproveBrands: boolean;
+  /** false = new and edited products wait in the moderation queue. */
+  autoApproveProducts?: boolean;
   deliveryTiers: DeliveryTierView[];
 }
 
@@ -171,4 +176,34 @@ export const updateShoppingSettingsApi = (payload: Partial<ShoppingSettingsView>
   call<SingleResponse<ShoppingSettingsView>>(
     () => ShoppingAxiosInstance.patch("/admin/settings", payload),
     "Failed to update settings"
+  );
+
+// ── Product moderation ──────────────────────
+
+export interface AdminProductView extends Product {
+  brandName?: string;
+  isActive?: boolean;
+  moderation?: ProductModeration;
+}
+
+export const fetchAdminProductsApi = (params: {
+  moderationStatus?: ProductModerationStatus;
+  brandId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) =>
+  call<PaginatedResponse<AdminProductView>>(
+    () => ShoppingAxiosInstance.get("/admin/products", { params }),
+    "Failed to load products"
+  );
+
+export const moderateProductApi = (
+  productId: string,
+  status: "approved" | "rejected" | "removed",
+  note?: string
+) =>
+  call<SingleResponse<AdminProductView>>(
+    () => ShoppingAxiosInstance.patch(`/admin/products/${productId}/moderation`, { status, note }),
+    "Failed to update the product"
   );

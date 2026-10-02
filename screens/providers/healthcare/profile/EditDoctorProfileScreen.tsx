@@ -22,6 +22,7 @@ import { useUnsavedChangesGuard } from '../../../../hooks/useUnsavedChangesGuard
 import { ThemeColors, useTheme } from '../../../../theme';
 import { contactSupport } from '../../../../utils/support/contactSupport';
 import { fetchDoctorProfile, updateDoctorProfile, type DoctorProfileData } from './doctorProfileSlice';
+import { uploadDoctorPhotoApi } from '../../../../networks/healthcare/doctorHubApi';
 
 // ============================================================================
 // Edit the parts of the profile patients see.
@@ -100,6 +101,37 @@ const EditDoctorProfileScreen: React.FC = () => {
 
   const set = (key: keyof Form) => (value: string) => setForm((f) => (f ? { ...f, [key]: value } : f));
 
+  // Patients see this photo on every doctor card; it could not be changed
+  // from the app before. Uploads via POST /doctors/me/image.
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const changePhoto = async () => {
+    try {
+      const ImagePicker = require('expo-image-picker');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showToast({ message: 'Allow photo access to change your picture', tone: 'error' });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      const asset = !result.canceled && result.assets?.[0];
+      if (!asset?.uri) return;
+      setPhotoBusy(true);
+      const res = await uploadDoctorPhotoApi(asset.uri, asset.fileName || 'profile-photo.jpg', asset.mimeType || 'image/jpeg');
+      if (!res.success) throw new Error(res.message);
+      showToast({ message: 'Photo updated', tone: 'success' });
+      dispatch(fetchDoctorProfile());
+    } catch (e: any) {
+      showToast({ message: e?.message || "We couldn't update your photo", tone: 'error' });
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
   const save = async () => {
     if (!form) return;
     setSubmitted(true);
@@ -130,6 +162,14 @@ const EditDoctorProfileScreen: React.FC = () => {
 
     return (
       <>
+        <SectionHeader title="Profile photo" />
+        <ListRow
+          icon="camera-outline"
+          title={photoBusy ? 'Uploading…' : 'Change photo'}
+          subtitle="Shown to patients on your profile and in search"
+          onPress={photoBusy ? undefined : changePhoto}
+        />
+
         <SectionHeader title="About you" />
         <TextField
           label="Bio"

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ShoppingNotificationsScreen from '../screens/Shopping/Notifications/ShoppingNotificationsScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BrandRouteNames } from '../navigation-maps/Shopping';
 import type { BrandStackParamList } from '../types/shopping';
@@ -80,6 +81,11 @@ const BrandStack: React.FC = () => {
         <Stack.Screen
           name={BrandRouteNames.BrandOrderDetail}
           component={ProcessOrderScreen}
+        />
+        <Stack.Screen
+          name={BrandRouteNames.BrandNotifications}
+          component={ShoppingNotificationsScreen}
+          initialParams={{ audience: 'vendor' }}
         />
         <Stack.Screen
           name={BrandRouteNames.BrandReturnRequests}

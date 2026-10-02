@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import DemandCard from '../../../../../components/ui/DemandCard';
+import { useProviderHeartbeat } from '../../../../../hooks/useProviderHeartbeat';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -462,6 +464,10 @@ export default function Dashboard() {
     action: 'accept' | 'reject';
   } | null>(null);
 
+  // While online, tell the server the app is still open — "available now" in
+  // customer search depends on it (hooks/useProviderHeartbeat.ts).
+  useProviderHeartbeat(!!profile.isOnline);
+
   useEffect(() => {
     dispatch(fetchDashboardData());
     // The provider shell's canonical identity. Fetched here too so Home never
@@ -634,6 +640,8 @@ export default function Dashboard() {
           <>
             <StatsCard stats={stats} />
             <PerformanceSection insights={insights} />
+            {/* Expected requests in this provider's trade — when to be online. */}
+            <DemandCard style={styles.section} />
             <JobsSection
               jobs={jobs}
               activeTab={activeTab}

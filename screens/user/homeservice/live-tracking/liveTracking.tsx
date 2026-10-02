@@ -88,7 +88,7 @@ export default function LiveTrackingScreen() {
   // Live provider_location_update events replace polling; the marker position
   // flows through the existing Redux state so the map animates between updates
   // instead of snapping.
-  const { providerLocation: liveLocation, bookingStatus: liveStatus } = useRoomSocket(
+  const { providerLocation: liveLocation, bookingStatus: liveStatus, nearby, identityVerified } = useRoomSocket(
     bookingId,
     'homeservice'
   );
@@ -397,6 +397,17 @@ export default function LiveTrackingScreen() {
           )}
         </Map>
 
+        {/* Sent once by the server when the provider's live position comes
+            within ~5 minutes; the push carries the same words. */}
+        {nearby && liveStatus !== 'ARRIVED' && (
+          <View style={styles.nearbyBanner} accessibilityRole="alert">
+            <Ionicons name="navigate" size={16} color={colors.inkInverse} />
+            <Text style={styles.nearbyText}>
+              Almost there — about {nearby.etaMinutes} minute{nearby.etaMinutes === 1 ? '' : 's'} away
+            </Text>
+          </View>
+        )}
+
         {mapReady && (
           <View style={styles.eta}>
             <View style={styles.etaItem}>
@@ -467,6 +478,22 @@ export default function LiveTrackingScreen() {
             <Ionicons name="chatbubble-outline" size={18} color={colors.ink} />
           </TouchableOpacity>
         </View>
+
+        {/* Doorstep identity check: QR code, NFC badge or 6-digit code. */}
+        {identityVerified ? (
+          <View style={styles.verifiedRow} accessibilityRole="text">
+            <Ionicons name="shield-checkmark" size={16} color={colors.success} />
+            <Text style={styles.verifiedText}>ID checked — this is your provider</Text>
+          </View>
+        ) : (
+          <Button
+            label="Verify your provider"
+            variant="secondary"
+            icon="shield-checkmark-outline"
+            onPress={() => navigation.navigate('VerifyProvider', { bookingId, providerName: provider?.name })}
+            style={styles.verify}
+          />
+        )}
 
         {isProviderNearby && (
           <Button
@@ -541,6 +568,24 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
 
+  nearbyBanner: {
+    position: 'absolute',
+    bottom: S.md,
+    left: S.md,
+    right: S.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: S.sm,
+    paddingHorizontal: S.md,
+    borderRadius: R.control,
+    backgroundColor: c.accentDeep,
+  },
+  nearbyText: {
+    ...T.label,
+    color: c.inkInverse,
+    marginLeft: S.sm,
+    flex: 1,
+  },
   eta: {
     position: 'absolute',
     top: S.lg,
@@ -588,6 +633,19 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  verify: {
+    marginTop: S.md,
+  },
+  verifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.xs + 2,
+    marginTop: S.md,
+  },
+  verifiedText: {
+    ...T.label,
+    color: c.success,
   },
   providerName: {
     ...T.subhead,

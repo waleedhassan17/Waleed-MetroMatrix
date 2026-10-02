@@ -49,7 +49,7 @@
             "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
           }
         ],
-        "NSCameraUsageDescription": "MetroMatrix uses your camera for video consultations with your doctor.",
+        "NSCameraUsageDescription": "MetroMatrix uses your camera for video consultations with your doctor and to scan your service provider's ID code.",
         "NSMicrophoneUsageDescription": "MetroMatrix uses your microphone so you can talk to your service provider or doctor during an in-app call.",
         "UIBackgroundModes": [
           "audio",
@@ -76,7 +76,24 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.WAKE_LOCK",
-        "android.permission.DISABLE_KEYGUARD"
+        "android.permission.DISABLE_KEYGUARD",
+        "android.permission.NFC",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ],
+      "intentFilters": [
+        {
+          "action": "android.nfc.action.NDEF_DISCOVERED",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "metromatrix",
+              "host": "verify"
+            }
+          ]
+        }
       ]
     },
     "web": {
@@ -137,6 +154,29 @@
               "../../node_modules/@notifee/react-native/android/libs"
             ]
           }
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [],
+          "neverForLocation": true,
+          "bluetoothAlwaysPermission": "MetroMatrix uses Bluetooth to read your heart-rate or blood-pressure monitor so you can save the readings to your health record."
+        }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "MetroMatrix uses NFC to check your service provider's ID badge at your door.",
+          "includeNdefEntitlement": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MetroMatrix uses your camera for video consultations with your doctor and to scan your service provider's ID code.",
+          "recordAudioAndroid": false
         }
       ]
     ],

@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -40,6 +41,8 @@ import {
   updateUserAddressApi,
   UserAddressFull,
 } from '../../../../networks/serviceProviders/adminHomeServiceApi';
+import LocationPicker, { PointSource } from '../../../../components/homeservice/LocationPicker';
+import type { LatLng } from '../../../../utils/homeservice/maplibre';
 
 const ICONS: Record<string, string> = {
   home: 'home-outline',
@@ -62,6 +65,8 @@ export default function AddressManagementScreen() {
   const [label, setLabel] = useState('Home');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [point, setPoint] = useState<LatLng | null>(null);
+  const [pointSource, setPointSource] = useState<PointSource | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<UserAddressFull | null>(null);
@@ -84,6 +89,8 @@ export default function AddressManagementScreen() {
     setLabel('Home');
     setAddress('');
     setCity('');
+    setPoint(null);
+    setPointSource(null);
     setFormError(null);
     setModalOpen(true);
   };
@@ -93,6 +100,14 @@ export default function AddressManagementScreen() {
     setLabel(a.label);
     setAddress(a.address);
     setCity(a.city);
+    setPoint(a.coordinates || null);
+    setPointSource(
+      a.coordinates && a.coordinatesSource && a.coordinatesSource !== 'legacy'
+        ? (a.coordinatesSource as PointSource)
+        : a.coordinates
+          ? 'pin'
+          : null
+    );
     setFormError(null);
     setModalOpen(true);
   };
@@ -104,9 +119,12 @@ export default function AddressManagementScreen() {
     }
     setSaving(true);
     setFormError(null);
+    // The pin is what provider search measures "near you" from; an address
+    // without one still saves, and the list nudges the customer to pin it.
+    const located = point && pointSource ? { coordinates: point, coordinatesSource: pointSource } : {};
     const res = editing
-      ? await updateUserAddressApi(editing.id, { label, address, city })
-      : await addUserAddress({ label, address, city, isDefault: rows.length === 0 });
+      ? await updateUserAddressApi(editing.id, { label, address, city, ...located })
+      : await addUserAddress({ label, address, city, isDefault: rows.length === 0, ...located } as any);
     setSaving(false);
     if (res.success) {
       setModalOpen(false);
@@ -153,6 +171,16 @@ export default function AddressManagementScreen() {
             {item.address}
             {item.city ? `, ${item.city}` : ''}
           </Text>
+          {!item.located && (
+            <TouchableOpacity
+              onPress={() => openEdit(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Pin the location of ${item.label}`}
+            >
+              <Text style={styles.warnLink}>Location not pinned — tap to pin it for accurate “near you”</Text>
+            </TouchableOpacity>
+          )}
           {!item.isDefault && (
             <TouchableOpacity
               onPress={() => makeDefault(item)}
@@ -224,6 +252,7 @@ export default function AddressManagementScreen() {
           >
             <View style={[styles.sheet, { paddingBottom: insets.bottom + S.lg }]}>
               <View style={styles.grabber} />
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={styles.sheetTitle}>{editing ? 'Edit address' : 'New address'}</Text>
 
               <Text style={styles.fieldLabel}>Label</Text>
@@ -259,7 +288,21 @@ export default function AddressManagementScreen() {
                 onChangeText={setCity}
               />
 
+              <Text style={styles.fieldLabel}>Location</Text>
+              <LocationPicker
+                value={point}
+                source={pointSource}
+                addressText={[address, city].filter(Boolean).join(', ')}
+                onChange={(picked) => {
+                  setPoint(picked.point);
+                  setPointSource(picked.source);
+                  if (!address.trim() && picked.suggestedAddress) setAddress(picked.suggestedAddress);
+                  if (!city.trim() && picked.suggestedCity) setCity(picked.suggestedCity);
+                }}
+              />
+
               {!!formError && <Text style={styles.error}>{formError}</Text>}
+              </ScrollView>
 
               <View style={styles.sheetActions}>
                 <Button
@@ -300,6 +343,11 @@ export default function AddressManagementScreen() {
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  warnLink: {
+    ...T.caption,
+    color: c.warning,
+    marginTop: S.xs,
+  },
   list: {
     padding: GUTTER,
     flexGrow: 1,
@@ -376,6 +424,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
+    maxHeight: '92%',
     backgroundColor: c.surface,
     borderTopLeftRadius: R.sheet,
     borderTopRightRadius: R.sheet,

@@ -206,6 +206,10 @@ const productFormSlice = createSlice({
   name: 'productForm',
   initialState,
   reducers: {
+    /** The server's copy after attaching/removing a 3D model (its own endpoint). */
+    setDraftModel3d(state, action: PayloadAction<Product['model3d']>) {
+      state.draft.model3d = action.payload ?? null;
+    },
     setField(state, action: PayloadAction<{ key: keyof Product; value: any }>) {
       (state.draft as any)[action.payload.key] = action.payload.value;
     },
@@ -312,6 +316,7 @@ const productFormSlice = createSlice({
 });
 
 export const {
+  setDraftModel3d,
   setField,
   addVariant,
   updateVariant,

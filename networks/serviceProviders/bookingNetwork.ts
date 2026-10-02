@@ -11,6 +11,7 @@ import {
   ApiResponse,
 } from '../../models/serviceProviders';
 import { apiRequest } from './config';
+import { rankingContextFor } from '../../services/analytics/rankingContext';
 
 /**
  * @param date `YYYY-MM-DD`, once the customer has picked one. Time slots come
@@ -64,9 +65,12 @@ export async function createBooking(data: {
   addressId: string;
   instructions?: string;
 }): Promise<ApiResponse<BookingConfirmation & { activeBooking?: ActiveBooking }>> {
+    // Credit the booking to the search that showed this provider (if any) —
+    // how the matching model learns which rankings worked.
+    const rankingContext = rankingContextFor(data.providerId);
     return apiRequest<BookingConfirmation & { activeBooking?: ActiveBooking }>('/bookings', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ...(rankingContext ? { rankingContext } : {}) }),
   });
 }
 

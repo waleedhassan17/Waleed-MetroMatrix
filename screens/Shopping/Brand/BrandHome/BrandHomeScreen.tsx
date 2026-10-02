@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
+import DemandCard from '../../../../components/ui/DemandCard';
+import NotificationBell from '../../../../components/Shopping/NotificationBell';
 import {
   View,
   Text,
@@ -119,6 +121,7 @@ const BrandHomeScreen: React.FC = () => {
           </View>
         </View>
 
+        <NotificationBell route="BrandNotifications" color={colors.ink} />
         <TouchableOpacity
           style={styles.walletChip}
           onPress={() => navigation.navigate('WalletScreen' as never)}
@@ -218,6 +221,9 @@ const BrandHomeScreen: React.FC = () => {
             })}
           </View>
         </View>
+
+        {/* ── Expected orders for this store — stock up before a busy week. ── */}
+        <DemandCard style={styles.demandCard} />
 
         {/* ── Recent Orders ── */}
         <View style={styles.card}>
@@ -466,6 +472,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
 
   // Shared Card
+  demandCard: { marginTop: 16 },
   card: {
     marginTop: 16,
     padding: 16,

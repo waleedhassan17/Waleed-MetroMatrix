@@ -202,6 +202,8 @@ export function doctorSerializer(data: any): Doctor {
     awards: data?.awards || [],
     publications: data?.publications || [],
     availableSlots: data?.availableSlots,
+    distanceKm: typeof data?.distanceKm === 'number' ? data.distanceKm : null,
+    nearestClinic: data?.nearestClinic || null,
     createdAt: data?.createdAt || '',
   } as Doctor;
 }

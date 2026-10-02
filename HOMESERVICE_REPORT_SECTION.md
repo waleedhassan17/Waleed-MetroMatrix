@@ -70,21 +70,36 @@ Four independent frontend status vocabularies pre-existed on the client (`bookin
 
 ## 4. Provider discovery — $geoNear + weighted matching score
 
-`GET /api/providers` runs `$geoNear` as the **first** aggregation stage (spherical, metres), filtered to
-`providerType: 'home_service'`, `adminVerified: 'active'`, `isActive: true`, then computes, per result:
+`GET /api/providers` runs `$geoNear` as the **first** aggregation stage (spherical, metres, on the
+`providers` collection's 2dsphere index) whenever the customer's position is known — their pinned saved
+address, else the phone's location — filtered to searchable home-service providers
+(`providerType: 'home_service'`, `adminVerified: 'active'`, `isActive: true`, not hidden). Without a
+position it is a plain `$match` across every city, with no invented distances. Each provider's own service
+radius is enforced, and the search widens (15 → 30 → 60 km) only when nobody is in range. Per result:
 
 ```
-score = 0.4 × distanceScore + 0.4 × ratingScore + 0.2 × availabilityBonus
-distanceScore = 1 − min(distance / radius, 1)
-ratingScore = rating / 5
-availabilityBonus = 1 if the provider is currently online, else 0
+matchingScore = w_d·distance + w_r·rating + w_a·availability + w_q·quality      (defaults .35/.35/.15/.15)
+distance     = 1 − min(d / radius, 1)                 (Haversine distance from $geoNear)
+rating       = bayes / 5,  bayes = (C·m + avg·n) / (C + n),  m = 4.0, C = 5
+availability = 1 if available NOW: online, seen in the last onlineStaleMinutes, inside today's hours (PKT)
+quality      = (completed + 1) / (total bookings + 2)     (completion rate, Laplace-smoothed)
+               unknown distance → 0.5 (neutral); city-centre estimate → damped closeness
 ```
 
-Weights live in one exported constant (`matchingService.js`), documented as hardcoded for FYP-I and
-intended to be learned from booking outcomes in FYP-II — matching your report's own §5.4.5 language
-exactly. Verified live: a provider 1 km away rated 4.0 outranks one 12 km away rated 5.0 under these
-weights (unit test + the identical assertion style used against the live seeded dataset). Estimated travel
-time is computed from one documented average-urban-speed constant (25 km/h).
+The Bayesian rating stops a single 5★ review outranking a provider with fifty 4.8★ reviews; the quality
+term is how "list by quality" is measured. Weights, the freshness window and the ranking mode are
+admin-tunable (`/admin/homeservice/settings`) and every result carries its `scoreBreakdown`. Provider
+locations are a coarse **service base** (~500 m grid, set by the provider or sampled when they go online);
+the live GPS track is never stored (NFR-08). Sorts: best match (default), nearest, top rated, most
+reviewed, price. Filters: minimum rating, available now, within X km, maximum price.
+
+**Learned re-ranking (FYP-II).** Every search logs the providers shown with the features used to rank
+them; bookings are credited back through `rankingContext.searchId`. A nightly Python job
+(`ml/mm_ml/jobs/train_matching.py`) trains a small MLP on those outcomes, exports it to a TensorFlow.js
+LayersModel and registers it with its holdout AUC against the heuristic's. The API scores the top 50 with
+`@tensorflow/tfjs-core/-layers/-backend-cpu` (pure JS, serverless-safe) only after a parity check against
+fixtures written by Python; admins choose `heuristic`, `shadow` (scored and logged, never shown), `blend`
+or `model`, and any error or timeout falls back to the heuristic order.
 
 ## 5. Real-time layer
 
@@ -100,9 +115,15 @@ during an active booking and is never stored once the job is done" verbatim. Eve
 fallback (documented in `SOCKET_API.md`) because the Vercel production deployment is serverless and cannot
 hold WebSocket connections — the app degrades to polling there.
 
-Calling is signalling-only by design: `call_ring`/`call_accept`/`call_decline`/`call_end` travel over the
-socket between the two apps; actual audio is handed to the phone's native dialer. Documented plainly on
-both call screens — no UI implies in-app voice that doesn't exist.
+Calling (FYP-I): signalling only — `call_ring`/`call_accept`/`call_decline`/`call_end` over the socket,
+audio handed to the native dialer. *Superseded:* calls are now in-app WebRTC relayed through Cloudflare
+TURN (see `CHAT_CALL_CHANGELOG.md`).
+
+**Push (FR-16).** Every lifecycle event also reaches a closed app: the API posts to the realtime service,
+which sends through Expo Push → FCM HTTP v1 — accepted, rejected, on the way, ~5 minutes away (once per
+trip, claimed atomically), arrived, work started, completed, cancelled (by customer, provider, the system
+when a rival accepted, expiry or an admin), payment requested/received, cash selected, reminder an hour
+before, new review, and the doorstep identity check.
 
 ## 6. Payment, commission and payout design
 
@@ -159,7 +180,7 @@ those are marked accordingly rather than force-fit.
 | FR-04 | Email Verification (two-step, step 1) | Platform-wide, pre-existing | Done (out of HS scope) | — |
 | FR-05 | Document Upload (5 types) | Shared provider onboarding | Done (out of HS scope) | `uploadMiddleware.js` |
 | FR-06 | Admin Approval (two-step, step 2) | Shared, extended for HS oversight | Done | `adminVerified: pending→active`; HS5 adds booking/dispute/payout oversight on top |
-| FR-07 | Service Browsing (category, rating, availability, proximity filters) | **Home Services** | **Done** | `GET /providers` — $geoNear + minRating/available filters; live-verified |
+| FR-07 | Service Browsing (category, rating, availability, proximity filters) | **Home Services** | **Done** | `GET /providers` — `$geoNear` on the 2dsphere index, minimum rating / available now / within X km / price filters, five sorts, paging; server order kept by the app (list + map); tests `discovery.test.js`, `discovery.integration.test.js` |
 | FR-08 | Booking Creation (category, time slot, address → provider dashboard) | **Home Services** | **Done** | `POST /bookings`; live-verified end to end |
 | FR-09 | Real-Time GPS Tracking (live location, route) | **Home Services** | **Done** | socket `provider_location_update` + REST fallback; live-verified incl. the EN_ROUTE/ARRIVED gate |
 | FR-10 | In-App Chat (WebSocket, real-time) | **Home Services** | **Done** | socket `send_message`/`new_message`; live-verified; both customer AND provider sides now exist (were one-sided before this work) |
@@ -168,15 +189,15 @@ those are marked accordingly rather than force-fit.
 | FR-13 | Provider Dashboard (stats, earnings, pending payments) | **Home Services** | **Done** | `GET /provider/dashboard`; live-verified |
 | FR-14 | Provider Job Management (accept/reject/complete, real-time status to customer) | **Home Services** | **Done** | full accept→complete chain live-verified; `booking_status_changed` socket event |
 | FR-15 | Admin User Management | Platform-wide, pre-existing | Done (out of HS scope) | — |
-| FR-16 | Notification System (FCM push for lifecycle events) | **Home Services** — partial | **Partial** | In-app notifications exist (`GET /user/notifications`, derived from statusHistory, live-verified) and `booking_status_changed` fires over the socket in real time. **FCM push is not wired for Home Services events** — recommend either wiring it in FYP-II or narrowing this FR's claim to in-app + socket notifications for the mid report |
+| FR-16 | Notification System (FCM push for lifecycle events) | **Home Services** (+ Healthcare, Shopping) | **Done** | In-app notifications + socket events + **push for every lifecycle event** via Expo Push → FCM HTTP v1 (`bookingService.pushFor`, `notificationService`, `expiryService`, reminders on the scheduler tick); tests `pushMatrix.test.js`, `nearby.test.js`, `reminders.test.js`, `orderNotifications.test.js`. Healthcare appointments and Shopping orders push too |
 | FR-17 | Role-Based Access Control | Platform-wide, extended | Done | `protect/userOnly/providerOnly/adminOnly` + `loadBookingWithAccess` ownership guard, live-verified both directions (403 for a different provider, 403 for non-admin) |
 | FR-18 | Social Authentication | Platform-wide, pre-existing | Done (out of HS scope) | — |
 | FR-19 | Password Recovery | Platform-wide, pre-existing | Done (out of HS scope) | — |
 | FR-20 | Provider Earnings Tracking (daily/weekly/monthly breakdown) | **Home Services** | **Done** | `GET /provider/earnings` — aggregation pipelines, not in-memory loops; live-verified incl. the availableBalance fix (§11) |
 
-**Recommendation:** FR-16 is the one item to either build out (FCM push triggered from
-`bookingService.transition()`, which already has the hook point) or narrow honestly in the report before
-submission — don't leave it claimed as Done when only the in-app half exists.
+FR-16 was the one partial item in the mid report; it is now complete (push for the whole matrix, plus
+Healthcare and Shopping). Word it as "push notifications (FCM HTTP v1, delivered through Expo's push
+service)" — the app never calls FCM directly.
 
 ## 11. TC-09..TC-15 — Chapter 4, Table 4.2 "Home Services Module"
 
@@ -219,11 +240,17 @@ system, for Home Services and the platform it sits in:
   zero practical benefit from inter-service network hops — only added latency, deployment complexity, and
   a service-discovery problem (Challenge 1 in your own Chapter 5) that a monolith doesn't have. Module
   boundaries are still real (separate models, services, routes per domain) — just not process boundaries.
-- **No Redis.** Session/refresh-token state lives in MongoDB (on the User/Provider documents) and JWTs are
-  stateless; live provider locations live in a plain in-memory `Map` (cleared per NFR-08), not a Redis
-  cache. *Why:* Redis adds a second stateful service to provision, monitor, and pay for, for a workload
-  (tens of concurrent bookings during a demo, not tens of thousands of users) that a Map and MongoDB
-  indexes handle without measurable latency difference.
+  The **API gateway** is an in-process layer (`src/gateway/`): request ids, structured access logs, CORS
+  and security headers, rate limits shared across serverless instances through Redis, JWT verification
+  per router, and one route table mounting every module. Call it an "API gateway layer", not a separate
+  gateway product.
+- **Redis, as a fail-open cache (FYP-II).** Upstash Redis (HTTP client — serverless-safe) holds hot data:
+  provider-search pages (30 s, per ~1 km cell), settings, recommendations (10 min), parsed natural-language
+  queries (24 h), per-minute request/error counters and who is active right now (the real-time dashboard),
+  and the shared rate-limit counters. Every call has a 150 ms budget and a circuit breaker: with Redis
+  slow or down the API simply reads MongoDB. Money is never cached (a test enforces it), sessions stay
+  JWT + MongoDB refresh tokens, and live provider locations stay in memory only (NFR-08) — deliberate
+  choices, write them as such.
 - **Email verification, not Twilio OTP SMS.** Account activation is gated on a verified-email link, not an
   SMS one-time code. *Why:* Twilio SMS costs real money per message and requires a business-verified
   sender ID to avoid carrier filtering in Pakistan — email verification achieves the same "prove you own
@@ -234,11 +261,11 @@ system, for Home Services and the platform it sits in:
   right (documented as a constraint in your own stakeholder analysis); a wallet demonstrates the same
   booking→pay→earn→payout lifecycle end-to-end without that dependency, and is honestly labelled in the
   code and this report as the FYP-I payment mechanism rather than a Stripe stand-in.
-- **Deterministic weighted score, not an "AI Matching Engine".** The matching score (§4) is a documented
-  formula with hardcoded weights — no model, no training data. This one your report already gets right in
-  §5.4.5's "AI Provider Matching Score (Designed)" paragraph; the divergence is only in the Chapter 3
-  sequence-diagram label ("AI Matching Engine") which should be renamed to "Matching Score Service" or
-  similar to stop implying ML that isn't there.
+- **AI matching: a heuristic with a learned model on top (FYP-II).** The weighted score (§4) ranks by
+  default; the learned MLP (Python-trained, TF.js-served) re-ranks only when an admin enables it and its
+  checks pass. Report its metrics as measured (holdout AUC vs. the heuristic's) and say which data it was
+  trained on: models trained on simulated data are labelled `synthetic` and are never activated
+  automatically.
 
 None of these divergences reduce what the module demonstrates — booking lifecycle, geospatial discovery,
 real-time chat/tracking, payment with commission, and full admin oversight are all real and independently

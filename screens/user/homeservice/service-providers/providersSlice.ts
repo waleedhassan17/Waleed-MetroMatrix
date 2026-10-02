@@ -2,53 +2,61 @@ import { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../../store/createAppSlice';
 import { Provider, Pagination } from '../../../../models/serviceProviders';
 import { providerListSerializer, paginationSerializer } from '../../../../serializers/serviceProviders';
-import { fetchProviders } from '../../../../networks/serviceProviders/providerNetwork';
+import {
+  fetchProviders,
+  ProviderSearchArea,
+  ProviderSearchFilters,
+  ProviderSort,
+  SearchOrigin,
+} from '../../../../networks/serviceProviders/providerNetwork';
 
-// Types
-export type SortOption = 'rating' | 'reviews' | 'experience' | 'price';
+// ============================================================================
+// Provider discovery state.
+//
+// The SERVER ranks, searches and filters (GET /providers → $geoNear + the
+// matching score in the backend's services/discoveryPipeline.js). This slice
+// keeps exactly what the server returned, in its order, page after page.
+//
+// It used to re-sort every response on the phone by star rating, which threw
+// the distance/availability ranking away; send only `category`, so sort and
+// filters never reached the server; and fetch one page, so a customer only
+// ever saw the first fifteen providers.
+// ============================================================================
+
+export type SortOption = ProviderSort;
 export type ProviderCategory = 'electricians' | 'plumbers' | 'ac-repairers';
-
-export interface FilterOptions {
-  minRating?: number;
-  maxPrice?: number;
-  verified?: boolean;
-  available?: boolean;
-}
+export type FilterOptions = ProviderSearchFilters;
 
 export interface ProvidersState {
-  // Provider lists by category
+  // Provider lists by category (server order, accumulated across pages)
   electricians: Provider[];
   plumbers: Provider[];
   acRepairers: Provider[];
-  
-  // Current active providers (filtered/sorted)
+
+  // The current category's list — what the screen renders.
   filteredProviders: Provider[];
-  
-  // Current category
+
   currentCategory: ProviderCategory;
-  
-  // Search and filter state
+
+  // What was asked for; every change refetches page 1.
   searchQuery: string;
   selectedSort: SortOption;
   filters: FilterOptions;
-  
-  // Pagination
+
   pagination: Pagination;
-  
-  // Loading states
+  /** How the server interpreted "near you" for the last request. */
+  searchArea: ProviderSearchArea | null;
+  /** The position the last search was measured from, if any. */
+  origin: SearchOrigin | null;
+
   isLoading: boolean;
   isRefreshing: boolean;
   isLoadingMore: boolean;
   error: string | null;
-  
-  // Selected provider for detail view
+
   selectedProvider: Provider | null;
 }
 
-// Note: Dummy data is now provided by the network layer (USE_DUMMY_DATA flag in network.ts)
-// The slice uses fetchProviders API which returns dummy data when backend is not ready
-
-// Initial state
 const initialState: ProvidersState = {
   electricians: [],
   plumbers: [],
@@ -56,7 +64,7 @@ const initialState: ProvidersState = {
   filteredProviders: [],
   currentCategory: 'electricians',
   searchQuery: '',
-  selectedSort: 'rating',
+  selectedSort: 'best',
   filters: {},
   pagination: {
     currentPage: 1,
@@ -66,6 +74,8 @@ const initialState: ProvidersState = {
     hasNext: false,
     hasPrevious: false,
   },
+  searchArea: null,
+  origin: null,
   isLoading: false,
   isRefreshing: false,
   isLoadingMore: false,
@@ -73,50 +83,8 @@ const initialState: ProvidersState = {
   selectedProvider: null,
 };
 
-// Helper function to sort providers
-const sortProviders = (providers: Provider[], sortBy: SortOption): Provider[] => {
-  const sorted = [...providers];
-  switch (sortBy) {
-    case 'rating':
-      return sorted.sort((a, b) => b.rating - a.rating);
-    case 'reviews':
-      return sorted.sort((a, b) => b.reviews - a.reviews);
-    case 'experience':
-      return sorted.sort((a, b) => {
-        const aYears = parseInt(a.experience) || 0;
-        const bYears = parseInt(b.experience) || 0;
-        return bYears - aYears;
-      });
-    case 'price':
-      return sorted.sort((a, b) => a.price - b.price);
-    default:
-      return sorted;
-  }
-};
+const PAGE_SIZE = 15;
 
-// Helper function to filter providers by search query
-const filterBySearch = (providers: Provider[], query: string): Provider[] => {
-  if (!query.trim()) return providers;
-  const lowercaseQuery = query.toLowerCase();
-  return providers.filter(
-    (p) =>
-      p.name.toLowerCase().includes(lowercaseQuery) ||
-      p.specialty?.toLowerCase().includes(lowercaseQuery) ||
-      p.experience.toLowerCase().includes(lowercaseQuery)
-  );
-};
-
-/**
- * THE UNFILTERED list for the current category — the one `filteredProviders` is
- * always derived FROM, never the previous value of `filteredProviders` itself.
- *
- * Searching used to narrow `filteredProviders` in place, which made every
- * keystroke destructive: the providers it pruned were gone from state, so
- * clearing the box could only ever return whatever survived the last query.
- * `filterBySearch('')` correctly returns its input unchanged — the input was
- * simply already wrong. Only a refetch rebuilt the list, which is why leaving
- * the screen and coming back appeared to fix it.
- */
 const sourceFor = (state: ProvidersState): Provider[] => {
   switch (state.currentCategory) {
     case 'electricians':
@@ -130,46 +98,74 @@ const sourceFor = (state: ProvidersState): Provider[] => {
   }
 };
 
-/** Re-derive the visible list from the category list + current query + sort. */
-const reapply = (state: ProvidersState) => {
-  state.filteredProviders = sortProviders(
-    filterBySearch(sourceFor(state), state.searchQuery),
-    state.selectedSort
-  );
+const setCategoryList = (state: ProvidersState, category: ProviderCategory, list: Provider[]) => {
+  switch (category) {
+    case 'electricians':
+      state.electricians = list;
+      break;
+    case 'plumbers':
+      state.plumbers = list;
+      break;
+    case 'ac-repairers':
+      state.acRepairers = list;
+      break;
+  }
 };
 
-// Slice using createAppSlice
+/** The visible list IS the category list — server order, never re-sorted here. */
+const reapply = (state: ProvidersState) => {
+  state.filteredProviders = sourceFor(state);
+};
+
+type SearchArgs = {
+  category: ProviderCategory;
+  search?: string;
+  sort?: SortOption;
+  filters?: FilterOptions;
+  page?: number;
+};
+
+async function runSearch(args: SearchArgs) {
+  const response = await fetchProviders({
+    category: args.category,
+    search: args.search?.trim() || undefined,
+    page: args.page || 1,
+    limit: PAGE_SIZE,
+    sort: args.sort,
+    filters: args.filters,
+  });
+  if (!response.success) return { ok: false as const, message: response.message };
+  return {
+    ok: true as const,
+    providers: providerListSerializer(response.data),
+    pagination: paginationSerializer(response.data.pagination),
+    searchArea: response.data.searchArea ?? null,
+    origin: response.origin ?? null,
+    category: args.category,
+  };
+}
+
 const providersSlice = createAppSlice({
   name: 'serviceProviders',
   initialState,
   reducers: (create) => ({
-    // Fetch providers by category
+    /**
+     * Page 1 for a category with the current (or given) search, sort and
+     * filters. Arguments that are omitted are taken from state, so the screen
+     * can refetch after any single change.
+     */
     fetchProvidersByCategory: create.asyncThunk(
-      async (params: {
-        category: ProviderCategory;
-        search?: string;
-        sort?: SortOption;
-        filters?: FilterOptions;
-        page?: number;
-      }, { rejectWithValue }) => {
-        const response = await fetchProviders({
+      async (params: SearchArgs, { getState, rejectWithValue }) => {
+        const state = (getState() as any).serviceProviders as ProvidersState;
+        const result = await runSearch({
           category: params.category,
-          search: params.search,
-          page: params.page || 1,
-          limit: 15,
-          sort: params.sort,
-          filters: params.filters,
+          search: params.search ?? state.searchQuery,
+          sort: params.sort ?? state.selectedSort,
+          filters: params.filters ?? state.filters,
+          page: 1,
         });
-
-        if (!response.success) {
-          return rejectWithValue(response.message || 'Failed to fetch providers');
-        }
-
-        return {
-          providers: providerListSerializer(response.data),
-          pagination: paginationSerializer(response.data.pagination),
-          category: params.category,
-        };
+        if (!result.ok) return rejectWithValue(result.message || 'Failed to fetch providers');
+        return result;
       },
       {
         pending: (state) => {
@@ -178,57 +174,35 @@ const providersSlice = createAppSlice({
         },
         fulfilled: (state, action) => {
           state.isLoading = false;
-          const { providers, pagination, category } = action.payload;
-
-          // Store in category-specific array
-          switch (category) {
-            case 'electricians':
-              state.electricians = providers;
-              break;
-            case 'plumbers':
-              state.plumbers = providers;
-              break;
-            case 'ac-repairers':
-              state.acRepairers = providers;
-              break;
-          }
-
+          const { providers, pagination, category, searchArea, origin } = action.payload;
+          setCategoryList(state, category, providers);
           state.pagination = pagination;
+          state.searchArea = searchArea;
+          state.origin = origin;
           // Set BEFORE reapply: sourceFor reads currentCategory.
           state.currentCategory = category;
           reapply(state);
         },
         rejected: (state, action) => {
           state.isLoading = false;
-          state.error = action.payload as string || 'Failed to fetch providers';
+          state.error = (action.payload as string) || 'Failed to fetch providers';
         },
       }
     ),
 
-    // Refresh providers
+    /** Pull-to-refresh: page 1 again with everything as it is. */
     refreshProviders: create.asyncThunk(
       async (_, { getState, rejectWithValue }) => {
         const state = (getState() as any).serviceProviders as ProvidersState;
-        const { currentCategory, searchQuery, selectedSort, filters } = state;
-
-        const response = await fetchProviders({
-          category: currentCategory,
-          search: searchQuery || undefined,
+        const result = await runSearch({
+          category: state.currentCategory,
+          search: state.searchQuery,
+          sort: state.selectedSort,
+          filters: state.filters,
           page: 1,
-          limit: 15,
-          sort: selectedSort,
-          filters,
         });
-
-        if (!response.success) {
-          return rejectWithValue(response.message || 'Failed to refresh providers');
-        }
-
-        return {
-          providers: providerListSerializer(response.data),
-          pagination: paginationSerializer(response.data.pagination),
-          category: currentCategory,
-        };
+        if (!result.ok) return rejectWithValue(result.message || 'Failed to refresh providers');
+        return result;
       },
       {
         pending: (state) => {
@@ -237,102 +211,71 @@ const providersSlice = createAppSlice({
         },
         fulfilled: (state, action) => {
           state.isRefreshing = false;
-          const { providers, pagination, category } = action.payload;
-
-          switch (category) {
-            case 'electricians':
-              state.electricians = providers;
-              break;
-            case 'plumbers':
-              state.plumbers = providers;
-              break;
-            case 'ac-repairers':
-              state.acRepairers = providers;
-              break;
-          }
-
+          const { providers, pagination, category, searchArea, origin } = action.payload;
+          setCategoryList(state, category, providers);
           state.pagination = pagination;
+          state.searchArea = searchArea;
+          state.origin = origin;
           reapply(state);
         },
         rejected: (state, action) => {
           state.isRefreshing = false;
-          state.error = action.payload as string || 'Failed to refresh providers';
+          state.error = (action.payload as string) || 'Failed to refresh providers';
         },
       }
     ),
 
-    // Load more providers (pagination)
+    /** The next page, appended — the list's onEndReached. */
     loadMoreProviders: create.asyncThunk(
       async (_, { getState, rejectWithValue }) => {
         const state = (getState() as any).serviceProviders as ProvidersState;
-        const { currentCategory, searchQuery, selectedSort, filters, pagination } = state;
-
-        if (!pagination.hasNext) {
-          return rejectWithValue('No more providers to load');
-        }
-
-        const response = await fetchProviders({
-          category: currentCategory,
-          search: searchQuery || undefined,
-          page: pagination.currentPage + 1,
-          limit: 15,
-          sort: selectedSort,
-          filters,
+        const result = await runSearch({
+          category: state.currentCategory,
+          search: state.searchQuery,
+          sort: state.selectedSort,
+          filters: state.filters,
+          page: state.pagination.currentPage + 1,
         });
-
-        if (!response.success) {
-          return rejectWithValue(response.message || 'Failed to load more providers');
-        }
-
-        return {
-          providers: providerListSerializer(response.data),
-          pagination: paginationSerializer(response.data.pagination),
-        };
+        if (!result.ok) return rejectWithValue(result.message || 'Failed to load more providers');
+        return result;
       },
       {
+        // Checked BEFORE `pending` is dispatched — inside the payload creator
+        // isLoadingMore is already true, which made every load-more refuse itself.
+        options: {
+          condition: (_arg, { getState }) => {
+            const s = (getState() as any).serviceProviders as ProvidersState;
+            return s.pagination.hasNext && !s.isLoadingMore && !s.isLoading;
+          },
+        },
         pending: (state) => {
           state.isLoadingMore = true;
         },
         fulfilled: (state, action) => {
           state.isLoadingMore = false;
-          // Append to the CATEGORY list, not just the visible one. Appending
-          // only to `filteredProviders` was survivable while that array was
-          // mutated in place, but `reapply` rebuilds from the category list —
-          // so a page that never landed there would vanish the next time the
-          // query or sort changed. Ids are de-duplicated because a provider
-          // whose rating shifted between requests can arrive on two pages.
+          if (action.payload.category !== state.currentCategory) return; // the customer moved on
+          // De-duplicated: a provider whose score shifted between requests can
+          // arrive on two pages.
           const seen = new Set(sourceFor(state).map((p) => p.id));
           const added = action.payload.providers.filter((p) => !seen.has(p.id));
-          switch (state.currentCategory) {
-            case 'electricians':
-              state.electricians.push(...added);
-              break;
-            case 'plumbers':
-              state.plumbers.push(...added);
-              break;
-            case 'ac-repairers':
-              state.acRepairers.push(...added);
-              break;
-          }
+          setCategoryList(state, state.currentCategory, [...sourceFor(state), ...added]);
           state.pagination = action.payload.pagination;
           reapply(state);
         },
         rejected: (state, action) => {
           state.isLoadingMore = false;
-          state.error = action.payload as string || 'Failed to load more providers';
+          state.error = (action.payload as string) || 'Failed to load more providers';
         },
       }
     ),
 
-    // Sync reducers
+    // The screen debounces typing and refetches; this only records the text.
     setSearchQuery: create.reducer((state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
-      reapply(state);
     }),
 
     setSelectedSort: create.reducer((state, action: PayloadAction<SortOption>) => {
       state.selectedSort = action.payload;
-      reapply(state);
     }),
 
     setFilters: create.reducer((state, action: PayloadAction<FilterOptions>) => {
@@ -341,17 +284,11 @@ const providersSlice = createAppSlice({
 
     setCategory: create.reducer((state, action: PayloadAction<ProviderCategory>) => {
       state.currentCategory = action.payload;
-      // The category IS what sourceFor reads, so the visible list has to follow
-      // it — otherwise switching category leaves the previous trade's providers
-      // on screen until a fetch lands. (No screen dispatches this today; the
-      // category arrives as a route param and is set by the fetch. Keeping it
-      // consistent means it stays correct for whoever reaches for it next.)
       reapply(state);
     }),
 
     clearSearch: create.reducer((state) => {
       state.searchQuery = '';
-      reapply(state);
     }),
 
     clearSelectedProvider: create.reducer((state) => {
@@ -365,9 +302,10 @@ const providersSlice = createAppSlice({
     resetProviders: create.reducer((state) => {
       state.filteredProviders = [];
       state.searchQuery = '';
-      state.selectedSort = 'rating';
+      state.selectedSort = 'best';
       state.filters = {};
       state.error = null;
+      state.searchArea = null;
     }),
   }),
   selectors: {
@@ -380,6 +318,8 @@ const providersSlice = createAppSlice({
     selectSelectedSort: (state) => state.selectedSort,
     selectFilters: (state) => state.filters,
     selectPagination: (state) => state.pagination,
+    selectSearchArea: (state) => state.searchArea,
+    selectSearchOrigin: (state) => state.origin,
     selectIsLoading: (state) => state.isLoading,
     selectIsRefreshing: (state) => state.isRefreshing,
     selectIsLoadingMore: (state) => state.isLoadingMore,
@@ -388,7 +328,6 @@ const providersSlice = createAppSlice({
   },
 });
 
-// Actions
 export const {
   fetchProvidersByCategory,
   refreshProviders,
@@ -403,7 +342,6 @@ export const {
   resetProviders,
 } = providersSlice.actions;
 
-// Selectors
 export const {
   selectElectricians,
   selectPlumbers,
@@ -414,6 +352,8 @@ export const {
   selectSelectedSort,
   selectFilters,
   selectPagination,
+  selectSearchArea,
+  selectSearchOrigin,
   selectIsLoading,
   selectIsRefreshing,
   selectIsLoadingMore,
@@ -435,10 +375,5 @@ export const selectProviderById = (id: string, category: ProviderCategory) =>
         return undefined;
     }
   };
-
-// Legacy action wrappers for backward compatibility
-export const fetchElectricians = () => fetchProvidersByCategory({ category: 'electricians' });
-export const fetchPlumbers = () => fetchProvidersByCategory({ category: 'plumbers' });
-export const fetchACRepairers = () => fetchProvidersByCategory({ category: 'ac-repairers' });
 
 export default providersSlice.reducer;

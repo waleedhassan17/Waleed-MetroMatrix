@@ -12,13 +12,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Plus, Search, Edit3, Trash2, Package, X } from 'lucide-react-native';
+import { Plus, Search, Edit3, Eye, EyeOff, Package, X } from 'lucide-react-native';
 import { Shadows } from '../../../../constants/Colors';
 import { BrandRouteNames } from '../../../../navigation-maps/Shopping';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import type { Product } from '../../../../types/shopping';
+import { productListingState, type Product } from '../../../../types/shopping';
 import { fetchBrandProducts,
-  removeProduct, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
+  togglePublish, selectBrandProducts, setSearchQuery, setStockFilter } from './brandProductsSlice';
 import { B } from '../theme';
 import BrandHeader from '../BrandHeader';
 import { ThemeColors, useTheme } from '../../../../theme';
@@ -69,11 +69,34 @@ const BrandProductsScreen: React.FC = () => {
     });
   }, [products, searchQuery, stockFilter]);
 
-  const handleDelete = (product: Product) => {
-    Alert.alert('Delete product', `Remove "${product.name}"? This cannot be undone.`, [
+  // "Delete" was always a soft hide on the server (order history references
+  // the product), so the honest control is a switch: hide it from the store,
+  // or publish it again.
+  const handleTogglePublish = (product: Product) => {
+    const hiding = product.isActive !== false;
+    if (!hiding) {
+      dispatch(togglePublish(product));
+      return;
+    }
+    Alert.alert('Hide from store', `Customers will stop seeing "${product.name}". You can publish it again any time.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => dispatch(removeProduct(product.productId)) },
+      { text: 'Hide', style: 'destructive', onPress: () => dispatch(togglePublish(product)) },
     ]);
+  };
+
+  const listingPill = (product: Product) => {
+    switch (productListingState(product)) {
+      case 'live':
+        return { label: 'Live', bg: B.successLight, text: B.success };
+      case 'hidden':
+        return { label: 'Hidden', bg: colors.surfaceSunken, text: colors.inkMuted };
+      case 'in_review':
+        return { label: 'In review', bg: B.warningLight, text: B.warning };
+      case 'needs_changes':
+        return { label: 'Needs changes', bg: B.errorLight, text: B.error };
+      default:
+        return { label: 'Removed by MetroMatrix', bg: B.errorLight, text: B.error };
+    }
   };
 
   const renderProduct = ({ item: product }: { item: Product }) => {
@@ -98,6 +121,19 @@ const BrandProductsScreen: React.FC = () => {
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+          {(() => {
+            const pill = listingPill(product);
+            return (
+              <View style={[styles.listingPill, { backgroundColor: pill.bg }]}>
+                <Text style={[styles.listingPillText, { color: pill.text }]}>{pill.label}</Text>
+              </View>
+            );
+          })()}
+          {!!product.moderation?.note && ['rejected', 'removed'].includes(product.moderation.status) && (
+            <Text style={styles.moderationNote} numberOfLines={2}>
+              {product.moderation.note}
+            </Text>
+          )}
           <Text style={styles.productSku}>{product.sku} · {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.price}>₨{(product.salePrice ?? product.basePrice).toLocaleString()}</Text>
@@ -108,9 +144,20 @@ const BrandProductsScreen: React.FC = () => {
               <Edit3 size={14} stroke={colors.accent} strokeWidth={2} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(product)}>
-              <Trash2 size={14} stroke={B.error} strokeWidth={2} />
-            </TouchableOpacity>
+            {product.moderation?.status !== 'removed' && (
+              <TouchableOpacity
+                style={product.isActive === false ? styles.publishBtn : styles.deleteBtn}
+                onPress={() => handleTogglePublish(product)}
+                accessibilityRole="button"
+                accessibilityLabel={product.isActive === false ? `Publish ${product.name}` : `Hide ${product.name} from the store`}
+              >
+                {product.isActive === false ? (
+                  <Eye size={14} stroke={B.success} strokeWidth={2} />
+                ) : (
+                  <EyeOff size={14} stroke={B.error} strokeWidth={2} />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -322,6 +369,17 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
   },
   editBtnText: { ...T.label, fontWeight: W.bold, color: c.accent },
+  listingPill: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  listingPillText: { ...T.micro },
+  moderationNote: { ...T.caption, color: B.error, marginTop: 4 },
+  publishBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: B.successLight,
+  },
   deleteBtn: {
     width: 40,
     height: 40,

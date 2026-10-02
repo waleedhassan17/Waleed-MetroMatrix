@@ -38,17 +38,20 @@ export function routeInfoSerializer(data: any): RouteInfo {
   };
 }
 
+/** A real point or null — 0,0 is "unknown", never a place to draw a marker. */
+function pointOrNull(p: any): { latitude: number; longitude: number } | null {
+  const latitude = Number(p?.latitude);
+  const longitude = Number(p?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude === 0 && longitude === 0) return null;
+  return { latitude, longitude };
+}
+
 export function trackingDataSerializer(payload: any): TrackingData {
   return {
     provider: trackingProviderSerializer(payload?.provider || {}),
-    providerLocation: {
-      latitude: payload?.providerLocation?.latitude || 0,
-      longitude: payload?.providerLocation?.longitude || 0,
-    },
-    userLocation: payload?.userLocation ? {
-      latitude: payload.userLocation.latitude || 0,
-      longitude: payload.userLocation.longitude || 0,
-    } : null,
+    providerLocation: pointOrNull(payload?.providerLocation),
+    userLocation: pointOrNull(payload?.userLocation),
     route: payload?.route ? routeInfoSerializer(payload.route) : null,
     trackingStatus: {
       status: payload?.trackingStatus?.status || payload?.status || 'en_route',

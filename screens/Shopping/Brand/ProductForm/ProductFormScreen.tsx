@@ -39,8 +39,10 @@ import {
   addPendingImages,
   removePendingImage,
   removeImage,
+  setDraftModel3d,
   MAX_PRODUCT_IMAGES,
 } from './productFormSlice';
+import Model3dSection from './Model3dSection';
 import { swatchColor } from '../../../../constants/ProductColors';
 import { upsertProduct } from '../BrandProducts/brandProductsSlice';
 import { B } from '../theme';
@@ -461,6 +463,19 @@ const ProductFormScreen: React.FC = () => {
             })}
           </View>
         </View>
+
+        {/* 3D model for "View in your room" (AR) */}
+        <Model3dSection
+          productId={productId}
+          model3d={draft.model3d}
+          onChanged={(saved) => {
+            dispatch(setDraftModel3d(saved.model3d ?? null));
+            dispatch(upsertProduct(saved));
+          }}
+          sectionStyle={styles.section}
+          titleStyle={styles.sectionTitle}
+          hintStyle={styles.hintText}
+        />
 
         {/* Save Button */}
         <TouchableOpacity

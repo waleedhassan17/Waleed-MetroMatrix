@@ -5,6 +5,7 @@
 // ============================================
 
 import { ApiResponse } from '../../models/serviceProviders';
+import { resetSearchOrigin } from './providerNetwork';
 import { apiRequest } from './config';
 
 // ---- Admin: bookings ----
@@ -255,7 +256,10 @@ export interface UserAddressFull {
   city: string;
   isDefault: boolean;
   icon?: string;
-  coordinates?: { latitude: number; longitude: number };
+  /** null when the address was never pinned — the server no longer invents one. */
+  coordinates?: { latitude: number; longitude: number } | null;
+  coordinatesSource?: 'gps' | 'pin' | 'geocode' | 'legacy' | null;
+  located?: boolean;
 }
 
 export async function fetchUserAddresses(): Promise<ApiResponse<UserAddressFull[]>> {
@@ -266,6 +270,8 @@ export async function updateUserAddressApi(
   id: string,
   data: Partial<UserAddressFull>
 ): Promise<ApiResponse<UserAddressFull>> {
+  // A new pin or a new default changes where provider search measures from.
+  resetSearchOrigin();
   return apiRequest(`/user/addresses/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

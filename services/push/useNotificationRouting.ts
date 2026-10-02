@@ -36,6 +36,9 @@ async function openBooking(route: NotificationRoute, isProvider: boolean, dispat
   if (!isProvider) {
     if (route.pushType === 'payment_requested') {
       navigate('PaymentScreen', { bookingId });
+    } else if (route.pushType === 'booking_nearby') {
+      // "Almost there" — the map is what they want to see.
+      navigate('liveTracking', { bookingId });
     } else {
       navigate('BookingDetail', { bookingId });
     }
@@ -80,11 +83,33 @@ async function openRoute(route: NotificationRoute, presentCall: (c: any) => void
   if (route.type === 'appointment') {
     // A doctor opens the appointment itself — a new request is approved from
     // there. Tapping one of these used to open nothing.
-    if (isProvider && route.appointmentId) {
+    const asDoctor = route.audience ? route.audience === 'doctor' : isProvider;
+    if (asDoctor && route.appointmentId) {
       navigate('DoctorStack', {
         screen: 'DoctorAppointmentDetail',
         params: { appointmentId: route.appointmentId },
       });
+      return;
+    }
+    // The patient side used to open nothing at all.
+    if (route.prescriptionId) {
+      navigate('HealthcareStack', { screen: 'PrescriptionView', params: { prescriptionId: route.prescriptionId } });
+    } else if (route.appointmentId) {
+      navigate('HealthcareStack', { screen: 'AppointmentDetail', params: { appointmentId: route.appointmentId } });
+    }
+    return;
+  }
+
+  if (route.type === 'order') {
+    const asVendor = route.audience ? route.audience === 'vendor' : isProvider;
+    if (asVendor) {
+      if (route.pushType === 'return_update') {
+        navigate('BrandModule', { screen: 'BrandReturnRequests' });
+      } else {
+        navigate('BrandModule', { screen: 'BrandOrderDetail', params: { orderId: route.orderId } });
+      }
+    } else {
+      navigate('Shopping', { screen: 'OrderDetail', params: { orderId: route.orderId } });
     }
     return;
   }

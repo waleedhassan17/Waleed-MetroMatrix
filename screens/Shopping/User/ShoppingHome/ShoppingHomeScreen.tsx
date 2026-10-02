@@ -31,6 +31,7 @@ import {
 } from './shoppingHomeSlice';
 import type { Banner } from './shoppingHomeSlice';
 import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
+import NotificationBell from '../../../../components/Shopping/NotificationBell';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 import { selectCartItemCount } from '../Cart/cartSlice';
 import { selectBalance, selectCurrency } from '../../../../services/wallet';
@@ -38,6 +39,7 @@ import { currencySymbol } from '../../../../constants/Currency';
 import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand, clearActiveBrand } from '../BrandList/brandListSlice';
 import ProductCard from '../../../../components/Shopping/ProductCard';
+import RecommendationRail from '../../../../components/Shopping/RecommendationRail';
 import BannerCarousel from '../../../../components/Shopping/BannerCarousel';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 
@@ -83,7 +85,7 @@ const ShoppingHomeScreen: React.FC = () => {
   const featuredProducts = useAppSelector(selectFeaturedProducts);
   const banners = useAppSelector(selectBanners);
   const loading = useAppSelector(selectShoppingHomeLoading);
-  const { refreshing, error } = useAppSelector(selectShoppingHome);
+  const { refreshing, error, recommended, recommendedSource, trending } = useAppSelector(selectShoppingHome);
 
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
@@ -238,15 +240,28 @@ const ShoppingHomeScreen: React.FC = () => {
     });
   }, [featuredBrands, featuredProducts, activeBrand]);
 
-  // Trending Now is bounded to 6 items and rendered as explicit two-item
-  // rows (not flexWrap, not a nested vertical FlatList inside this
-  // ScrollView — either would fight the outer scroll/virtualisation).
+  // "Trending Now" is what actually sells (orders, last 30 days). Until a
+  // store has sales it falls back to the merchant's featured picks — and says
+  // "Featured", because calling a hand-picked list "trending" would be false.
+  const isTrending = trending.length >= 2;
+  const gridProducts = useMemo(
+    () => (isTrending ? trending.map((t) => t.product) : featuredProducts),
+    [isTrending, trending, featuredProducts]
+  );
+
+  // Bounded to 6 items and rendered as explicit two-item rows (not flexWrap,
+  // not a nested vertical FlatList inside this ScrollView — either would
+  // fight the outer scroll/virtualisation).
   const trendingRows = useMemo(() => {
-    const items = featuredProducts.slice(0, 6);
+    const items = gridProducts.slice(0, 6);
     const rows: Product[][] = [];
     for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
     return rows;
-  }, [featuredProducts]);
+  }, [gridProducts]);
+
+  // Personal picks only: for a visitor without history the server returns
+  // best sellers, which the grid below already shows.
+  const personalPicks = recommendedSource === 'personal' ? recommended : [];
 
   const newArrivals = useMemo(
     () => featuredProducts.filter((p) => p.isNewArrival).slice(0, 8),
@@ -320,6 +335,7 @@ const ShoppingHomeScreen: React.FC = () => {
                 {Math.round(walletBalance || 0).toLocaleString('en-PK')}
               </Text>
             </TouchableOpacity>
+            <NotificationBell route="ShoppingNotifications" color={Colors.text.primary} />
             <TouchableOpacity style={styles.cartBtn} onPress={navigateToCart} accessibilityLabel="Cart">
               <ShoppingCart size={22} stroke={Colors.text.primary} strokeWidth={1.75} />
               {cartItemCount > 0 && (
@@ -386,13 +402,28 @@ const ShoppingHomeScreen: React.FC = () => {
           />
         </View>
 
+        {/* ── Recommended for you (from this shopper's history) ── */}
+        <RecommendationRail
+          title="Recommended for you"
+          subtitle="Based on what you viewed, saved and bought"
+          picks={personalPicks}
+          onPressProduct={navigateToProductDetail}
+          onWishlist={(productId) => dispatch(toggleWishlistItem({ productId }))}
+          wishlistIds={wishlistIds}
+          titleStyle={styles.sectionTitle}
+          subtitleStyle={styles.sectionSubtitle}
+          testID="recommended-rail"
+        />
+
         {/* ── Trending Products ──────────────── */}
-        {featuredProducts.length > 0 && (
+        {gridProducts.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Trending Now</Text>
-                <Text style={styles.sectionSubtitle}>Popular picks for you</Text>
+                <Text style={styles.sectionTitle}>{isTrending ? 'Trending Now' : 'Featured'}</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {isTrending ? 'Best sellers this month' : 'Picked by the store'}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.seeAllBtn}

@@ -11,8 +11,9 @@
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { useRoomSocket } from '../../../../hooks/useRoomSocket';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import {
@@ -76,23 +77,36 @@ export default function BookingDetailScreen() {
   const [showCancelSheet, setShowCancelSheet] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `quiet` refreshes keep what is on screen instead of flashing a skeleton.
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(null);
     const res = await fetchBookingDetail(bookingId);
     if (res.success) setData(res.data);
-    else setError(res.message || 'Failed to load booking');
-    setLoading(false);
+    else if (!quiet) setError(res.message || 'Failed to load booking');
+    if (!quiet) setLoading(false);
   }, [bookingId]);
 
+  // This screen loaded once and then went stale: a booking accepted, started
+  // or paid while it was open still showed the old status. It now refetches
+  // whenever it regains focus, and live from the booking's room.
+  const firstFocus = React.useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      load(!firstFocus.current);
+      firstFocus.current = false;
+    }, [load])
+  );
+  const { bookingStatus: liveStatus, payment: livePayment } = useRoomSocket(bookingId, 'homeservice');
   useEffect(() => {
-    load();
-  }, [load]);
+    if (liveStatus || livePayment) load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveStatus, livePayment?.status]);
 
   const doCancel = useCallback(async () => {
     setCancelError(null);
     const res = await cancelBooking(bookingId, 'Cancelled from booking detail');
-    if (res.success) load();
+    if (res.success) load(true);
     else setCancelError(res.message || "We couldn't cancel this booking. Try again.");
   }, [bookingId, load]);
 
@@ -232,6 +246,16 @@ export default function BookingDetailScreen() {
                 onPress={() => navigation.navigate('serviceStatus', { bookingId })}
                 style={styles.secondaryAction}
               />
+              {/* Doorstep identity check, once the provider is on the way. */}
+              {(status === 'EN_ROUTE' || status === 'ARRIVED') && (
+                <Button
+                  label={data?.identity?.verifiedAt ? 'ID checked ✓' : 'Verify your provider'}
+                  variant="secondary"
+                  icon="shield-checkmark-outline"
+                  onPress={() => navigation.navigate('VerifyProvider', { bookingId, providerName: data?.provider?.name })}
+                  style={styles.secondaryAction}
+                />
+              )}
             </View>
           )}
 

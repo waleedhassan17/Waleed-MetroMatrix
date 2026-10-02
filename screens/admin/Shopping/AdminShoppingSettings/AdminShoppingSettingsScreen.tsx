@@ -51,6 +51,7 @@ const AdminShoppingSettingsScreen: React.FC = () => {
   const { settings, loading, saving, error } = useAppSelector(selectAdminShoppingSettings);
   const [form, setForm] = useState<Record<string, string>>({});
   const [autoApprove, setAutoApprove] = useState(false);
+  const [autoApproveProducts, setAutoApproveProducts] = useState(true);
   // Delivery tiers are what checkout actually charges for a speed upgrade, so
   // they belong here rather than in a client-side constant.
   const [tiers, setTiers] = useState<DeliveryTierView[]>([]);
@@ -69,6 +70,7 @@ const AdminShoppingSettingsScreen: React.FC = () => {
         defaultReturnDays: String(settings.defaultReturnDays),
       });
       setAutoApprove(settings.autoApproveBrands);
+      setAutoApproveProducts(settings.autoApproveProducts !== false);
       setTiers(settings.deliveryTiers ?? []);
     }
   }, [settings]);
@@ -77,7 +79,10 @@ const AdminShoppingSettingsScreen: React.FC = () => {
     setTiers((list) => list.map((t) => (t.id === id ? { ...t, ...patch } : t)));
 
   const handleSave = async () => {
-    const patch: Record<string, number | boolean> = { autoApproveBrands: autoApprove };
+    const patch: Record<string, number | boolean> = {
+      autoApproveBrands: autoApprove,
+      autoApproveProducts,
+    };
     for (const field of NUMERIC_FIELDS) {
       const parsed = Number(form[field.key]);
       if (Number.isNaN(parsed) || parsed < 0) {
@@ -159,6 +164,21 @@ const AdminShoppingSettingsScreen: React.FC = () => {
               <Switch
                 value={autoApprove}
                 onValueChange={setAutoApprove}
+                trackColor={{ true: COLORS.primary, false: COLORS.border }}
+                thumbColor="#FFF"
+              />
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Auto-approve products</Text>
+                <Text style={styles.fieldHint}>
+                  When off, new and edited products wait in Product Moderation before customers see them
+                </Text>
+              </View>
+              <Switch
+                value={autoApproveProducts}
+                onValueChange={setAutoApproveProducts}
                 trackColor={{ true: COLORS.primary, false: COLORS.border }}
                 thumbColor="#FFF"
               />

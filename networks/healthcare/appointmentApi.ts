@@ -287,6 +287,7 @@ export async function fetchMedicalRecordsApi(
  */
 export const HEALTH_RECORD_CATEGORIES = [
   'prescriptions',
+  'medications', // medicine boxes, pharmacy slips, a photo of what you take
   'lab_reports',
   'imaging',
   'vaccination',

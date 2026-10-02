@@ -104,6 +104,7 @@ const AdminShoppingDashboardScreen: React.FC = () => {
 
   const links = [
     { label: 'Brand Management', route: AdminShoppingRouteNames.AdminBrandList, icon: <Store size={18} stroke={COLORS.primary} strokeWidth={2} /> },
+    { label: 'Product Moderation', route: AdminShoppingRouteNames.AdminProductModeration, icon: <ClipboardList size={18} stroke={COLORS.primary} strokeWidth={2} /> },
     { label: 'All Orders', route: AdminShoppingRouteNames.AdminShoppingOrders, icon: <ClipboardList size={18} stroke={COLORS.primary} strokeWidth={2} /> },
     { label: 'Analytics', route: AdminShoppingRouteNames.AdminShoppingAnalytics, icon: <BarChart3 size={18} stroke={COLORS.primary} strokeWidth={2} /> },
     { label: 'Outlets', route: AdminShoppingRouteNames.AdminOutletList, icon: <Warehouse size={18} stroke={COLORS.primary} strokeWidth={2} /> },

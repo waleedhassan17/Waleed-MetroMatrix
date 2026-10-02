@@ -6,6 +6,7 @@ import type {
   Product,
   ProductReview,
   PaginatedResponse,
+  ProductQueryInterpretation,
   SingleResponse,
 } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError, toShoppingError } from "./shoppingAxios";
@@ -16,11 +17,21 @@ export interface FetchProductsParams {
   brandId?: string;
   categoryId?: string;
   gender?: string;
+  /** Substring match on name/description/tags (quick; used for suggestions). */
   search?: string;
+  /**
+   * Natural-language search: understood into filters + a ranked text search
+   * ("red shoes under 3k"). The response carries `interpretedAs`.
+   */
+  q?: string;
+  /** Comma-separated chips to drop from the interpretation of `q`. */
+  ignore?: string;
   sortBy?: 'price_asc' | 'price_desc' | 'rating' | 'newest' | 'popular';
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
+  /** Minimum average rating (1–5). */
+  minRating?: number;
   isFeatured?: boolean;
   isNewArrival?: boolean;
   page?: number;
@@ -83,11 +94,35 @@ export const submitProductReviewApi = async (
 
 // ── Search Products ─────────────────────────
 
+export type ProductSearchResponse = PaginatedResponse<Product> & {
+  interpretedAs?: ProductQueryInterpretation;
+};
+
+/** Natural-language product search (`q`), with removed chips as `ignore`. */
 export const searchProductsApi = async (
   query: string,
-  { brandId, page = 1, limit = 20 }: { brandId?: string; page?: number; limit?: number } = {}
+  {
+    brandId,
+    page = 1,
+    limit = 20,
+    ignore = [],
+  }: { brandId?: string; page?: number; limit?: number; ignore?: string[] } = {}
+): Promise<ProductSearchResponse> => {
+  return fetchProductsApi({
+    q: query,
+    brandId,
+    page,
+    limit,
+    ...(ignore.length ? { ignore: ignore.join(",") } : {}),
+  }) as Promise<ProductSearchResponse>;
+};
+
+/** Name suggestions while typing — plain substring match, no interpretation. */
+export const suggestProductsApi = async (
+  query: string,
+  { brandId, limit = 5 }: { brandId?: string; limit?: number } = {}
 ): Promise<PaginatedResponse<Product>> => {
-  return fetchProductsApi({ search: query, brandId, page, limit });
+  return fetchProductsApi({ search: query, brandId, page: 1, limit });
 };
 
 // ── Brand Owner: Create Product ─────────────

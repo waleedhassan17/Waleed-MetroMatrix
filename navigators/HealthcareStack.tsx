@@ -32,6 +32,8 @@ import HealthcareNotificationsScreen from '../screens/user/healthcare/notificati
 import AppointmentPaymentScreen from '../screens/user/healthcare/AppointmentPayment/AppointmentPaymentScreen';
 import MyPrescriptionsScreen from '../screens/user/healthcare/MyPrescriptions/MyPrescriptionsScreen';
 import SymptomCheckerScreen from '../screens/user/healthcare/SymptomChecker/SymptomCheckerScreen';
+import VitalsScreen from '../screens/user/healthcare/vitals/VitalsScreen';
+import ConnectVitalsDeviceScreen from '../screens/user/healthcare/vitals/ConnectVitalsDeviceScreen';
 import HealthcareProfileScreen from '../screens/user/healthcare/profile/HealthcareProfileScreen';
 import { ThemeProvider } from '../theme';
 
@@ -130,6 +132,8 @@ const HealthcareStack: React.FC = () => {
           name={HealthcareRouteNames.SymptomChecker}
           component={SymptomCheckerScreen}
         />
+        <Stack.Screen name={HealthcareRouteNames.Vitals} component={VitalsScreen} />
+        <Stack.Screen name={HealthcareRouteNames.ConnectVitalsDevice} component={ConnectVitalsDeviceScreen} />
         <Stack.Screen
           name={HealthcareRouteNames.PrescriptionView}
           component={PrescriptionViewScreen}

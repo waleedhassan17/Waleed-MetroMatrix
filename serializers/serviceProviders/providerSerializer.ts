@@ -3,14 +3,31 @@
 // ============================================
 
 import {
+  Coordinates,
   Provider,
   ProviderDetails,
+  ScoreBreakdown,
   ProviderService,
   ProviderAvailability,
   GalleryItem,
 } from '../../models/serviceProviders';
 import { reviewSerializer } from './reviewSerializer';
 import { toServiceCategory } from './commonSerializer';
+
+/** A real point or null — never a fabricated 0,0 that a map would draw in the ocean. */
+function coordinatesSerializer(c: any): Coordinates | null {
+  const latitude = Number(c?.latitude ?? c?.lat);
+  const longitude = Number(c?.longitude ?? c?.lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude === 0 && longitude === 0) return null;
+  return { latitude, longitude };
+}
+
+function scoreBreakdownSerializer(b: any): ScoreBreakdown | null {
+  if (!b || typeof b !== 'object') return null;
+  const n = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return { distance: n(b.distance), rating: n(b.rating), availability: n(b.availability), quality: n(b.quality) };
+}
 
 export function providerSerializer(data: any): Provider {
   return {
@@ -41,10 +58,13 @@ export function providerSerializer(data: any): Provider {
     completedJobs: data?.completedJobs || data?.jobsCompleted || 0,
     jobSuccessRate: data?.jobSuccessRate || 0,
     distanceKm: typeof data?.distanceKm === 'number' ? data.distanceKm : null,
-    coordinates: {
-      latitude: data?.coordinates?.latitude || data?.coordinates?.lat || 0,
-      longitude: data?.coordinates?.longitude || data?.coordinates?.lng || 0,
-    },
+    distanceApprox: !!data?.distanceApprox,
+    etaMinutes: typeof data?.etaMinutes === 'number' ? data.etaMinutes : null,
+    availableNow: !!data?.availableNow,
+    matchingScore: typeof data?.matchingScore === 'number' ? data.matchingScore : undefined,
+    scoreBreakdown: scoreBreakdownSerializer(data?.scoreBreakdown),
+    rankingSource: typeof data?.rankingSource === 'string' ? data.rankingSource : undefined,
+    coordinates: coordinatesSerializer(data?.coordinates),
     createdAt: data?.createdAt || new Date().toISOString(),
     updatedAt: data?.updatedAt || new Date().toISOString(),
   };

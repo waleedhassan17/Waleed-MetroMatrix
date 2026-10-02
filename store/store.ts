@@ -64,9 +64,6 @@ import userProfileReducer from "../screens/user/shared/profile/userProfileSlice"
 import { walletSlice } from "../services/wallet";
 
 // Admin Service Providers slices
-import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
-import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
-import adminServiceProvidersAnalyticsReducer from "../screens/admin/providers/service-providers/tabs/analytics/analyticsSlice";
 
 // Healthcare Patient slices (screens/user/healthcare/)
 import healthcareHomeReducer from '../screens/user/healthcare/home/healthcareHomeSlice';
@@ -263,9 +260,6 @@ const appReducer = combineReducers({
   awaitingApproval: awaitingApprovalReducer,
   paymentRequest: paymentRequestReducer,
   jobCompletion: jobCompletionReducer,
-  adminSPDashboard: adminServiceProvidersDashboardReducer,
-  adminSPBookings: adminServiceProvidersBookingsReducer,
-  adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
   healthcareHome: healthcareHomeReducer,
   specialtyList: specialtyListReducer,
   doctorList: doctorListReducer,

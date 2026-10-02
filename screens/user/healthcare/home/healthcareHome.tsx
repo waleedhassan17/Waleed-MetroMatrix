@@ -29,6 +29,7 @@ import { makeColors, Spacing, type ColorType } from '../../../../constants/Color
 import { Typography } from '../../../../constants/Fonts';
 import type { Doctor, Specialty } from '../../../../models/healthcare/types';
 import DoctorCard from '../../../../components/Healthcare/DoctorCard';
+import RecommendedDoctors from '../../../../components/Healthcare/RecommendedDoctors';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -122,6 +123,15 @@ const makeQuickActions = (sh: DarkShift) => [
     route: HealthcareRouteNames.SymptomChecker,
     color: sh.hue('#F59E0B'),
     bg: sh.ground('#FEF3C7', '#F59E0B'),
+  },
+  {
+    // Heart rate / blood pressure — from a Bluetooth monitor or typed in.
+    id: 'vitals',
+    label: 'Vitals',
+    icon: 'heart-pulse',
+    route: HealthcareRouteNames.Vitals,
+    color: sh.hue('#E11D48'),
+    bg: sh.ground('#FFE4E6', '#E11D48'),
   },
 ];
 
@@ -841,6 +851,15 @@ const HealthcareHomeScreen: React.FC = () => {
             </View>
           </LinearGradient>
         </TouchableOpacity>
+
+        {/* ── Recommended for you (from this patient's history) ── */}
+        <RecommendedDoctors
+          onOpenDoctor={handleDoctorPress}
+          sectionStyle={styles.section}
+          headerStyle={styles.sectionHeader}
+          titleStyle={styles.sectionTitle}
+          subtitleStyle={styles.sectionSubtitle}
+        />
 
         {/* ── Featured Doctors Section ─────────── */}
         <View style={styles.section}>

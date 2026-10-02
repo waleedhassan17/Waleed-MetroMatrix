@@ -1,7 +1,8 @@
 // ============================================
-// Provider availability — online/offline, service radius and weekly working
-// hours. The hours are what the customer's booking form offers: a day off
-// shows no slots, and times outside the hours are closed with "Off hours".
+// Provider availability — online/offline, service area and radius, and weekly
+// working hours. The hours are what the customer's booking form offers: a day
+// off shows no slots, and times outside the hours are closed with "Off hours".
+// The service area is what "near you" in customer search measures from.
 // ============================================
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
@@ -10,9 +11,12 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   fetchProviderProfile,
-  updateProviderOnlineStatus,
+  ServiceBase,
+  setProviderServiceBase,
   updateProviderProfile,
 } from '../../../../networks/serviceProviders/providerNetwork';
+import { setProviderOnline } from '../../../../services/provider/onlineStatus';
+import LocationPicker, { PointSource } from '../../../../components/homeservice/LocationPicker';
 import { GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeProviderTheme, type ProviderTheme } from '../providerTheme';
@@ -59,6 +63,8 @@ export default function AvailabilityScreen() {
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [week, setWeek] = useState<DayHours[]>(toWeek([]));
+  const [base, setBase] = useState<ServiceBase | null>(null);
+  const [autoBase, setAutoBase] = useState(false);
   const [savedWeek, setSavedWeek] = useState<string>('');
   const weekDirty = JSON.stringify(week) !== savedWeek;
 
@@ -69,6 +75,8 @@ export default function AvailabilityScreen() {
     if (res.success && res.data) {
       setIsOnline(!!res.data.isOnline);
       setRadius((res.data as any).serviceRadius || 15);
+      setBase(((res.data as any).serviceBase as ServiceBase) || null);
+      setAutoBase(!!(res.data as any).autoUpdateBaseOnOnline);
       const loaded = toWeek((res.data as any).availability || []);
       setWeek(loaded);
       setSavedWeek(JSON.stringify(loaded));
@@ -90,16 +98,52 @@ export default function AvailabilityScreen() {
   const toggleOnline = async (value: boolean) => {
     setIsOnline(value);
     setSaving(true);
-    const res = await updateProviderOnlineStatus(value);
+    const res = await setProviderOnline(value);
     setSaving(false);
     if (!res.success) {
       setIsOnline(!value); // revert on failure
       setError(res.message || 'Failed to update status');
     } else {
       setError(null);
+      if (res.data?.serviceBase) setBase(res.data.serviceBase);
       flashSaved(value ? 'You are now online' : 'You are now offline');
     }
   };
+
+  const saveBase = async (point: { latitude: number; longitude: number }) => {
+    setSaving(true);
+    const res = await setProviderServiceBase(point);
+    setSaving(false);
+    if (!res.success || !res.data) {
+      setError(res.message || "We couldn't save your service area");
+      return;
+    }
+    setError(null);
+    setBase(res.data.serviceBase);
+    flashSaved('Service area saved');
+  };
+
+  const toggleAutoBase = async (value: boolean) => {
+    setAutoBase(value);
+    const res = await updateProviderProfile({ autoUpdateBaseOnOnline: value } as any);
+    if (!res.success) {
+      setAutoBase(!value);
+      setError(res.message || 'Failed to update the setting');
+    }
+  };
+
+  const basePoint =
+    base && base.source !== 'default' && base.latitude !== null && base.longitude !== null
+      ? { latitude: base.latitude, longitude: base.longitude }
+      : null;
+  const baseSource: PointSource | null = basePoint ? 'pin' : null;
+  const baseCaption = !basePoint
+    ? 'Not set — customers searching near them see you without a distance, ranked below providers they know are close.'
+    : base?.source === 'city'
+      ? 'Only your city is known, so customers see an approximate distance. Pin your area for an exact one.'
+      : base?.source === 'go_online'
+        ? 'Set from where you last went online.'
+        : 'Pinned by you.';
 
   const pickRadius = async (km: number) => {
     const prev = radius;
@@ -195,6 +239,38 @@ export default function AvailabilityScreen() {
             </View>
           </Card>
 
+          {/* Service area — what "near you" in customer search is measured from. */}
+          <Card style={styles.card}>
+            <Text style={styles.cardTitle}>Service area</Text>
+            <Text style={styles.cardSub}>{baseCaption}</Text>
+            <View style={styles.pickerWrap}>
+              <LocationPicker
+                value={basePoint}
+                source={baseSource}
+                addressText=""
+                onChange={(picked) => saveBase(picked.point)}
+              />
+            </View>
+            <Text style={styles.privacyNote}>
+              Stored as an area of about 500 m, never your exact spot. Your live position is shared only
+              with a customer while you are on the way to their job, and is never saved.
+            </Text>
+            <View style={[styles.cardRow, styles.autoRow]}>
+              <View style={styles.grow}>
+                <Text style={styles.dayName}>Update my area when I go online</Text>
+                <Text style={styles.daySub}>Uses your phone's location at that moment.</Text>
+              </View>
+              <Switch
+                value={autoBase}
+                onValueChange={toggleAutoBase}
+                trackColor={{ false: colors.disabled, true: colors.accentLine }}
+                thumbColor={autoBase ? colors.accent : colors.lineSoft}
+                disabled={saving}
+                accessibilityLabel="Update my area when I go online"
+              />
+            </View>
+          </Card>
+
           {/* Service radius */}
           <Card style={styles.card}>
             <Text style={styles.cardTitle}>Service radius</Text>
@@ -268,8 +344,9 @@ export default function AvailabilityScreen() {
           <View style={styles.hintBox}>
             <Ionicons name="information-circle-outline" size={16} color={colors.inkMuted} />
             <Text style={styles.hintText}>
-              Being online adds an availability bonus to your matching score, so you
-              appear higher when customers search.
+              Being available now — online, with the app open, inside your working
+              hours — adds to your matching score, alongside distance, rating and
+              how reliably you complete jobs.
             </Text>
           </View>
         </ScrollView>
@@ -291,6 +368,9 @@ const makeStyles = (c: ThemeColors, theme: ProviderTheme) => StyleSheet.create({
   dayTimes: { flexDirection: 'row', marginTop: S.sm },
   timeField: { flex: 1, marginRight: S.sm },
   saveBtn: { marginTop: S.md },
+  pickerWrap: { marginTop: S.md },
+  privacyNote: { ...T.caption, color: c.inkMuted, marginTop: S.md },
+  autoRow: { marginTop: S.md, paddingTop: S.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.lineSoft },
   grow: { flex: 1 },
   card: { marginBottom: S.md },
   cardRow: { flexDirection: 'row', alignItems: 'center' },

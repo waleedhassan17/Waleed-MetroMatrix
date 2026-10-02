@@ -31,6 +31,9 @@ export interface Doctor {
   awards: string[];
   publications: string[];
   availableSlots?: Array<{ dateTime: string }>;
+  /** Km to this doctor's nearest clinic, when the patient's location is known. */
+  distanceKm?: number | null;
+  nearestClinic?: { name: string; area?: string; city?: string } | null;
   createdAt: string;
 }
 
@@ -520,6 +523,8 @@ export type HealthcareStackParamList = {
   AppointmentPayment: { appointmentId: string };
   MyPrescriptions: undefined;
   SymptomChecker: undefined;
+  Vitals: undefined;
+  ConnectVitalsDevice: undefined;
 };
 
 export type DoctorTabParamList = {

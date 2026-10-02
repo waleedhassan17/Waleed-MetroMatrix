@@ -36,7 +36,6 @@ import {
   selectActiveFilterCount,
 } from './doctorListSlice';
 import type {
-  GenderFilter,
   AvailabilityFilter,
   ConsultationTypeFilter,
   SortOption,
@@ -76,6 +75,7 @@ const makeTHEME = (mode: ThemeMode) => {
 
 const SORT_OPTIONS: { value: SortOption; label: string; icon: string }[] = [
   { value: 'relevance', label: 'Relevance', icon: 'sparkles' },
+  { value: 'nearest', label: 'Nearest clinic', icon: 'navigate' },
   { value: 'rating', label: 'Highest Rated', icon: 'star' },
   { value: 'fee-low', label: 'Price: Low to High', icon: 'trending-down' },
   { value: 'fee-high', label: 'Price: High to Low', icon: 'trending-up' },
@@ -673,21 +673,8 @@ const DoctorListScreen: React.FC = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.filterScroll}
             >
-              {/* Gender */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Gender Preference</Text>
-                <View style={styles.filterChipRow}>
-                  {(['any', 'male', 'female'] as GenderFilter[]).map((g) => (
-                    <FilterChip
-                      key={g}
-                      label={g === 'any' ? 'Any' : g === 'male' ? 'Male' : 'Female'}
-                      icon={g === 'male' ? 'male' : g === 'female' ? 'female' : undefined}
-                      selected={localFilters.gender === g}
-                      onPress={() => setLocalFilters((f) => ({ ...f, gender: g }))}
-                    />
-                  ))}
-                </View>
-              </View>
+              {/* Gender preference was offered here, but doctors carry no gender
+                  field — choosing one could only ever empty the list. */}
 
               {/* Availability */}
               <View style={styles.filterSection}>

@@ -6,9 +6,10 @@
 // the endpoint (PATCH /provider/profile) were both already in place — only the
 // screen was missing.
 //
-// Scope is deliberately the four fields updateProfile actually sends: name,
-// phone, bio and location. An avatar picker needs an upload path and is a
-// separate piece of work; the field is shown read-only rather than pretending.
+// The four text fields go through updateProfile (name, phone, bio, location).
+// The photo uploads straight to Cloudinary with a signature from our API
+// (services/uploads/cloudinaryUpload.ts), then PATCH /provider/profile
+// { photoUrl } — the server only accepts this provider's own upload.
 // ============================================================================
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -31,10 +32,12 @@ import type { RootState } from '../../../../store/store';
 import { updateProfile, fetchProfile } from '../profile-screen/profileSlice';
 // Values come from the shared tokens via the provider bridge — see
 // screens/providers/homeservice/providerTheme.ts.
-import { S, T } from '../../../../constants/theme';
+import { R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { makeFlatProviderTheme, type FlatProviderTheme } from '../providerTheme';
-import { AppBar, Screen } from '../../../../components/ui';
+import { AppBar, Avatar, Screen } from '../../../../components/ui';
+import { uploadAsset } from '../../../../services/uploads/cloudinaryUpload';
+import { updateProviderProfile } from '../../../../networks/serviceProviders/providerNetwork';
 
 
 type FieldKey = 'name' | 'phone' | 'bio' | 'location';
@@ -68,6 +71,39 @@ export default function EditProfileScreen() {
     location: '',
   });
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const changePhoto = useCallback(async () => {
+    try {
+      const ImagePicker = require('expo-image-picker');
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to change your profile picture.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      const asset = !result.canceled && result.assets?.[0];
+      if (!asset?.uri) return;
+      setPhotoBusy(true);
+      const url = await uploadAsset(asset.uri, 'avatar', {
+        name: asset.fileName || undefined,
+        mimeType: asset.mimeType || undefined,
+        sizeBytes: asset.fileSize || undefined,
+      });
+      const res = await updateProviderProfile({ photoUrl: url } as any);
+      if (!res.success) throw new Error(res.message || 'Your photo was not saved.');
+      dispatch(fetchProfile());
+    } catch (e: any) {
+      Alert.alert("Couldn't update your photo", e?.message || 'Try again in a moment.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }, [dispatch]);
 
   // Make sure we are editing this provider's own current values, not whatever
   // happened to be in the store.
@@ -161,6 +197,24 @@ export default function EditProfileScreen() {
             />
           ) : (
             <>
+              {/* Customers see this photo on every card and booking. */}
+              <View style={styles.photoRow}>
+                <Avatar uri={provider.profileImage} name={provider.name} size={64} />
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={changePhoto}
+                  disabled={photoBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change profile photo"
+                >
+                  {photoBusy ? (
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  ) : (
+                    <Text style={styles.photoBtnText}>Change photo</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
               {FIELDS.map((field) => (
                 <View key={field.key} style={styles.field}>
                   <Text style={styles.label}>{field.label}</Text>
@@ -206,6 +260,9 @@ export default function EditProfileScreen() {
 }
 
 const makeStyles = (c: ThemeColors, theme: FlatProviderTheme) => StyleSheet.create({
+    photoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: S.xl },
+    photoBtn: { marginLeft: S.lg, paddingVertical: S.sm, paddingHorizontal: S.lg, borderRadius: R.pill, backgroundColor: c.accentSoft },
+    photoBtnText: { ...T.label, color: c.accentDeep },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerBtnDisabled: { opacity: 0.4 },
   content: { padding: 20, paddingBottom: 48 },

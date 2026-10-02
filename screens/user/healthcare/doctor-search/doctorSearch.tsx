@@ -667,7 +667,14 @@ const DoctorSearchScreen: React.FC = () => {
         <Text style={styles.resultsCount}>
           {results.length} {results.length === 1 ? 'doctor' : 'doctors'} found
         </Text>
-        <TouchableOpacity style={styles.filterButton}>
+        {/* Filtering, sorting and "nearest" live on the doctor list; this
+            button had no handler at all. It now carries the query there. */}
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => navigation.navigate(HealthcareRouteNames.DoctorList, { searchQuery: searchQuery.trim() })}
+          accessibilityRole="button"
+          accessibilityLabel="Filter and sort these results"
+        >
           <Ionicons name="filter" size={16} color={THEME.primary} />
           <Text style={styles.filterButtonText}>Filter</Text>
         </TouchableOpacity>

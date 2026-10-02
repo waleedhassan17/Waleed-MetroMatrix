@@ -3,6 +3,11 @@ import type { BrandConfig, Product } from '../../../../types/shopping';
 import { fetchBrandsApi } from '../../../../networks/shopping/brandApi';
 import { fetchProductsApi } from '../../../../networks/shopping/productApi';
 import { fetchBannersApi } from '../../../../networks/shopping/bannerApi';
+import {
+  fetchRecommendedProducts,
+  fetchTrendingProducts,
+  type ProductPick,
+} from '../../../../networks/recommendations/recommendationsApi';
 
 // ── State Interface ─────────────────────────
 
@@ -25,6 +30,15 @@ export interface ShoppingHomeState {
   featuredProducts: Product[];
   banners: Banner[];
   /**
+   * "Recommended for you" (from this shopper's history) and real best sellers
+   * (GET /recommendations/shopping[/trending]) — both scoped to the storefront.
+   * Empty when the server has nothing yet; the screen then falls back to the
+   * featured products, labelled as such.
+   */
+  recommended: ProductPick[];
+  recommendedSource: 'personal' | 'popular' | null;
+  trending: ProductPick[];
+  /**
    * Which storefront `featuredProducts` was loaded for (null = the brand
    * chooser, i.e. all brands). The cache is keyed on this: without it,
    * entering Cougar after Outfitters would serve Outfitters' products from a
@@ -44,6 +58,9 @@ const initialState: ShoppingHomeState = {
   featuredBrands: [],
   featuredProducts: [],
   banners: [],
+  recommended: [],
+  recommendedSource: null,
+  trending: [],
   cachedBrandId: null,
   loading: false,
   refreshing: false,
@@ -80,16 +97,22 @@ export const fetchHomeData = createAsyncThunk(
           featuredBrands,
           featuredProducts,
           banners: state.shoppingHome.banners,
+          recommended: state.shoppingHome.recommended,
+          recommendedSource: state.shoppingHome.recommendedSource,
+          trending: state.shoppingHome.trending,
           brandId,
           fromCache: true,
         };
       }
 
-      const [brandsRes, productsRes, bannersRes] = await Promise.all([
+      const [brandsRes, productsRes, bannersRes, recsRes, trendingRes] = await Promise.all([
         // The brand list itself stays unscoped — it is how a shopper switches.
         fetchBrandsApi({ page: 1, limit: 10 }),
         fetchProductsApi({ isFeatured: true, limit: 12, ...(brandId ? { brandId } : {}) }),
         fetchBannersApi(),
+        // Best-effort: they resolve { success: false } instead of throwing.
+        fetchRecommendedProducts(brandId),
+        fetchTrendingProducts(brandId),
       ]);
 
       // A `success: false` body used to be flattened to an empty list, so a
@@ -103,6 +126,9 @@ export const fetchHomeData = createAsyncThunk(
         featuredProducts: productsRes.data,
         // Banners are decoration: a failure there must not empty the storefront.
         banners: bannersRes.success ? (bannersRes.data as Banner[]) : [],
+        recommended: recsRes.success ? recsRes.data?.items ?? [] : [],
+        recommendedSource: recsRes.success ? recsRes.data?.source ?? null : null,
+        trending: trendingRes.success ? trendingRes.data?.items ?? [] : [],
         brandId,
         fromCache: false,
       };
@@ -154,6 +180,9 @@ const shoppingHomeSlice = createSlice({
           state.featuredBrands = action.payload.featuredBrands;
           state.featuredProducts = action.payload.featuredProducts;
           state.banners = action.payload.banners;
+          state.recommended = action.payload.recommended;
+          state.recommendedSource = action.payload.recommendedSource;
+          state.trending = action.payload.trending;
           state.cachedBrandId = action.payload.brandId;
           state.lastUpdated = Date.now();
         }

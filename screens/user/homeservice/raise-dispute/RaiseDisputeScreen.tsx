@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState, useMemo } from 'react';
+import { uploadAssets } from '../../../../services/uploads/cloudinaryUpload';
 import {
   Image,
   ScrollView,
@@ -74,10 +75,20 @@ export default function RaiseDisputeScreen() {
     if (!reason) return;
     setSubmitting(true);
     setError(null);
+    // Upload the photos first. The phone's file:// paths used to be sent as
+    // "evidence" — strings that pointed at nothing anyone else could open.
+    let evidence: string[] = [];
+    try {
+      evidence = await uploadAssets(photos, 'dispute_evidence');
+    } catch (e: any) {
+      setSubmitting(false);
+      setError(e?.message || "We couldn't upload your photos. Try again.");
+      return;
+    }
     const res = await raiseDispute(bookingId, {
       reason,
       description: description.trim(),
-      evidence: photos,
+      evidence,
     });
     setSubmitting(false);
     if (res.success) setFiled(true);

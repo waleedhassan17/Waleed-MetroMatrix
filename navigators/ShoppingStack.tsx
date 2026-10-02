@@ -1,4 +1,5 @@
 import React from 'react';
+import ShoppingNotificationsScreen from '../screens/Shopping/Notifications/ShoppingNotificationsScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ShoppingRouteNames } from '../navigation-maps/Shopping';
 import type { ShoppingStackParamList } from '../types/shopping';
@@ -126,6 +127,10 @@ const ShoppingStack: React.FC = () => {
         <Stack.Screen
           name={ShoppingRouteNames.OrderDetail}
           component={OrderDetailScreen}
+        />
+        <Stack.Screen
+          name={ShoppingRouteNames.ShoppingNotifications}
+          component={ShoppingNotificationsScreen}
         />
         <Stack.Screen
           name={ShoppingRouteNames.AddressSelection}

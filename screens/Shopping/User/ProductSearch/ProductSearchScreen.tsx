@@ -35,6 +35,7 @@ import {
   removeRecentSearch,
   clearRecentSearches,
   resetSearch,
+  ignoreInterpretation,
   selectSearchQuery,
   selectSearchResults,
   selectRecentSearches,
@@ -48,11 +49,15 @@ import { toggleWishlistItem, selectWishlistItems } from '../Wishlist/wishlistSli
 import ProductCard, { ProductCardSkeleton } from '../../../../components/Shopping/ProductCard';
 import { useProductGridSizing } from '../../../../hooks/useProductGridSizing';
 import { ShoppingHeader } from '../../../../components/Shopping/ShoppingHeader';
+import { interpretationChips } from '../../../../utils/shopping/interpretationChips';
+import type { InterpretationChipKey } from '../../../../types/shopping';
+import { track } from '../../../../services/analytics/track';
 
 // A function of the ramp, not a frozen table: every ground below is a
 // light surface, and a frozen one is a white card on a dark page.
 const makeShopColors = (c: ThemeColors) => ({
   primary: c.accent,
+  primaryDark: c.accentDeep,
   primaryLight: c.accentSoft,
   accent: c.star,
 });
@@ -80,7 +85,12 @@ const ProductSearchScreen: React.FC = () => {
   const popularSearches = useAppSelector(selectPopularSearches);
   const suggestions = useAppSelector(selectSuggestions);
   const loading = useAppSelector(selectSearchLoading);
-  const { hasSearched, hasMore, page, error } = useAppSelector(selectProductSearch);
+  const { hasSearched, hasMore, page, error, interpreted } = useAppSelector(selectProductSearch);
+  // Inside a storefront the store is the brand filter, so no brand chip.
+  const chips = useMemo(
+    () => interpretationChips(interpreted, { scopedToBrand: !!brandId }),
+    [interpreted, brandId]
+  );
   const wishlistItems = useAppSelector(selectWishlistItems);
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((i) => i.productId)), [wishlistItems]);
   const { cardWidth, imageHeight } = useProductGridSizing();
@@ -128,14 +138,22 @@ const ProductSearchScreen: React.FC = () => {
     Keyboard.dismiss();
     dispatch(addRecentSearch(q));
     dispatch(searchProducts({ query: q, page: 1, brandId }));
+    track({ module: 'shopping', type: 'search', query: q.slice(0, 120) });
   }, [dispatch, query, brandId]);
 
   const handleSearchFromTag = useCallback((text: string) => {
     dispatch(setSearchQuery(text));
     dispatch(addRecentSearch(text));
     dispatch(searchProducts({ query: text, page: 1, brandId }));
+    track({ module: 'shopping', type: 'search', query: text.slice(0, 120) });
     Keyboard.dismiss();
   }, [dispatch, brandId]);
+
+  // Removing a chip searches again without that understood filter.
+  const handleRemoveChip = useCallback((key: InterpretationChipKey) => {
+    dispatch(ignoreInterpretation(key));
+    dispatch(searchProducts({ query: query.trim(), page: 1, brandId }));
+  }, [dispatch, query, brandId]);
 
   const handleClearQuery = useCallback(() => {
     dispatch(resetSearch());
@@ -149,6 +167,7 @@ const ProductSearchScreen: React.FC = () => {
   }, [dispatch, hasMore, loading, query, page, brandId]);
 
   const navigateToProductDetail = (productId: string, pBrandId: string) => {
+    track({ module: 'shopping', type: 'click', refId: productId, query: query.trim().slice(0, 120), meta: { screen: 'ProductSearch' } });
     navigation.navigate(ShoppingRouteNames.ProductDetail, { productId, brandId: pBrandId });
   };
 
@@ -325,9 +344,33 @@ const ProductSearchScreen: React.FC = () => {
               onEndReachedThreshold={0.3}
               keyboardShouldPersistTaps="handled"
               ListHeaderComponent={
-                results.length > 0 ? (
-                  <Text style={styles.resultCountText}>{results.length} results</Text>
-                ) : null
+                <>
+                  {chips.length > 0 && (
+                    <View style={styles.chipBlock} testID="interpretation-chips">
+                      <Text style={styles.chipCaption}>
+                        {interpreted?.source === 'llm' ? 'We understood (AI-assisted):' : 'We understood:'}
+                      </Text>
+                      <View style={styles.tagWrap}>
+                        {chips.map((chip) => (
+                          <TouchableOpacity
+                            key={chip.key}
+                            style={styles.chip}
+                            onPress={() => handleRemoveChip(chip.key)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Remove filter ${chip.label}`}
+                            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                          >
+                            <Text style={styles.chipText}>{chip.label}</Text>
+                            <X size={12} stroke={ShopColors.primaryDark} strokeWidth={2} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  {results.length > 0 ? (
+                    <Text style={styles.resultCountText}>{results.length} results</Text>
+                  ) : null}
+                </>
               }
               ListEmptyComponent={
                 hasSearched && !loading ? (
@@ -436,6 +479,30 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
     fontSize: 12,
     color: Colors.text.tertiary,
     paddingVertical: Spacing.sm,
+  },
+
+  // What natural-language search understood
+  chipBlock: {
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  chipCaption: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    backgroundColor: ShopColors.primaryLight,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: ShopColors.primaryDark,
   },
 
   // Empty

@@ -134,6 +134,14 @@ interface SidebarMenuItem {
 
 const SIDEBAR_MENU_ITEMS: SidebarMenuItem[] = [
   {
+    id: 'platform_analytics',
+    label: 'Platform Analytics',
+    icon: 'pulse',
+    route: 'PlatformAnalytics',
+    color: '#2a78d6',
+    description: 'Live usage, demand forecasts, leaderboards',
+  },
+  {
     id: 'service_providers',
     label: 'Service Providers',
     icon: 'construct',

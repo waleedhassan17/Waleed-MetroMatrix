@@ -65,6 +65,8 @@ import TopUpWebViewScreen from "../screens/user/wallet/TopUpWebViewScreen";
 import JobDetailScreen from "../screens/providers/homeservice/jobdetail-screen/jobDetail";
 import NavigationMapScreen from "../screens/providers/homeservice/map-screen/map";
 import JobInProgressScreen from "../screens/providers/homeservice/job-InProgress/jobInProgress";
+import ShowIdScreen from "../screens/providers/homeservice/show-id/ShowIdScreen";
+import VerifyProviderScreen from "../screens/user/homeservice/verify-provider/VerifyProviderScreen";
 import AwaitingApprovalScreen from "../screens/providers/homeservice/awaiting-screen/awaitingScreen";
 import ProviderPaymentRequestScreen from "../screens/providers/homeservice/payment-screen/paymentScreen";
 import JobCompletionScreen from "../screens/providers/homeservice/job-completion/jobCompletion";
@@ -115,6 +117,7 @@ import AdminHSPayoutsScreen from "../screens/admin/homeservice/AdminPayouts/Admi
 import AdminHSServiceCategoriesScreen from "../screens/admin/homeservice/AdminServiceCategories/AdminServiceCategoriesScreen";
 import AdminHSAnalyticsScreen from "../screens/admin/homeservice/AdminHomeServiceAnalytics/AdminHomeServiceAnalyticsScreen";
 import AdminHSSettingsScreen from "../screens/admin/homeservice/AdminHomeServiceSettings/AdminHomeServiceSettingsScreen";
+import PlatformAnalyticsScreen from "../screens/admin/analytics/PlatformAnalyticsScreen";
 
 // Route names enum for type safety
 export const BaseRouteNames = {
@@ -190,6 +193,9 @@ export const BaseRouteNames = {
   JobDetail: "JobDetail",
   NavigationMap: "NavigationMap",
   JobInProgress: "JobInProgress",
+  // Doorstep identity check: provider shows (QR / code / NFC badge), customer verifies.
+  ShowProviderId: "ShowProviderId",
+  VerifyProvider: "VerifyProvider",
   AwaitingApproval: "AwaitingApproval",
   PaymentRequest: "PaymentRequest",
   JobCompletion: "JobCompletion",
@@ -219,6 +225,7 @@ export const BaseRouteNames = {
   AdminHSServiceCategories: "AdminHSServiceCategories",
   AdminHSAnalytics: "AdminHSAnalytics",
   AdminHSSettings: "AdminHSSettings",
+  PlatformAnalytics: "PlatformAnalytics",
 
   // Shopping
   Shopping: "Shopping",
@@ -340,6 +347,9 @@ export type RootStackParamList = {
   JobDetail: { job?: any };
   NavigationMap: undefined;
   JobInProgress: undefined;
+  ShowProviderId: { jobId: string; customerName?: string };
+  /** `t`/`via` arrive from metromatrix://verify?t=…&via=… (badge or camera-app link). */
+  VerifyProvider: { bookingId?: string; providerName?: string; t?: string; via?: string };
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;
@@ -372,6 +382,7 @@ export type RootStackParamList = {
   AdminHSServiceCategories: undefined;
   AdminHSAnalytics: undefined;
   AdminHSSettings: undefined;
+  PlatformAnalytics: undefined;
 
   // Shopping
   Shopping: undefined;
@@ -795,6 +806,22 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
+    component: ShowIdScreen,
+    title: BaseRouteNames.ShowProviderId,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
+    component: VerifyProviderScreen,
+    title: BaseRouteNames.VerifyProvider,
+    options: {
+      headerShown: false,
+      animation: 'slide_from_right',
+    }
+  },
+  {
     component: AwaitingApprovalScreen,
     title: BaseRouteNames.AwaitingApproval,
     options: {
@@ -950,6 +977,11 @@ export const BaseRoutes: IRoute[] = [
   {
     component: AdminHSSettingsScreen,
     title: BaseRouteNames.AdminHSSettings,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: PlatformAnalyticsScreen,
+    title: BaseRouteNames.PlatformAnalytics,
     options: { headerShown: false, animation: 'slide_from_right' }
   },
 
@@ -1125,6 +1157,8 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
   [BaseRouteNames.JobDetail]: 'homeservice',
   [BaseRouteNames.NavigationMap]: 'homeservice',
   [BaseRouteNames.JobInProgress]: 'homeservice',
+  [BaseRouteNames.ShowProviderId]: 'homeservice',
+  [BaseRouteNames.VerifyProvider]: 'homeservice',
   [BaseRouteNames.AwaitingApproval]: 'homeservice',
   [BaseRouteNames.PaymentRequest]: 'homeservice',
   [BaseRouteNames.JobCompletion]: 'homeservice',

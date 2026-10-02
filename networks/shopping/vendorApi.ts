@@ -145,6 +145,23 @@ export const addProductImagesApi = (productId: string, images: string[]) =>
     "Failed to upload product images"
   );
 
+/**
+ * Link an uploaded 3D model (POST /api/uploads/sign, purpose product_model3d)
+ * to a product. The server checks the file really is a glTF 2.0 .glb (and a
+ * .usdz, if given) before saving.
+ */
+export const attachProductModel3dApi = (productId: string, payload: { glbUrl: string; usdzUrl?: string }) =>
+  call<SingleResponse<Product>>(
+    () => ShoppingAxiosInstance.patch(`/vendor/products/${productId}/model3d`, payload),
+    "Failed to attach the 3D model"
+  );
+
+export const removeProductModel3dApi = (productId: string) =>
+  call<SingleResponse<Product>>(
+    () => ShoppingAxiosInstance.delete(`/vendor/products/${productId}/model3d`),
+    "Failed to remove the 3D model"
+  );
+
 // ── Inventory ───────────────────────────────
 
 export const fetchInventoryApi = () =>

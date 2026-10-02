@@ -38,6 +38,7 @@ export async function fetchDoctorsApi(
     experience: 'experience',
     'fee-low': 'fee_low',
     'fee-high': 'fee_high',
+    distance: 'distance',
   };
   const queryParams = new URLSearchParams();
   if (params.specialtyId) queryParams.set('specialtyId', params.specialtyId);
@@ -49,7 +50,15 @@ export async function fetchDoctorsApi(
   if (params.page) queryParams.set('page', String(params.page));
   if (params.limit) queryParams.set('limit', String(params.limit));
   if (params.sort) queryParams.set('sortBy', sortMap[params.sort] || params.sort);
-  if (params.availableOnly) queryParams.set('availability', 'this-week');
+  if (params.availableOnly) queryParams.set('availability', params.availableToday ? 'today' : 'this-week');
+  if (params.minRating) queryParams.set('minRating', String(params.minRating));
+  if (params.minFee) queryParams.set('minFee', String(params.minFee));
+  if (params.maxFee) queryParams.set('maxFee', String(params.maxFee));
+  if (typeof params.lat === 'number' && typeof params.lng === 'number') {
+    queryParams.set('lat', String(params.lat));
+    queryParams.set('lng', String(params.lng));
+    if (params.radiusKm) queryParams.set('radiusKm', String(params.radiusKm));
+  }
 
   const query = queryParams.toString();
   const res = await healthcareApiRequest<any>(`/doctors${query ? `?${query}` : ''}`);

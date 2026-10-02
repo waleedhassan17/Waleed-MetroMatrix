@@ -232,6 +232,11 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
             userType: (type: string) => type,
           },
         },
+        // Doorstep identity check: a provider's NFC badge or QR code opens
+        // metromatrix://verify?t=<token>&via=nfc|qr — the token names the booking.
+        VerifyProvider: {
+          path: 'verify',
+        },
         ResetPassword: {
           path: 'reset-password/:token',
           parse: {

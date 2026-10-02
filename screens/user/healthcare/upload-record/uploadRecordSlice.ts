@@ -8,10 +8,11 @@ import { todayLocalISODate } from '../../../../utils/date/localDate';
 
 // ── Types ───────────────────────────────────
 
-export type UploadRecordType = 'prescription' | 'report' | 'imaging' | 'discharge' | 'other';
+export type UploadRecordType = 'prescription' | 'medication' | 'report' | 'imaging' | 'discharge' | 'other';
 
 export const RECORD_TYPE_OPTIONS: { label: string; value: UploadRecordType; icon: string }[] = [
   { label: 'Prescription', value: 'prescription', icon: 'document-text' },
+  { label: 'Medication', value: 'medication', icon: 'medkit' },
   { label: 'Lab Report', value: 'report', icon: 'flask' },
   { label: 'Imaging', value: 'imaging', icon: 'scan' },
   { label: 'Vaccination', value: 'discharge', icon: 'shield-checkmark' },
@@ -28,13 +29,14 @@ export interface PickedFile {
 
 /**
  * UI record types → the backend's HealthRecord.category enum
- * ('prescriptions' | 'lab_reports' | 'imaging' | 'vaccination').
+ * ('prescriptions' | 'medications' | 'lab_reports' | 'imaging' | 'vaccination').
  * The UI's "Vaccination" option carries the legacy value 'discharge', and
  * "Other" has no backend equivalent, so both are mapped explicitly here
  * rather than being sent through as-is and rejected with a 400.
  */
 const CATEGORY_BY_RECORD_TYPE: Record<UploadRecordType, HealthRecordCategory> = {
   prescription: 'prescriptions',
+  medication: 'medications',
   report: 'lab_reports',
   imaging: 'imaging',
   discharge: 'vaccination',

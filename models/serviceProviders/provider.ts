@@ -7,6 +7,13 @@ export interface Coordinates {
   longitude: number;
 }
 
+export interface ScoreBreakdown {
+  distance: number;
+  rating: number;
+  availability: number;
+  quality: number;
+}
+
 export interface Provider {
   id: string;
   name: string;
@@ -33,9 +40,22 @@ export interface Provider {
   languages: string[];
   completedJobs: number;
   jobSuccessRate: number;
-  /** Kilometres from the customer's address; null when the app has no location for them. */
+  /** Kilometres from the customer; null when either side's location is unknown. */
   distanceKm?: number | null;
-  coordinates: Coordinates;
+  /** The distance is to the provider's city, not a pinned base — show it as "~". */
+  distanceApprox?: boolean;
+  /** Straight-line travel estimate in minutes; null when distance is unknown or approximate. */
+  etaMinutes?: number | null;
+  /** Online, seen in the last few minutes and inside today's working hours. */
+  availableNow?: boolean;
+  /** 0–1 "best match" score from search; absent outside search results. */
+  matchingScore?: number;
+  /** Each ranking term in [0, 1] — what the "why this provider" chips read. */
+  scoreBreakdown?: ScoreBreakdown | null;
+  /** 'heuristic' or 'model:<version>' — which ranker ordered this result. */
+  rankingSource?: string;
+  /** The provider's service area (coarse, ~500 m), or null when they have not set one. */
+  coordinates: Coordinates | null;
   createdAt: string;
   updatedAt: string;
 }

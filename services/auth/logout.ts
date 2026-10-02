@@ -24,6 +24,9 @@ import { disconnectSocket } from '../socket/socketClient';
 import { unregisterPushOnLogout } from '../push/pushNotifications';
 import { resetAllState } from '../../store/store';
 import { logout as appContainerLogout } from '../../components/app-container/appContainerSlice';
+import { resetTracking } from '../analytics/track';
+import { resetRankingContext } from '../analytics/rankingContext';
+import { resetSearchOrigin } from '../../networks/serviceProviders/providerNetwork';
 
 /**
  * End the current session completely.
@@ -64,6 +67,12 @@ export async function performLogout(dispatch: Dispatch): Promise<void> {
   } catch (e) {
     console.log('[logout] clearAuthData failed:', e);
   }
+
+  // Interaction events queued under this account must not leave under the next one's token.
+  resetTracking();
+  resetRankingContext();
+  // Nor may the next account be matched from this one's home or position.
+  resetSearchOrigin();
 
   // Drop every account-scoped slice back to its initial state.
   dispatch(resetAllState());

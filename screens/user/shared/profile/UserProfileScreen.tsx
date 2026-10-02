@@ -28,6 +28,7 @@
 // ============================================================================
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -61,6 +62,7 @@ import {
   selectIsVerified,
   selectUserStats,
   saveUserProfile,
+  updateAvatar,
   toggleNotificationPreference,
   setLanguage,
   fetchUserProfile,
@@ -398,8 +400,45 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
     setShowEditModal(false);
   };
 
+  // The camera button used to do nothing at all. Pick (or shoot) a photo,
+  // upload it through POST /users/upload-photo (Cloudinary server-side), and
+  // show it at once.
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const changeAvatar = async (source: 'camera' | 'library') => {
+    try {
+      const ImagePicker = require('expo-image-picker');
+      const perm =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission needed', `Allow ${source === 'camera' ? 'camera' : 'photo'} access to change your picture.`);
+        return;
+      }
+      const options = { mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.7 };
+      const result =
+        source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      const asset = !result.canceled && result.assets?.[0];
+      if (!asset?.uri) return;
+      setAvatarBusy(true);
+      const { uploadProfilePhoto } = require('../../../../networks/authcalls/userProfile');
+      const res = await uploadProfilePhoto(asset.uri, asset.fileName || 'profile-photo.jpg', asset.mimeType || 'image/jpeg', asset.fileSize || 0);
+      const url = res?.profilePhoto || res?.profilePhotoUrl;
+      if (url) dispatch(updateAvatar(url));
+    } catch (e: any) {
+      Alert.alert("Couldn't update your picture", e?.message || 'Try again in a moment.');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   const handleAvatarPress = () => {
-    // Handle avatar change
+    if (avatarBusy) return;
+    Alert.alert('Profile picture', undefined, [
+      { text: 'Take a photo', onPress: () => changeAvatar('camera') },
+      { text: 'Choose from library', onPress: () => changeAvatar('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const accountMenuItems: MenuItem[] = [

@@ -50,7 +50,7 @@ export interface RoomStatusUpdate {
 
 export interface RoomPaymentUpdate {
   roomId: string;
-  /** 'requested' | 'paid' (home services) or paid | refunded (healthcare). */
+  /** 'requested' | 'paid' | 'cash_selected' (home services) or paid | refunded (healthcare). */
   status: string;
   amount?: number;
   refundAmount?: number;
@@ -100,6 +100,9 @@ export function useRoomSocket(
   const [roomStatus, setRoomStatus] = useState<RoomStatusUpdate | null>(null);
   const [payment, setPayment] = useState<RoomPaymentUpdate | null>(null);
   const [videoCall, setVideoCall] = useState<RoomVideoCallUpdate | null>(null);
+  /** Home services: the provider is about this many minutes away (server-detected, once per trip). */
+  const [nearby, setNearby] = useState<{ etaMinutes: number; distanceMeters: number | null } | null>(null);
+  const [identityVerified, setIdentityVerified] = useState<{ method: string; verifiedAt: string } | null>(null);
   const [typing, setTyping] = useState(false);
   const [connected, setConnected] = useState(false);
   // Bumped when the app returns to the foreground and re-joins the room. The
@@ -190,11 +193,30 @@ export function useRoomSocket(
       const onPaymentStatus = (p: {
         roomId?: string;
         appointmentId?: string;
+        bookingId?: string;
         status: string;
         refundAmount?: number;
+        method?: string;
+        amount?: number;
       }) => {
-        if (!mounted || (p.roomId || p.appointmentId) !== roomId) return;
-        setPayment({ roomId, status: p.status, refundAmount: p.refundAmount });
+        if (!mounted || (p.roomId || p.appointmentId || p.bookingId) !== roomId) return;
+        // Healthcare: paid | refunded. Home services: 'cash_selected' when the
+        // customer chose to pay the provider in cash.
+        setPayment({ roomId, status: p.status, refundAmount: p.refundAmount, method: p.method, amount: p.amount });
+      };
+
+      // Home services: the realtime service saw the provider's live position
+      // come within ~5 minutes of the customer; the API sent it exactly once.
+      const onProviderNearby = (p: { roomId?: string; bookingId?: string; etaMinutes?: number; distanceMeters?: number | null }) => {
+        if (!mounted || (p.roomId || p.bookingId) !== roomId) return;
+        setNearby({ etaMinutes: p.etaMinutes ?? 5, distanceMeters: p.distanceMeters ?? null });
+      };
+
+      // Home services: the customer checked the provider's ID at the door
+      // (QR / 6-digit code / NFC badge) — both parties' screens show it.
+      const onIdentityVerified = (p: { roomId?: string; bookingId?: string; method?: string; verifiedAt?: string }) => {
+        if (!mounted || (p.roomId || p.bookingId) !== roomId) return;
+        setIdentityVerified({ method: p.method || 'code', verifiedAt: p.verifiedAt || new Date().toISOString() });
       };
 
       // The customer actually paid. Distinct from `payment_requested`, which is
@@ -287,6 +309,8 @@ export function useRoomSocket(
       s.on('payment_requested', onPaymentRequested);
       s.on('payment_received', onPaymentReceived);
       s.on('payment_status_changed', onPaymentStatus);
+      s.on('provider_nearby', onProviderNearby);
+      s.on('identity_verified', onIdentityVerified);
       s.on('video_call_started', onVideoStarted);
       s.on('video_call_ended', onVideoEnded);
       // Presence of the OTHER party. The server sends this directly on join and
@@ -332,6 +356,8 @@ export function useRoomSocket(
         s.off('payment_requested', onPaymentRequested);
         s.off('payment_received', onPaymentReceived);
         s.off('payment_status_changed', onPaymentStatus);
+        s.off('provider_nearby', onProviderNearby);
+        s.off('identity_verified', onIdentityVerified);
         s.off('video_call_started', onVideoStarted);
         s.off('video_call_ended', onVideoEnded);
         s.off('presence_update', onPresence);
@@ -518,6 +544,10 @@ export function useRoomSocket(
     roomStatus,
     payment,
     videoCall,
+    /** Home services: "about N minutes away", once per trip. */
+    nearby,
+    /** Home services: the provider's ID was checked at the door (this session). */
+    identityVerified,
     typing,
     /**
      * OUR OWN socket. Answers "are my messages sending?" — NOT whether the

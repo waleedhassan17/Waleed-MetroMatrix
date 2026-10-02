@@ -101,10 +101,11 @@ const mapApiTrackingToLocal = (apiData: ReturnType<typeof trackingDataSerializer
     category: apiData.provider.category as ProviderTrackingInfo['category'],
   };
 
-  const providerLocation: Coordinates = {
-    latitude: apiData.providerLocation.latitude,
-    longitude: apiData.providerLocation.longitude,
-  };
+  // Null until the first live ping: the marker appears when the provider's
+  // phone reports in, rather than at a guessed spot.
+  const providerLocation: Coordinates | null = apiData.providerLocation
+    ? { latitude: apiData.providerLocation.latitude, longitude: apiData.providerLocation.longitude }
+    : null;
 
   const route: RouteInfo = apiData.route ? {
     coordinates: apiData.route.coordinates,
@@ -113,10 +114,11 @@ const mapApiTrackingToLocal = (apiData: ReturnType<typeof trackingDataSerializer
     duration: apiData.route.duration,
     durationValue: apiData.route.durationValue,
   } : {
+    // No live position yet: say so rather than "0 km · 0 min".
     coordinates: [],
-    distance: '0 km',
+    distance: '—',
     distanceValue: 0,
-    duration: '0 min',
+    duration: 'Waiting for location',
     durationValue: 0,
   };
 
@@ -175,14 +177,12 @@ const liveTrackingSlice = createAppSlice({
           return rejectWithValue(response.message || 'Failed to update location');
         }
         const serialized = trackingDataSerializer(response.data);
-        return {
-          latitude: serialized.providerLocation.latitude,
-          longitude: serialized.providerLocation.longitude,
-        } as Coordinates;
+        return serialized.providerLocation;
       },
       {
         fulfilled: (state, action) => {
-          state.providerLocation = action.payload;
+          // A poll that finds no live position keeps the last one we saw.
+          if (action.payload) state.providerLocation = action.payload;
         },
         rejected: (state, action) => {
           state.error = action.payload as string;

@@ -28,6 +28,7 @@ export const ShoppingRouteNames = {
   CouponList: 'CouponList',
   AddressSelection: 'AddressSelection',
   PaymentSelection: 'PaymentSelection',
+  ShoppingNotifications: 'ShoppingNotifications',
 } as const;
 
 // Brand Owner Routes
@@ -48,6 +49,7 @@ export const BrandRouteNames = {
   AddCoupon: 'AddCoupon',
   BrandReviews: 'BrandReviews',
   BrandProfile: 'BrandProfile',
+  BrandNotifications: 'BrandNotifications',
 } as const;
 
 // Admin Shopping Routes
@@ -64,6 +66,7 @@ export const AdminShoppingRouteNames = {
   AdminAddOutlet: 'AdminAddOutlet',
   AdminOutletDetail: 'AdminOutletDetail',
   AdminBannerList: 'AdminBannerList',
+  AdminProductModeration: 'AdminProductModeration',
 } as const;
 
 export type ShoppingRouteName = typeof ShoppingRouteNames[keyof typeof ShoppingRouteNames];

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@r
 import type { Doctor } from '../../../../models/healthcare/types';
 import type { Pagination } from '../../../../models/serviceProviders/common';
 import { fetchDoctorsApi, searchDoctorsApi } from '../../../../networks/healthcare/doctorApi';
+import { searchOrigin } from '../../../../networks/serviceProviders/providerNetwork';
 import {
   rankDoctorsByQuery,
   isTitleOnlyQuery,
@@ -13,7 +14,7 @@ import type { RootState } from '../../../../store/store';
 export type GenderFilter = 'any' | 'male' | 'female';
 export type AvailabilityFilter = 'any' | 'today' | 'this-week';
 export type ConsultationTypeFilter = 'both' | 'in-clinic' | 'video';
-export type SortOption = 'relevance' | 'rating' | 'fee-low' | 'fee-high' | 'experience';
+export type SortOption = 'relevance' | 'nearest' | 'rating' | 'fee-low' | 'fee-high' | 'experience';
 
 export interface DoctorFilters {
   gender: GenderFilter;
@@ -84,8 +85,10 @@ const initialState: DoctorListState = {
 
 function mapSortToApi(
   sort: SortOption
-): 'rating' | 'experience' | 'fee-low' | 'fee-high' | undefined {
+): 'rating' | 'experience' | 'fee-low' | 'fee-high' | 'distance' | undefined {
   switch (sort) {
+    case 'nearest':
+      return 'distance';
     case 'rating':
       return 'rating';
     case 'experience':
@@ -99,18 +102,17 @@ function mapSortToApi(
   }
 }
 
+/**
+ * What is still filtered on the phone. Fee range and minimum rating moved to
+ * the server: filtering them here only ever covered the page already loaded,
+ * so a cheap doctor on page three was "not found". Gender is gone — doctors
+ * have no gender field, so that filter could only ever empty the list.
+ */
 function filterDoctorsClientSide(
   doctors: Doctor[],
   filters: DoctorFilters
 ): Doctor[] {
   let result = [...doctors];
-
-  // Fee range filter
-  result = result.filter(
-    (d) =>
-      d.consultationFee >= filters.feeRange[0] &&
-      d.consultationFee <= filters.feeRange[1]
-  );
 
   // Consultation type filter
   if (filters.consultationType === 'video') {
@@ -119,19 +121,6 @@ function filterDoctorsClientSide(
     result = result.filter((d) => d.consultationFee > 0);
   }
 
-  // Gender filter (if doctor has gender field)
-  if (filters.gender !== 'any') {
-    result = result.filter((d) => {
-      // Assuming doctor might have gender in bio or as separate field
-      const gender = (d as any).gender?.toLowerCase();
-      return gender === filters.gender;
-    });
-  }
-
-  // Min rating filter
-  if (filters.minRating) {
-    result = result.filter((d) => d.rating >= filters.minRating!);
-  }
 
   // Language filter
   if (filters.languages && filters.languages.length > 0) {
@@ -161,6 +150,27 @@ function sortDoctors(doctors: Doctor[], sortBy: SortOption): Doctor[] {
       );
     default:
       return sorted;
+  }
+}
+
+/**
+ * Server-side filters shared by the first page and every next page, so
+ * paging never contradicts what page one showed.
+ */
+async function applyServerFilters(params: Record<string, any>, filters: DoctorFilters) {
+  if (filters.availability !== 'any') {
+    params.availableOnly = true;
+    if (filters.availability === 'today') params.availableToday = true;
+  }
+  if (filters.feeRange[0] > 0) params.minFee = filters.feeRange[0];
+  if (filters.feeRange[1] < 10000) params.maxFee = filters.feeRange[1];
+  if (filters.minRating) params.minRating = filters.minRating;
+  // Distance to each doctor's nearest clinic — the same "near me" the home
+  // services search uses (a pinned saved address, or the phone's position).
+  const origin = await searchOrigin();
+  if (origin) {
+    params.lat = origin.lat;
+    params.lng = origin.lng;
   }
 }
 
@@ -215,12 +225,7 @@ export const fetchDoctors = createAsyncThunk<
     if (query) {
       params.search = query;
     }
-    if (state.filters.availability !== 'any') {
-      params.availableOnly = true;
-      if (state.filters.availability === 'today') {
-        params.availableToday = true;
-      }
-    }
+    await applyServerFilters(params, state.filters);
 
     const apiSort = mapSortToApi(state.sortBy);
     if (apiSort) {
@@ -271,9 +276,7 @@ export const loadMore = createAsyncThunk<
     if (state.searchQuery && !isTitleOnlyQuery(state.searchQuery)) {
       params.search = state.searchQuery;
     }
-    if (state.filters.availability !== 'any') {
-      params.availableOnly = true;
-    }
+    await applyServerFilters(params, state.filters);
 
     const apiSort = mapSortToApi(state.sortBy);
     if (apiSort) {
@@ -421,7 +424,6 @@ export const selectActiveFilterCount = createSelector(
   (state: { doctorList: DoctorListState }) => state.doctorList.filters,
   (filters) => {
     let count = 0;
-    if (filters.gender !== 'any') count++;
     if (filters.availability !== 'any') count++;
     if (filters.feeRange[0] > 0 || filters.feeRange[1] < 10000) count++;
     if (filters.consultationType !== 'both') count++;

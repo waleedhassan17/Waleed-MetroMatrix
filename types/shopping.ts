@@ -83,7 +83,42 @@ export interface Product {
   isNewArrival: boolean;
   inStock: boolean;
   tags: string[];
+  /** Vendor's switch: false = hidden from the store (kept in their catalogue). */
+  isActive?: boolean;
+  /** Platform's switch; absent on products from before moderation (= approved). */
+  moderation?: ProductModeration;
+  /** "View in your room": a .glb for Android's Scene Viewer, optionally a .usdz for iPhone. */
+  model3d?: ProductModel3d | null;
   createdAt: string;
+}
+
+export interface ProductModel3d {
+  glbUrl: string | null;
+  usdzUrl?: string | null;
+  sizeBytes?: number | null;
+  attachedAt?: string | null;
+}
+
+export type ProductModerationStatus = 'approved' | 'pending' | 'rejected' | 'removed';
+
+export interface ProductModeration {
+  status: ProductModerationStatus;
+  note?: string;
+  at?: string | null;
+}
+
+/** What a vendor or admin sees about whether customers can see a product. */
+export function productListingState(p: Pick<Product, 'isActive' | 'moderation'>):
+  | 'live'
+  | 'hidden'
+  | 'in_review'
+  | 'needs_changes'
+  | 'removed' {
+  const status = p.moderation?.status || 'approved';
+  if (status === 'removed') return 'removed';
+  if (status === 'rejected') return 'needs_changes';
+  if (status === 'pending') return 'in_review';
+  return p.isActive === false ? 'hidden' : 'live';
 }
 
 // ── Cart ──────────────────────────────────────
@@ -348,6 +383,29 @@ export interface ReturnRequestView {
 
 // ── API Response Wrappers ─────────────────────
 
+/**
+ * How natural-language search (`q`) understood a query — GET /products
+ * returns it as `interpretedAs`. "red nike shoes under 3k" →
+ * { color: 'red', brandName: 'Nike', category: 'shoes', maxPrice: 3000 }.
+ */
+export interface ProductQueryInterpretation {
+  terms?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  color?: string;
+  gender?: 'men' | 'women' | 'kids';
+  brandId?: string;
+  brandName?: string;
+  category?: string;
+  categoryIds?: string[];
+  /** 'llm' when Gemini interpreted a description the rules could not. */
+  source?: 'rules' | 'llm';
+  /** Chips the shopper removed (sent back as `ignore`). */
+  ignored?: InterpretationChipKey[];
+}
+
+export type InterpretationChipKey = 'price' | 'color' | 'gender' | 'brand' | 'category';
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -392,6 +450,7 @@ export type ShoppingStackParamList = {
   CouponList: { brandId?: string };
   AddressSelection: undefined;
   PaymentSelection: { orderId?: string };
+  ShoppingNotifications: { audience?: 'customer' | 'vendor' } | undefined;
 };
 
 export type BrandStackParamList = {
@@ -411,6 +470,7 @@ export type BrandStackParamList = {
   AddCoupon: { couponCode?: string };
   BrandReviews: undefined;
   BrandProfile: undefined;
+  BrandNotifications: { audience?: 'customer' | 'vendor' } | undefined;
 };
 
 export type AdminShoppingParamList = {
@@ -426,4 +486,5 @@ export type AdminShoppingParamList = {
   AdminAddOutlet: { outletId?: string };
   AdminOutletDetail: { outletId: string };
   AdminBannerList: undefined;
+  AdminProductModeration: undefined;
 };

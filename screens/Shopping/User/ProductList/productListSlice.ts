@@ -20,6 +20,8 @@ export interface ProductFilters {
   brandId: string | null;
   onSale: boolean;
   inStock: boolean;
+  /** Minimum average rating, filtered on the server across every page. */
+  minRating: number | null;
 }
 
 export type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'rating' | 'popular';
@@ -51,6 +53,7 @@ export const defaultFilters: ProductFilters = {
   brandId: null,
   onSale: false,
   inStock: false,
+  minRating: null,
 };
 
 const initialState: ProductListState = {
@@ -94,6 +97,7 @@ export const fetchProducts = createAsyncThunk(
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
         inStock: filters.inStock || undefined,
+        minRating: filters.minRating || undefined,
         isFeatured: undefined,
       };
 
@@ -223,6 +227,7 @@ export const selectActiveFilterCount = (state: { productList: ProductListState }
   if (f.brandId) count++;
   if (f.onSale) count++;
   if (f.inStock) count++;
+  if (f.minRating) count++;
   return count;
 };
 

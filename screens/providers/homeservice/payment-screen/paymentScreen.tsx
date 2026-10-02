@@ -396,9 +396,13 @@ const PaymentRequestScreen: React.FC = () => {
             <View style={styles.waitingIconBg}>
               <Icon name="clock-outline" size={32} color={colors.warning} />
             </View>
-            <Text style={styles.waitingTitle}>Payment Requested</Text>
+            <Text style={styles.waitingTitle}>
+              {livePayment?.status === 'cash_selected' ? 'Customer is paying in cash' : 'Payment Requested'}
+            </Text>
             <Text style={styles.waitingSubtitle}>
-              The customer has been notified. Waiting for payment...
+              {livePayment?.status === 'cash_selected'
+                ? 'Collect the cash, then tap "Paid in Cash" to confirm you received it.'
+                : 'The customer has been notified. Waiting for payment...'}
             </Text>
             <View style={styles.waitingDots}>
               <View style={[styles.dot, styles.dotActive]} />

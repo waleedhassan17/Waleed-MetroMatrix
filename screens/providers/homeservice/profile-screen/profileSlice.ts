@@ -1,9 +1,9 @@
 import { PayloadAction } from '@reduxjs/toolkit';
+import { setProviderOnline } from '../../../../services/provider/onlineStatus';
 import { createAppSlice } from '../../../../store/createAppSlice';
 import {
   fetchProviderProfile,
   updateProviderProfile,
-  updateProviderOnlineStatus,
 } from '../../../../networks/serviceProviders/providerNetwork';
 import { providerDetailsSerializer } from '../../../../serializers/serviceProviders';
 import type { ProviderDetails } from '../../../../models/serviceProviders';
@@ -152,7 +152,7 @@ const providerProfileSlice = createAppSlice({
 
     updateAvailability: create.asyncThunk(
       async (params: { isOnline: boolean }, { rejectWithValue }) => {
-        const response = await updateProviderOnlineStatus(params.isOnline);
+        const response = await setProviderOnline(params.isOnline);
         if (!response.success) {
           return rejectWithValue(response.message || 'Failed to update availability');
         }

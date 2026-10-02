@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import {
   Plus,
   ShoppingCart,
   ChevronRight,
+  Rotate3d,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
@@ -49,6 +50,10 @@ import {
 import { selectIsInWishlist } from '../Wishlist/wishlistSlice';
 import { selectActiveBrand } from '../BrandList/brandListSlice';
 import { swatchColor } from '../../../../constants/ProductColors';
+import RecommendationRail from '../../../../components/Shopping/RecommendationRail';
+import { fetchSimilarProducts, type ProductPick } from '../../../../networks/recommendations/recommendationsApi';
+import { track } from '../../../../services/analytics/track';
+import { arCapability, openInAR } from '../../../../utils/shopping/arLauncher';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -109,6 +114,42 @@ const ProductDetailScreen: React.FC = () => {
     };
   }, [dispatch, productId]);
 
+  // "Similar items" / "Bought together" — kept inside the storefront the
+  // shopper is in. Best-effort: on failure the rail simply does not appear.
+  const [similar, setSimilar] = useState<ProductPick[]>([]);
+  useEffect(() => {
+    if (!productId) return;
+    let alive = true;
+    setSimilar([]);
+    track({ module: 'shopping', type: 'view', refId: productId });
+    fetchSimilarProducts(productId, activeBrand?.brandId).then((res) => {
+      if (alive && res.success) setSimilar(res.data?.items ?? []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [productId, activeBrand?.brandId]);
+
+  // "View in your room": only for products whose vendor attached a 3D model.
+  const arMode = arCapability(product?.model3d);
+  const handleViewInRoom = useCallback(async () => {
+    if (!product?.model3d) return;
+    track({ module: 'shopping', type: 'click', refId: productId, meta: { context: 'ar_view', screen: 'ProductDetail' } });
+    const opened = await openInAR(product.model3d, product.name);
+    if (opened === 'unavailable') {
+      Alert.alert('3D view unavailable', 'This phone could not open the 3D model. Try again on an Android phone with the Google app.');
+    }
+  }, [product, productId]);
+
+  const openSimilar = useCallback(
+    (id: string, bId: string) => {
+      track({ module: 'shopping', type: 'click', refId: id, meta: { context: 'similar', screen: 'ProductDetail' } });
+      // push, not navigate: back returns to the product the shopper came from.
+      navigation.push(ShoppingRouteNames.ProductDetail, { productId: id, brandId: bId });
+    },
+    [navigation]
+  );
+
   // ── Derived data ──────────────────────────
 
   const availableSizes = useMemo(() => {
@@ -144,11 +185,12 @@ const ProductDetailScreen: React.FC = () => {
     }
     try {
       await dispatch(addToCart()).unwrap();
+      track({ module: 'shopping', type: 'add_to_cart', refId: productId });
       Alert.alert('Added!', 'Item has been added to your cart.');
     } catch (err: any) {
       Alert.alert('Error', err || 'Failed to add to cart.');
     }
-  }, [dispatch, selectedVariant]);
+  }, [dispatch, selectedVariant, productId]);
 
   const handleQuantityChange = useCallback((delta: number) => {
     dispatch(setQuantity(quantity + delta));
@@ -306,6 +348,26 @@ const ProductDetailScreen: React.FC = () => {
             <Text style={styles.reviewCount}>({product.totalReviews} reviews)</Text>
             <ChevronRight size={14} stroke={Colors.text.tertiary} />
           </TouchableOpacity>
+
+          {/* View in your room (AR) — only when the vendor attached a 3D model */}
+          {arMode !== 'unavailable' && (
+            <TouchableOpacity
+              style={styles.arButton}
+              onPress={handleViewInRoom}
+              accessibilityRole="button"
+              accessibilityLabel={arMode === 'web_3d' ? 'View in 3D' : 'View in your room'}
+              testID="view-in-room"
+            >
+              <Rotate3d size={18} stroke={ShopColors.primaryDark} strokeWidth={1.75} />
+              <View style={styles.arButtonText}>
+                <Text style={styles.arButtonTitle}>{arMode === 'web_3d' ? 'View in 3D' : 'View in your room'}</Text>
+                <Text style={styles.arButtonHint}>
+                  {arMode === 'web_3d' ? 'Turn it around in 3D' : 'See it at real size with your camera (AR)'}
+                </Text>
+              </View>
+              <ChevronRight size={16} stroke={ShopColors.primaryDark} />
+            </TouchableOpacity>
+          )}
 
           {/* Price */}
           <View style={styles.priceRow}>
@@ -524,6 +586,15 @@ const ProductDetailScreen: React.FC = () => {
           )}
         </View>
 
+        {/* ── Similar items ─────────────────── */}
+        <RecommendationRail
+          title="You may also like"
+          subtitle="Similar items and things bought together"
+          picks={similar}
+          onPressProduct={openSimilar}
+          testID="similar-rail"
+        />
+
         {/* Clears the pinned action bar, which grows by the system inset. */}
         <View style={{ height: 120 + insets.bottom }} />
       </ScrollView>
@@ -693,6 +764,29 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
   reviewCount: {
     fontSize: 13,
     color: Colors.text.tertiary,
+  },
+  arButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: ShopColors.primaryLight,
+  },
+  arButtonText: {
+    flex: 1,
+  },
+  arButtonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ShopColors.primaryDark,
+  },
+  arButtonHint: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    marginTop: 1,
   },
   priceRow: {
     flexDirection: 'row',

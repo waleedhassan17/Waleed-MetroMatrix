@@ -10,13 +10,20 @@
 //
 // Now: one accent (the Book button), a category hairline per card, and the
 // provider's name, rating and price doing the work.
+//
+// Ranking is the SERVER's (distance, rating, available-now and reliability —
+// see the backend's services/discoveryPipeline.js). This screen sends the
+// customer's sort, filters, search and page and renders the answer in the
+// order it arrives; it never re-sorts on the phone.
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -33,9 +40,15 @@ import {
   Card,
   Chip,
   EmptyState,
+  FormSheet,
   Screen,
+  SegmentedControl,
   SkeletonCard,
+  ToneBadge,
 } from '../../../../components/ui';
+import ProviderDiscoveryMap from '../../../../components/homeservice/ProviderDiscoveryMap';
+import { requestDeviceOrigin } from '../../../../networks/serviceProviders/providerNetwork';
+import { track } from '../../../../services/analytics/track';
 import { categoryAccent } from '../../../../constants/HomeServiceTheme';
 import { GUTTER, R, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
@@ -54,24 +67,64 @@ import {
 } from '../Booking/bookingScreenSlice';
 import { formatPrice, formatRating, formatReviewCount } from '../../../../utils/homeservice/format';
 import {
-  fetchACRepairers,
-  fetchElectricians,
-  fetchPlumbers,
+  fetchProvidersByCategory,
+  FilterOptions,
+  loadMoreProviders,
+  ProviderCategory,
+  refreshProviders,
   selectFilteredProviders,
+  selectFilters,
   selectIsLoading,
+  selectIsLoadingMore,
+  selectIsRefreshing,
+  selectPagination,
+  selectSearchArea,
+  selectSearchOrigin,
   selectSearchQuery,
   selectSelectedSort,
+  setFilters,
   setSearchQuery,
   setSelectedSort,
   SortOption,
 } from './providersSlice';
 
-const SORT_OPTIONS: { label: string; value: SortOption; icon: string }[] = [
+const SORT_OPTIONS: { label: string; value: SortOption; icon: string; needsLocation?: boolean }[] = [
+  { label: 'Best match', value: 'best', icon: 'sparkles-outline' },
+  { label: 'Nearest', value: 'nearest', icon: 'navigate-outline', needsLocation: true },
   { label: 'Top rated', value: 'rating', icon: 'star-outline' },
   { label: 'Most reviews', value: 'reviews', icon: 'chatbubbles-outline' },
-  { label: 'Most experienced', value: 'experience', icon: 'ribbon-outline' },
-  { label: 'Lowest price', value: 'price', icon: 'pricetag-outline' },
+  { label: 'Lowest price', value: 'price_low', icon: 'pricetag-outline' },
+  { label: 'Highest price', value: 'price_high', icon: 'trending-up-outline' },
 ];
+
+const RATING_CHOICES = [0, 3, 4, 4.5];
+const DISTANCE_CHOICES = [0, 2, 5, 10, 20];
+const PRICE_CHOICES = [0, 1000, 2000, 5000];
+const SEARCH_DEBOUNCE_MS = 400;
+
+type ViewMode = 'list' | 'map';
+
+/**
+ * Why this provider ranks where it does — at most three reasons, read from
+ * the server's score breakdown. Only claims the data supports: "Close by"
+ * needs a known distance, "Top rated" a strong Bayesian rating (one 5★ review
+ * does not qualify).
+ */
+function reasonsFor(p: Provider): string[] {
+  const b = p.scoreBreakdown;
+  if (!b) return [];
+  const out: string[] = [];
+  if (typeof p.distanceKm === 'number' && !p.distanceApprox && b.distance >= 0.7) out.push('Close by');
+  if (b.rating >= 0.9) out.push('Top rated');
+  if (p.availableNow) out.push('Available now');
+  if (b.quality >= 0.85 && p.completedJobs >= 5) out.push('Reliable');
+  return out.slice(0, 3);
+}
+
+function distanceLabel(p: Provider): string | null {
+  if (typeof p.distanceKm !== 'number') return null;
+  return p.distanceApprox ? `~${p.distanceKm} km` : `${p.distanceKm} km away`;
+}
 
 // ── Provider card ───────────────────────────────────────────────────────────
 
@@ -87,6 +140,8 @@ interface ProviderCardProps {
   onToggleFavorite: (id: string) => void;
   /** True when the customer already has a live request with this provider. */
   hasActiveRequest: boolean;
+  /** Shown on the top result when ranking by best match. */
+  bestMatch?: boolean;
 }
 
 const ProviderCard: React.FC<ProviderCardProps> = ({
@@ -100,11 +155,14 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   isFavorite,
   onToggleFavorite,
   hasActiveRequest,
+  bestMatch,
 }) => {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const rating = formatRating(item.rating);
   const reviews = formatReviewCount(item.reviews);
+  const reasons = reasonsFor(item);
+  const distance = distanceLabel(item);
 
   return (
     <Card accentRule={tint} style={styles.providerCard}>
@@ -125,9 +183,12 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
         </View>
 
         <View style={styles.providerInfo}>
-          <Text style={styles.providerName} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.providerName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {bestMatch && <ToneBadge label="Best match" tone="accent" icon="sparkles" style={styles.bestMatch} />}
+          </View>
 
           {/* A rating of 0 is no rating. The old card printed "★ 0" beside
               "(0 reviews)" for every new provider, which read as a bad one. */}
@@ -165,21 +226,30 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
       </TouchableOpacity>
 
       <View style={styles.availabilityRow}>
-        {/* Online is what the provider set on their dashboard. This used to
-            read `available`, which every provider has, so someone offline for
-            days showed "Available now · Replies in ~1 hour". */}
+        {/* "Available now" is the server's judgement: online, seen in the last
+            few minutes AND inside today's working hours. A bare online toggle
+            used to keep people "online" long after they had closed the app. */}
         <View
           style={[
             styles.dot,
-            { backgroundColor: item.isOnline ? colors.success : colors.inkFaint },
+            { backgroundColor: item.availableNow ? colors.success : colors.inkFaint },
           ]}
         />
         <Text style={styles.metaText}>
-          {item.isOnline ? 'Online now' : 'Offline'}
-          {item.responseTime ? ` · Replies in ${item.responseTime}` : ''}
-          {typeof item.distanceKm === 'number' ? ` · ${item.distanceKm} km away` : ''}
+          {item.availableNow ? 'Available now' : item.isOnline ? 'Online' : 'Offline'}
+          {item.availableNow && item.responseTime ? ` · Replies in ${item.responseTime}` : ''}
+          {distance ? ` · ${distance}` : ''}
+          {typeof item.etaMinutes === 'number' ? ` · ~${item.etaMinutes} min` : ''}
         </Text>
       </View>
+
+      {reasons.length > 0 && (
+        <View style={styles.reasonRow} accessibilityLabel={`Why this provider: ${reasons.join(', ')}`}>
+          {reasons.map((r) => (
+            <ToneBadge key={r} label={r} tone="neutral" style={styles.reason} />
+          ))}
+        </View>
+      )}
 
       <View style={styles.providerFooter}>
         <View>
@@ -240,12 +310,24 @@ export default function ProvidersScreen() {
 
   const providers = useSelector((state: RootState) => selectFilteredProviders(state)) as Provider[];
   const isLoading = useSelector((state: RootState) => selectIsLoading(state)) as boolean;
+  const isRefreshing = useSelector((state: RootState) => selectIsRefreshing(state)) as boolean;
+  const isLoadingMore = useSelector((state: RootState) => selectIsLoadingMore(state)) as boolean;
   const searchQuery = useSelector((state: RootState) => selectSearchQuery(state)) as string;
   const selectedSort = useSelector((state: RootState) => selectSelectedSort(state)) as SortOption;
+  const filters = useSelector((state: RootState) => selectFilters(state)) as FilterOptions;
+  const pagination = useSelector((state: RootState) => selectPagination(state));
+  const searchArea = useSelector((state: RootState) => selectSearchArea(state));
+  const origin = useSelector((state: RootState) => selectSearchOrigin(state));
 
+  const [searchText, setSearchText] = useState(searchQuery);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showSortSheet, setShowSortSheet] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<FilterOptions>(filters);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [locating, setLocating] = useState(false);
 
   // ── Saved providers ────────────────────────────────────────────────────────
   //
@@ -271,20 +353,16 @@ export default function ProvidersScreen() {
     [favoriteItems, pendingFavoriteIds]
   );
 
+  const categoryKey = serviceType as ProviderCategory;
+  const refetch = useCallback(
+    (overrides: { search?: string; sort?: SortOption; filters?: FilterOptions } = {}) =>
+      dispatch(fetchProvidersByCategory({ category: categoryKey, ...overrides }) as any),
+    [dispatch, categoryKey]
+  );
+
   useFocusEffect(
     useCallback(() => {
-      switch (serviceType) {
-        case 'electricians':
-          dispatch(fetchElectricians() as any);
-          break;
-        case 'plumbers':
-          dispatch(fetchPlumbers() as any);
-          break;
-        case 'ac-repairers':
-        default:
-          dispatch(fetchACRepairers() as any);
-          break;
-      }
+      refetch();
       // Without this the list opens with every heart hollow, however many
       // providers the user has already saved — the slice is only populated by
       // whichever screen last fetched it, and arriving here directly from Home
@@ -294,14 +372,66 @@ export default function ProvidersScreen() {
       // back here after cancelling a request or having one accepted, and a
       // stale map would leave "View request" on a provider they could book.
       dispatch(fetchActiveBookings() as any);
-    }, [serviceType, dispatch])
+    }, [refetch, dispatch])
   );
+
+  // Search is the server's (it matches name, trade and bio across every page,
+  // not just the fifteen on screen). Debounced so a word is one request.
+  const firstSearchRun = useRef(true);
+  useEffect(() => {
+    if (firstSearchRun.current) {
+      firstSearchRun.current = false;
+      return;
+    }
+    const t = setTimeout(() => {
+      dispatch(setSearchQuery(searchText));
+      refetch({ search: searchText });
+      if (searchText.trim().length >= 2) {
+        track({ module: 'homeservice', type: 'search', query: searchText.trim(), meta: { category: serviceType } });
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]);
+
+  // Impressions feed the ranking model: which providers were shown, where,
+  // and how the heuristic scored them. Logged once per provider per result set.
+  const loggedImpressions = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    loggedImpressions.current = new Set();
+  }, [selectedSort, filters, searchQuery, serviceType]);
+  useEffect(() => {
+    providers.forEach((p, position) => {
+      if (loggedImpressions.current.has(p.id)) return;
+      loggedImpressions.current.add(p.id);
+      const b = p.scoreBreakdown;
+      track({
+        module: 'homeservice',
+        type: 'impression',
+        refId: p.id,
+        meta: { position, category: serviceType, score: p.matchingScore, context: selectedSort },
+        features: b
+          ? {
+              distance_term: b.distance,
+              rating_term: b.rating,
+              available_now: b.availability,
+              quality_term: b.quality,
+              ...(typeof p.distanceKm === 'number' ? { distance_km: p.distanceKm } : {}),
+              distance_known: typeof p.distanceKm === 'number' && !p.distanceApprox ? 1 : 0,
+              price: p.price || 0,
+            }
+          : undefined,
+      });
+    });
+  }, [providers, serviceType, selectedSort]);
 
   const handleProviderPress = useCallback(
     (providerId: string) => {
+      const position = providers.findIndex((p) => p.id === providerId);
+      track({ module: 'homeservice', type: 'click', refId: providerId, meta: { position, category: serviceType } });
       navigation.navigate('ProviderProfile', { id: providerId, category: serviceType });
     },
-    [navigation, serviceType]
+    [navigation, serviceType, providers]
   );
 
   const handleBookNow = useCallback(
@@ -331,7 +461,7 @@ export default function ProvidersScreen() {
           rating: provider.rating,
           reviews: provider.reviews,
           image: provider.image,
-          distance: 'N/A',
+          distance: distanceLabel(provider) || 'N/A',
         },
         serviceType,
       });
@@ -370,28 +500,197 @@ export default function ProvidersScreen() {
     [dispatch, favorites]
   );
 
+  const applySort = useCallback(
+    (sort: SortOption) => {
+      dispatch(setSelectedSort(sort));
+      refetch({ sort });
+    },
+    [dispatch, refetch]
+  );
+
+  const applyFilters = useCallback(() => {
+    const next: FilterOptions = {
+      ...(draftFilters.minRating ? { minRating: draftFilters.minRating } : {}),
+      ...(draftFilters.maxPrice ? { maxPrice: draftFilters.maxPrice } : {}),
+      ...(draftFilters.available ? { available: true } : {}),
+      ...(draftFilters.maxDistanceKm && origin ? { maxDistanceKm: draftFilters.maxDistanceKm } : {}),
+    };
+    dispatch(setFilters(next));
+    setShowFilterSheet(false);
+    refetch({ filters: next });
+  }, [dispatch, draftFilters, origin, refetch]);
+
+  const clearFilters = useCallback(() => {
+    dispatch(setFilters({}));
+    setDraftFilters({});
+    refetch({ filters: {} });
+  }, [dispatch, refetch]);
+
+  const useMyLocation = useCallback(async () => {
+    setShowLocationSheet(false);
+    setLocating(true);
+    const found = await requestDeviceOrigin();
+    setLocating(false);
+    if (found) refetch();
+  }, [refetch]);
+
   const displayedProviders = useMemo(
     () => (showFavoritesOnly ? providers.filter((p) => favorites.includes(p.id)) : providers),
     [providers, favorites, showFavoritesOnly]
   );
 
-  const stats = useMemo(() => {
-    const rated = providers.filter((p) => p.rating > 0);
-    return {
-      total: providers.length,
-      // Averaging in the unrated providers dragged the headline number toward
-      // zero and made a healthy category look poor.
-      avgRating: rated.length
-        ? (rated.reduce((sum, p) => sum + p.rating, 0) / rated.length).toFixed(1)
-        : null,
-      verifiedPercent: providers.length
-        ? Math.round((providers.filter((p) => p.verified).length / providers.length) * 100)
-        : 0,
-    };
-  }, [providers]);
+  const activeFilterCount =
+    (filters.minRating ? 1 : 0) + (filters.maxPrice ? 1 : 0) + (filters.available ? 1 : 0) + (filters.maxDistanceKm ? 1 : 0);
 
   const coldLoad = isLoading && providers.length === 0;
   const title = category.labelPlural.charAt(0).toUpperCase() + category.labelPlural.slice(1);
+  const originLabel = origin ? `Near ${origin.label || (origin.source === 'device' ? 'current location' : 'your address')}` : 'Set your location';
+  const originLatLng = origin ? { latitude: origin.lat, longitude: origin.lng } : null;
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === selectedSort)?.label ?? 'Sort';
+
+  const header = (
+    <View>
+      <View style={[styles.search, searchFocused && styles.searchFocused]}>
+        <Ionicons name="search" size={18} color={colors.inkFaint} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={`Search ${category.labelPlural}`}
+          placeholderTextColor={colors.inkFaint}
+          value={searchText}
+          onChangeText={setSearchText}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          returnKeyType="search"
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchText('')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.filterRow}>
+        <Chip
+          label={locating ? 'Locating…' : originLabel}
+          icon={origin ? 'location' : 'location-outline'}
+          selected={!!origin}
+          onPress={() => setShowLocationSheet(true)}
+          style={styles.filterChip}
+        />
+        <Chip
+          label="Filters"
+          icon="options-outline"
+          count={activeFilterCount || undefined}
+          selected={activeFilterCount > 0}
+          onPress={() => {
+            setDraftFilters(filters);
+            setShowFilterSheet(true);
+          }}
+          style={styles.filterChip}
+        />
+        <Chip label={sortLabel} icon="swap-vertical-outline" onPress={() => setShowSortSheet(true)} style={styles.filterChip} />
+      </View>
+
+      <View style={styles.filterRow}>
+        <Chip
+          label="Saved"
+          icon={showFavoritesOnly ? 'heart' : 'heart-outline'}
+          count={favorites.length}
+          selected={showFavoritesOnly}
+          onPress={() => setShowFavoritesOnly((v) => !v)}
+          style={styles.filterChip}
+        />
+        <Chip
+          label="Available now"
+          icon={filters.available ? 'flash' : 'flash-outline'}
+          selected={!!filters.available}
+          onPress={() => {
+            const next = { ...filters, available: !filters.available || undefined };
+            dispatch(setFilters(next));
+            refetch({ filters: next });
+          }}
+          style={styles.filterChip}
+        />
+      </View>
+
+      {/* The "Describe the job instead" row used to live here, routing to
+          QuickSearchScreen → SearchingProvidersScreen. That flow showed a
+          list of providers "responding live" that were hardcoded in the
+          screen — names, ratings and prices of people who do not exist,
+          arriving on staged timers. There is no broadcast-request endpoint
+          behind it, so there was nothing real to show. Removed rather than
+          left reachable; the entry point comes back when the backend does. */}
+
+      {searchArea?.widened && searchArea.radiusKm ? (
+        <View style={styles.notice} accessibilityRole="text">
+          <Ionicons name="information-circle-outline" size={16} color={colors.inkMuted} />
+          <Text style={styles.noticeText}>
+            Nobody close by right now — showing providers up to {searchArea.radiusKm} km away.
+          </Text>
+        </View>
+      ) : null}
+      {!origin && !coldLoad ? (
+        <TouchableOpacity style={styles.notice} onPress={() => setShowLocationSheet(true)} accessibilityRole="button">
+          <Ionicons name="navigate-outline" size={16} color={colors.accentDeep} />
+          <Text style={[styles.noticeText, { color: colors.accentDeep }]}>
+            Add your location to see who is nearest.
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
+      <SegmentedControl
+        options={[
+          { value: 'list' as ViewMode, label: 'List' },
+          { value: 'map' as ViewMode, label: 'Map' },
+        ]}
+        value={viewMode}
+        onChange={setViewMode}
+        style={styles.segment}
+      />
+
+      {viewMode === 'list' && (
+        <Text style={styles.listCount}>
+          {showFavoritesOnly
+            ? `Saved · ${displayedProviders.length}`
+            : `${pagination.totalItems} provider${pagination.totalItems === 1 ? '' : 's'} · ${sortLabel.toLowerCase()}`}
+        </Text>
+      )}
+    </View>
+  );
+
+  const empty = coldLoad ? (
+    <>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={styles.providerCard}>
+          <SkeletonCard lines={2} />
+        </View>
+      ))}
+    </>
+  ) : (
+    <EmptyState
+      icon={showFavoritesOnly ? 'heart-outline' : 'search-outline'}
+      title={
+        showFavoritesOnly
+          ? 'Nothing saved yet'
+          : activeFilterCount
+            ? 'No providers match these filters'
+            : 'No providers match that search'
+      }
+      message={
+        showFavoritesOnly
+          ? 'Tap the heart on a provider to keep them here for later.'
+          : activeFilterCount
+            ? 'Loosen a filter — distance and "available now" narrow the list the most.'
+            : 'Try a shorter search term, or clear it to see everyone.'
+      }
+      actionLabel={activeFilterCount ? 'Clear filters' : searchText ? 'Clear search' : undefined}
+      onAction={activeFilterCount ? clearFilters : searchText ? () => setSearchText('') : undefined}
+    />
+  );
 
   return (
     <Screen>
@@ -403,129 +702,162 @@ export default function ProvidersScreen() {
         onRightPress={() => setShowSortSheet(true)}
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.search, searchFocused && styles.searchFocused]}>
-          <Ionicons name="search" size={18} color={colors.inkFaint} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${category.labelPlural}`}
-            placeholderTextColor={colors.inkFaint}
-            value={searchQuery}
-            onChangeText={(text) => dispatch(setSearchQuery(text))}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => dispatch(setSearchQuery(''))}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.filterRow}>
-          <Chip
-            label="Saved"
-            icon={showFavoritesOnly ? 'heart' : 'heart-outline'}
-            count={favorites.length}
-            selected={showFavoritesOnly}
-            onPress={() => setShowFavoritesOnly((v) => !v)}
-            style={styles.filterChip}
-          />
-          <Chip
-            label={SORT_OPTIONS.find((o) => o.value === selectedSort)?.label ?? 'Sort'}
-            icon="swap-vertical-outline"
-            onPress={() => setShowSortSheet(true)}
+      {viewMode === 'map' ? (
+        <View style={[styles.content, styles.mapContent]}>
+          {header}
+          <ProviderDiscoveryMap
+            providers={displayedProviders}
+            origin={originLatLng}
+            radiusKm={searchArea?.radiusKm ?? null}
+            tint={category.tint}
+            tintSoft={category.tintSoft}
+            onOpenProvider={handleProviderPress}
+            onBook={handleBookNow}
           />
         </View>
-
-        {/* The "Describe the job instead" row used to live here, routing to
-            QuickSearchScreen → SearchingProvidersScreen. That flow showed a
-            list of providers "responding live" that were hardcoded in the
-            screen — names, ratings and prices of people who do not exist,
-            arriving on staged timers. There is no broadcast-request endpoint
-            behind it, so there was nothing real to show. Removed rather than
-            left reachable; the entry point comes back when the backend does. */}
-
-        {providers.length > 0 && (
-          <Card style={styles.stats}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Available</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.avgRating ?? '—'}</Text>
-                <Text style={styles.statLabel}>Avg rating</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.verifiedPercent}%</Text>
-                <Text style={styles.statLabel}>Verified</Text>
-              </View>
-            </View>
-          </Card>
-        )}
-
-        <Text style={styles.listCount}>
-          {showFavoritesOnly ? 'Saved' : 'All providers'} · {displayedProviders.length}
-        </Text>
-
-        {coldLoad ? (
-          <>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={styles.providerCard}>
-                <SkeletonCard lines={2} />
-              </View>
-            ))}
-          </>
-        ) : displayedProviders.length === 0 ? (
-          <EmptyState
-            icon={showFavoritesOnly ? 'heart-outline' : 'search-outline'}
-            title={showFavoritesOnly ? 'Nothing saved yet' : 'No providers match that search'}
-            message={
-              showFavoritesOnly
-                ? 'Tap the heart on a provider to keep them here for later.'
-                : 'Try a shorter search term, or clear it to see everyone.'
-            }
-            actionLabel={searchQuery ? 'Clear search' : undefined}
-            onAction={searchQuery ? () => dispatch(setSearchQuery('')) : undefined}
-          />
-        ) : (
-          displayedProviders.map((provider) => (
+      ) : (
+        <FlatList
+          data={displayedProviders}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={header}
+          ListEmptyComponent={empty}
+          renderItem={({ item, index }) => (
             <ProviderCard
-              key={provider.id}
-              item={provider}
+              item={item}
               tint={category.tint}
               tintSoft={category.tintSoft}
               onPress={handleProviderPress}
               onBookNow={handleBookNow}
-              hasActiveRequest={!!activeBookings[provider.id]}
+              hasActiveRequest={!!activeBookings[item.id]}
               onChat={handleChatPress}
               onCall={handleCallPress}
-              isFavorite={favorites.includes(provider.id)}
+              isFavorite={favorites.includes(item.id)}
               onToggleFavorite={handleToggleFavorite}
+              bestMatch={index === 0 && selectedSort === 'best' && !showFavoritesOnly && (item.matchingScore ?? 0) >= 0.6}
             />
-          ))
-        )}
-      </ScrollView>
+          )}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (!showFavoritesOnly && pagination.hasNext && !isLoadingMore && !isLoading) {
+              dispatch(loadMoreProviders() as any);
+            }
+          }}
+          ListFooterComponent={
+            isLoadingMore ? <ActivityIndicator style={styles.footer} color={colors.accent} /> : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => dispatch(refreshProviders() as any)}
+              tintColor={colors.accent}
+            />
+          }
+        />
+      )}
 
       <ActionSheet
         visible={showSortSheet}
         title="Sort providers"
         onClose={() => setShowSortSheet(false)}
-        options={SORT_OPTIONS.map((option) => ({
+        options={SORT_OPTIONS.filter((o) => !o.needsLocation || origin).map((option) => ({
           label: option.label,
           icon: option.icon,
           description: option.value === selectedSort ? 'Currently applied' : undefined,
-          onPress: () => dispatch(setSelectedSort(option.value)),
+          onPress: () => applySort(option.value),
         }))}
       />
+
+      <ActionSheet
+        visible={showLocationSheet}
+        title="Search near"
+        onClose={() => setShowLocationSheet(false)}
+        options={[
+          { label: 'Use my current location', icon: 'navigate-outline', onPress: useMyLocation },
+          {
+            label: 'Pin or choose a saved address',
+            icon: 'home-outline',
+            description: 'Your default address is used when it has a pinned location',
+            onPress: () => {
+              setShowLocationSheet(false);
+              navigation.navigate('AddressManagement');
+            },
+          },
+        ]}
+      />
+
+      <FormSheet
+        visible={showFilterSheet}
+        title="Filter providers"
+        onClose={() => setShowFilterSheet(false)}
+        footer={
+          <View style={styles.sheetFooter}>
+            <Button
+              label="Reset"
+              variant="secondary"
+              fullWidth={false}
+              onPress={() => setDraftFilters({})}
+              style={styles.sheetButton}
+            />
+            <Button label="Show providers" fullWidth={false} onPress={applyFilters} style={styles.sheetButtonWide} />
+          </View>
+        }
+      >
+        <Text style={styles.sheetLabel}>Minimum rating</Text>
+        <View style={styles.chipWrap}>
+          {RATING_CHOICES.map((r) => (
+            <Chip
+              key={`r${r}`}
+              label={r ? `${r}★ & up` : 'Any'}
+              selected={(draftFilters.minRating || 0) === r}
+              onPress={() => setDraftFilters((d) => ({ ...d, minRating: r || undefined }))}
+              style={styles.sheetChip}
+            />
+          ))}
+        </View>
+
+        <Text style={styles.sheetLabel}>Availability</Text>
+        <View style={styles.chipWrap}>
+          <Chip
+            label="Available now"
+            icon="flash-outline"
+            selected={!!draftFilters.available}
+            onPress={() => setDraftFilters((d) => ({ ...d, available: !d.available || undefined }))}
+            style={styles.sheetChip}
+          />
+        </View>
+
+        <Text style={styles.sheetLabel}>Distance</Text>
+        {origin ? (
+          <View style={styles.chipWrap}>
+            {DISTANCE_CHOICES.map((km) => (
+              <Chip
+                key={`d${km}`}
+                label={km ? `Within ${km} km` : 'Any'}
+                selected={(draftFilters.maxDistanceKm || 0) === km}
+                onPress={() => setDraftFilters((d) => ({ ...d, maxDistanceKm: km || undefined }))}
+                style={styles.sheetChip}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.sheetHint}>Add your location to filter by distance.</Text>
+        )}
+
+        <Text style={styles.sheetLabel}>Visit charge</Text>
+        <View style={styles.chipWrap}>
+          {PRICE_CHOICES.map((p) => (
+            <Chip
+              key={`p${p}`}
+              label={p ? `Up to ${formatPrice(p, '')}` : 'Any'}
+              selected={(draftFilters.maxPrice || 0) === p}
+              onPress={() => setDraftFilters((d) => ({ ...d, maxPrice: p || undefined }))}
+              style={styles.sheetChip}
+            />
+          ))}
+        </View>
+      </FormSheet>
     </Screen>
   );
 }
@@ -534,6 +866,76 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   content: {
     padding: GUTTER,
     paddingBottom: S.huge,
+  },
+  mapContent: {
+    flex: 1,
+    paddingBottom: GUTTER,
+  },
+  segment: {
+    marginTop: S.lg,
+    marginBottom: S.md,
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: S.md,
+    padding: S.md,
+    borderRadius: R.control,
+    backgroundColor: c.surfaceSunken,
+  },
+  noticeText: {
+    ...T.caption,
+    color: c.inkMuted,
+    flex: 1,
+    marginLeft: S.sm,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bestMatch: {
+    marginLeft: S.sm,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: S.sm,
+  },
+  reason: {
+    marginRight: S.xs,
+    marginTop: S.xs,
+  },
+  footer: {
+    marginVertical: S.lg,
+  },
+  sheetLabel: {
+    ...T.label,
+    color: c.ink,
+    marginTop: S.lg,
+    marginBottom: S.sm,
+  },
+  sheetHint: {
+    ...T.caption,
+    color: c.inkMuted,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  sheetChip: {
+    marginRight: S.sm,
+    marginBottom: S.sm,
+  },
+  sheetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  sheetButton: {
+    marginRight: S.sm,
+    paddingHorizontal: S.lg,
+  },
+  sheetButtonWide: {
+    paddingHorizontal: S.xl,
   },
 
   search: {
@@ -559,6 +961,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
 
   filterRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: S.md,
   },
   filterChip: {
@@ -639,6 +1042,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   providerName: {
     ...T.subhead,
     color: c.ink,
+    flexShrink: 1,
   },
   metaRow: {
     flexDirection: 'row',

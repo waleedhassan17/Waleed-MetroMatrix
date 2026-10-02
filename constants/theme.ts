@@ -327,3 +327,20 @@ export const E = {
 } as const;
 
 export type Tone = 'neutral' | 'success' | 'warning' | 'error' | 'info' | 'accent';
+
+// ── Data visualization ──────────────────────────────────────────────────────
+//
+// Series hues for charts, in FIXED order (never cycled, never by rank): slot 1
+// is the only one a single-series chart uses. Validated with the dataviz
+// palette validator against this app's surfaces (#FFFFFF light, #201D1B dark):
+// lightness band, chroma floor, all-pairs CVD ΔE ≥ 9 and normal-vision ΔE ≥ 20
+// pass in both modes. One caveat, by the validator's relief rule: light-mode
+// slot 3 sits at 2.8:1 on white, so a chart using it must also show visible
+// labels or a table view. Text never wears these colours — values and labels
+// use ink tokens; a mark beside them carries identity.
+export const CHART = {
+  light: { series: ['#2a78d6', '#eb6834', '#1baf7a'] },
+  dark: { series: ['#3987e5', '#d95926', '#199e70'] },
+  /** Area / band wash: the series hue at ~10% opacity, never a solid block. */
+  bandOpacity: 0.1,
+} as const;

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useScrollToTop } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef } from 'react';
+import DemandCard from '../../../../components/ui/DemandCard';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -275,6 +276,9 @@ const DoctorHomeScreen: React.FC = () => {
           <StatTile value={data.today.completed} label="Seen" />
           <StatTile value={data.today.cancelled} label="Cancelled" />
         </View>
+
+        {/* Expected appointments in this doctor's specialty — when to open slots. */}
+        <DemandCard style={styles.section} />
 
         {next && (
           <View style={styles.section}>

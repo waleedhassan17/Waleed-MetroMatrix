@@ -26,6 +26,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { requestOutcomeFromStatus } from '../../../../utils/homeservice/statusFromSocket';
 import { Animated, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -133,14 +134,16 @@ export default function BookConfirmationScreen() {
 
   // Provider accepted/declined over the socket.
   useEffect(() => {
-    const next = (roomStatus as any)?.status;
-    if (!next) return;
+    // The server sends UPPER-CASE statuses; comparing against 'accepted' meant
+    // this never fired and acceptance waited for the poll.
+    const outcome = requestOutcomeFromStatus((roomStatus as any)?.status);
+    if (!outcome) return;
 
-    if (next === 'confirmed' || next === 'accepted') {
+    if (outcome === 'accepted') {
       dispatch(setBookingStatus('accepted'));
-    } else if (next === 'rejected' || next === 'declined') {
+    } else if (outcome === 'declined') {
       dispatch(setBookingStatus('declined'));
-    } else if (next === 'cancelled') {
+    } else if (outcome === 'cancelled') {
       dispatch(setBookingStatus('cancelled'));
       // The socket frame carries a status, not a reason, and the poll below
       // has already stopped by the time this runs. Read the booking once more

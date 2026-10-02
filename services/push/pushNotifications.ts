@@ -231,12 +231,21 @@ export interface NotificationRoute {
    * 'appointment' — a booking, cancellation, payment or prescription update;
    *                 opens the appointment it is about
    * 'booking'     — a home-service job update: a new request, accepted, on the
-   *                 way, arrived, done, cancelled, payment asked for or made;
-   *                 opens that booking (job, for a provider)
+   *                 way, arrived, started, done, cancelled, payment asked for or
+   *                 made, a reminder, a review; opens that booking (job, for a
+   *                 provider) — or live tracking when the provider is close
+   * 'order'       — a shopping order update (customer) or a new order / return
+   *                 request (vendor); opens that order
    */
-  type: 'call' | 'missed_call' | 'message' | 'appointment' | 'booking';
+  type: 'call' | 'missed_call' | 'message' | 'appointment' | 'booking' | 'order';
   roomId: string;
-  roomType: 'homeservice' | 'healthcare';
+  roomType: 'homeservice' | 'healthcare' | 'shopping';
+  /** Healthcare: a prescription push opens the prescription itself. */
+  prescriptionId?: string;
+  /** Shopping order the push is about ('order' routes). */
+  orderId?: string;
+  /** Who the push was addressed to — decides patient vs doctor, customer vs vendor. */
+  audience?: string;
   callId?: string;
   callerName?: string;
   appointmentId?: string;
@@ -260,7 +269,14 @@ const BOOKING_PUSH_TYPES = [
   'payment_requested',
   'payment_received',
   'payment_update',
+  'booking_nearby',
+  'booking_reminder',
+  'review_received',
+  'identity_verified', // provider: the customer checked their ID at the door
 ];
+
+/** Shopping pushes — they carry an orderId. */
+const ORDER_PUSH_TYPES = ['order_created', 'order_update', 'return_update'];
 
 /** Normalize a notification payload into something navigable, or null. */
 export function routeFromNotification(data: any): NotificationRoute | null {
@@ -269,9 +285,27 @@ export function routeFromNotification(data: any): NotificationRoute | null {
     data?.appointmentId &&
     !data?.roomId &&
     typeof data?.type === 'string' &&
-    /^(appointment|prescription|payment|review)_/.test(data.type)
+    /^(appointment|prescription|payment|review|video)_/.test(data.type)
   ) {
-    return { type: 'appointment', roomId: '', roomType: 'healthcare', appointmentId: String(data.appointmentId) };
+    return {
+      type: 'appointment',
+      roomId: '',
+      roomType: 'healthcare',
+      appointmentId: String(data.appointmentId),
+      prescriptionId: data.prescriptionId ? String(data.prescriptionId) : undefined,
+      audience: typeof data.audience === 'string' ? data.audience : undefined,
+      pushType: data.type,
+    };
+  }
+  if (typeof data?.type === 'string' && ORDER_PUSH_TYPES.includes(data.type) && data?.orderId) {
+    return {
+      type: 'order',
+      roomId: '',
+      roomType: 'shopping',
+      orderId: String(data.orderId),
+      audience: typeof data.audience === 'string' ? data.audience : undefined,
+      pushType: data.type,
+    };
   }
   if (typeof data?.type === 'string' && BOOKING_PUSH_TYPES.includes(data.type) && data?.bookingId) {
     return {

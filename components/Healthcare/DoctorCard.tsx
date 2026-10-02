@@ -60,6 +60,30 @@ const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, onPress, onBook }) => {
                 <View style={styles.metaItem}>
                   <MaterialCommunityIcons name="briefcase-outline" size={12} color={HC.textLight} />
                   <Text style={styles.metaText}>{experience}</Text>
+                  {typeof doctor.distanceKm === 'number' && (
+              <>
+                <View style={styles.dot} />
+                <View style={styles.metaItem}>
+                  <Ionicons name="navigate-outline" size={12} color={HC.textLight} />
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {doctor.distanceKm} km
+                    {doctor.nearestClinic?.area ? ` · ${doctor.nearestClinic.area}` : ''}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+              </>
+            )}
+            {typeof doctor.distanceKm === 'number' && (
+              <>
+                <View style={styles.dot} />
+                <View style={styles.metaItem}>
+                  <Ionicons name="navigate-outline" size={12} color={HC.textLight} />
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {doctor.distanceKm} km
+                    {doctor.nearestClinic?.area ? ` · ${doctor.nearestClinic.area}` : ''}
+                  </Text>
                 </View>
               </>
             )}

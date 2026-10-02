@@ -362,6 +362,26 @@ const ProductListScreen: React.FC = () => {
               </View>
             </View>
 
+            {/* Minimum rating — filtered by the server, so it covers every page */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Rating</Text>
+              <View style={styles.quickPriceRow}>
+                {[3, 4, 4.5].map((r) => (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.quickPriceBtn, localFilters.minRating === r && styles.quickPriceBtnActive]}
+                    onPress={() => setLocalFilters((p) => ({ ...p, minRating: p.minRating === r ? null : r }))}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: localFilters.minRating === r }}
+                  >
+                    <Text style={[styles.quickPriceText, localFilters.minRating === r && styles.quickPriceTextActive]}>
+                      {r}★ & up
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* Toggles */}
             <View style={styles.filterSection}>
               <View style={styles.toggleRow}>

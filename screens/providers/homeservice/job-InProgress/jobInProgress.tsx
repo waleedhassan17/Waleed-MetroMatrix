@@ -370,6 +370,19 @@ const JobInProgressScreen: React.FC = () => {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionLabel}>Quick Actions</Text>
           <View style={styles.quickActionsRow}>
+            {/* Doorstep identity check: QR / 6-digit code / NFC badge. Before work starts. */}
+            {!workStarted && (
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => (navigation as any).navigate('ShowProviderId', { jobId, customerName })}
+                accessibilityLabel="Show your ID to the customer"
+              >
+                <View style={[styles.quickActionIcon, { backgroundColor: colors.successSoft }]}>
+                  <Icon name="card-account-details-outline" size={20} color={colors.success} />
+                </View>
+                <Text style={styles.quickActionLabel}>Show ID</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleCallCustomer}>
               <View style={[styles.quickActionIcon, { backgroundColor: colors.accentSoft }]}>
                 <Icon name="phone" size={20} color={colors.accent} />

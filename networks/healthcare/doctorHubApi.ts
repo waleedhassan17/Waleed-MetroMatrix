@@ -528,3 +528,40 @@ export const updateDoctorClinic = (id: string, input: Partial<ClinicInput>): Pro
 
 export const deleteDoctorClinic = (id: string): Promise<Res<{ id: string }>> =>
   map(healthcareApiRequest<any>(`/doctors/me/clinics/${enc(id)}`, { method: 'DELETE' }), () => ({ id }));
+
+/**
+ * Upload the doctor's profile photo (POST /doctors/me/image, multipart field
+ * `profilePhoto`; Cloudinary server-side). Raw fetch so React Native sets the
+ * multipart boundary itself. Resolves to the new photo URL.
+ */
+export async function uploadDoctorPhotoApi(
+  uri: string,
+  name = 'profile-photo.jpg',
+  mimeType = 'image/jpeg'
+): Promise<Res<{ profilePhoto: string }>> {
+  try {
+    const { tokenForRequest } = require('../network/tokenSelection');
+    const { API_URL } = require('../network/network');
+    const { Platform } = require('react-native');
+    const { token } = await tokenForRequest('provider');
+    if (!token) return { success: false, data: null as any, message: 'Your session expired. Please sign in again.' };
+    const form = new FormData();
+    form.append('profilePhoto', {
+      uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
+      name,
+      type: mimeType,
+    } as any);
+    const response = await fetch(`${API_URL}/v1/healthcare/doctors/me/image`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const body = await response.json().catch(() => ({} as any));
+    if (!response.ok || body?.success === false) {
+      return { success: false, data: null as any, message: body?.error || body?.message || `Upload failed (${response.status}).` };
+    }
+    return { success: true, data: { profilePhoto: body?.data?.profilePhoto }, message: 'Photo updated' } as any;
+  } catch (e: any) {
+    return { success: false, data: null as any, message: e?.message || 'Upload failed. Check your connection and try again.' };
+  }
+}

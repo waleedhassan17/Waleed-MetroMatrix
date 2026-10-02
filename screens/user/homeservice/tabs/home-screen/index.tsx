@@ -41,6 +41,10 @@ import {
   setSingleCategory,
   ServiceCategory,
 } from './homeSlice';
+import { selectFilters, setFilters } from '../../service-providers/providersSlice';
+import DescribeProblemCard from '../../../../../components/homeservice/DescribeProblemCard';
+import RecommendedProviders from '../../../../../components/homeservice/RecommendedProviders';
+import type { TradeKey } from '../../../../../components/homeservice/providerMeta';
 
 // Mirrors the real card's dimensions so nothing jumps when data lands.
 const ServiceCardSkeleton: React.FC = () => {
@@ -207,6 +211,21 @@ export default function HomeScreen() {
     [dispatch, navigation]
   );
 
+  // "Describe the problem" → the trade it needs; an urgent description opens
+  // the list already filtered to providers available right now.
+  const providerFilters = useSelector(selectFilters);
+  const openCategory = useCallback(
+    (id: TradeKey, { availableNow }: { availableNow: boolean }) => {
+      if (availableNow) dispatch(setFilters({ ...providerFilters, available: true }));
+      handleCardPress(id);
+    },
+    [dispatch, providerFilters, handleCardPress]
+  );
+  const openProvider = useCallback(
+    (providerId: string, category?: TradeKey) => navigation.navigate('ProviderProfile', { id: providerId, category }),
+    [navigation]
+  );
+
   const onRefresh = useCallback(() => {
     dispatch(refreshHomeData() as any);
   }, [dispatch]);
@@ -244,6 +263,10 @@ export default function HomeScreen() {
             someone opening Home services came to decide. The wallet is still
             reached from Profile -> Payment Methods and from the account menu,
             and the card still leads the shopping and healthcare homes. */}
+        <DescribeProblemCard onOpenCategory={openCategory} onOpenProvider={openProvider} />
+
+        <RecommendedProviders onOpenProvider={openProvider} />
+
         <SectionHeader
           title="Services"
           subtitle={showSkeletons ? 'Loading' : `${categories.length} available`}

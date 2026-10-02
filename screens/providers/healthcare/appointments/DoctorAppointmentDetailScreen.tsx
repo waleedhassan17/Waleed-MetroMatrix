@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppointmentRow from '../../../../components/Healthcare/doctor/AppointmentRow';
+import PatientVitalsCard from '../../../../components/Healthcare/doctor/PatientVitalsCard';
 import {
   AppBar,
   Avatar,
@@ -345,6 +346,9 @@ const DoctorAppointmentDetailScreen: React.FC = () => {
             divider
           />
         </Card>
+
+        {/* Heart rate / blood pressure the patient recorded (Bluetooth or typed in) */}
+        <PatientVitalsCard patientId={a.patientId} sectionStyle={styles.section} />
 
         {detail.patientHistory.length > 0 && (
           <>
