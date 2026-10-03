@@ -119,7 +119,7 @@ const AdminReviewModerationScreen: React.FC = () => {
               </Text>
               <View style={styles.stars}>
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <Ionicons key={i} name={i <= (item.rating || 0) ? 'star' : 'star-outline'} size={13} color={COLORS.star} />
+                  <Ionicons key={i} name={i <= Number(item.rating) ? 'star' : 'star-outline'} size={13} color={COLORS.star} />
                 ))}
               </View>
             </View>

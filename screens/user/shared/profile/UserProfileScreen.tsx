@@ -168,6 +168,8 @@ const MODULE_SECTION_TITLE: Record<ModuleName, string> = {
   shopping: 'Shopping',
   healthcare: 'Healthcare',
   homeservice: 'Home Services',
+  // A customer profile never renders inside the admin console.
+  admin: '',
 };
 
 // Menu Item Component

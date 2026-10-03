@@ -23,6 +23,7 @@ import {
   selectAdminShoppingSettings,
 } from './adminShoppingSettingsSlice';
 import type { DeliveryTierView } from '../../../../networks/shopping/adminShoppingApi';
+import { parseWholeNumber } from '../../../../utils/admin/parse';
 
 const COLORS = {
   primary: '#E67E22',
@@ -182,7 +183,7 @@ const AdminShoppingSettingsScreen: React.FC = () => {
                   keyboardType="number-pad"
                   value={String(tier.surcharge)}
                   onChangeText={(value) =>
-                    updateTier(tier.id, { surcharge: Number(value.replace(/[^0-9]/g, '')) || 0 })
+                    updateTier(tier.id, { surcharge: parseWholeNumber(value) })
                   }
                 />
                 <Switch

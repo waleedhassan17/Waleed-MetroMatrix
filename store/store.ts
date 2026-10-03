@@ -27,6 +27,7 @@ import { emailVerificationSlice } from "../screens/authentication-screens/email-
 
 import { adminSlice } from "../screens/admin/admin-dashboard/adminSlice";
 import { adminAuthSlice } from "../screens/admin/auth/adminAuthSlice";
+import { adminApi } from "../networks/admin/adminApi";
 import { providerApprovalSlice } from "../screens/authentication-screens/provider-approval-pending/providerApprovalSlice";
 import userHomeReducer from "../screens/user-home/userhomeSlice";
 import userManagementReducer from "../screens/admin/user-management/userManagementSlice";
@@ -64,11 +65,6 @@ import jobCompletionReducer from "../screens/providers/homeservice/job-completio
 import userProfileReducer from "../screens/user/shared/profile/userProfileSlice";
 import { walletSlice } from "../services/wallet";
 
-// Admin Service Providers slices
-import adminServiceProvidersDashboardReducer from "../screens/admin/providers/service-providers/tabs/dashboard/dashboardSlice";
-import adminServiceProvidersBookingsReducer from "../screens/admin/providers/service-providers/tabs/bookings/bookingsSlice";
-import adminServiceProvidersAnalyticsReducer from "../screens/admin/providers/service-providers/tabs/analytics/analyticsSlice";
-
 // Healthcare Patient slices (screens/user/healthcare/)
 import healthcareHomeReducer from '../screens/user/healthcare/home/healthcareHomeSlice';
 import specialtyListReducer from '../screens/user/healthcare/specialty-list/specialtyListSlice';
@@ -101,7 +97,6 @@ import doctorEarningsReducer from '../screens/providers/healthcare/doctor-earnin
 import doctorProfileReducer from '../screens/providers/healthcare/profile/doctorProfileSlice';
 
 // Admin Healthcare
-import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAnalytics/healthcareAnalyticsSlice';
 import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
 import doctorManagementReducer from '../screens/admin/healthcare/DoctorManagement/doctorManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
@@ -237,6 +232,8 @@ const appReducer = combineReducers({
   emailVerification: emailVerificationSlice.reducer,
   admin: adminSlice.reducer,
   adminAuth: adminAuthSlice.reducer,
+  // Admin console server cache (RTK Query). Account-scoped: wiped on reset.
+  [adminApi.reducerPath]: adminApi.reducer,
   userManagement: userManagementReducer,
   providerManagement: providerManagementReducer,
   pendingReview: pendingReviewReducer,
@@ -265,9 +262,6 @@ const appReducer = combineReducers({
   awaitingApproval: awaitingApprovalReducer,
   paymentRequest: paymentRequestReducer,
   jobCompletion: jobCompletionReducer,
-  adminSPDashboard: adminServiceProvidersDashboardReducer,
-  adminSPBookings: adminServiceProvidersBookingsReducer,
-  adminSPAnalytics: adminServiceProvidersAnalyticsReducer,
   healthcareHome: healthcareHomeReducer,
   specialtyList: specialtyListReducer,
   doctorList: doctorListReducer,
@@ -296,7 +290,6 @@ const appReducer = combineReducers({
   patientHistory: patientHistoryReducer,
   doctorEarnings: doctorEarningsReducer,
   doctorProfile: doctorProfileReducer,
-  healthcareAnalytics: healthcareAnalyticsReducer,
   specialtyManagement: specialtyManagementReducer,
   doctorManagement: doctorManagementReducer,
   userProfile: userProfileReducer,
@@ -393,7 +386,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(adminApi.middleware),
 });
 
 export const persistor = persistStore(store);

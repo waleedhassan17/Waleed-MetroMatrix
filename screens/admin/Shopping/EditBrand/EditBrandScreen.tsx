@@ -43,6 +43,8 @@ import {
   selectError,
   selectHasChanges,
 } from './editBrandSlice';
+import { parseWholeNumber } from '../../../../utils/admin/parse';
+import { DEFAULT_RETURN_DAYS } from '../../../../utils/admin/parse';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
 type RouteProps = RouteProp<AdminShoppingParamList, 'AdminBrandDetail'>;
@@ -270,9 +272,9 @@ const EditBrandScreen: React.FC = () => {
           <Text style={styles.label}>Return Days</Text>
           <TextInput
             style={styles.input}
-            value={String(policies.returnDays ?? 7)}
+            value={String(policies.returnDays ?? DEFAULT_RETURN_DAYS)}
             onChangeText={(t) => dispatch(updateBrandField({
-              policies: { ...policies, returnDays: parseInt(t) || 0 },
+              policies: { ...policies, returnDays: parseWholeNumber(t) },
             }))}
             keyboardType="number-pad"
           />

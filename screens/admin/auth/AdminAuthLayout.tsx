@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { AppBar, Screen } from '../../../components/ui';
 import { GUTTER, S, T, useTheme, type ThemeColors } from '../../../theme';
@@ -21,10 +22,11 @@ export interface AdminAuthLayoutProps {
 const AdminAuthLayout: React.FC<AdminAuthLayoutProps> = ({ barTitle, title, subtitle, hideBack, onBack, children }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const navigation = useNavigation();
 
   return (
     <Screen edges={['bottom']}>
-      <AppBar title={barTitle} hideBack={hideBack} onBack={onBack} tone="surface" />
+      <AppBar title={barTitle} hideBack={hideBack} onBack={onBack ?? (() => navigation.goBack())} tone="surface" />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>

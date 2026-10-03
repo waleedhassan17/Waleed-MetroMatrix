@@ -30,7 +30,6 @@ import AdminTwoFactorEnrolScreen from "../screens/admin/auth/AdminTwoFactorEnrol
 import ProviderManagementScreen from "../screens/admin/provider-management/providerManagementScreen";
 import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewScreen";
 import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
-import ServiceProvidersAdminScreen from "../screens/admin/providers/service-providers/tabs/index";
 
 import ProviderApprovalPendingScreen from "../screens/authentication-screens/provider-approval-pending/providerApprovalPendingScreen";
 
@@ -148,7 +147,6 @@ export const BaseRouteNames = {
   ProviderReviewScreen: "ProviderReview",
   PendingReview: "PendingReview",
   UserManagementScreen: "UserManagement",
-  ServiceProviders: "ServiceProviders",
   
   // Provider Approval
   ProviderApprovalPending: "ProviderApprovalPending",
@@ -337,7 +335,6 @@ export type RootStackParamList = {
   ProviderReview: { providerId: string };
   PendingReview: undefined;
   UserManagement: undefined;
-  ServiceProviders: undefined;
 
   // Other
   Logout: undefined;
@@ -590,13 +587,6 @@ export const BaseRoutes: IRoute[] = [
   {
     component: UserManagementScreen,
     title: BaseRouteNames.UserManagementScreen,
-    options: {
-      headerShown: false,
-    }
-  },
-  {
-    component: ServiceProvidersAdminScreen,
-    title: BaseRouteNames.ServiceProviders,
     options: {
       headerShown: false,
     }
@@ -1149,7 +1139,6 @@ export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.ProviderReviewScreen,
   BaseRouteNames.PendingReview,
   BaseRouteNames.UserManagementScreen,
-  BaseRouteNames.ServiceProviders,
   BaseRouteNames.AdminHSBookings,
   BaseRouteNames.AdminHSBookingDetail,
   BaseRouteNames.AdminHSDisputes,
@@ -1169,7 +1158,7 @@ export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.AdminHealthcareSettings,
 ]);
 
-export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping'>> = {
+export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping' | 'admin'>> = {
   // Customer
   [BaseRouteNames.HomeServiceLayout]: 'homeservice',
   [BaseRouteNames.ProvidersScreen]: 'homeservice',

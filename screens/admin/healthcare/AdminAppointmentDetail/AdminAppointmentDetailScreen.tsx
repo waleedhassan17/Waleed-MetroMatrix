@@ -20,6 +20,7 @@ import {
   forceAppointmentStatusApi,
   refundAppointmentAdminApi,
 } from '../../../../networks/healthcare/adminApi';
+import { formatMoney } from '../../../../constants/Currency';
 
 const COLORS = {
   primary: '#2A7FFF',
@@ -102,7 +103,7 @@ const AdminAppointmentDetailScreen: React.FC = () => {
     if (!r) return;
     Alert.alert(
       'Manual refund',
-      `Refund PKR ${(appointment?.payment?.amount || 0).toLocaleString()} to the patient's wallet?\n\nThis is recorded in the audit log.`,
+      `Refund ${formatMoney(appointment?.payment?.amount)} to the patient's wallet?\n\nThis is recorded in the audit log.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -159,8 +160,8 @@ const AdminAppointmentDetailScreen: React.FC = () => {
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Payment Trail</Text>
-            <Text style={styles.meta}>Fee: PKR {(appointment.fee || 0).toLocaleString()} · Discount: PKR {(appointment.discount || 0).toLocaleString()}</Text>
-            <Text style={styles.meta}>Total: <Text style={styles.bold}>PKR {(appointment.totalAmount || 0).toLocaleString()}</Text></Text>
+            <Text style={styles.meta}>Fee: {formatMoney(appointment.fee)} · Discount: {formatMoney(appointment.discount)}</Text>
+            <Text style={styles.meta}>Total: <Text style={styles.bold}>{formatMoney(appointment.totalAmount)}</Text></Text>
             <Text style={styles.meta}>
               Payment: <Text style={styles.bold}>{appointment.payment?.status || 'unpaid'}</Text>
               {appointment.payment?.method ? ` via ${appointment.payment.method}` : ''}
@@ -168,12 +169,12 @@ const AdminAppointmentDetailScreen: React.FC = () => {
             </Text>
             {appointment.payment?.refundedAt ? (
               <Text style={styles.meta}>
-                Refunded PKR {(appointment.payment.refundAmount || 0).toLocaleString()} on {new Date(appointment.payment.refundedAt).toLocaleString('en-PK')}
+                Refunded {formatMoney(appointment.payment.refundAmount)} on {new Date(appointment.payment.refundedAt).toLocaleString('en-PK')}
               </Text>
             ) : null}
             {appointment.payout?.paidAt ? (
               <Text style={styles.meta}>
-                Doctor payout: PKR {(appointment.payout.amount || 0).toLocaleString()} (commission PKR {(appointment.payout.commission || 0).toLocaleString()})
+                Doctor payout: {formatMoney(appointment.payout.amount)} (commission {formatMoney(appointment.payout.commission)})
               </Text>
             ) : null}
           </View>

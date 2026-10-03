@@ -65,7 +65,7 @@ export async function apiRequest<T>(
         response = await API.PATCH({ URL, data, headers });
         break;
       case 'DELETE':
-        response = await API.DELETE({ URL, headers });
+        response = await API.DELETE({ URL, headers, data });
         break;
       default:
         response = await API.GET({ URL, headers });
@@ -75,6 +75,11 @@ export async function apiRequest<T>(
     // Home-services endpoints return the ApiResponse wrapper already; keep
     // the { success, data, message, pagination? } contract for every caller.
     if (payload && typeof payload === 'object' && 'success' in payload) {
+      // Admin lists answer `meta` ({ page, limit, total, pages }); callers
+      // written against the older `pagination` keep working.
+      if ((payload as any).meta && !(payload as any).pagination) {
+        return { ...(payload as any), pagination: (payload as any).meta } as ApiResponse<T>;
+      }
       return payload as ApiResponse<T>;
     }
     return { success: true, data: payload as T, message: 'Success' };
@@ -82,10 +87,15 @@ export async function apiRequest<T>(
     // NFR-01: a hung request must surface a readable message, not hang the screen.
     const isTimeout =
       error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '');
+    // Admin routes reply { success: false, error: { code, message, details } };
+    // others { message } or { error: 'text' }. Never show an object.
+    const body = error?.response?.data;
+    const adminError = body?.error && typeof body.error === 'object' ? body.error : null;
     const message = isTimeout
       ? 'Request timed out. Please check your connection and try again.'
-      : error?.response?.data?.message ||
-        error?.response?.data?.error ||
+      : (adminError && String(adminError.message || '')) ||
+        body?.message ||
+        (typeof body?.error === 'string' ? body.error : '') ||
         error?.message ||
         'Network error occurred';
     // A refusal can carry a payload, and throwing it away costs a round trip:
@@ -97,6 +107,8 @@ export async function apiRequest<T>(
       success: false,
       data: (error?.response?.data?.data ?? null) as any,
       message,
-    };
+      code: adminError && typeof adminError.code === 'string' ? adminError.code : undefined,
+      status: error?.response?.status,
+    } as ApiResponse<T>;
   }
 }

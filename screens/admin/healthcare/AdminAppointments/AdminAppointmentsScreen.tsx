@@ -16,6 +16,7 @@ import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchAdminAppointmentsApi } from '../../../../networks/healthcare/adminApi';
+import { formatMoney } from '../../../../constants/Currency';
 
 const COLORS = {
   primary: '#2A7FFF',
@@ -91,7 +92,7 @@ const AdminAppointmentsScreen: React.FC = () => {
         <Text style={styles.meta}>
           {item.type}{slot?.date ? ` · ${new Date(slot.date).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' })}` : ''}
           {slot?.startTime ? ` ${slot.startTime}` : ''}
-          {' · '}PKR {(item.totalAmount || 0).toLocaleString()}
+          {' · '}{formatMoney(item.totalAmount)}
           {item.payment?.status ? ` (${item.payment.status})` : ''}
         </Text>
       </TouchableOpacity>

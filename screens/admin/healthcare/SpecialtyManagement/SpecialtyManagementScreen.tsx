@@ -23,6 +23,7 @@ import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { barStyleOn, useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { ErrorState, showToast } from '../../../../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
 import {
@@ -142,17 +143,6 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({
     ]).start();
   }, [index]);
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Specialty',
-      `Are you sure you want to delete "${specialty.name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => onDelete(specialty.id) },
-      ]
-    );
-  };
-
   return (
     <Animated.View
       style={[
@@ -179,7 +169,7 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({
               <View style={styles.doctorCountRow}>
                 <Ionicons name="people-outline" size={14} color={COLORS.text.tertiary} />
                 <Text style={styles.doctorCountText}>
-                  {specialty.doctorCount} {specialty.doctorCount === 1 ? 'doctor' : 'doctors'}
+                  {specialty.doctorCount === null ? '—' : `${specialty.doctorCount} ${specialty.doctorCount === 1 ? 'doctor' : 'doctors'}`}
                 </Text>
               </View>
             </View>
@@ -250,13 +240,6 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({
               activeOpacity={0.7}
             >
               <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnDelete]}
-              onPress={handleDelete}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={20} color={COLORS.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -514,6 +497,7 @@ const SpecialtyManagementScreen: React.FC = () => {
   const searchQuery = useAppSelector(selectSearchQuery);
   const filterActive = useAppSelector(selectFilterActive);
   const totalDoctors = useAppSelector(selectTotalDoctorCount);
+  const loadError = useAppSelector((state) => state.specialtyManagement.error);
 
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -554,8 +538,12 @@ const SpecialtyManagementScreen: React.FC = () => {
     }
   };
 
-  const handleToggle = (id: string) => {
-    dispatch(toggleSpecialtyStatus(id));
+  const handleToggle = async (id: string) => {
+    const result = await dispatch(toggleSpecialtyStatus(id));
+    if (toggleSpecialtyStatus.rejected.match(result)) {
+      // e.g. "Cannot delete specialty with active doctors" — the server's reason, verbatim.
+      showToast({ tone: 'error', message: String(result.payload || 'Could not change the status.') });
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -612,7 +600,7 @@ const SpecialtyManagementScreen: React.FC = () => {
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Specialty Management</Text>
             <Text style={styles.headerSubtitle}>
-              {specialties.length} specialties · {totalDoctors} doctors
+              {specialties.length} specialties · {totalDoctors ?? '—'} doctors
             </Text>
           </View>
           <TouchableOpacity
@@ -705,6 +693,9 @@ const SpecialtyManagementScreen: React.FC = () => {
           />
         }
         ListEmptyComponent={
+          loadError ? (
+            <ErrorState title="Couldn't load specialties" message={loadError} onRetry={onRefresh} />
+          ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="medical-outline" size={64} color={COLORS.text.tertiary} />
             <Text style={styles.emptyTitle}>No Specialties Found</Text>
@@ -712,6 +703,7 @@ const SpecialtyManagementScreen: React.FC = () => {
               {searchQuery ? 'Try a different search term' : 'Tap + to add your first specialty'}
             </Text>
           </View>
+          )
         }
       />
 

@@ -310,11 +310,14 @@ export const API = {
     });
   },
 
-  DELETE: async ({ headers, params, URL }: INetworkRequest) => {
+  // `data` is the request body. Admin deletes require a reason in it
+  // (DELETE /admin/providers/:id { reason }); axios only sends it when asked.
+  DELETE: async ({ headers, params, URL, data }: INetworkRequest) => {
     return await MainAxiosInstance.delete(URL, {
       ...defaultConfig,
       headers: headers,
       params,
+      data,
     });
   },
 

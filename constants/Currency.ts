@@ -45,13 +45,19 @@ export const currencySymbol = (code?: string | null): string => {
   return SYMBOLS[normalised.toLowerCase()] ?? normalised;
 };
 
-/** The one money formatter. `PKR 3,500` — or `PKR 3,500.00` with decimals. */
+/**
+ * The one money formatter. `PKR 3,500` — or `PKR 3,500.00` with decimals.
+ *
+ * A missing amount (null, undefined, NaN) renders "—", not "PKR 0": the
+ * admin console must never show a figure the server did not send.
+ */
 export const formatMoney = (
-  amount: number,
+  amount: number | null | undefined,
   opts?: { code?: string | null; decimals?: boolean },
 ): string => {
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
   const code = normaliseCurrency(opts?.code);
-  const value = Number.isFinite(amount) ? amount : 0;
+  const value = amount;
   return `${code} ${value.toLocaleString('en-PK', {
     minimumFractionDigits: opts?.decimals ? 2 : 0,
     maximumFractionDigits: opts?.decimals ? 2 : 0,

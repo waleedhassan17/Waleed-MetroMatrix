@@ -48,6 +48,8 @@ import {
 import { computeStepErrors } from './addBrandSlice';
 import type { WizardStep } from './addBrandSlice';
 import { SHOPPING_PAYMENT_METHODS, SHOPPING_BRAND_CATEGORIES, paymentMethodLabel } from '../../../../constants/shopping';
+import { parseWholeNumber } from '../../../../utils/admin/parse';
+import { DEFAULT_RETURN_DAYS } from '../../../../utils/admin/parse';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
 
@@ -146,7 +148,7 @@ const AddBrandScreen: React.FC = () => {
       : [...selectedPayments, method];
     setSelectedPayments(next);
     dispatch(updateBrandData({
-      policies: { returnDays: data.policies?.returnDays ?? 7, shippingInfo: data.policies?.shippingInfo ?? '', paymentMethods: next },
+      policies: { returnDays: data.policies?.returnDays ?? DEFAULT_RETURN_DAYS, shippingInfo: data.policies?.shippingInfo ?? '', paymentMethods: next },
     }));
   };
 
@@ -362,9 +364,9 @@ const AddBrandScreen: React.FC = () => {
         <Text style={styles.label}>Return Days</Text>
         <TextInput
           style={[styles.input, errors.returnDays && styles.inputError]}
-          value={String(data.policies?.returnDays ?? 7)}
+          value={String(data.policies?.returnDays ?? DEFAULT_RETURN_DAYS)}
           onChangeText={(text) => dispatch(updateBrandData({
-            policies: { returnDays: parseInt(text) || 0, shippingInfo: data.policies?.shippingInfo ?? '', paymentMethods: data.policies?.paymentMethods ?? [] },
+            policies: { returnDays: parseWholeNumber(text), shippingInfo: data.policies?.shippingInfo ?? '', paymentMethods: data.policies?.paymentMethods ?? [] },
           }))}
           keyboardType="number-pad"
           placeholder="7"
@@ -378,7 +380,7 @@ const AddBrandScreen: React.FC = () => {
           style={styles.textArea}
           value={data.policies?.shippingInfo}
           onChangeText={(text) => dispatch(updateBrandData({
-            policies: { returnDays: data.policies?.returnDays ?? 7, shippingInfo: text, paymentMethods: data.policies?.paymentMethods ?? [] },
+            policies: { returnDays: data.policies?.returnDays ?? DEFAULT_RETURN_DAYS, shippingInfo: text, paymentMethods: data.policies?.paymentMethods ?? [] },
           }))}
           placeholder="e.g. Free shipping on orders over PKR 3000"
           placeholderTextColor={COLORS.textLight}
@@ -511,7 +513,7 @@ const AddBrandScreen: React.FC = () => {
         <Text style={styles.reviewValue}>{(data.categories || []).join(', ') || 'None selected'}</Text>
 
         <Text style={styles.reviewSection}>Policies</Text>
-        <ReviewRow label="Return Days" value={String(data.policies?.returnDays ?? 7)} />
+        <ReviewRow label="Return Days" value={String(data.policies?.returnDays ?? DEFAULT_RETURN_DAYS)} />
         <ReviewRow label="Shipping" value={data.policies?.shippingInfo || '-'} />
         <ReviewRow label="Payments" value={(data.policies?.paymentMethods || []).map(paymentMethodLabel).join(', ') || '-'} />
 

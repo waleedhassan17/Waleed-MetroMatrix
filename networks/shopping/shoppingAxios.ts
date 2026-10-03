@@ -56,7 +56,8 @@ export const toShoppingError = (
   fallback: string
 ): Error & { code?: string } => {
   const err = new Error(extractShoppingError(e, fallback)) as Error & { code?: string };
-  const code = e?.response?.data?.code;
+  const body = e?.response?.data;
+  const code = body?.error && typeof body.error === 'object' ? body.error.code : body?.code;
   if (typeof code === 'string') err.code = code;
   return err;
 };
@@ -78,6 +79,12 @@ export const extractShoppingError = (e: any, fallback: string): string => {
   }
 
   const data = e?.response?.data;
+  // Admin routes reply { success: false, error: { code, message, details } }.
+  if (data?.error && typeof data.error === 'object') {
+    const fields: { message?: string }[] = Array.isArray(data.error.details?.fields) ? data.error.details.fields : [];
+    const first = fields.find((f) => typeof f?.message === 'string');
+    return first?.message || data.error.message || fallback;
+  }
   if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
     const first = data.errors[0];
     if (typeof first === "string") return first;

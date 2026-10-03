@@ -8,6 +8,7 @@ import {
   type BannerPayload,
 } from '../../../../networks/shopping/bannerApi';
 import { fetchAdminBrandsApi } from '../../../../networks/shopping/adminShoppingApi';
+import { parseWholeNumber } from '../../../../utils/admin/parse';
 
 /** The editor's working copy. Empty strings mean "not set" for the form. */
 export interface BannerDraft {
@@ -75,7 +76,7 @@ const draftToPayload = (draft: BannerDraft): BannerPayload => ({
   image: draft.image.trim(),
   // '' clears the target server-side; a real id sets it.
   brandId: draft.brandId || null,
-  sortOrder: Number(draft.sortOrder) || 0,
+  sortOrder: parseWholeNumber(String(draft.sortOrder)),
   isActive: draft.isActive,
 });
 
@@ -131,7 +132,7 @@ const bannerManagementSlice = createSlice({
         subtitle: banner.subtitle || '',
         image: banner.image,
         brandId: banner.brandId || '',
-        sortOrder: String(banner.sortOrder ?? 0),
+        sortOrder: banner.sortOrder === undefined || banner.sortOrder === null ? '' : String(banner.sortOrder),
         isActive: banner.isActive,
       };
       state.error = null;

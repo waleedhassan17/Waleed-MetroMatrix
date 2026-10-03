@@ -32,6 +32,8 @@ import {
   fetchAdminShoppingDashboard,
   selectAdminShoppingDashboard,
 } from './adminShoppingDashboardSlice';
+import { formatMoney } from '../../../../constants/Currency';
+import { formatCount } from '../../../../utils/admin/format';
 
 const COLORS = {
   primary: '#E67E22',
@@ -46,7 +48,6 @@ const COLORS = {
   textLight: '#6C757D',
   border: '#E9ECEF',
 };
-const CURRENCY = 'PKR';
 
 const AdminShoppingDashboardScreen: React.FC = () => {
   const { mode } = useTheme();
@@ -68,35 +69,35 @@ const AdminShoppingDashboardScreen: React.FC = () => {
     {
       key: 'pending',
       label: 'Pending brand approvals',
-      value: data?.pendingBrandApprovals ?? 0,
+      value: formatCount(data?.pendingBrandApprovals),
       icon: <Store size={20} stroke={COLORS.warn} strokeWidth={2} />,
       onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminBrandList),
     },
     {
       key: 'orders',
       label: 'Orders today',
-      value: data?.ordersToday ?? 0,
+      value: formatCount(data?.ordersToday),
       icon: <ClipboardList size={20} stroke={COLORS.info} strokeWidth={2} />,
       onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders),
     },
     {
       key: 'gmv',
       label: 'GMV today',
-      value: `${CURRENCY} ${(data?.gmvToday ?? 0).toLocaleString()}`,
+      value: formatMoney(data?.gmvToday),
       icon: <Banknote size={20} stroke={COLORS.success} strokeWidth={2} />,
       onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingAnalytics),
     },
     {
       key: 'returns',
       label: 'Open return requests',
-      value: data?.openReturnRequests ?? 0,
+      value: formatCount(data?.openReturnRequests),
       icon: <RotateCcw size={20} stroke={COLORS.primary} strokeWidth={2} />,
       onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders),
     },
     {
       key: 'lowstock',
       label: 'Low-stock alerts',
-      value: data?.lowStockAlerts ?? 0,
+      value: formatCount(data?.lowStockAlerts),
       icon: <TriangleAlert size={20} stroke={COLORS.danger} strokeWidth={2} />,
       onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminBrandList),
     },
@@ -136,15 +137,18 @@ const AdminShoppingDashboardScreen: React.FC = () => {
           </View>
         )}
 
-        <View style={styles.tileGrid}>
-          {tiles.map((tile) => (
-            <TouchableOpacity key={tile.key} style={styles.tile} onPress={tile.onPress}>
-              <View style={styles.tileIcon}>{tile.icon}</View>
-              <Text style={styles.tileValue}>{tile.value}</Text>
-              <Text style={styles.tileLabel}>{tile.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Only figures the server sent: no tile grid of zeros while loading or after a failure. */}
+        {!!data && (
+          <View style={styles.tileGrid}>
+            {tiles.map((tile) => (
+              <TouchableOpacity key={tile.key} style={styles.tile} onPress={tile.onPress}>
+                <View style={styles.tileIcon}>{tile.icon}</View>
+                <Text style={styles.tileValue}>{tile.value}</Text>
+                <Text style={styles.tileLabel}>{tile.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>Manage</Text>
         {links.map((link) => (

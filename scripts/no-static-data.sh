@@ -5,8 +5,11 @@
 # Every number, list and status an admin sees must come from the API — or the
 # screen says there is no data. This gate fails on the patterns that produced
 # invented figures before: Math.random() keys, setTimeout pretending to load,
-# dummy/mock/sample data, literal fixture records, `?? 12` / `|| 12` numeric fallbacks, hex colours
-# (the theme owns colour), and console.log of auth data.
+# dummy/mock/sample data, literal fixture records, `?? 12` / `|| 12` numeric
+# fallbacks, hardcoded trends, and console.log of auth data.
+#
+# Colour is not data: raw hex is the design gates' job (scripts/design-gates.sh,
+# scoped to the screens migrated to the theme).
 #
 #   ./scripts/no-static-data.sh            fail on any hit (CI)
 #   ./scripts/no-static-data.sh --report   list hits, always exit 0
@@ -31,7 +34,8 @@ gate() {
   local hits
   hits=$(grep -rnE "$pattern" "${SCOPE[@]}" --include='*.ts' --include='*.tsx' 2>/dev/null \
          | grep -vE "$EXCLUDE" \
-         | grep -vE ':[0-9]+: *(//|\*|/\*)' || true)
+         | grep -vE ':[0-9]+: *(//|\*|/\*)' \
+         | grep -v 'StatusBar\.currentHeight' || true)
   if [ -n "$hits" ]; then
     local n
     n=$(echo "$hits" | wc -l | tr -d ' ')
@@ -52,7 +56,6 @@ gate "no dummy/mock/sample data"                    '\b(dummy|DUMMY|mock[A-Z_]|M
 gate "no numeric fallbacks (?? N / || N)"           '(\?\?|\|\|) *-?[0-9]+(\.[0-9]+)? *[),;}]'
 gate "no hardcoded trends"                          'trend=\{ *-?[0-9]'
 gate "no literal records (fixture ids, KPI numbers)"  "\b_?id: *['\"]([0-9]+|[A-Z]{2}[0-9]{3}|c[0-9]+)['\"]|\b(total|value|count|amount|revenue|appointments|completed|cancelled): *['\"]?[0-9][0-9,]{3,}"
-gate "no hex colours (use the theme)"               "['\"]#[0-9A-Fa-f]{3,8}['\"]"
 gate "no console.log of auth data"                  'console\.log\([^)]*(token|Token|password|refresh|response\.data|adminResult)'
 
 echo

@@ -75,19 +75,9 @@ export const verifyDoctor = createAsyncThunk(
   }
 );
 
-export const toggleDoctorAvailability = createAsyncThunk(
-  'doctorManagement/toggleAvailability',
-  async (doctorId: string, { getState, rejectWithValue }) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const state = getState() as { doctorManagement: DoctorManagementState };
-      const doctor = state.doctorManagement.doctors.find((d) => d.doctorId === doctorId);
-      return { doctorId, isAvailable: !doctor?.isAvailable };
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Toggle failed');
-    }
-  }
-);
+// An availability toggle lived here: it waited 300 ms and flipped a local
+// flag without calling the server. Nothing used it; a doctor's status is
+// changed with PATCH /v1/admin/doctors/:id/status (setDoctorStatusApi).
 
 // ── Slice ─────────────────────────────────────
 
@@ -140,13 +130,6 @@ const doctorManagementSlice = createSlice({
         state.error = (action.payload as string) || 'Action failed';
       });
 
-    builder
-      .addCase(toggleDoctorAvailability.fulfilled, (state, action) => {
-        const idx = state.doctors.findIndex((d) => d.doctorId === action.payload.doctorId);
-        if (idx !== -1) {
-          state.doctors[idx].isAvailable = action.payload.isAvailable;
-        }
-      });
   },
 });
 

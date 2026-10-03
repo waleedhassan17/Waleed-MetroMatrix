@@ -38,8 +38,8 @@ export async function fetchAllDoctorsAdminApi(
     return {
       ...res,
       data: {
-        doctors: (res.data?.doctors || []).map(doctorSerializer),
-        pagination: normalizePagination(res.data?.pagination),
+        doctors: (Array.isArray(res.data) ? res.data : res.data?.doctors || []).map(doctorSerializer),
+        pagination: normalizePagination((res as { meta?: unknown }).meta ?? res.data?.pagination),
       },
     };
   }
@@ -104,6 +104,16 @@ export async function updateSpecialtyApi(
   if (res.success) {
     return { ...res, data: specialtySerializer(res.data?.specialty || res.data) };
   }
+  return res as ApiResponse<Specialty>;
+}
+
+/** Switch a deactivated specialty back on (audited server-side). */
+export async function reactivateSpecialtyApi(id: string): Promise<ApiResponse<Specialty>> {
+  const res = await healthcareAdminApiRequest<any>(`/specialties/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    data: { isActive: true },
+  });
+  if (res.success) return { ...res, data: specialtySerializer(res.data) };
   return res as ApiResponse<Specialty>;
 }
 
@@ -235,13 +245,12 @@ export async function deleteHealthcareReviewApi(id: string, reason: string): Pro
   });
 }
 
+// What the server stores and enforces. Slot length, booking horizon and
+// auto-approval were editable once but read by nothing; the backend removed them.
 export interface HealthcareSettingsView {
   commissionPercent: number;
   cancellationWindowHours: number;
   lateCancelRefundPercent: number;
-  defaultSlotDurationMinutes: number;
-  maxAdvanceBookingDays: number;
-  autoApproveDoctors: boolean;
 }
 
 export async function fetchHealthcareSettingsApi(): Promise<ApiResponse<HealthcareSettingsView>> {

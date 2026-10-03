@@ -28,7 +28,7 @@ import { brandPalette, ModuleName, modulePalette } from '../palettes';
 // ============================================================================
 
 const MODES: ThemeMode[] = ['light', 'dark'];
-const MODULES: ModuleName[] = ['neutral', 'healthcare', 'homeservice', 'shopping'];
+const MODULES: ModuleName[] = ['neutral', 'healthcare', 'homeservice', 'shopping', 'admin'];
 
 const ramps: Record<ThemeMode, Ramp> = { light: C, dark: DARK_C };
 
@@ -157,7 +157,12 @@ describe('dark module palettes', () => {
 });
 
 describe('light module palettes', () => {
-  const LIGHT_OK: ModuleName[] = ['neutral', 'healthcare', 'homeservice'];
+  const LIGHT_OK: ModuleName[] = ['neutral', 'healthcare', 'homeservice', 'admin'];
+
+  it('admin: label on an accent fill is readable', () => {
+    const p = modulePalette('admin', 'light');
+    expect(contrastRatio(p.onAccent, p.accent)).toBeGreaterThanOrEqual(AA_BODY);
+  });
 
   it.each(LIGHT_OK)('%s: accentDeep is readable as text on white', (name) => {
     expect(contrastRatio(modulePalette(name, 'light').accentDeep, C.surface))

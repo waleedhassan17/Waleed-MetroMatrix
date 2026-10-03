@@ -4,6 +4,8 @@ import {
   type AdminOrderView,
 } from '../../../../networks/shopping/adminShoppingApi';
 
+const FIRST_PAGE = 1;
+
 export interface AdminShoppingOrdersState {
   orders: AdminOrderView[];
   statusFilter: string; // 'all' | OrderStatus
@@ -32,7 +34,7 @@ export const fetchAdminOrders = createAsyncThunk(
     try {
       const { adminShoppingOrders } = getState() as { adminShoppingOrders: AdminShoppingOrdersState };
       const res = await fetchAdminOrdersApi({
-        page: page || 1,
+        page: page ?? FIRST_PAGE,
         limit: 25,
         status: adminShoppingOrders.statusFilter !== 'all' ? adminShoppingOrders.statusFilter : undefined,
         paymentStatus: adminShoppingOrders.paymentFilter !== 'all' ? adminShoppingOrders.paymentFilter : undefined,

@@ -132,14 +132,6 @@ interface SidebarMenuItem {
 
 const SIDEBAR_MENU_ITEMS: SidebarMenuItem[] = [
   {
-    id: 'service_providers',
-    label: 'Service Providers',
-    icon: 'construct',
-    route: 'ServiceProviders',
-    color: '#8b5cf6',
-    description: 'Manage home services',
-  },
-  {
     id: 'hs_bookings',
     label: 'HS Bookings',
     icon: 'calendar',

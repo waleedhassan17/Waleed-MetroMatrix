@@ -71,7 +71,7 @@ async function request<T>(
         response = await API.PATCH({ URL, data, headers });
         break;
       case 'DELETE':
-        response = await API.DELETE({ URL, params: options.params, headers });
+        response = await API.DELETE({ URL, params: options.params, headers, data });
         break;
       case 'GET':
       default:
@@ -87,9 +87,26 @@ async function request<T>(
       success: body?.success ?? true,
       data: payload as T,
       message: body?.message || 'Success',
+      // Admin lists answer { data, meta: { page, limit, total, pages } };
+      // older endpoints used `pagination`.
+      meta: body?.meta ?? body?.pagination,
     };
   } catch (error: any) {
     const body = error?.response?.data;
+    // Admin endpoints (/api/v1/admin/*) reply with the console envelope:
+    //   { success: false, error: { code, message, details? }, requestId }
+    if (body?.error && typeof body.error === 'object') {
+      const fields: { message?: string }[] = Array.isArray(body.error.details?.fields) ? body.error.details.fields : [];
+      const fieldMessages = fields.map((d) => d?.message).filter((m): m is string => typeof m === 'string' && m.length > 0);
+      return {
+        success: false,
+        data: null as any,
+        message: fieldMessages.length ? fieldMessages.join('. ') : String(body.error.message || 'Request failed'),
+        code: typeof body.error.code === 'string' ? body.error.code : undefined,
+        errorData: body.error.details,
+        status: error?.response?.status,
+      };
+    }
     // Newer endpoints reply `{ error: 'TEMPLATE_CHANGED', message: 'Your weekly
     // hours were changed…', data }` — a stable code for the app to branch on and
     // a sentence for the doctor. Older ones put the sentence in `error`. Show the
@@ -124,6 +141,8 @@ async function request<T>(
 
 /** A response that may carry the server's error code and data on failure. */
 export interface HealthcareResponse<T> extends ApiResponse<T> {
+  /** List paging from the server ({ page, limit, total, pages }). */
+  meta?: { page?: number | null; limit?: number; total?: number; pages?: number };
   /** Stable error code, e.g. 'TEMPLATE_CHANGED'. Only on failure. */
   code?: string;
   /** Structured detail the server attached to the error. */
