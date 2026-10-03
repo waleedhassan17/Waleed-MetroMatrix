@@ -22,7 +22,7 @@ export function useAdminSignOut() {
       await signOutAdmin({ everywhere });
       dispatch(adminApi.util.resetApiState());
       dispatch(adminSignedOut());
-      navigation.reset({ index: 0, routes: [{ name: 'AdminSignIn' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
     },
     [dispatch, navigation]
   );

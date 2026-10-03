@@ -11,7 +11,8 @@ import type { AdminAuthStatus } from './adminAuthSlice';
 import type { SessionRestriction } from '../../../networks/admin/auth';
 
 export const ADMIN_AUTH_ROUTES = {
-  signIn: 'AdminSignIn',
+  // No separate admin sign-in screen: the admin signs in on the regular one.
+  signIn: 'SignIn',
   totp: 'AdminTotp',
   changePassword: 'AdminChangePassword',
   enrol: 'AdminTwoFactorEnrol',

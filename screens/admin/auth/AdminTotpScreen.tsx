@@ -57,7 +57,7 @@ export default function AdminTotpScreen() {
   if (expired) {
     return (
       <AdminAuthLayout barTitle="Two-factor sign-in" title="Start again" subtitle={error ?? 'This sign-in attempt has expired.'}>
-        <Button label="Back to sign-in" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'AdminSignIn' }] })} fullWidth size="lg" />
+        <Button label="Back to sign-in" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] })} fullWidth size="lg" />
       </AdminAuthLayout>
     );
   }

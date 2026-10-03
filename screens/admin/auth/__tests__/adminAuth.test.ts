@@ -7,7 +7,7 @@ describe('adminGateDecision', () => {
     ['unknown', null, 'AdminDashboard', { kind: 'restore' }],
     ['restoring', null, 'AdminDashboard', { kind: 'wait' }],
     ['offline', null, 'AdminDashboard', { kind: 'offline' }],
-    ['signedOut', null, 'AdminDashboard', { kind: 'redirect', route: 'AdminSignIn' }],
+    ['signedOut', null, 'AdminDashboard', { kind: 'redirect', route: 'SignIn' }],
     ['signedIn', null, 'AdminDashboard', { kind: 'render' }],
     ['signedIn', null, 'AdminChangePassword', { kind: 'render' }],
     ['signedIn', 'password_change', 'AdminDashboard', { kind: 'redirect', route: 'AdminChangePassword' }],

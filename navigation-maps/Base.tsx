@@ -22,7 +22,6 @@ import VerifySuccessScreen from "../screens/verify-success/verifySuccess";
 import ResetPasswordOTPScreen from "../screens/authentication-screens/reset-password-otp/resetPasswordOtp";
 import ResetPasswordScreen from "../screens/authentication-screens/reset-password/resetPassword";
 
-import AdminSignInScreen from "../screens/admin/auth/AdminSignInScreen";
 import AdminTotpScreen from "../screens/admin/auth/AdminTotpScreen";
 import AdminChangePasswordScreen from "../screens/admin/auth/AdminChangePasswordScreen";
 import AdminTwoFactorEnrolScreen from "../screens/admin/auth/AdminTwoFactorEnrolScreen";
@@ -145,7 +144,6 @@ export const BaseRouteNames = {
   PersonalInfo: "PersonalInfo",
 
   //Admin
-  AdminSignIn: "AdminSignIn",
   AdminTotp: "AdminTotp",
   AdminChangePassword: "AdminChangePassword",
   AdminTwoFactorEnrol: "AdminTwoFactorEnrol",
@@ -340,7 +338,6 @@ export type RootStackParamList = {
   };
   
   //Admin
-  AdminSignIn: undefined;
   AdminTotp: { challengeToken: string; expiresInSeconds?: number };
   AdminChangePassword: undefined;
   AdminTwoFactorEnrol: undefined;
@@ -557,11 +554,6 @@ export const BaseRoutes: IRoute[] = [
     options: {
       headerShown: false,
     }
-  },
-  {
-    component: AdminSignInScreen,
-    title: BaseRouteNames.AdminSignIn,
-    options: { headerShown: false },
   },
   {
     component: AdminTotpScreen,
@@ -1143,9 +1135,10 @@ export const LightOnlyRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName
 // ============================================================================
 // Admin console routes. BaseNavigator renders each through AdminGate, which
 // sends a route reached without a verified admin session — by navigation, a
-// deep link or a relaunch — to AdminSignIn, and a restricted session to the
-// screen that lifts the restriction. AdminSignIn and AdminTotp are the way in,
-// so they are not listed.
+// deep link or a relaunch — to the regular SignIn screen (the admin signs in
+// there; userSignin.ts routes the admin email to the admin login API), and a
+// restricted session to the screen that lifts the restriction. AdminTotp is
+// part of the way in, so it is not listed.
 // ============================================================================
 export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.AdminChangePassword,
@@ -1213,7 +1206,6 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
   [BaseRouteNames.ShoppingAddresses]: 'shopping',
 
   // Admin console (screens built on components/admin)
-  [BaseRouteNames.AdminSignIn]: 'admin',
   [BaseRouteNames.AdminTotp]: 'admin',
   [BaseRouteNames.AdminChangePassword]: 'admin',
   [BaseRouteNames.AdminTwoFactorEnrol]: 'admin',

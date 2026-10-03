@@ -57,7 +57,7 @@ export const resolveLandingRoute = ({
   providerType,
 }: LandingState): LandingRoute => {
   // An admin resumes in the console. AdminGate verifies the stored session on
-  // the way in and sends a dead one to AdminSignIn, so nothing is checked here.
+  // the way in and sends a dead one to SignIn, so nothing is checked here.
   if (userType === 'admin') return 'AdminHome';
   if (userType === 'provider' && hasProvider) {
     return providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';

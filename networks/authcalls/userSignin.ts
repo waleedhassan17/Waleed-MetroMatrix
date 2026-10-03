@@ -2,6 +2,27 @@ import { API } from "../network/network";
 import { retriveData, KeyForStorage } from "../../utils/storage_utils/storageUtils";
 import { UserLoginData, UserAuthResponse } from "../../models/user";
 import { googleLoginAPI, facebookLoginAPI, convertSocialToUserAuth } from "./socialAuth";
+import { signInAdmin, type SignInResult } from "../admin/auth";
+
+/**
+ * The admin console has no sign-in screen of its own. This one account signs
+ * in from the regular sign-in form: its email is routed to the admin login
+ * API (POST /admin/auth/login) instead of the customer one, and the SERVER
+ * checks the password (and 2FA, lockout, session rules) exactly as before.
+ * Knowing this address grants nothing without the password.
+ */
+export const ADMIN_CONSOLE_EMAIL = "waleedhassansfd@gmail.com";
+
+export const isAdminConsoleEmail = (email: string): boolean =>
+  email.trim().toLowerCase() === ADMIN_CONSOLE_EMAIL;
+
+/**
+ * Admin console sign-in for ADMIN_CONSOLE_EMAIL. Resolves to the admin sign-in
+ * step (signed in, or a 2FA code is needed); rejects with an AdminApiError
+ * (wrong password, locked, disabled …) that the caller shows as the error.
+ */
+export const adminConsoleLogin = (email: string, password: string): Promise<SignInResult> =>
+  signInAdmin(email, password);
 
 /**
  * User Sign In (Login)

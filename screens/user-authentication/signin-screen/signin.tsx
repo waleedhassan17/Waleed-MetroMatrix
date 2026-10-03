@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,10 @@ import {
   submitGoogleSignInAsync,
   submitFacebookSignInAsync,
 } from './signinSlice';
+import { adminConsoleLogin, isAdminConsoleEmail } from '../../../networks/authcalls/userSignin';
+import { toAdminApiError } from '../../../networks/admin/errors';
+import { finishAdminSignIn } from '../../admin/auth/finishSignIn';
+import { signInErrorMessage } from '../../admin/auth/messages';
 import {
   useGoogleAuth,
   processGoogleResponse,
@@ -55,12 +59,20 @@ const SignIn = () => {
   const showPassword = useAppSelector(selectShowPassword);
   const status = useAppSelector(selectStatus);
   const socialLoginStatus = useAppSelector(selectSocialLoginStatus);
-  const error = useAppSelector(selectError);
+  const reduxError = useAppSelector(selectError);
+  // The admin console signs in from this same form (see isAdminConsoleEmail).
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const error = reduxError || adminError;
+  useEffect(() => {
+    if (adminError) setAdminError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, password]);
 
   // Google auth hook (uses native SDK in dev builds, expo-auth-session in Expo Go)
   const { response: googleResponse, promptAsync: promptGoogleAsync, isReady: isGoogleReady, isNative } = useGoogleAuth();
 
-  const isLoading = status === 'loading' || socialLoginStatus === 'loading';
+  const isLoading = status === 'loading' || socialLoginStatus === 'loading' || adminSubmitting;
 
   useEffect(() => {
     if (error) {
@@ -215,6 +227,30 @@ const SignIn = () => {
       return;
     }
 
+    // The admin account signs in to the admin console from here: its email
+    // goes to the admin login API and the server checks the password.
+    if (isAdminConsoleEmail(email)) {
+      setAdminError(null);
+      setAdminSubmitting(true);
+      try {
+        const result = await adminConsoleLogin(email, password);
+        dispatch(setPassword(''));
+        if (result.step === 'totp_required') {
+          (navigation as any).navigate('AdminTotp', {
+            challengeToken: result.challengeToken,
+            expiresInSeconds: result.expiresInSeconds,
+          });
+        } else {
+          finishAdminSignIn(dispatch, navigation as any, result);
+        }
+      } catch (err) {
+        setAdminError(signInErrorMessage(toAdminApiError(err)));
+      } finally {
+        setAdminSubmitting(false);
+      }
+      return;
+    }
+
     try {
       // Clear any previous account's state BEFORE the new session lands, so a
       // crashed or interrupted logout cannot leak the last user's data into
@@ -282,10 +318,6 @@ const SignIn = () => {
 
   const handleForgotPassword = () => {
     (navigation as any).navigate('ForgotPassword', { userType: 'user' });
-  };
-
-  const handleStaffSignIn = () => {
-    (navigation as any).navigate('AdminSignIn');
   };
 
   const handleSignUp = () => {
@@ -456,16 +488,6 @@ const SignIn = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Admin console: its own sign-in, so who is an admin is the server's answer. */}
-            <TouchableOpacity
-              style={styles.staffLink}
-              onPress={handleStaffSignIn}
-              disabled={isLoading}
-              accessibilityRole="link"
-              accessibilityLabel="Staff sign-in"
-            >
-              <Text style={styles.staffLinkText}>Staff sign-in</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -480,17 +502,6 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-  },
-  staffLink: {
-    alignSelf: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    marginTop: 24,
-  },
-  staffLinkText: {
-    fontSize: 13,
-    color: sh.hue('#666666'),
   },
   scrollView: {
     flex: 1,

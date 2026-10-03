@@ -12,8 +12,9 @@ import {
   saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
 
-// Admins sign in on their own screen (screens/admin/auth/AdminSignInScreen.tsx),
-// reached from "Staff sign-in" below the form. This flow is customers only.
+// This slice is the customer flow. The admin account signs in from the same
+// form: signin.tsx sends ADMIN_CONSOLE_EMAIL (networks/authcalls/userSignin.ts)
+// to the admin login API instead, and the server checks the password.
 
 interface User {
   id: string;

@@ -10,7 +10,8 @@ import { ErrorState, Screen } from '../ui';
 
 /**
  * Wraps every admin route (see BaseNavigator). Without a verified admin
- * session the route goes to AdminSignIn; a restricted session goes to the
+ * session the route goes to SignIn (the regular sign-in, which also signs the
+ * admin in); a restricted session goes to the
  * screen that lifts the restriction. The decision itself is
  * screens/admin/auth/adminGate.ts.
  */
