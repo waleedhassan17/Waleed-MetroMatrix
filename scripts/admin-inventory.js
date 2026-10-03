@@ -38,7 +38,7 @@ const isScreen = (f, src) =>
   f.startsWith('screens/admin/') &&
   /\.tsx$/.test(f) &&
   /export default/.test(src) &&
-  !/(Layout|View|Sheet|Row|Section|Card|Tile|Bar)\.tsx$/.test(f);
+  !/(Layout|View|Sheet|Row|Section|Card|Tile|Bar|Editor)\.tsx$/.test(f);
 
 // Route-name constants: export const XRouteNames = { Key: "Value", … }.
 const routeConsts = {};
