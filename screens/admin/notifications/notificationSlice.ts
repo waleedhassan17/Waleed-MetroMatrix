@@ -35,11 +35,8 @@ export const getNotificationsAsync = createAsyncThunk(
   'notifications/getNotifications',
   async (filters: Partial<NotificationFilters> = {}, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
       const { page = 1, limit = 20, isRead } = filters;
-      const response = await getNotificationsAPI(token, page, limit, isRead);
+      const response = await getNotificationsAPI(page, limit, isRead);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch notifications');
@@ -51,10 +48,7 @@ export const getUnreadCountAsync = createAsyncThunk(
   'notifications/getUnreadCount',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getUnreadCountAPI(token);
+      const response = await getUnreadCountAPI();
       return response.unreadCount || 0;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch unread count');
@@ -66,10 +60,7 @@ export const markAsReadAsync = createAsyncThunk(
   'notifications/markAsRead',
   async (notificationId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await markNotificationReadAPI(token, notificationId);
+      await markNotificationReadAPI(notificationId);
       return { notificationId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to mark notification as read');
@@ -81,10 +72,7 @@ export const markAllAsReadAsync = createAsyncThunk(
   'notifications/markAllAsRead',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await markAllNotificationsReadAPI(token);
+      await markAllNotificationsReadAPI();
       return true;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to mark all notifications as read');
@@ -96,10 +84,7 @@ export const deleteNotificationAsync = createAsyncThunk(
   'notifications/deleteNotification',
   async (notificationId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await deleteNotificationAPI(token, notificationId);
+      await deleteNotificationAPI(notificationId);
       return { notificationId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete notification');
@@ -111,10 +96,7 @@ export const clearAllNotificationsAsync = createAsyncThunk(
   'notifications/clearAll',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await clearAllNotificationsAPI(token);
+      await clearAllNotificationsAPI();
       return true;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to clear notifications');

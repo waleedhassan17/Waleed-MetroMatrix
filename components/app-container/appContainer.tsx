@@ -15,6 +15,8 @@ import { auth } from "../../firebaseConfig";
 import { BaseRouteNames } from "../../navigation-maps/Base";
 import { resolveLandingRoute } from "../../navigation-maps/landingRoute";
 import BaseNavigator from "../../navigators/BaseNavigator";
+import AdminSessionManager from "../admin/AdminSessionManager";
+import { restoreAdminSession } from "../../screens/admin/auth/adminAuthSlice";
 
 import {
   fetchMe,
@@ -102,8 +104,15 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
       console.log('🚀 Initializing app...');
       
       // Load initial state from storage
-      await dispatch(loadInitialState()).unwrap();
+      const initial = await dispatch(loadInitialState()).unwrap();
       console.log('✅ Initial state loaded');
+
+      // An admin session is verified against the server (profile and
+      // permissions are never cached on the device). AdminGate waits for it.
+      if (initial.userType === 'admin') {
+        await dispatch(restoreAdminSession());
+        return;
+      }
       
       // Check if user has access token
       const token = await retrieveData(KeyForStorage.accessToken);
@@ -284,6 +293,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
           <IncomingCallProvider>
             <NotificationRouter />
             <BaseNavigator initialRouteName={initialRoute} />
+            <AdminSessionManager />
           </IncomingCallProvider>
         </NavigationContainer>
       </SafeAreaProvider>

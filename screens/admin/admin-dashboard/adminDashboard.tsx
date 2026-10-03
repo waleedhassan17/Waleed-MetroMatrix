@@ -22,13 +22,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
 import {
   getDashboardStatsAsync,
-  restoreAuthAsync,
   selectDashboardStats,
   selectRecentRegistrations,
   selectQuickStats,
   selectIsLoading,
   selectAdmin,
-  selectAccessToken,
 } from './adminSlice';
 import type { 
   ProviderType, 
@@ -1205,7 +1203,6 @@ const AdminDashboardScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   
   const admin = useAppSelector(selectAdmin);
-  const accessToken = useAppSelector(selectAccessToken);
   const dashboardStats = useAppSelector(selectDashboardStats);
   const recentRegistrations = useAppSelector(selectRecentRegistrations);
   const quickStats = useAppSelector(selectQuickStats);
@@ -1218,9 +1215,7 @@ const AdminDashboardScreen: React.FC = () => {
 
   useEffect(() => {
     const initializeDashboard = async () => {
-      // First restore admin auth from storage
-      await dispatch(restoreAuthAsync());
-      // Then load dashboard data
+      // AdminGate has already verified the session.
       await dispatch(getDashboardStatsAsync({ forceRefresh: true }));
     };
     

@@ -62,10 +62,7 @@ export const getAllProvidersAsync = createAsyncThunk(
   'providerManagement/getAllProviders',
   async (filters: Partial<ProviderFilters> = {}, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getAllProvidersAPI(token, filters.page || 1, filters.limit || 15, filters.status, filters.providerType, filters.search, filters.isActive);
+      const response = await getAllProvidersAPI(filters.page || 1, filters.limit || 15, filters.status, filters.providerType, filters.search, filters.isActive);
       return { ...response, filters };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch providers');
@@ -77,11 +74,8 @@ export const getPendingProvidersAsync = createAsyncThunk(
   'providerManagement/getPendingProviders',
   async (params: { page?: number; limit?: number; providerType?: string } = {}, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
       const { page = 1, limit = 10, providerType } = params;
-      const response = await getPendingProvidersAPI(token, page, limit, providerType as ProviderType | undefined);
+      const response = await getPendingProvidersAPI(page, limit, providerType as ProviderType | undefined);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch pending providers');
@@ -93,10 +87,7 @@ export const getProviderDetailsAsync = createAsyncThunk(
   'providerManagement/getProviderDetails',
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getProviderDetailsAPI(token, providerId);
+      const response = await getProviderDetailsAPI(providerId);
       return response.provider;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch provider details');
@@ -108,10 +99,7 @@ export const approveProviderAsync = createAsyncThunk(
   'providerManagement/approveProvider',
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await approveProviderAPI(token, providerId);
+      const response = await approveProviderAPI(providerId);
       return { providerId, provider: response.provider };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to approve provider');
@@ -123,10 +111,7 @@ export const rejectProviderAsync = createAsyncThunk(
   'providerManagement/rejectProvider',
   async ({ providerId, reason, adminNotes }: { providerId: string; reason: string; adminNotes?: string }, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await rejectProviderAPI(token, providerId, reason, adminNotes);
+      const response = await rejectProviderAPI(providerId, reason, adminNotes);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to reject provider');
@@ -138,10 +123,7 @@ export const activateProviderAsync = createAsyncThunk(
   'providerManagement/activateProvider',
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await activateProviderAPI(token, providerId);
+      await activateProviderAPI(providerId);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to activate provider');
@@ -153,10 +135,7 @@ export const deactivateProviderAsync = createAsyncThunk(
   'providerManagement/deactivateProvider',
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await deactivateProviderAPI(token, providerId);
+      await deactivateProviderAPI(providerId);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to deactivate provider');
@@ -168,10 +147,7 @@ export const deleteProviderAsync = createAsyncThunk(
   'providerManagement/deleteProvider',
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await deleteProviderAPI(token, providerId);
+      await deleteProviderAPI(providerId);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete provider');

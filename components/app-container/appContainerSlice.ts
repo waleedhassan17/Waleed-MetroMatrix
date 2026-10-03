@@ -17,7 +17,7 @@ export interface appContainerSliceState {
   status: "idle" | "loading" | "failed";
   currentUser?: UserInfo | null;
   currentProvider?: ProviderInfo | null;
-  userType: "user" | "provider" | null;
+  userType: "user" | "provider" | "admin" | null;
   isAppReady: boolean;
   isOnboardingComplete: boolean;
   selectedRole: "user" | "provider" | null;
@@ -82,10 +82,12 @@ export const appContainerSlice = createAppSlice({
           getData(KeyForStorage.selectedProvider),
         ]);
 
-        // Type guard to ensure userType is correct type
-        const validateUserType = (type: string | null): "user" | "provider" | null => {
-          if (type === "user" || type === "provider") {
-            return type as "user" | "provider";
+        // Type guard to ensure userType is correct type. 'admin' used to be
+        // dropped here, so a relaunch always forgot an admin was signed in and
+        // opened RoleSelection.
+        const validateUserType = (type: string | null): "user" | "provider" | "admin" | null => {
+          if (type === "user" || type === "provider" || type === "admin") {
+            return type;
           }
           return null;
         };

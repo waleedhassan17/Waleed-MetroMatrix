@@ -236,9 +236,6 @@ export const exportReport = createAsyncThunk(
     { getState, rejectWithValue }
   ) => {
     try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token');
 
       // TODO: Replace with actual API call
       // const response = await exportHealthcareReportAPI(token, format, state.healthcareAnalytics.dateRange);

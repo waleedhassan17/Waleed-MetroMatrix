@@ -31,7 +31,14 @@ const appFiles = ['screens', 'components', 'navigators', 'navigation-maps', 'net
 const sources = Object.fromEntries(appFiles.map((f) => [f, read(f)]));
 
 const adminFiles = walk('screens/admin').concat(fs.existsSync(path.join(root, 'components/admin')) ? walk('components/admin') : []);
-const isScreen = (f, src) => /\.tsx$/.test(f) && /export default/.test(src) && !/Slice\.ts/.test(f);
+// Screens live under screens/admin. Shared pieces (components/admin, a screen's
+// own *Layout / *View / *Sheet / *Row / *Section parts) count towards the debt
+// totals but are not screens.
+const isScreen = (f, src) =>
+  f.startsWith('screens/admin/') &&
+  /\.tsx$/.test(f) &&
+  /export default/.test(src) &&
+  !/(Layout|View|Sheet|Row|Section|Card|Tile|Bar)\.tsx$/.test(f);
 
 // Route-name constants: export const XRouteNames = { Key: "Value", … }.
 const routeConsts = {};
@@ -79,7 +86,9 @@ function dataSource(file, src) {
     .filter((p) => fs.existsSync(path.join(root, p)))
     .map(read)
     .join('\n');
-  const both = src + sliceFile;
+  // Code only: a comment saying "replaces the hardcoded list" is not static data.
+  const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
+  const both = stripComments(src + sliceFile);
   const staticData = /Dummy|dummy|hardcoded|BK00\d|12,847|initialState[\s\S]{0,400}\[\s*\{/.test(both);
   const realAny = real || /from ['"][./]*(networks|services)\//.test(sliceFile);
   if (realAny && staticData) return 'hybrid';

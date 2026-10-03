@@ -26,6 +26,7 @@ import { resetPasswordOtpSlice } from "../screens/authentication-screens/reset-p
 import { emailVerificationSlice } from "../screens/authentication-screens/email-verification/emailVerificationSlice";
 
 import { adminSlice } from "../screens/admin/admin-dashboard/adminSlice";
+import { adminAuthSlice } from "../screens/admin/auth/adminAuthSlice";
 import { providerApprovalSlice } from "../screens/authentication-screens/provider-approval-pending/providerApprovalSlice";
 import userHomeReducer from "../screens/user-home/userhomeSlice";
 import userManagementReducer from "../screens/admin/user-management/userManagementSlice";
@@ -235,6 +236,7 @@ const appReducer = combineReducers({
   resetPasswordOtp: resetPasswordOtpSlice.reducer,
   emailVerification: emailVerificationSlice.reducer,
   admin: adminSlice.reducer,
+  adminAuth: adminAuthSlice.reducer,
   userManagement: userManagementReducer,
   providerManagement: providerManagementReducer,
   pendingReview: pendingReviewReducer,

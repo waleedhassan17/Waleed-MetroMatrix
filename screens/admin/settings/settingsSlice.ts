@@ -77,10 +77,7 @@ export const getSettingsAsync = createAsyncThunk(
   'settings/getSettings',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getSettingsAPI(token);
+      const response = await getSettingsAPI();
       return response.settings;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch settings');
@@ -92,10 +89,7 @@ export const updateGeneralSettingsAsync = createAsyncThunk(
   'settings/updateGeneralSettings',
   async (settings: Partial<AppSettings['general']>, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await updateSettingsAPI(token, 'general', settings);
+      const response = await updateSettingsAPI('general', settings);
       return response.settings;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update general settings');
@@ -107,10 +101,7 @@ export const updateNotificationSettingsAsync = createAsyncThunk(
   'settings/updateNotificationSettings',
   async (settings: Partial<AppSettings['notifications']>, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await updateSettingsAPI(token, 'notifications', settings);
+      const response = await updateSettingsAPI('notifications', settings);
       return response.settings;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update notification settings');
@@ -122,10 +113,7 @@ export const updateSecuritySettingsAsync = createAsyncThunk(
   'settings/updateSecuritySettings',
   async (settings: Partial<AppSettings['security']>, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await updateSettingsAPI(token, 'security', settings);
+      const response = await updateSettingsAPI('security', settings);
       return response.settings;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update security settings');
@@ -137,10 +125,7 @@ export const updateAppearanceSettingsAsync = createAsyncThunk(
   'settings/updateAppearanceSettings',
   async (settings: Partial<AppSettings['appearance']>, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await updateSettingsAPI(token, 'appearance', settings);
+      const response = await updateSettingsAPI('appearance', settings);
       return response.settings;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update appearance settings');

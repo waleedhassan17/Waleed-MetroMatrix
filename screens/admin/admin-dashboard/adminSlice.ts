@@ -2,23 +2,14 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../../store/store';
 import type {
-  AdminInfo,
   DashboardStats,
   RecentRegistration,
   VerificationStatus,
 } from '../../../models/admin';
 import {
-  adminLoginAPI,
-  adminLogoutAPI,
   getDashboardStatsAPI,
   getQuickStatsAPI,
 } from '../../../networks/admin/adminAPIs';
-import { 
-  saveData, 
-  retrieveData, 
-  clearAuthData, 
-  KeyForStorage 
-} from '../../../utils/storage_utils/storageUtils';
 
 // ============================================
 // STATE INTERFACE
@@ -31,13 +22,9 @@ interface QuickStatsData {
   activeProviders?: number;
 }
 
+// Who is signed in lives in adminAuth (screens/admin/auth/adminAuthSlice.ts);
+// tokens live in networks/admin/session.ts. This slice is dashboard data only.
 interface AdminState {
-  // Auth
-  admin: AdminInfo | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  isAuthenticated: boolean;
-  
   // Dashboard
   dashboardStats: DashboardStats | null;
   recentRegistrations: RecentRegistration[];
@@ -46,7 +33,6 @@ interface AdminState {
   // UI State
   status: 'idle' | 'loading' | 'failed';
   error: string | null;
-  isInitialized: boolean;
   
   // Dashboard specific loading states
   isDashboardLoading: boolean;
@@ -62,12 +48,6 @@ interface AdminState {
 // ============================================
 
 const initialState: AdminState = {
-  // Auth
-  admin: null,
-  accessToken: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  
   // Dashboard
   dashboardStats: null,
   recentRegistrations: [],
@@ -76,7 +56,6 @@ const initialState: AdminState = {
   // UI State
   status: 'idle',
   error: null,
-  isInitialized: false,
   
   // Dashboard specific loading states
   isDashboardLoading: false,
@@ -104,139 +83,20 @@ const isCacheValid = (lastFetch: string | null): boolean => {
 // ASYNC THUNKS
 // ============================================
 
-// Login
-export const loginAsync = createAsyncThunk(
-  'admin/login',
-  async (
-    credentials: { email: string; password: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await adminLoginAPI(credentials.email, credentials.password);
-      
-      // Store tokens securely
-      await saveData(KeyForStorage.adminToken, response.accessToken);
-      if (response.refreshToken) {
-        await saveData(KeyForStorage.adminRefreshToken, response.refreshToken);
-      }
-      await saveData(KeyForStorage.adminInfo, JSON.stringify(response.admin));
-      
-      return response;
-    } catch (error: any) {
-      const message = error?.response?.data?.message || error.message || 'Login failed';
-      return rejectWithValue(message);
-    }
-  }
-);
-
-// Logout
-export const logoutAsync = createAsyncThunk(
-  'admin/logout',
-  async (_, { getState }) => {
-    try {
-      const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      
-      if (token) {
-        await adminLogoutAPI(token);
-      }
-    } catch (error) {
-      // Silently fail - we still want to clear local data
-      console.warn('Logout API failed:', error);
-    } finally {
-      // Always clear stored data
-      await clearAuthData();
-    }
-    
-    return true;
-  }
-);
-
-// Restore Auth State (on app load)
-export const restoreAuthAsync = createAsyncThunk(
-  'admin/restoreAuth',
-  async (_, { rejectWithValue }) => {
-    try {
-      console.log('🔄 Restoring admin auth from storage...');
-      const token = await retrieveData(KeyForStorage.adminToken);
-      const adminInfoStr = await retrieveData(KeyForStorage.adminInfo);
-      const refreshToken = await retrieveData(KeyForStorage.adminRefreshToken);
-      
-      console.log('📦 Retrieved from storage:', {
-        hasToken: !!token,
-        hasAdminInfo: !!adminInfoStr,
-        hasRefreshToken: !!refreshToken,
-        adminInfoType: typeof adminInfoStr,
-        adminInfoPreview: typeof adminInfoStr === 'string' ? adminInfoStr.substring(0, 50) : adminInfoStr,
-      });
-      
-      if (!token || !adminInfoStr) {
-        console.log('⚠️ No admin token or info found in storage');
-        return null;
-      }
-      
-      // ✅ FIX: Handle case where adminInfoStr is already an object or invalid
-      let admin: any;
-      if (typeof adminInfoStr === 'object') {
-        // Already parsed or was stored as object
-        admin = adminInfoStr;
-        console.log('ℹ️ adminInfoStr was already an object');
-      } else if (typeof adminInfoStr === 'string') {
-        // Check for invalid string values
-        if (adminInfoStr === '[object Object]' || adminInfoStr.startsWith('object')) {
-          console.error('❌ Invalid adminInfoStr detected:', adminInfoStr);
-          // Clear the corrupted data
-          await saveData(KeyForStorage.adminInfo, null);
-          return rejectWithValue('Corrupted admin info in storage');
-        }
-        
-        try {
-          admin = JSON.parse(adminInfoStr);
-        } catch (parseError) {
-          console.error('❌ Failed to parse adminInfoStr:', parseError, 'Value:', adminInfoStr);
-          // Clear the corrupted data
-          await saveData(KeyForStorage.adminInfo, null);
-          return rejectWithValue('Failed to parse admin info');
-        }
-      } else {
-        console.error('❌ Unexpected adminInfoStr type:', typeof adminInfoStr);
-        return rejectWithValue('Invalid admin info type');
-      }
-      
-      console.log('✅ Admin auth restored:', admin?.email);
-      
-      return {
-        admin,
-        accessToken: token as string,
-        refreshToken: refreshToken as string | undefined,
-      };
-    } catch (error: any) {
-      console.error('❌ Failed to restore auth:', error);
-      return rejectWithValue('Failed to restore auth state');
-    }
-  }
-);
-
 // Get Dashboard Stats
 export const getDashboardStatsAsync = createAsyncThunk(
   'admin/getDashboardStats',
   async (options: { forceRefresh?: boolean } = {}, { getState, rejectWithValue }) => {
     const state = getState() as RootState;
-    const { accessToken, lastDashboardFetch } = state.admin;
+    const { lastDashboardFetch } = state.admin;
     
     // Check cache unless force refresh
     if (!options.forceRefresh && isCacheValid(lastDashboardFetch)) {
       return null; // Return null to indicate using cached data
     }
     
-    if (!accessToken) {
-      console.log('❌ No authentication token found in admin state');
-      return rejectWithValue('No authentication token found');
-    }
-    
     try {
-      console.log('📤 Fetching dashboard stats with token:', accessToken.substring(0, 20) + '...');
-      const response = await getDashboardStatsAPI(accessToken);
+      const response = await getDashboardStatsAPI();
       console.log('📥 Dashboard API response:', JSON.stringify(response, null, 2));
       
       // Transform API response to match our DashboardStats interface
@@ -350,19 +210,15 @@ export const getQuickStatsAsync = createAsyncThunk(
   'admin/getQuickStats',
   async (options: { forceRefresh?: boolean } = {}, { getState, rejectWithValue }) => {
     const state = getState() as RootState;
-    const { accessToken, lastQuickStatsFetch } = state.admin;
+    const { lastQuickStatsFetch } = state.admin;
     
     // Check cache unless force refresh
     if (!options.forceRefresh && isCacheValid(lastQuickStatsFetch)) {
       return null;
     }
     
-    if (!accessToken) {
-      return rejectWithValue('No authentication token found');
-    }
-    
     try {
-      const response = await getQuickStatsAPI(accessToken);
+      const response = await getQuickStatsAPI();
       return {
         ...response,
         fetchedAt: new Date().toISOString(),
@@ -398,26 +254,6 @@ export const adminSlice = createSlice({
     clearError: (state) => {
       state.error = null;
       state.status = 'idle';
-    },
-    
-    // Set admin info (used for profile updates)
-    setAdmin: (state, action: PayloadAction<AdminInfo>) => {
-      state.admin = action.payload;
-      state.isAuthenticated = true;
-    },
-    
-    // Update access token (used for token refresh)
-    setAccessToken: (state, action: PayloadAction<string>) => {
-      state.accessToken = action.payload;
-    },
-    
-    // Manual logout (without API call)
-    logout: (state) => {
-      console.log('🚪 Admin logging out');
-      return {
-        ...initialState,
-        isInitialized: true,
-      };
     },
     
     // Update quick stats (for real-time updates)
@@ -511,73 +347,6 @@ export const adminSlice = createSlice({
   
   extraReducers: (builder) => {
     // ==================
-    // Login
-    // ==================
-    builder
-      .addCase(loginAsync.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(loginAsync.fulfilled, (state, action) => {
-        state.status = 'idle';
-        state.admin = action.payload.admin;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken || null;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(loginAsync.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload as string;
-        state.isAuthenticated = false;
-      });
-    
-    // ==================
-    // Logout
-    // ==================
-    builder
-      .addCase(logoutAsync.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(logoutAsync.fulfilled, () => {
-        return {
-          ...initialState,
-          isInitialized: true,
-        };
-      })
-      .addCase(logoutAsync.rejected, () => {
-        // Even on error, clear the state
-        return {
-          ...initialState,
-          isInitialized: true,
-        };
-      });
-    
-    // ==================
-    // Restore Auth
-    // ==================
-    builder
-      .addCase(restoreAuthAsync.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(restoreAuthAsync.fulfilled, (state, action) => {
-        state.status = 'idle';
-        state.isInitialized = true;
-        
-        if (action.payload) {
-          state.admin = action.payload.admin;
-          state.accessToken = action.payload.accessToken;
-          state.refreshToken = action.payload.refreshToken || null;
-          state.isAuthenticated = true;
-        }
-      })
-      .addCase(restoreAuthAsync.rejected, (state) => {
-        state.status = 'idle';
-        state.isInitialized = true;
-        state.isAuthenticated = false;
-      });
-    
-    // ==================
     // Dashboard Stats
     // ==================
     builder
@@ -650,9 +419,6 @@ export const adminSlice = createSlice({
 
 export const {
   clearError,
-  setAdmin,
-  setAccessToken,
-  logout,
   updateQuickStats,
   updatePendingCount,
   addRecentRegistration,
@@ -667,11 +433,8 @@ export const {
 // BASE SELECTORS
 // ============================================
 
-// Auth selectors
-export const selectAdmin = (state: RootState) => state.admin.admin;
-export const selectIsAuthenticated = (state: RootState) => state.admin.isAuthenticated;
-export const selectAccessToken = (state: RootState) => state.admin.accessToken;
-export const selectIsInitialized = (state: RootState) => state.admin.isInitialized;
+// Who is signed in (from adminAuth)
+export const selectAdmin = (state: RootState) => state.adminAuth.admin;
 
 // Dashboard selectors
 export const selectDashboardStats = (state: RootState) => state.admin.dashboardStats;
@@ -729,13 +492,6 @@ export const selectAdminRole = createSelector(
   [selectAdmin],
   (admin) => admin?.role ?? null
 );
-
-// Permission selector factory
-export const selectHasPermission = (permission: keyof AdminInfo['permissions']) => 
-  createSelector(
-    [selectAdmin],
-    (admin) => admin?.permissions?.[permission] ?? false
-  );
 
 // Cache status selectors
 export const selectIsDashboardCacheValid = createSelector(

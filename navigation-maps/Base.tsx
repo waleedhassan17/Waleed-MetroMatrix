@@ -23,6 +23,10 @@ import ResetPasswordOTPScreen from "../screens/authentication-screens/reset-pass
 import ResetPasswordScreen from "../screens/authentication-screens/reset-password/resetPassword";
 
 import AdminDashboardScreen from "../screens/admin/admin-dashboard/adminDashboard";
+import AdminSignInScreen from "../screens/admin/auth/AdminSignInScreen";
+import AdminTotpScreen from "../screens/admin/auth/AdminTotpScreen";
+import AdminChangePasswordScreen from "../screens/admin/auth/AdminChangePasswordScreen";
+import AdminTwoFactorEnrolScreen from "../screens/admin/auth/AdminTwoFactorEnrolScreen";
 import ProviderManagementScreen from "../screens/admin/provider-management/providerManagementScreen";
 import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewScreen";
 import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
@@ -135,6 +139,10 @@ export const BaseRouteNames = {
   PersonalInfo: "PersonalInfo",
 
   //Admin
+  AdminSignIn: "AdminSignIn",
+  AdminTotp: "AdminTotp",
+  AdminChangePassword: "AdminChangePassword",
+  AdminTwoFactorEnrol: "AdminTwoFactorEnrol",
   AdminDashboardScreen: "AdminDashboard",
   ProviderManagementScreen: "ProviderManagement",
   ProviderReviewScreen: "ProviderReview",
@@ -320,6 +328,10 @@ export type RootStackParamList = {
   };
   
   //Admin
+  AdminSignIn: undefined;
+  AdminTotp: { challengeToken: string; expiresInSeconds?: number };
+  AdminChangePassword: undefined;
+  AdminTwoFactorEnrol: undefined;
   AdminDashboard: undefined;
   ProviderManagement: undefined;
   ProviderReview: { providerId: string };
@@ -526,6 +538,26 @@ export const BaseRoutes: IRoute[] = [
     options: {
       headerShown: false,
     }
+  },
+  {
+    component: AdminSignInScreen,
+    title: BaseRouteNames.AdminSignIn,
+    options: { headerShown: false },
+  },
+  {
+    component: AdminTotpScreen,
+    title: BaseRouteNames.AdminTotp,
+    options: { headerShown: false },
+  },
+  {
+    component: AdminChangePasswordScreen,
+    title: BaseRouteNames.AdminChangePassword,
+    options: { headerShown: false, gestureEnabled: false },
+  },
+  {
+    component: AdminTwoFactorEnrolScreen,
+    title: BaseRouteNames.AdminTwoFactorEnrol,
+    options: { headerShown: false, gestureEnabled: false },
   },
   {
     component: AdminDashboardScreen,
@@ -1101,6 +1133,41 @@ export const BaseRoutes: IRoute[] = [
 // A route listed here renders light for everyone, whatever they chose.
 // ============================================================================
 export const LightOnlyRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([]);
+
+// ============================================================================
+// Admin console routes. BaseNavigator renders each through AdminGate, which
+// sends a route reached without a verified admin session — by navigation, a
+// deep link or a relaunch — to AdminSignIn, and a restricted session to the
+// screen that lifts the restriction. AdminSignIn and AdminTotp are the way in,
+// so they are not listed.
+// ============================================================================
+export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
+  BaseRouteNames.AdminChangePassword,
+  BaseRouteNames.AdminTwoFactorEnrol,
+  BaseRouteNames.AdminDashboardScreen,
+  BaseRouteNames.ProviderManagementScreen,
+  BaseRouteNames.ProviderReviewScreen,
+  BaseRouteNames.PendingReview,
+  BaseRouteNames.UserManagementScreen,
+  BaseRouteNames.ServiceProviders,
+  BaseRouteNames.AdminHSBookings,
+  BaseRouteNames.AdminHSBookingDetail,
+  BaseRouteNames.AdminHSDisputes,
+  BaseRouteNames.AdminHSPayouts,
+  BaseRouteNames.AdminHSServiceCategories,
+  BaseRouteNames.AdminHSAnalytics,
+  BaseRouteNames.AdminHSSettings,
+  BaseRouteNames.AdminShopping,
+  BaseRouteNames.HealthcareAnalytics,
+  BaseRouteNames.SpecialtyManagement,
+  BaseRouteNames.DoctorManagement,
+  BaseRouteNames.AdminHealthcareDashboard,
+  BaseRouteNames.AdminAppointments,
+  BaseRouteNames.AdminAppointmentDetail,
+  BaseRouteNames.AdminClinicManagement,
+  BaseRouteNames.AdminReviewModeration,
+  BaseRouteNames.AdminHealthcareSettings,
+]);
 
 export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping'>> = {
   // Customer

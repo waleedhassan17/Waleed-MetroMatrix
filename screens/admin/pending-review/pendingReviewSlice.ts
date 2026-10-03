@@ -72,14 +72,9 @@ export const fetchPendingProvidersAsync = createAsyncThunk(
   ) => {
     try {
       const state = getState() as RootState;
-      const token = state.admin.accessToken;
-      
-      if (!token) {
-        return rejectWithValue('No authentication token found');
-      }
       
       const { page = 1, limit = 15, providerType } = filters;
-      const response = await getPendingProvidersAPI(token, page, limit, providerType);
+      const response = await getPendingProvidersAPI(page, limit, providerType);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch pending providers');
@@ -92,13 +87,8 @@ export const fetchProviderDetailsAsync = createAsyncThunk(
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
       const state = getState() as RootState;
-      const token = state.admin.accessToken;
       
-      if (!token) {
-        return rejectWithValue('No authentication token found');
-      }
-      
-      const response = await getProviderDetailsAPI(token, providerId);
+      const response = await getProviderDetailsAPI(providerId);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch provider details');
@@ -111,13 +101,8 @@ export const approveProviderAsync = createAsyncThunk(
   async (providerId: string, { getState, rejectWithValue }) => {
     try {
       const state = getState() as RootState;
-      const token = state.admin.accessToken;
       
-      if (!token) {
-        return rejectWithValue('No authentication token found');
-      }
-      
-      await approveProviderAPI(token, providerId);
+      await approveProviderAPI(providerId);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to approve provider');
@@ -133,13 +118,8 @@ export const rejectProviderAsync = createAsyncThunk(
   ) => {
     try {
       const state = getState() as RootState;
-      const token = state.admin.accessToken;
       
-      if (!token) {
-        return rejectWithValue('No authentication token found');
-      }
-      
-      await rejectProviderAPI(token, providerId, reason, adminNotes);
+      await rejectProviderAPI(providerId, reason, adminNotes);
       return { providerId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to reject provider');

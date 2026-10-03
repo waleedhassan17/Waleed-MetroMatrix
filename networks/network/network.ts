@@ -2,10 +2,17 @@ import axios from "axios";
 import { Platform } from "react-native";
 import {
   clearAuthData,
-  getRefreshToken,
-  saveAuthTokens,
+  KeyForStorage,
+  retrieveData,
 } from "../../utils/storage_utils/storageUtils";
-import { Audience, tokenForRequest } from "./tokenSelection";
+import { devLog } from "../../utils/devLog";
+import { clearAdminSession, loadAdminSession } from "../admin/session";
+import { attachAuthRecovery, audienceForUrl, willRecover, type AuthRecoveryOptions } from "./authRecovery";
+import { emitAdminRestricted, emitSessionEnded, type SessionAudience } from "./authEvents";
+import { createSessionRefresher } from "./sessionRefresh";
+import { isValidToken, tokenAudience, tokenForRequest } from "./tokenSelection";
+
+export { audienceForUrl };
 
 // API Configuration
 // PRODUCTION (Vercel) — auth, users, providers, doctors, bookings,
@@ -90,33 +97,7 @@ const MainAxiosInstance = axios.create({
 });
 
 /**
- * ✅ FIX: Robust token validation function
- * Checks for all possible invalid token values
- */
-const isValidToken = (token: any): token is string => {
-  if (token === null || token === undefined) {
-    return false;
-  }
-  
-  if (typeof token !== 'string') {
-    return false;
-  }
-  
-  const invalidStringValues = ['null', 'undefined', '', 'false', '0'];
-  if (invalidStringValues.includes(token.trim().toLowerCase())) {
-    return false;
-  }
-  
-  if (token.trim().length < 10) {
-    return false;
-  }
-  
-  return true;
-};
-
-/**
- * ✅ List of endpoints that should NEVER have Authorization header
- * These endpoints work without authentication
+ * Endpoints that must NEVER carry an Authorization header.
  */
 const UNAUTHENTICATED_ENDPOINTS = [
   'auth/login',
@@ -134,266 +115,161 @@ const UNAUTHENTICATED_ENDPOINTS = [
   'auth/resend-verification',
   'auth/provider/resend-verification',
   'verify-email',
-  // ✅ Social Auth Endpoints (NO AUTH)
+  // Social auth
   'auth/google-signup',
   'auth/google-login',
   'auth/facebook-signup',
   'auth/facebook-login',
-  // ✅ CRITICAL: Provider submission endpoints (NO AUTH)
-  'admin/provider-submissions',
   'provider/approval-status',
 ];
 
-/**
- * The account type a path is guarded for, or null when it serves all three
- * (auth/logout, auth/refresh, wallet/*, bookings/*, healthcare/*) — those fall
- * back to whoever is currently signed in.
- */
-const audienceForUrl = (url?: string): Audience | null => {
+// Admin paths use an explicit prefix list. Substring matching against the list
+// above would treat any admin path that happens to contain 'auth/login' or
+// 'auth/verify' as public and send it without the admin's token.
+const ADMIN_PUBLIC_ENDPOINTS = [
+  'admin/auth/login', // and admin/auth/login/totp
+  'admin/login',
+  'admin/auth/refresh-token',
+  'admin/provider-submissions', // provider-app onboarding (see BE docs/ADMIN_OPEN_ITEMS.md #12)
+];
+
+export const isPublicEndpoint = (url?: string): boolean => {
   const path = (url || '').replace(/^\/+/, '');
-  if (path.startsWith('admin/') || path === 'admin') return 'admin';
-  if (path.startsWith('providers/') || path.startsWith('provider/')) return 'provider';
-  if (path.startsWith('users/') || path === 'users') return 'user';
-  return null;
+  if (audienceForUrl(path) === 'admin') return ADMIN_PUBLIC_ENDPOINTS.some((p) => path.startsWith(p));
+  return UNAUTHENTICATED_ENDPOINTS.some((endpoint) => path.includes(endpoint));
 };
 
-// Request interceptor for Main API
-MainAxiosInstance.interceptors.request.use(
-  async (config) => {
-    // Development only, and one line. Release builds used to write five logs
-    // per request — one pretty-printing every header — on every screen load
-    // and every background poll.
-    if (__DEV__ && config.url) {
-      console.log(`→ ${config.method?.toUpperCase()} ${config.baseURL}/${config.url}`);
-    }
-    
-    // Check if this endpoint should skip authentication
-    const skipToken = UNAUTHENTICATED_ENDPOINTS.some(endpoint => 
-      config.url?.includes(endpoint)
-    );
-    
-    if (skipToken) {
-      // ✅ CRITICAL: Ensure NO Authorization header for unauthenticated endpoints
-      if (config.headers.Authorization) {
-        delete config.headers.Authorization;
-      }
-    } else {
-      // ✅ If Authorization header is already set (e.g., by admin APIs), don't overwrite
-      if (!config.headers.Authorization) {
-        try {
-          // Attach the token matching the route's audience. Falling back to
-          // "admin token first" here used to hijack requests for a signed-in
-          // user whenever a stale admin session sat in storage — a 403 on
-          // routes like users/profile that reads as a broken screen.
-          const { token } = await tokenForRequest(audienceForUrl(config.url));
+// Development only, and one line. Release builds used to write five logs per
+// request — one pretty-printing every header — on every screen load and poll.
+MainAxiosInstance.interceptors.request.use((config) => {
+  if (__DEV__ && config.url) {
+    console.log(`→ ${config.method?.toUpperCase()} ${config.baseURL}/${config.url}`);
+  }
+  return config;
+});
 
-          if (isValidToken(token)) {
-            config.headers.Authorization = `Bearer ${token}`;
-            (config as any).__sentAuth = true;
-          } else if (__DEV__) {
-            console.warn('⚠️ No valid token found for request to:', config.url);
-          }
-        } catch (tokenError) {
-          console.error('❌ Error retrieving token:', tokenError);
-        }
+/**
+ * Silent refresh-and-retry on 401, per audience (networks/network/authRecovery.ts).
+ *
+ * Access tokens are short-lived (JWT_EXPIRE defaults to 15m on the backend) so
+ * a stolen one expires quickly. That only works if the app renews
+ * transparently — otherwise everyone is thrown back to sign-in a quarter of an
+ * hour into the session.
+ *
+ * The refresh is a bare axios call, not MainAxiosInstance: going through the
+ * instance would re-enter these interceptors and, on a 401 from the refresh
+ * itself, recurse.
+ */
+const refresher = createSessionRefresher(
+  (path, body) =>
+    axios.post(`${API_URL}/${path}`, body, {
+      timeout: TIMEOUT,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  {
+    // The realtime socket only reads its token at handshake time, so a rotated
+    // token leaves the live socket on the OLD one until the server expires it.
+    // Re-handshake now, or chat and incoming calls silently stop while REST
+    // carries on. Imported lazily: socketClient pulls in config/env, and a
+    // top-level import would create a cycle back through this module.
+    onAccountToken: (token) => {
+      try {
+        const { refreshSocketAuth } = require('../../services/socket/socketClient');
+        refreshSocketAuth(token);
+      } catch {
+        /* socket layer not loaded on this screen — nothing to refresh */
       }
-    }
-    
-    
-    return config;
-  },
-  (error) => {
-    console.error('❌ API Request interceptor error:', error);
-    return Promise.reject(error);
+    },
   }
 );
 
 /**
- * Silent refresh-and-retry on 401.
+ * Renew a session, at most once concurrently per audience. Resolves to the new
+ * access token, or null when it could not be renewed.
  *
- * Access tokens are short-lived now (JWT_EXPIRE defaults to 15m on the
- * backend) so that a stolen one expires quickly. That only works if the app
- * can renew transparently — otherwise every user is thrown back to the login
- * screen a quarter of an hour into the session.
- *
- * The refresh has to be single-flight. A screen that fires five requests at
- * once gets five simultaneous 401s; refreshing five times would have four of
- * them racing, and since /auth/refresh rotates the stored refresh token, the
- * losers would present an already-replaced token and be rejected — logging
- * the user out precisely when the mechanism was supposed to keep them in. So
- * the first 401 performs the refresh and the rest wait on that same promise.
+ * EXPORTED for the realtime socket (user/provider) and the admin console's
+ * proactive refresh. Both must come through this single-flight path rather
+ * than a second refresh racing it: refresh tokens ROTATE, so the loser of that
+ * race presents an already-replaced token — and the admin API treats a
+ * replayed refresh token as theft and revokes the session.
  */
-let refreshPromise: Promise<string | null> | null = null;
+export const refreshSessionOnce = async (audience: SessionAudience = 'account'): Promise<string | null> =>
+  (await refresher(audience)).token;
 
-const performTokenRefresh = async (): Promise<string | null> => {
-  const refreshToken = await getRefreshToken();
-
-  if (!isValidToken(refreshToken)) {
-    console.warn('⚠️ No refresh token available — cannot renew session');
-    return null;
+/** The session cannot be recovered: clear only that audience's tokens, then tell the UI. */
+const handleSessionLost = async (audience: SessionAudience): Promise<void> => {
+  if (audience === 'admin') {
+    await clearAdminSession();
+  } else {
+    await clearAuthData();
   }
-
-  try {
-    // A bare axios call, not MainAxiosInstance: going through the instance
-    // would re-enter these interceptors and, on a 401 from the refresh
-    // itself, recurse.
-    const { data } = await axios.post(
-      `${API_URL}/auth/refresh`,
-      { refreshToken },
-      { timeout: TIMEOUT, headers: { 'Content-Type': 'application/json' } }
-    );
-
-    const newAccessToken = data?.accessToken;
-    const newRefreshToken = data?.refreshToken;
-
-    if (!isValidToken(newAccessToken)) {
-      console.warn('⚠️ Refresh response contained no usable access token');
-      return null;
-    }
-
-    await saveAuthTokens(newAccessToken, newRefreshToken);
-    console.log('🔄 Session refreshed successfully');
-
-    // The realtime socket only reads its token at handshake time, so rotating
-    // the stored token here leaves the live socket authenticated with the OLD
-    // one until the server expires it. Re-handshake now, or chat and incoming
-    // calls silently stop working while REST calls carry on fine.
-    // Imported lazily: socketClient pulls in config/env, and a top-level import
-    // would create a cycle back through this module.
-    try {
-      const { refreshSocketAuth } = require('../../services/socket/socketClient');
-      refreshSocketAuth(newAccessToken);
-    } catch {
-      /* socket layer not loaded on this screen — nothing to refresh */
-    }
-
-    return newAccessToken;
-  } catch (refreshError: any) {
-    console.warn('⚠️ Token refresh failed:', refreshError?.response?.status || refreshError?.message);
-    return null;
-  }
+  emitSessionEnded(audience, 'expired');
 };
 
-/**
- * Renew the session, at most once concurrently.
- *
- * EXPORTED for the realtime socket. The socket's handshake token expires on the
- * server's clock, and the server disconnects it when it does. Reconnecting with
- * the stored token cannot work — it is the same expired token — so the socket
- * needs a genuinely fresh one, and it must come through this single-flight path
- * rather than a second refresh racing this one: /auth/refresh ROTATES the
- * refresh token, so the loser of that race presents an already-replaced token
- * and gets the user logged out.
- */
-export const refreshSessionOnce = (): Promise<string | null> => {
-  if (!refreshPromise) {
-    refreshPromise = performTokenRefresh().finally(() => {
-      refreshPromise = null;
-    });
-  }
-  return refreshPromise;
+const mainAuthOptions: AuthRecoveryOptions = {
+  isPublic: isPublicEndpoint,
+  // Attach the token matching the route's audience. Falling back to "admin
+  // token first" used to hijack requests for a signed-in user whenever a stale
+  // admin session sat in storage — a 403 on users/profile that reads as a
+  // broken screen.
+  tokenFor: async (url) => {
+    const { token } = await tokenForRequest(audienceForUrl(url));
+    if (!isValidToken(token)) return { token: null, audience: 'account' };
+    return { token, audience: tokenAudience(token) === 'admin' ? 'admin' : 'account' };
+  },
+  currentToken: async (audience) => {
+    if (audience === 'admin') return (await loadAdminSession())?.accessToken ?? null;
+    const token = await retrieveData(KeyForStorage.accessToken);
+    return isValidToken(token) ? token : null;
+  },
+  refresh: refresher,
+  onSessionLost: handleSessionLost,
 };
 
-// Response interceptor for Main API
+// Error reporting runs before recovery. A 401 that is about to be refreshed and
+// replayed is not an error — logging it as one put a red "API error" in front
+// of QA for requests that then succeeded. Only the status and error code are
+// logged: response bodies can carry personal data and tokens.
 MainAxiosInstance.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response status:', response.status);
-    return response;
-  },
-  async (error) => {
-    // A 401 on an authenticated request is usually just an expired access
-    // token, and the block below refreshes and replays it — the call then
-    // succeeds. Logging it as an error up here, before that recovery has even
-    // been attempted, put a red "API Response error" in front of QA for
-    // requests that worked: adding a clinic reported a failure and added the
-    // clinic anyway. Report the attempt quietly; only a failure that survives
-    // recovery is an error, and the branches below say so.
-    const willAttemptRecovery =
-      error.response?.status === 401 &&
-      (error.config as any)?.__sentAuth &&
-      !(error.config as any)?.__retriedAfterRefresh &&
-      !error.config?.url?.includes('auth/refresh');
-
-    // A caller that marked the request best-effort has already decided the
-    // failure is survivable, so shouting about it only misleads whoever is
-    // looking at the screen.
-    const isBestEffort =
-      (error.config?.headers as any)?.['x-best-effort'] === '1';
-
-    const report = willAttemptRecovery || isBestEffort ? console.log : console.error;
-    report(
-      willAttemptRecovery
-        ? 'ℹ️ 401 — refreshing token and retrying:'
-        : isBestEffort
-        ? 'ℹ️ best-effort request failed (ignored):'
-        : '❌ API Response error:',
-      {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
-      }
-    );
-
-    if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
-      console.error("Network is down or unreachable");
-
-      if (Platform.OS === 'android') {
-        console.error('⚠️ Android: Check network security config');
-      }
+  (response) => response,
+  (error) => {
+    const bestEffort = (error.config?.headers as any)?.['x-best-effort'] === '1';
+    const summary = {
+      status: error.response?.status,
+      code: error.response?.data?.error?.code ?? error.response?.data?.code ?? error.code,
+      method: error.config?.method,
+      url: error.config?.url,
+    };
+    if (willRecover(error, isPublicEndpoint) || bestEffort) {
+      devLog(bestEffort ? 'ℹ️ best-effort request failed (ignored):' : 'ℹ️ 401 — refreshing and retrying:', summary);
+    } else {
+      console.error('❌ API error:', summary);
     }
-
-    // Only act on 401s from authenticated endpoints
-    if (error.response && error.response.status === 401) {
-      const originalRequest = error.config;
-
-      const isUnauthenticatedEndpoint = UNAUTHENTICATED_ENDPOINTS.some(endpoint =>
-        originalRequest?.url?.includes(endpoint)
+    if (summary.code === 'PASSWORD_CHANGE_REQUIRED') emitAdminRestricted('password_change');
+    if (summary.code === 'TOTP_ENROLMENT_REQUIRED') emitAdminRestricted('totp_enrol');
+    if (!error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+      console.error(
+        Platform.OS === 'android'
+          ? 'Network is down or unreachable (Android: check the network security config)'
+          : 'Network is down or unreachable'
       );
-      const isRefreshCall = originalRequest?.url?.includes('auth/refresh');
-
-      // Only try to recover if we actually presented a token. When the
-      // interceptor withheld a mismatched one, the session we still hold is
-      // valid for its own audience and must survive.
-      if (
-        !isUnauthenticatedEndpoint &&
-        !isRefreshCall &&
-        (originalRequest as any)?.__sentAuth &&
-        !(originalRequest as any)?.__retriedAfterRefresh
-      ) {
-        const newAccessToken = await refreshSessionOnce();
-
-        if (newAccessToken) {
-          // Replay the original request once with the fresh token.
-          (originalRequest as any).__retriedAfterRefresh = true;
-          originalRequest.headers = {
-            ...(originalRequest.headers || {}),
-            Authorization: `Bearer ${newAccessToken}`,
-          };
-          console.log('🔁 Retrying request with refreshed token:', originalRequest.url);
-          return MainAxiosInstance(originalRequest);
-        }
-
-        // The refresh itself failed — the session really is gone.
-        console.warn('⚠️ Refresh failed on 401 - clearing auth data');
-        await clearAuthData();
-      } else if (
-        !isUnauthenticatedEndpoint &&
-        (originalRequest as any)?.__sentAuth &&
-        (isRefreshCall || (originalRequest as any)?.__retriedAfterRefresh)
-      ) {
-        // A 401 on the refresh call, or on the one retry we allow, means the
-        // session cannot be recovered.
-        console.warn('⚠️ 401 persisted after refresh - clearing auth data');
-        await clearAuthData();
-      }
     }
-
     return Promise.reject(error);
   }
 );
+
+attachAuthRecovery(MainAxiosInstance, mainAuthOptions);
+
+/**
+ * The refresh and session-loss handling every other axios instance must share
+ * (shoppingAxios). A second refresher would race this one on the same rotating
+ * refresh token.
+ */
+export const sharedSessionRecovery: Pick<AuthRecoveryOptions, 'currentToken' | 'refresh' | 'onSessionLost'> = {
+  currentToken: mainAuthOptions.currentToken,
+  refresh: mainAuthOptions.refresh,
+  onSessionLost: mainAuthOptions.onSessionLost,
+};
 
 const defaultConfig = {
   ...axios.defaults.headers,

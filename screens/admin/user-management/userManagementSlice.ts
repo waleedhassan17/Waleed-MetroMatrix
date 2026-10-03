@@ -36,10 +36,7 @@ export const getAllUsersAsync = createAsyncThunk(
   'userManagement/getAllUsers',
   async (filters: Partial<UserFilters> = {}, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getAllUsersAPI(token, filters.page || 1, filters.limit || 15, filters.search, filters.isActive);
+      const response = await getAllUsersAPI(filters.page || 1, filters.limit || 15, filters.search, filters.isActive);
       return { ...response, filters };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch users');
@@ -51,10 +48,7 @@ export const getUserDetailsAsync = createAsyncThunk(
   'userManagement/getUserDetails',
   async (userId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      const response = await getUserDetailsAPI(token, userId);
+      const response = await getUserDetailsAPI(userId);
       return response.user;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user details');
@@ -66,10 +60,7 @@ export const activateUserAsync = createAsyncThunk(
   'userManagement/activateUser',
   async (userId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await activateUserAPI(token, userId);
+      await activateUserAPI(userId);
       return { userId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to activate user');
@@ -81,10 +72,7 @@ export const deactivateUserAsync = createAsyncThunk(
   'userManagement/deactivateUser',
   async (userId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await deactivateUserAPI(token, userId);
+      await deactivateUserAPI(userId);
       return { userId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to deactivate user');
@@ -96,10 +84,7 @@ export const deleteUserAsync = createAsyncThunk(
   'userManagement/deleteUser',
   async (userId: string, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as { admin: { accessToken: string | null } };
-      const token = state.admin.accessToken;
-      if (!token) return rejectWithValue('No authentication token found');
-      await deleteUserAPI(token, userId);
+      await deleteUserAPI(userId);
       return { userId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete user');

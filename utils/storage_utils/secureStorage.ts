@@ -39,6 +39,8 @@ export const SECURE_KEYS = [
   'providerAccessToken',
   'adminToken',
   'adminRefreshToken',
+  // The admin console session: { accessToken, refreshToken, accessTokenExpiresAt, sessionId }.
+  'adminSession',
 ] as const;
 
 const secureKeySet = new Set<string>(SECURE_KEYS);

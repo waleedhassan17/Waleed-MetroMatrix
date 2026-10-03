@@ -26,6 +26,8 @@ SCOPE=(
   screens/Shopping/Brand
   screens/providers/healthcare
   components/Healthcare/doctor
+  components/admin
+  screens/admin/auth
 )
 
 # Files that legitimately hold raw values: the token definitions themselves, and

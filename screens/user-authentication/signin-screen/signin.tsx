@@ -225,18 +225,12 @@ const SignIn = () => {
         submitSignInAsync({ email: email.trim().toLowerCase(), password })
       ).unwrap();
 
-      if (result.type === 'admin') {
-        console.log('✅ Admin login successful → AdminDashboard');
-        (navigation as any).reset({ index: 0, routes: [{ name: 'AdminDashboard' }] });
-      } else {
-        // Hydrate the app shell before navigating, so it renders the home
-        // screen instead of waiting on a profile fetch behind its boot spinner.
-        const userPayload = (result as any)?.data?.user ?? (result as any)?.user;
-        if (userPayload) dispatch(setCurrentUser(userPayload));
+      // Hydrate the app shell before navigating, so it renders the home
+      // screen instead of waiting on a profile fetch behind its boot spinner.
+      const userPayload = (result as any)?.data?.user ?? (result as any)?.user;
+      if (userPayload) dispatch(setCurrentUser(userPayload));
 
-        console.log('✅ User login successful → UserHome');
-        (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
-      }
+      (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
     } catch (err: any) {
       console.log('❌ Sign in failed:', err);
       // Error is already set in Redux state and rendered above the form.
@@ -288,6 +282,10 @@ const SignIn = () => {
 
   const handleForgotPassword = () => {
     (navigation as any).navigate('ForgotPassword', { userType: 'user' });
+  };
+
+  const handleStaffSignIn = () => {
+    (navigation as any).navigate('AdminSignIn');
   };
 
   const handleSignUp = () => {
@@ -457,6 +455,17 @@ const SignIn = () => {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Admin console: its own sign-in, so who is an admin is the server's answer. */}
+            <TouchableOpacity
+              style={styles.staffLink}
+              onPress={handleStaffSignIn}
+              disabled={isLoading}
+              accessibilityRole="link"
+              accessibilityLabel="Staff sign-in"
+            >
+              <Text style={styles.staffLinkText}>Staff sign-in</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -471,6 +480,17 @@ const makeStyles = (sh: DarkShift) => StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+  },
+  staffLink: {
+    alignSelf: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    marginTop: 24,
+  },
+  staffLinkText: {
+    fontSize: 13,
+    color: sh.hue('#666666'),
   },
   scrollView: {
     flex: 1,
