@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main, admin-hardening]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typecheck (must stay at 0 errors)
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test -- --ci
+      - name: Admin API types match the contract
+        run: node scripts/sync-admin-spec.js --check
+      - name: Design gates
+        run: bash scripts/design-gates.sh
+      # Report-only until F2 removes the remaining fabricated data; then it enforces.
+      - name: No static data in the admin console
+        run: bash scripts/no-static-data.sh --report

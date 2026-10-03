@@ -451,4 +451,8 @@ export const API = {
   },
 };
 
+// The typed admin client (networks/admin/client.ts) uses the same instance so
+// admin calls get the same auth and refresh handling as everything else.
+export { MainAxiosInstance };
+
 export default API;

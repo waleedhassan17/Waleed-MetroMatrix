@@ -9,7 +9,13 @@
     "android": "NODE_OPTIONS=--network-family-autoselection-attempt-timeout=3000 expo run:android",
     "ios": "NODE_OPTIONS=--network-family-autoselection-attempt-timeout=3000 expo run:ios",
     "web": "NODE_OPTIONS=--network-family-autoselection-attempt-timeout=3000 expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "gen:admin-api": "node scripts/sync-admin-spec.js",
+    "gates:design": "bash scripts/design-gates.sh",
+    "gates:static": "bash scripts/no-static-data.sh",
+    "admin:inventory": "node scripts/admin-inventory.js",
+    "gates": "npm run typecheck && npm test -- --silent && npm run gates:design && npm run gates:static"
   },
   "jest": {
     "preset": "jest-expo",
@@ -80,6 +86,7 @@
     "expo-module-scripts": "^5.0.7",
     "jest": "~29.7.0",
     "jest-expo": "~54.0.18",
+    "openapi-typescript": "^7.13.0",
     "react-test-renderer": "^19.1.0",
     "typescript": "~5.9.2"
   },
