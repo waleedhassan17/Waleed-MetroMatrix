@@ -107,8 +107,8 @@ export default function AdminProfileScreen() {
         <DetailRow label="Role" value={roleLabel || admin?.role} />
         <DetailRow label="Member since" value={formatDate(admin?.createdAt)} last />
         <View style={styles.actions}>
-          <Button label="Edit name" variant="secondary" size="sm" onPress={() => openEdit('name')} />
-          <Button label="Change email" variant="secondary" size="sm" onPress={() => openEdit('email')} />
+          <Button label="Edit name" variant="secondary" onPress={() => openEdit('name')} />
+          <Button label="Change email" variant="secondary" onPress={() => openEdit('email')} />
         </View>
       </Section>
 

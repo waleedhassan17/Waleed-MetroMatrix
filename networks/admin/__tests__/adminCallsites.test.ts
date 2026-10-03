@@ -16,7 +16,6 @@ const ALLOWED: Record<string, string> = {
   'networks/network/network.ts': 'lists the public admin endpoints for token handling; calls none',
   'networks/network/sessionRefresh.ts': 'the admin token refresh: a bare axios post, so it cannot re-enter the interceptors',
   'networks/healthcare/config.ts': 'healthcare admin prefix (/v1/admin) for the healthcare module layer (#14)',
-  'networks/serviceProviders/adminHomeServiceApi.ts': 'home-services admin module layer (#14)',
   'networks/shopping/adminShoppingApi.ts': 'shopping admin module layer (#14)',
   'networks/shopping/brandApi.ts': 'shopping admin module layer (#14)',
   'networks/shopping/outletApi.ts': 'shopping admin module layer (#14)',

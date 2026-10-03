@@ -1,251 +1,104 @@
-// ============================================
-// Admin: home-services analytics (HS8) — bookings over time and by category,
-// revenue/commission, average completion time, cancellation rate, top
-// providers. Same hand-rolled bar-chart approach the healthcare admin
-// analytics screen already uses — no new charting library.
-// ============================================
+// ============================================================================
+// Home-services analytics for a period: bookings per Pakistan day, by category
+// and status, paid revenue and the platform's commission, completion time,
+// cancellations, and the busiest providers. Anything the server could not
+// measure (no completed jobs yet) shows as "—".
+// ============================================================================
 
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { fetchAdminHSAnalytics } from '../../../../networks/serviceProviders/adminHomeServiceApi';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-  success: '#27AE60',
-  warning: '#F59E0B',
-};
+import { AdminScreen, BarList, KpiGrid, KpiTile, PermissionGate, QueryState, Section } from '../../../../components/admin';
+import { SegmentedControl } from '../../../../components/ui';
+import { formatMoney } from '../../../../constants/Currency';
+import { presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import { useGetHSAnalyticsQuery } from '../../../../networks/admin/homeServicesApi';
+import { formatCount, formatPercent } from '../../../../utils/admin/format';
+import { S } from '../../../../theme';
+import { categoryLabel } from '../labels';
 
-const formatMoney = (v: number) => `Rs. ${Math.round(v).toLocaleString()}`;
+type RangeKey = '7d' | '30d' | '90d';
+const RANGES: { value: RangeKey; label: string; days: number }[] = [
+  { value: '7d', label: '7 days', days: 7 },
+  { value: '30d', label: '30 days', days: 30 },
+  { value: '90d', label: '90 days', days: 90 },
+];
+const DAYS = Object.fromEntries(RANGES.map((r) => [r.value, r.days])) as Record<RangeKey, number>;
 
-const SimpleBarChart: React.FC<{
-  data: { label: string; value: number; color?: string }[];
-  formatValue?: (v: number) => string;
-}> = ({ data, formatValue = (v) => String(v) }) => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const max = Math.max(1, ...data.map((d) => d.value));
-  return (
-    <View>
-      {data.map((item, i) => (
-        <View key={i} style={styles.barRow}>
-          <Text style={styles.barLabel} numberOfLines={1}>
-            {item.label}
-          </Text>
-          <View style={styles.barTrack}>
-            <View
-              style={[
-                styles.barFill,
-                {
-                  width: `${(item.value / max) * 100}%`,
-                  backgroundColor: item.color || COLORS.primary,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.barValue}>{formatValue(item.value)}</Text>
-        </View>
-      ))}
-    </View>
-  );
-};
-
-const AdminHomeServiceAnalyticsScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminHomeServiceAnalyticsScreen() {
   const navigation = useNavigation<any>();
-  const [data, setData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminHSAnalytics({});
-    if (res.success) setData(res.data);
-    else setError(res.message || 'Failed to load analytics');
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data: meta } = useAdminMeta();
+  const [range, setRange] = useState<RangeKey>('30d');
+  const window = useMemo(() => {
+    const days = DAYS[range];
+    const to = new Date();
+    return { from: new Date(to.getTime() - days * 86_400_000).toISOString(), to: to.toISOString() };
+  }, [range]);
+  const analytics = useGetHSAnalyticsQuery(window);
+  const a = analytics.data;
+  const caption = `Last ${RANGES.find((r) => r.value === range)?.label}`;
+  const totalBookings = a ? a.byStatus.reduce((sum, x) => sum + x.count, 0) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Home Services Analytics</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <AdminScreen title="Home-services analytics" refreshing={analytics.isFetching && !analytics.isLoading} onRefresh={analytics.refetch}>
+      <PermissionGate all={['canManageHomeServices']} action="see home-services analytics">
+        <SegmentedControl options={RANGES} value={range} onChange={setRange} style={{ marginBottom: S.lg }} />
+        <QueryState isLoading={analytics.isLoading} error={analytics.error} onRetry={analytics.refetch} skeletonCount={3}>
+          {a && (
+            <>
+              <Section title="Summary" caption={caption}>
+                <KpiGrid>
+                  <KpiTile label="Bookings" value={formatCount(totalBookings)} onPress={() => navigation.navigate('AdminHSBookings')} />
+                  <KpiTile label="Paid booking value" value={formatMoney(a.revenue)} />
+                  <KpiTile label="Platform commission" value={formatMoney(a.commission)} />
+                  <KpiTile label="Cancelled or rejected" value={formatPercent(a.cancellationRate)} />
+                  <KpiTile
+                    label="Average job length"
+                    value={a.averageCompletionMinutes === null ? '—' : `${formatCount(a.averageCompletionMinutes)} min`}
+                    caption="Completed jobs"
+                  />
+                </KpiGrid>
+              </Section>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      ) : error || !data ? (
-        <View style={styles.center}>
-          <Text style={styles.stateText}>{error || 'No data'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          <View style={styles.statsGrid}>
-            <StatTile label="Revenue" value={formatMoney(data.revenue)} color={COLORS.success} />
-            <StatTile label="Commission" value={formatMoney(data.commission)} color={COLORS.primary} />
-            <StatTile
-              label="Avg completion"
-              value={`${data.averageCompletionMinutes} min`}
-              color={COLORS.warning}
-            />
-            <StatTile
-              label="Cancellation rate"
-              value={`${data.cancellationRate}%`}
-              color="#E74C3C"
-            />
-          </View>
+              <Section title="Bookings per day" caption={`${caption}, Pakistan time`} card>
+                <BarList
+                  items={[...a.bookingsOverTime].reverse().map((d) => ({ key: d.date, label: d.date, value: d.count, display: formatCount(d.count) }))}
+                  emptyText="No bookings in this period."
+                />
+              </Section>
 
-          <Text style={styles.sectionTitle}>Bookings over time</Text>
-          <View style={styles.card}>
-            <SimpleBarChart
-              data={(data.bookingsOverTime || []).slice(-14).map((x: any) => ({
-                label: x.date.slice(5),
-                value: x.count,
-              }))}
-            />
-          </View>
+              <Section title="By category" caption={caption} card>
+                <BarList
+                  items={[...a.byCategory]
+                    .sort((x, y) => y.count - x.count)
+                    .map((c) => ({ key: c.category, label: categoryLabel(meta, c.category), value: c.count, display: formatCount(c.count), detail: `${formatMoney(c.gross)} booked` }))}
+                />
+              </Section>
 
-          <Text style={styles.sectionTitle}>By category</Text>
-          <View style={styles.card}>
-            <SimpleBarChart
-              data={(data.byCategory || []).map((x: any) => ({
-                label: x.category,
-                value: x.count,
-              }))}
-            />
-          </View>
+              <Section title="By status" caption={caption} card>
+                <BarList
+                  items={[...a.byStatus]
+                    .sort((x, y) => y.count - x.count)
+                    .map((s) => ({ key: s.status, label: presentStatus(meta, 'bookingStatuses', s.status).label, value: s.count, display: formatCount(s.count) }))}
+                />
+              </Section>
 
-          <Text style={styles.sectionTitle}>By status</Text>
-          <View style={styles.card}>
-            <SimpleBarChart
-              data={(data.byStatus || []).map((x: any) => ({
-                label: x.status,
-                value: x.count,
-              }))}
-            />
-          </View>
-
-          <Text style={styles.sectionTitle}>Top providers (by jobs)</Text>
-          <View style={styles.card}>
-            {(data.topProviders || []).map((p: any) => (
-              <View key={p.id} style={styles.providerRow}>
-                <Text style={styles.providerName}>{p.name}</Text>
-                <Text style={styles.providerMeta}>
-                  {p.jobs} jobs · ★ {p.rating?.toFixed?.(1) ?? p.rating} · {formatMoney(p.gross)}
-                </Text>
-              </View>
-            ))}
-            {!data.topProviders?.length && (
-              <Text style={styles.stateText}>No completed jobs in this range yet.</Text>
-            )}
-          </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-};
-
-function StatTile({ label, value, color }: { label: string; value: string; color: string }) {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  return (
-    <View style={[styles.statTile, { borderColor: `${color}40` }]}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+              <Section title="Busiest providers" caption={`${caption}, completed jobs`} card>
+                <BarList
+                  items={a.topProviders.map((p) => ({
+                    key: p.id,
+                    label: p.name,
+                    value: p.jobs,
+                    display: `${formatCount(p.jobs)} jobs`,
+                    detail: `${formatMoney(p.gross)}${p.rating === null ? '' : ` · ${p.rating.toFixed(1)} ★`}`,
+                  }))}
+                  emptyText="No completed jobs in this period."
+                />
+              </Section>
+            </>
+          )}
+        </QueryState>
+      </PermissionGate>
+    </AdminScreen>
   );
 }
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  statTile: {
-    width: '48%',
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginRight: '4%',
-    marginBottom: 12,
-  },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 12, color: COLORS.textLight, marginTop: 4 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8, marginTop: 6 },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-    marginBottom: 14,
-  },
-  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  barLabel: { width: 70, fontSize: 11, color: COLORS.textLight },
-  barTrack: { flex: 1, height: 10, backgroundColor: sh.n('#F1F3F5', 'surfaceSunken'), borderRadius: 5, marginHorizontal: 8 },
-  barFill: { height: 10, borderRadius: 5 },
-  barValue: { width: 50, fontSize: 11, color: COLORS.text, textAlign: 'right' },
-  providerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: sh.n('#F1F3F5', 'surfaceSunken'),
-  },
-  providerName: { fontSize: 13, fontWeight: '600', color: COLORS.text },
-  providerMeta: { fontSize: 12, color: COLORS.textLight },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: COLORS.textLight, fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
-});
-
-export default AdminHomeServiceAnalyticsScreen;

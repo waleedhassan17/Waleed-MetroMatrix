@@ -110,7 +110,7 @@ export default function AdminNotificationsScreen() {
       scroll={false}
       right={
         unread ? (
-          <Button label="Mark all read" variant="ghost" size="sm" onPress={onMarkAll} loading={markAllState.isLoading} />
+          <Button label="Mark all read" variant="ghost" onPress={onMarkAll} loading={markAllState.isLoading} />
         ) : undefined
       }
     >

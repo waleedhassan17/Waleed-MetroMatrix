@@ -35,6 +35,7 @@ SCOPE=(
   screens/admin/overview
   screens/admin/queue
   screens/admin/people
+  screens/admin/homeservice
   screens/admin/notifications
   screens/admin/settings
   screens/admin/healthcare/HealthcareAnalytics

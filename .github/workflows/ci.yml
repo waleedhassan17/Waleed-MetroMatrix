@@ -23,6 +23,5 @@ jobs:
         run: node scripts/sync-admin-spec.js --check
       - name: Design gates
         run: bash scripts/design-gates.sh
-      # Report-only until F2 removes the remaining fabricated data; then it enforces.
       - name: No static data in the admin console
-        run: bash scripts/no-static-data.sh --report
+        run: bash scripts/no-static-data.sh

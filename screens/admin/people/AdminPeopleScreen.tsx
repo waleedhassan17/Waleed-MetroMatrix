@@ -87,7 +87,7 @@ export default function AdminPeopleScreen() {
       title="People"
       hideBack
       scroll={false}
-      right={canAdmins ? <Button label="Admins" variant="ghost" size="sm" icon="shield-checkmark-outline" onPress={() => navigation.navigate('AdminManagement')} /> : undefined}
+      right={canAdmins ? <Button label="Admins" variant="ghost" icon="shield-checkmark-outline" onPress={() => navigation.navigate('AdminManagement')} /> : undefined}
     >
       <View style={styles.controls}>
         {segments.length > 1 && <SegmentedControl options={segments} value={segment} onChange={setSegment} style={styles.segment} />}
