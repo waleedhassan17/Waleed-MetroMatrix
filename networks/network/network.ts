@@ -213,9 +213,13 @@ const mainAuthOptions: AuthRecoveryOptions = {
   // admin session sat in storage — a 403 on users/profile that reads as a
   // broken screen.
   tokenFor: async (url) => {
-    const { token } = await tokenForRequest(audienceForUrl(url));
+    const routeAudience = audienceForUrl(url);
+    const { token } = await tokenForRequest(routeAudience);
     if (!isValidToken(token)) return { token: null, audience: 'account' };
-    return { token, audience: tokenAudience(token) === 'admin' ? 'admin' : 'account' };
+    // An admin route's 401 is the admin session's to recover, even if the
+    // token itself can't be decoded to say so.
+    const admin = routeAudience === 'admin' || tokenAudience(token) === 'admin';
+    return { token, audience: admin ? 'admin' : 'account' };
   },
   currentToken: async (audience) => {
     if (audience === 'admin') return (await loadAdminSession())?.accessToken ?? null;

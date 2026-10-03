@@ -15,7 +15,8 @@
     "gates:design": "bash scripts/design-gates.sh",
     "gates:static": "bash scripts/no-static-data.sh",
     "admin:inventory": "node scripts/admin-inventory.js",
-    "gates": "npm run typecheck && npm test -- --silent && npm run gates:design && npm run gates:static"
+    "gates": "npm run typecheck && npm test -- --silent && npm run gates:design && npm run gates:static",
+    "e2e:admin": "jest e2e --no-cache"
   },
   "jest": {
     "preset": "jest-expo",
