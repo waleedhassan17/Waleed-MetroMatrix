@@ -1,420 +1,195 @@
-// ============================================
-// Admin: booking detail (HS8) — full statusHistory timeline, payment trail,
-// dispute link, and the audited admin actions: force status change (reason
-// mandatory) and manual refund, both behind confirmation dialogs.
-// ============================================
+// ============================================================================
+// One home-service booking: what, who, when, money, its status history, and
+// the two audited admin actions.
+//
+//  - Change status (reason required). The server's state machine decides what
+//    is allowed; its refusal is shown as it is.
+//  - Refund (needs Home services + Finance). The server caps refunds at what
+//    the customer paid minus earlier refunds; the remaining amount is shown
+//    and is the default.
+// ============================================================================
 
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  Modal,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import {
-  fetchAdminBookingDetail,
-  forceBookingStatus,
-  refundBooking,
-} from '../../../../networks/serviceProviders/adminHomeServiceApi';
-import { HS_STATUS_COLORS } from '../AdminBookings/AdminBookingsScreen';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-  danger: '#E74C3C',
-};
+import { AdminScreen, ConfirmSheet, DetailRow, FilterChips, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
+import { Button, ListRow, TextField, showToast } from '../../../../components/ui';
+import { formatMoney } from '../../../../constants/Currency';
+import { enumOptions, presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import { adminErrorOf } from '../../../../networks/admin/adminApi';
+import { useForceHSBookingStatusMutation, useGetHSBookingQuery, useRefundHSBookingMutation } from '../../../../networks/admin/homeServicesApi';
+import { formatDateTime } from '../../../../utils/admin/format';
+import { S, T, useTheme, type ThemeColors } from '../../../../theme';
+import { categoryLabel } from '../labels';
 
-const FORCE_TARGETS = ['ACCEPTED', 'EN_ROUTE', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-
-type Params = { bookingId: string };
-
-const AdminBookingDetailScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminBookingDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<{ params: Params }, 'params'>>();
-  const { bookingId } = route.params || ({} as Params);
+  const { bookingId } = (useRoute().params ?? {}) as { bookingId: string };
+  const { data: meta } = useAdminMeta();
+  const query = useGetHSBookingQuery(bookingId);
+  const b = query.data;
+  const [forceStatus, forceState] = useForceHSBookingStatusMutation();
+  const [refund, refundState] = useRefundHSBookingMutation();
 
-  const [data, setData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sheet, setSheet] = useState<null | 'status' | 'refund'>(null);
+  const [target, setTarget] = useState<string | null>(null);
+  const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const [forceOpen, setForceOpen] = useState(false);
-  const [forceTarget, setForceTarget] = useState<string | null>(null);
-  const [forceReason, setForceReason] = useState('');
-  const [refundOpen, setRefundOpen] = useState(false);
-  const [refundAmount, setRefundAmount] = useState('');
-  const [refundReason, setRefundReason] = useState('');
-  const [acting, setActing] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
+  const close = () => {
+    setSheet(null);
     setError(null);
-    const res = await fetchAdminBookingDetail(bookingId);
-    if (res.success) setData(res.data);
-    else setError(res.message || 'Failed to load booking');
-    setLoading(false);
-  }, [bookingId]);
+    setTarget(null);
+    setAmount('');
+  };
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const doForce = async () => {
-    if (!forceTarget || !forceReason.trim()) {
-      Alert.alert('Reason required', 'A force-transition must include a reason — it is audited.');
-      return;
-    }
-    setActing(true);
-    const res = await forceBookingStatus(bookingId, forceTarget, forceReason.trim());
-    setActing(false);
-    if (res.success) {
-      setForceOpen(false);
-      setForceReason('');
-      setForceTarget(null);
-      load();
-    } else {
-      Alert.alert('Error', res.message || 'Force transition failed');
+  const confirm = async (reason: string) => {
+    if (!b) return;
+    if (sheet === 'status') {
+      if (!target) return setError('Choose the new status.');
+      const res = await forceStatus({ id: b.id, status: target, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The status could not be changed.');
+      close();
+      showToast({ tone: 'success', message: `Status changed to ${presentStatus(meta, 'bookingStatuses', target).label}.` });
+    } else if (sheet === 'refund') {
+      const value = amount.trim() ? Number(amount) : undefined;
+      if (value !== undefined && !(value > 0)) return setError('Enter an amount above 0, or leave it empty to refund the rest.');
+      const res = await refund({ id: b.id, amount: value, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The refund did not go through.');
+      close();
+      showToast({ tone: 'success', message: `${formatMoney(res.data.amount)} refunded to the customer's wallet.` });
     }
   };
 
-  const doRefund = async () => {
-    if (!refundReason.trim()) {
-      Alert.alert('Reason required', 'A refund must include a reason — it is audited.');
-      return;
-    }
-    setActing(true);
-    const res = await refundBooking(
-      bookingId,
-      refundAmount ? Number(refundAmount) : undefined,
-      refundReason.trim()
-    );
-    setActing(false);
-    if (res.success) {
-      setRefundOpen(false);
-      setRefundAmount('');
-      setRefundReason('');
-      Alert.alert('Refunded', `Rs. ${res.data.amount} credited to the customer's wallet.`);
-      load();
-    } else {
-      Alert.alert('Error', res.message || 'Refund failed');
-    }
-  };
+  const statusOptions = enumOptions(meta, 'bookingStatuses').filter((o) => o.value !== b?.status);
+  const remaining = b?.refund?.remaining;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Booking Detail</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      ) : error || !data ? (
-        <View style={styles.center}>
-          <Text style={styles.stateText}>{error || 'Not found'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.big}>{data.serviceType}</Text>
-              <View
-                style={[styles.chip, { backgroundColor: `${HS_STATUS_COLORS[data.status] || '#999'}20` }]}
-              >
-                <Text style={[styles.chipText, { color: HS_STATUS_COLORS[data.status] || '#999' }]}>
-                  {data.status}
-                </Text>
-              </View>
+    <AdminScreen title="Booking" refreshing={query.isFetching && !query.isLoading} onRefresh={query.refetch}>
+      <QueryState isLoading={query.isLoading} error={query.error} onRetry={query.refetch} action="see this booking">
+        {b && (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>{categoryLabel(meta, b.serviceType || b.serviceCategory)}</Text>
+              <Text style={styles.sub}>Booked {formatDateTime(b.createdAt)}</Text>
+              <StatusBadge group="bookingStatuses" value={b.status} style={styles.badge} />
             </View>
-            <Text style={styles.meta}>Customer: {data.customer?.name} ({data.customer?.email})</Text>
-            <Text style={styles.meta}>Provider: {data.provider?.name} ({data.provider?.email})</Text>
-            <Text style={styles.meta}>
-              Scheduled: {data.scheduledFor ? new Date(data.scheduledFor).toLocaleString() : '—'}
-            </Text>
-            <Text style={styles.meta}>Price: Rs. {data.price}</Text>
-            {data.dispute && (
-              <TouchableOpacity onPress={() => navigation.navigate('AdminHSDisputes')}>
-                <Text style={[styles.meta, { color: COLORS.danger, fontWeight: '700' }]}>
-                  ⚠ Dispute {data.dispute.status}: {data.dispute.reason}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
 
-          <Text style={styles.sectionTitle}>Status history</Text>
-          <View style={styles.card}>
-            {(data.statusHistory || []).map((h: any, i: number) => (
-              <View key={i} style={styles.historyRow}>
-                <View
-                  style={[styles.dot, { backgroundColor: HS_STATUS_COLORS[h.status] || '#999' }]}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.historyStatus}>
-                    {h.status} <Text style={styles.historyRole}>({h.role})</Text>
-                  </Text>
-                  <Text style={styles.historyMeta}>
-                    {h.changedAt ? new Date(h.changedAt).toLocaleString() : ''}
-                  </Text>
-                  {!!h.note && <Text style={styles.historyNote}>{h.note}</Text>}
-                </View>
-              </View>
-            ))}
-          </View>
+            <Section title="Job" card>
+              <DetailRow label="Scheduled for" value={formatDateTime(b.scheduledFor)} />
+              <DetailRow label="Address" value={[b.address?.line1, b.address?.area, b.address?.city || b.city].filter(Boolean).join(', ')} />
+              <DetailRow label="Description" value={b.description} />
+              <DetailRow label="Instructions" value={b.instructions} last />
+            </Section>
 
-          <Text style={styles.sectionTitle}>Payment trail</Text>
-          <View style={styles.card}>
-            <Text style={styles.meta}>Status: {data.payment?.status}</Text>
-            <Text style={styles.meta}>Method: {data.payment?.method || '—'}</Text>
-            <Text style={styles.meta}>
-              Paid at: {data.payment?.paidAt ? new Date(data.payment.paidAt).toLocaleString() : '—'}
-            </Text>
-            {data.payment?.transaction && (
-              <Text style={styles.meta}>
-                Wallet txn: {data.payment.transaction._id || data.payment.transaction}
-              </Text>
-            )}
-            {data.review && (
-              <Text style={styles.meta}>
-                Review: ★ {data.review.rating} — {data.review.comment || 'no comment'}
-              </Text>
-            )}
-          </View>
+            <Section title="People" card>
+              <DetailRow label="Customer" value={b.customer ? `${b.customer.name} · ${b.customer.email}` : null} />
+              <DetailRow label="Provider" value={b.provider ? `${b.provider.name} · ${b.provider.email}` : 'Not assigned'} last />
+            </Section>
 
-          <View style={{ flexDirection: 'row', marginTop: 6 }}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => setForceOpen(true)}>
-              <Ionicons name="swap-horizontal" size={18} color="#fff" />
-              <Text style={styles.actionText}>Force status</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: COLORS.danger }]}
-              onPress={() => setRefundOpen(true)}
-            >
-              <Ionicons name="cash-outline" size={18} color="#fff" />
-              <Text style={styles.actionText}>Refund</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      )}
+            <Section title="Money" card>
+              <DetailRow label="Price" value={formatMoney(b.price)} />
+              <DetailRow label="Payment" value={`${b.payment.status}${b.payment.method ? ` · ${b.payment.method}` : ''}`} />
+              <DetailRow label="Paid" value={b.payment.paidAt ? formatDateTime(b.payment.paidAt) : null} />
+              {b.refund && <DetailRow label="Refunded so far" value={formatMoney(b.refund.refunded)} />}
+              {b.refund && <DetailRow label="Still refundable" value={formatMoney(b.refund.remaining)} last />}
+            </Section>
 
-      {/* Force status modal */}
-      <Modal visible={forceOpen} transparent animationType="fade">
-        <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Force status change</Text>
-            <Text style={styles.auditNote}>
-              This action is audited with your admin id and the reason below.
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-              {FORCE_TARGETS.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.targetChip, forceTarget === s && styles.targetChipActive]}
-                  onPress={() => setForceTarget(s)}
-                >
-                  <Text
-                    style={[styles.targetText, forceTarget === s && styles.targetTextActive]}
-                  >
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Mandatory reason…"
-              placeholderTextColor={COLORS.textLight}
-              value={forceReason}
-              onChangeText={setForceReason}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setForceOpen(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={doForce} disabled={acting}>
-                {acting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.confirmText}>Apply</Text>
+            {(b.dispute || b.review || b.cancellation) && (
+              <Section title="Afterwards" card>
+                {b.cancellation && <DetailRow label="Cancelled" value={[b.cancellation.by, b.cancellation.reason].filter(Boolean).join(' — ')} />}
+                {b.review && <DetailRow label="Review" value={`${b.review.rating} ★${b.review.comment ? ` — “${b.review.comment}”` : ''}`} />}
+                {b.dispute && (
+                  <ListRow
+                    title={`Dispute: ${b.dispute.reason}`}
+                    subtitle={presentStatus(meta, 'disputeStatuses', b.dispute.status).label}
+                    icon="chatbox-ellipses-outline"
+                    onPress={() => navigation.navigate('AdminHSDisputes')}
+                  />
                 )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+              </Section>
+            )}
 
-      {/* Refund modal */}
-      <Modal visible={refundOpen} transparent animationType="fade">
-        <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Manual wallet refund</Text>
-            <Text style={styles.auditNote}>
-              Credits the customer's wallet. Audited with your admin id.
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={`Amount (blank = full Rs. ${data?.price ?? ''})`}
-              placeholderTextColor={COLORS.textLight}
-              value={refundAmount}
-              onChangeText={setRefundAmount}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Mandatory reason…"
-              placeholderTextColor={COLORS.textLight}
-              value={refundReason}
-              onChangeText={setRefundReason}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setRefundOpen(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmBtn, { backgroundColor: COLORS.danger }]}
-                onPress={doRefund}
-                disabled={acting}
-              >
-                {acting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.confirmText}>Refund</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+            <Section title="Status history" card>
+              {b.statusHistory.length === 0 ? (
+                <Text style={styles.muted}>No changes recorded.</Text>
+              ) : (
+                [...b.statusHistory].reverse().map((h, i, all) => (
+                  <View key={`${h.status}-${h.changedAt}-${i}`} style={[styles.history, i < all.length - 1 && styles.divider]}>
+                    <Text style={styles.historyStatus}>{presentStatus(meta, 'bookingStatuses', h.status).label}</Text>
+                    <Text style={styles.historyMeta}>
+                      {formatDateTime(h.changedAt)} · by {h.role}
+                      {h.note ? ` — ${h.note}` : ''}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </Section>
+
+            <PermissionGate all={['canManageHomeServices']} fallback={null}>
+              <View style={styles.actions}>
+                <Button label="Change status" variant="secondary" onPress={() => setSheet('status')} fullWidth />
+                <PermissionGate all={['canManageFinance']} fallback={null}>
+                  <Button
+                    label="Refund"
+                    variant="secondary"
+                    onPress={() => setSheet('refund')}
+                    disabled={b.payment.status !== 'paid' || remaining === 0}
+                    fullWidth
+                  />
+                </PermissionGate>
+              </View>
+            </PermissionGate>
+          </>
+        )}
+      </QueryState>
+
+      <ConfirmSheet
+        visible={sheet !== null}
+        title={sheet === 'status' ? 'Change booking status' : 'Refund to customer wallet'}
+        message={
+          sheet === 'status'
+            ? 'For when the booking is stuck. The customer and provider apps follow the new status.'
+            : remaining !== undefined
+              ? `Up to ${formatMoney(remaining)} can still be refunded. Leave the amount empty to refund all of it.`
+              : undefined
+        }
+        confirmLabel={sheet === 'status' ? 'Change status' : 'Refund'}
+        destructive={sheet === 'refund'}
+        requireReason
+        busy={forceState.isLoading || refundState.isLoading}
+        error={error}
+        onConfirm={confirm}
+        onClose={close}
+      >
+        {sheet === 'status' && <FilterChips options={statusOptions} value={target ?? ''} onChange={setTarget} />}
+        {sheet === 'refund' && (
+          <TextField
+            label="Amount (PKR)"
+            placeholder={remaining !== undefined ? String(remaining) : undefined}
+            value={amount}
+            onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+            keyboardType="decimal-pad"
+          />
+        )}
+      </ConfirmSheet>
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-    marginBottom: 14,
-  },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  big: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  chip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  chipText: { fontSize: 10, fontWeight: '700' },
-  meta: { fontSize: 13, color: COLORS.text, marginTop: 6 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  historyRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 4, marginRight: 10 },
-  historyStatus: { fontSize: 13, fontWeight: '700', color: COLORS.text },
-  historyRole: { fontWeight: '400', color: COLORS.textLight },
-  historyMeta: { fontSize: 11, color: COLORS.textLight, marginTop: 1 },
-  historyNote: { fontSize: 12, color: COLORS.textLight, fontStyle: 'italic', marginTop: 2 },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    marginRight: 10,
-  },
-  actionText: { color: '#fff', fontWeight: '700', marginLeft: 6, fontSize: 13 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { color: COLORS.textLight, fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
-  modalWrap: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 18 },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  auditNote: { fontSize: 12, color: COLORS.textLight, marginTop: 4 },
-  targetChip: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  targetChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  targetText: { fontSize: 11, fontWeight: '700', color: COLORS.textLight },
-  targetTextActive: { color: '#fff' },
-  input: {
-    backgroundColor: sh.n('#F3F4F6', 'lineSoft'),
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 10,
-    color: COLORS.text,
-    fontSize: 14,
-  },
-  modalActions: { flexDirection: 'row', marginTop: 14 },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  cancelText: { color: COLORS.text, fontWeight: '700' },
-  confirmBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  confirmText: { color: '#fff', fontWeight: '700' },
-});
-
-export default AdminBookingDetailScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    header: { marginBottom: S.xl },
+    title: { ...T.heading, color: c.ink },
+    sub: { ...T.body, color: c.inkMuted, marginTop: 2 },
+    badge: { alignSelf: 'flex-start', marginTop: S.sm },
+    muted: { ...T.body, color: c.inkMuted, paddingVertical: S.md },
+    history: { paddingVertical: S.md },
+    divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+    historyStatus: { ...T.bodyStrong, color: c.ink },
+    historyMeta: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    actions: { gap: S.sm },
+  });

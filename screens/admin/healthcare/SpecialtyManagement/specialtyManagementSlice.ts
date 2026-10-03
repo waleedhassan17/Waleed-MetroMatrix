@@ -5,6 +5,7 @@ import {
   createSpecialtyApi,
   updateSpecialtyApi,
   deleteSpecialtyApi,
+  reactivateSpecialtyApi,
 } from '../../../../networks/healthcare/adminApi';
 
 // Map a backend specialty (commonConditions: string[]) into this screen's shape.
@@ -18,8 +19,9 @@ function toLocalSpecialty(s: any, idx = 0): any {
     commonConditions: (s.commonConditions || []).map((c: any, i: number) =>
       typeof c === 'string' ? { id: `${i}`, name: c } : c
     ),
-    isActive: s.isActive ?? true,
-    doctorCount: s.doctorCount || 0,
+    isActive: s.isActive !== false,
+    // The server counts doctors per specialty; a missing count shows as "—".
+    doctorCount: typeof s.doctorCount === 'number' ? s.doctorCount : null,
     color: SPECIALTY_COLORS[idx % SPECIALTY_COLORS.length],
     createdAt: s.createdAt || new Date().toISOString(),
     updatedAt: s.updatedAt,
@@ -42,7 +44,7 @@ export interface Specialty {
   description: string;
   commonConditions: CommonCondition[];
   isActive: boolean;
-  doctorCount: number;
+  doctorCount: number | null;
   color: string;
   createdAt: string;
   updatedAt?: string;
@@ -68,142 +70,16 @@ interface SpecialtyManagementState {
 }
 
 // ============================================
-// INITIAL STATE (Dummy Data)
+// INITIAL STATE
 // ============================================
 
+// Empty and loading: nothing is shown until the server has answered. This
+// used to ship eight invented specialties with doctor counts, which is what
+// the screen displayed when the request failed.
 const initialState: SpecialtyManagementState = {
-  specialties: [
-    {
-      id: '1',
-      name: 'General Medicine',
-      icon: 'medkit',
-      description: 'Primary healthcare and general consultations for common illnesses and preventive care.',
-      commonConditions: [
-        { id: 'c1', name: 'Fever & Flu' },
-        { id: 'c2', name: 'Diabetes' },
-        { id: 'c3', name: 'Hypertension' },
-        { id: 'c4', name: 'Allergies' },
-      ],
-      isActive: true,
-      doctorCount: 45,
-      color: '#3B82F6',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Dermatology',
-      icon: 'body',
-      description: 'Skin, hair, and nail conditions including cosmetic treatments.',
-      commonConditions: [
-        { id: 'c5', name: 'Acne' },
-        { id: 'c6', name: 'Eczema' },
-        { id: 'c7', name: 'Psoriasis' },
-        { id: 'c8', name: 'Hair Loss' },
-      ],
-      isActive: true,
-      doctorCount: 28,
-      color: '#8B5CF6',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '3',
-      name: 'Pediatrics',
-      icon: 'happy',
-      description: 'Medical care for infants, children, and adolescents.',
-      commonConditions: [
-        { id: 'c9', name: 'Vaccination' },
-        { id: 'c10', name: 'Growth Issues' },
-        { id: 'c11', name: 'Childhood Infections' },
-        { id: 'c12', name: 'Nutrition' },
-      ],
-      isActive: true,
-      doctorCount: 32,
-      color: '#10B981',
-      createdAt: '2024-02-01',
-    },
-    {
-      id: '4',
-      name: 'Orthopedics',
-      icon: 'fitness',
-      description: 'Bone, joint, and muscle conditions including sports injuries.',
-      commonConditions: [
-        { id: 'c13', name: 'Fractures' },
-        { id: 'c14', name: 'Arthritis' },
-        { id: 'c15', name: 'Back Pain' },
-        { id: 'c16', name: 'Sports Injuries' },
-      ],
-      isActive: true,
-      doctorCount: 22,
-      color: '#F59E0B',
-      createdAt: '2024-02-10',
-    },
-    {
-      id: '5',
-      name: 'Cardiology',
-      icon: 'heart',
-      description: 'Heart and cardiovascular system conditions and treatments.',
-      commonConditions: [
-        { id: 'c17', name: 'Heart Disease' },
-        { id: 'c18', name: 'High Blood Pressure' },
-        { id: 'c19', name: 'Chest Pain' },
-        { id: 'c20', name: 'Arrhythmia' },
-      ],
-      isActive: true,
-      doctorCount: 18,
-      color: '#EF4444',
-      createdAt: '2024-02-15',
-    },
-    {
-      id: '6',
-      name: 'Neurology',
-      icon: 'pulse',
-      description: 'Brain, spinal cord, and nervous system disorders.',
-      commonConditions: [
-        { id: 'c21', name: 'Migraine' },
-        { id: 'c22', name: 'Epilepsy' },
-        { id: 'c23', name: 'Stroke' },
-        { id: 'c24', name: 'Neuropathy' },
-      ],
-      isActive: true,
-      doctorCount: 14,
-      color: '#6366F1',
-      createdAt: '2024-03-01',
-    },
-    {
-      id: '7',
-      name: 'Ophthalmology',
-      icon: 'eye',
-      description: 'Eye care, vision disorders, and surgical procedures.',
-      commonConditions: [
-        { id: 'c25', name: 'Cataract' },
-        { id: 'c26', name: 'Glaucoma' },
-        { id: 'c27', name: 'Refractive Errors' },
-        { id: 'c28', name: 'Dry Eye' },
-      ],
-      isActive: false,
-      doctorCount: 10,
-      color: '#14B8A6',
-      createdAt: '2024-03-10',
-    },
-    {
-      id: '8',
-      name: 'Gynecology',
-      icon: 'woman',
-      description: 'Women\'s reproductive health and obstetric care.',
-      commonConditions: [
-        { id: 'c29', name: 'Pregnancy Care' },
-        { id: 'c30', name: 'PCOS' },
-        { id: 'c31', name: 'Menstrual Issues' },
-        { id: 'c32', name: 'Infertility' },
-      ],
-      isActive: true,
-      doctorCount: 25,
-      color: '#EC4899',
-      createdAt: '2024-03-15',
-    },
-  ],
+  specialties: [],
   editingSpecialty: null,
-  loading: false,
+  loading: true,
   saving: false,
   error: null,
   searchQuery: '',
@@ -248,7 +124,7 @@ export const saveSpecialty = createAsyncThunk(
         // Preserve UI-only fields the backend doesn't store.
         color: specialty.color || existing?.color || '#3B82F6',
         commonConditions: specialty.commonConditions,
-        doctorCount: existing?.doctorCount ?? 0,
+        doctorCount: existing ? existing.doctorCount : null,
       } as Specialty;
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to save specialty');
@@ -264,12 +140,10 @@ export const toggleSpecialtyStatus = createAsyncThunk(
       const specialty = state.specialtyManagement.specialties.find(s => s.id === specialtyId);
       if (!specialty) return rejectWithValue('Specialty not found');
 
-      // Backend deactivates via DELETE (soft-delete). Reactivation is applied locally
-      // (no reactivate endpoint yet).
-      if (specialty.isActive) {
-        const res = await deleteSpecialtyApi(specialtyId);
-        if (!res.success) return rejectWithValue(res.message || 'Failed to deactivate');
-      }
+      // DELETE deactivates (refused while verified doctors use it); PATCH
+      // { isActive: true } reactivates. Both are recorded in the audit log.
+      const res = specialty.isActive ? await deleteSpecialtyApi(specialtyId) : await reactivateSpecialtyApi(specialtyId);
+      if (!res.success) return rejectWithValue(res.message || 'Could not change the status');
       return { id: specialtyId, isActive: !specialty.isActive };
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to toggle status');
@@ -346,6 +220,9 @@ const specialtyManagementSlice = createSlice({
         state.error = action.payload as string;
       })
       // toggleSpecialtyStatus
+      .addCase(toggleSpecialtyStatus.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
       .addCase(toggleSpecialtyStatus.fulfilled, (state, action) => {
         const specialty = state.specialties.find(s => s.id === action.payload.id);
         if (specialty) {
@@ -403,7 +280,10 @@ export const selectFilteredSpecialties = (state: RootState) => {
   return filtered;
 };
 
-export const selectTotalDoctorCount = (state: RootState) =>
-  state.specialtyManagement.specialties.reduce((sum, s) => sum + s.doctorCount, 0);
+/** Doctors across specialties; null when the server sent no counts. */
+export const selectTotalDoctorCount = (state: RootState): number | null => {
+  const counts = state.specialtyManagement.specialties.map((s) => s.doctorCount).filter((n): n is number => typeof n === 'number');
+  return counts.length ? counts.reduce((sum, n) => sum + n, 0) : null;
+};
 
 export default specialtyManagementSlice.reducer;

@@ -22,11 +22,18 @@ import VerifySuccessScreen from "../screens/verify-success/verifySuccess";
 import ResetPasswordOTPScreen from "../screens/authentication-screens/reset-password-otp/resetPasswordOtp";
 import ResetPasswordScreen from "../screens/authentication-screens/reset-password/resetPassword";
 
-import AdminDashboardScreen from "../screens/admin/admin-dashboard/adminDashboard";
-import ProviderManagementScreen from "../screens/admin/provider-management/providerManagementScreen";
-import ProviderReviewScreen from "../screens/admin/pending-review/pendingReviewScreen";
-import UserManagementScreen from "../screens/admin/user-management/userManagementScreen";
-import ServiceProvidersAdminScreen from "../screens/admin/providers/service-providers/tabs/index";
+import AdminSignInScreen from "../screens/admin/auth/AdminSignInScreen";
+import AdminTotpScreen from "../screens/admin/auth/AdminTotpScreen";
+import AdminChangePasswordScreen from "../screens/admin/auth/AdminChangePasswordScreen";
+import AdminTwoFactorEnrolScreen from "../screens/admin/auth/AdminTwoFactorEnrolScreen";
+import AdminTabs from "../navigators/AdminTabs";
+import AdminNotificationsScreen from "../screens/admin/notifications/AdminNotificationsScreen";
+import AdminSettingsScreen from "../screens/admin/settings/AdminSettingsScreen";
+import AdminProfileScreen from "../screens/admin/account/AdminProfileScreen";
+import AdminManagementScreen from "../screens/admin/admins/AdminManagementScreen";
+import AdminDetailScreen from "../screens/admin/admins/AdminDetailScreen";
+import AdminProviderDetailScreen from "../screens/admin/people/AdminProviderDetailScreen";
+import AdminUserDetailScreen from "../screens/admin/people/AdminUserDetailScreen";
 
 import ProviderApprovalPendingScreen from "../screens/authentication-screens/provider-approval-pending/providerApprovalPendingScreen";
 
@@ -138,12 +145,18 @@ export const BaseRouteNames = {
   PersonalInfo: "PersonalInfo",
 
   //Admin
-  AdminDashboardScreen: "AdminDashboard",
-  ProviderManagementScreen: "ProviderManagement",
-  ProviderReviewScreen: "ProviderReview",
-  PendingReview: "PendingReview",
-  UserManagementScreen: "UserManagement",
-  ServiceProviders: "ServiceProviders",
+  AdminSignIn: "AdminSignIn",
+  AdminTotp: "AdminTotp",
+  AdminChangePassword: "AdminChangePassword",
+  AdminTwoFactorEnrol: "AdminTwoFactorEnrol",
+  AdminHome: "AdminHome",
+  AdminNotifications: "AdminNotifications",
+  AdminSettings: "AdminSettings",
+  AdminProfile: "AdminProfile",
+  AdminManagement: "AdminManagement",
+  AdminDetail: "AdminDetail",
+  AdminProviderDetail: "AdminProviderDetail",
+  AdminUserDetail: "AdminUserDetail",
   
   // Provider Approval
   ProviderApprovalPending: "ProviderApprovalPending",
@@ -327,12 +340,19 @@ export type RootStackParamList = {
   };
   
   //Admin
-  AdminDashboard: undefined;
-  ProviderManagement: undefined;
-  ProviderReview: { providerId: string };
-  PendingReview: undefined;
-  UserManagement: undefined;
-  ServiceProviders: undefined;
+  AdminSignIn: undefined;
+  AdminTotp: { challengeToken: string; expiresInSeconds?: number };
+  AdminChangePassword: undefined;
+  AdminTwoFactorEnrol: undefined;
+  /** The console's tabs; `screen` opens a tab, e.g. { screen: 'Queue' }. */
+  AdminHome: { screen?: 'Overview' | 'Queue' | 'People' | 'Modules' | 'More'; params?: object } | undefined;
+  AdminNotifications: undefined;
+  AdminSettings: undefined;
+  AdminProfile: undefined;
+  AdminManagement: undefined;
+  AdminDetail: { adminId: string };
+  AdminProviderDetail: { providerId: string };
+  AdminUserDetail: { userId: string };
 
   // Other
   Logout: undefined;
@@ -539,47 +559,33 @@ export const BaseRoutes: IRoute[] = [
     }
   },
   {
-    component: AdminDashboardScreen,
-    title: BaseRouteNames.AdminDashboardScreen,
-    options: {
-      headerShown: false,
-    }
+    component: AdminSignInScreen,
+    title: BaseRouteNames.AdminSignIn,
+    options: { headerShown: false },
   },
   {
-    component: ProviderManagementScreen,
-    title: BaseRouteNames.ProviderManagementScreen,
-    options: {
-      headerShown: false,
-    }
+    component: AdminTotpScreen,
+    title: BaseRouteNames.AdminTotp,
+    options: { headerShown: false },
   },
   {
-    component: ProviderReviewScreen,
-    title: BaseRouteNames.ProviderReviewScreen,
-    options: {
-      headerShown: false,
-    }
+    component: AdminChangePasswordScreen,
+    title: BaseRouteNames.AdminChangePassword,
+    options: { headerShown: false, gestureEnabled: false },
   },
   {
-    component: ProviderReviewScreen,
-    title: BaseRouteNames.PendingReview,
-    options: {
-      headerShown: false,
-    }
+    component: AdminTwoFactorEnrolScreen,
+    title: BaseRouteNames.AdminTwoFactorEnrol,
+    options: { headerShown: false, gestureEnabled: false },
   },
-  {
-    component: UserManagementScreen,
-    title: BaseRouteNames.UserManagementScreen,
-    options: {
-      headerShown: false,
-    }
-  },
-  {
-    component: ServiceProvidersAdminScreen,
-    title: BaseRouteNames.ServiceProviders,
-    options: {
-      headerShown: false,
-    }
-  },
+  { component: AdminTabs, title: BaseRouteNames.AdminHome, options: { headerShown: false, gestureEnabled: false } },
+  { component: AdminNotificationsScreen, title: BaseRouteNames.AdminNotifications, options: { headerShown: false } },
+  { component: AdminSettingsScreen, title: BaseRouteNames.AdminSettings, options: { headerShown: false } },
+  { component: AdminProfileScreen, title: BaseRouteNames.AdminProfile, options: { headerShown: false } },
+  { component: AdminManagementScreen, title: BaseRouteNames.AdminManagement, options: { headerShown: false } },
+  { component: AdminDetailScreen, title: BaseRouteNames.AdminDetail, options: { headerShown: false } },
+  { component: AdminProviderDetailScreen, title: BaseRouteNames.AdminProviderDetail, options: { headerShown: false } },
+  { component: AdminUserDetailScreen, title: BaseRouteNames.AdminUserDetail, options: { headerShown: false } },
   {
     component: ProviderApprovalPendingScreen,
     title: BaseRouteNames.ProviderApprovalPending,
@@ -1134,7 +1140,44 @@ export const BaseRoutes: IRoute[] = [
 // ============================================================================
 export const LightOnlyRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([]);
 
-export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping'>> = {
+// ============================================================================
+// Admin console routes. BaseNavigator renders each through AdminGate, which
+// sends a route reached without a verified admin session — by navigation, a
+// deep link or a relaunch — to AdminSignIn, and a restricted session to the
+// screen that lifts the restriction. AdminSignIn and AdminTotp are the way in,
+// so they are not listed.
+// ============================================================================
+export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
+  BaseRouteNames.AdminChangePassword,
+  BaseRouteNames.AdminTwoFactorEnrol,
+  BaseRouteNames.AdminHome,
+  BaseRouteNames.AdminNotifications,
+  BaseRouteNames.AdminSettings,
+  BaseRouteNames.AdminProfile,
+  BaseRouteNames.AdminManagement,
+  BaseRouteNames.AdminDetail,
+  BaseRouteNames.AdminProviderDetail,
+  BaseRouteNames.AdminUserDetail,
+  BaseRouteNames.AdminHSBookings,
+  BaseRouteNames.AdminHSBookingDetail,
+  BaseRouteNames.AdminHSDisputes,
+  BaseRouteNames.AdminHSPayouts,
+  BaseRouteNames.AdminHSServiceCategories,
+  BaseRouteNames.AdminHSAnalytics,
+  BaseRouteNames.AdminHSSettings,
+  BaseRouteNames.AdminShopping,
+  BaseRouteNames.HealthcareAnalytics,
+  BaseRouteNames.SpecialtyManagement,
+  BaseRouteNames.DoctorManagement,
+  BaseRouteNames.AdminHealthcareDashboard,
+  BaseRouteNames.AdminAppointments,
+  BaseRouteNames.AdminAppointmentDetail,
+  BaseRouteNames.AdminClinicManagement,
+  BaseRouteNames.AdminReviewModeration,
+  BaseRouteNames.AdminHealthcareSettings,
+]);
+
+export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping' | 'admin'>> = {
   // Customer
   [BaseRouteNames.HomeServiceLayout]: 'homeservice',
   [BaseRouteNames.ProvidersScreen]: 'homeservice',
@@ -1168,4 +1211,28 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
 
   // Shopping
   [BaseRouteNames.ShoppingAddresses]: 'shopping',
+
+  // Admin console (screens built on components/admin)
+  [BaseRouteNames.AdminSignIn]: 'admin',
+  [BaseRouteNames.AdminTotp]: 'admin',
+  [BaseRouteNames.AdminChangePassword]: 'admin',
+  [BaseRouteNames.AdminTwoFactorEnrol]: 'admin',
+  [BaseRouteNames.AdminHome]: 'admin',
+  [BaseRouteNames.AdminNotifications]: 'admin',
+  [BaseRouteNames.AdminSettings]: 'admin',
+  [BaseRouteNames.AdminProfile]: 'admin',
+  [BaseRouteNames.AdminManagement]: 'admin',
+  [BaseRouteNames.AdminDetail]: 'admin',
+  [BaseRouteNames.AdminProviderDetail]: 'admin',
+  [BaseRouteNames.AdminUserDetail]: 'admin',
+  [BaseRouteNames.AdminHSBookings]: 'admin',
+  [BaseRouteNames.AdminHSBookingDetail]: 'admin',
+  [BaseRouteNames.AdminHSDisputes]: 'admin',
+  [BaseRouteNames.AdminHSPayouts]: 'admin',
+  [BaseRouteNames.AdminHSServiceCategories]: 'admin',
+  [BaseRouteNames.AdminHSAnalytics]: 'admin',
+  [BaseRouteNames.AdminHSSettings]: 'admin',
+  [BaseRouteNames.AdminHealthcareDashboard]: 'admin',
+  [BaseRouteNames.HealthcareAnalytics]: 'admin',
+  [BaseRouteNames.AdminHealthcareSettings]: 'admin',
 };

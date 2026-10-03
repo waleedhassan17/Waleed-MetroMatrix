@@ -6,19 +6,14 @@ import {
   googleOAuthLogin,
   facebookOAuthLogin 
 } from '../../../networks/authcalls/userSignin';
-import { adminLoginAPI } from '../../../networks/admin/adminAPIs';
 import {
   KeyForStorage,
   saveData,
   saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
 
-// ✅ Admin emails that should use admin login flow directly
-const ADMIN_EMAILS = [
-  'waleedhassansfd@gmail.com',
-  'admin@mmlocal.dev', // local dev/test admin
-  // Add more admin emails here as needed
-];
+// Admins sign in on their own screen (screens/admin/auth/AdminSignInScreen.tsx),
+// reached from "Staff sign-in" below the form. This flow is customers only.
 
 interface User {
   id: string;
@@ -35,13 +30,6 @@ interface User {
   isVerified?: boolean;
 }
 
-interface AdminUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: string;
-}
-
 interface SignInSliceState {
   email: string;
   password: string;
@@ -52,8 +40,7 @@ interface SignInSliceState {
   accessToken: string;
   refreshToken: string;
   user: User | null;
-  admin: AdminUser | null;
-  userType: 'user' | 'admin' | null;
+  userType: 'user' | null;
 }
 
 interface SignInPayload {
@@ -68,13 +55,6 @@ interface SignInResponse {
   user: User;
 }
 
-interface AdminLoginResponse {
-  success: boolean;
-  accessToken: string;
-  refreshToken?: string;
-  admin: AdminUser;
-}
-
 const initialState: SignInSliceState = {
   email: '',
   password: '',
@@ -85,15 +65,7 @@ const initialState: SignInSliceState = {
   accessToken: '',
   refreshToken: '',
   user: null,
-  admin: null,
   userType: null,
-};
-
-/**
- * ✅ Helper function to check if email is an admin email
- */
-const isAdminEmail = (email: string): boolean => {
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
 };
 
 /**
@@ -113,87 +85,31 @@ const isValidToken = (token: any): boolean => {
 const saveAuthToStorage = async (
   accessToken: string,
   refreshToken: string | undefined,
-  userType: 'user' | 'admin',
-  userData: User | AdminUser | null
+  userType: 'user',
+  userData: User | null
 ): Promise<boolean> => {
-  console.log('💾 saveAuthToStorage called for userType:', userType);
-  
-  // Validate token
   if (!isValidToken(accessToken)) {
-    console.error('❌ Invalid access token, not saving:', accessToken);
+    console.error('❌ Sign-in response had no usable access token');
     return false;
   }
-  
+
   try {
-    if (userType === 'admin') {
-      // ✅ Save admin tokens to admin-specific keys
-      const tokenSaved = await saveData(KeyForStorage.adminToken, accessToken);
-      if (!tokenSaved) {
-        console.error('❌ Failed to save admin token');
-        return false;
-      }
-      console.log('✅ Admin access token saved to adminToken key');
-      
-      // Save admin refresh token if valid
-      if (isValidToken(refreshToken)) {
-        await saveData(KeyForStorage.adminRefreshToken, refreshToken);
-        console.log('✅ Admin refresh token saved');
-      }
-      
-      // Save admin info - ensure it's properly stringified
-      if (userData) {
-        // ✅ FIX: Log what we're saving to debug
-        console.log('📝 Saving admin userData:', typeof userData, userData);
-        
-        // ✅ FIX: Ensure we're not double-stringifying
-        let adminInfoToSave: string;
-        if (typeof userData === 'string') {
-          // Already a string, use as-is (might already be JSON)
-          adminInfoToSave = userData;
-          console.log('ℹ️ userData is already a string');
-        } else {
-          // Object, need to stringify
-          adminInfoToSave = JSON.stringify(userData);
-          console.log('ℹ️ Stringified userData:', adminInfoToSave.substring(0, 100));
-        }
-        
-        await saveData(KeyForStorage.adminInfo, adminInfoToSave);
-        console.log('✅ Admin info saved to adminInfo key');
-      }
-    } else {
-      // ✅ Save user tokens to user-specific keys
-      const tokenSaved = await saveData(KeyForStorage.accessToken, accessToken);
-      if (!tokenSaved) {
-        console.error('❌ Failed to save access token');
-        return false;
-      }
-      console.log('✅ Access token saved to storage');
-      
-      // Save refresh token if valid
-      if (isValidToken(refreshToken)) {
-        await saveData(KeyForStorage.refreshToken, refreshToken);
-        console.log('✅ Refresh token saved');
-      }
-      
-      // Save user info
-      if (userData) {
-        await saveUserInfo(userData);
-        console.log('✅ User info saved');
-      }
+    const tokenSaved = await saveData(KeyForStorage.accessToken, accessToken);
+    if (!tokenSaved) {
+      console.error('❌ Failed to save access token');
+      return false;
     }
-    
-    // Save user type
+    if (isValidToken(refreshToken)) {
+      await saveData(KeyForStorage.refreshToken, refreshToken);
+    }
+    if (userData) {
+      await saveUserInfo(userData);
+    }
     await saveData(KeyForStorage.userType, userType);
-    console.log('✅ User type saved:', userType);
-    
-    // Save authentication status
     await saveData(KeyForStorage.isAuthenticated, true);
-    console.log('✅ Authentication status saved');
-    
-    console.log('💾 All auth data saved successfully');
     return true;
   } catch (error) {
-    console.error('❌ Error saving auth data:', error);
+    console.error('❌ Error saving auth data:', (error as Error)?.message);
     return false;
   }
 };
@@ -231,51 +147,20 @@ export const signInSlice = createAppSlice({
       state.accessToken = '';
       state.refreshToken = '';
       state.user = null;
-      state.admin = null;
       state.userType = null;
       state.status = 'idle';
       state.socialLoginStatus = 'idle';
     }),
 
-    // ✅ FIXED: submitSignInAsync with proper admin detection and awaited saves
+    // Customer email/password sign-in, with awaited saves.
     submitSignInAsync: create.asyncThunk(
       async (
         { email, password }: SignInPayload,
         { rejectWithValue }
       ) => {
-        console.log('📤 submitSignInAsync started with:', { email });
-
         try {
           const normalizedEmail = email.trim().toLowerCase();
           
-          // ✅ Check if this is an admin email - try admin login FIRST
-          if (isAdminEmail(normalizedEmail)) {
-            console.log('🔐 Admin email detected, trying admin login first...');
-            
-            try {
-              const adminResult: AdminLoginResponse = await adminLoginAPI(normalizedEmail, password);
-              console.log('📥 Admin login successful:', adminResult);
-              
-              // ✅ CRITICAL FIX: Save to storage BEFORE returning
-              const saved = await saveAuthToStorage(
-                adminResult.accessToken,
-                adminResult.refreshToken,
-                'admin',
-                adminResult.admin
-              );
-              
-              if (!saved) {
-                throw new Error('Failed to save admin authentication data');
-              }
-              
-              return { type: 'admin', data: adminResult };
-            } catch (adminError: any) {
-              console.log('❌ Admin login failed:', adminError.message);
-              // For admin emails, don't fall back to user login
-              throw new Error(adminError.message || 'Admin login failed');
-            }
-          }
-
           // Regular user login
           console.log('👤 Attempting user login...');
           try {
@@ -318,29 +203,11 @@ export const signInSlice = createAppSlice({
           state.status = 'idle';
           state.error = '';
 
-          if (action.payload.type === 'user') {
-            const userData = action.payload.data as SignInResponse;
-            state.user = userData.user;
-            state.accessToken = userData.accessToken || '';
-            state.refreshToken = userData.refreshToken || '';
-            state.userType = 'user';
-            state.admin = null;
-
-            // Note: Storage already saved in thunk
-            console.log('💾 User data saved (in thunk)');
-            console.log('👤 Current user:', state.user?.email);
-          } else {
-            const adminData = action.payload.data as AdminLoginResponse;
-            state.admin = adminData.admin;
-            state.accessToken = adminData.accessToken || '';
-            state.refreshToken = adminData.refreshToken || '';
-            state.userType = 'admin';
-            state.user = null;
-
-            // Note: Storage already saved in thunk
-            console.log('💾 Admin data saved (in thunk)');
-            console.log('👤 Current admin:', state.admin?.email);
-          }
+          const userData = action.payload.data as SignInResponse;
+          state.user = userData.user;
+          state.accessToken = userData.accessToken || '';
+          state.refreshToken = userData.refreshToken || '';
+          state.userType = 'user';
         },
         rejected: (state, action) => {
           console.log('❌ Sign in rejected:', action.payload || action.error.message);
@@ -510,16 +377,14 @@ export const signInSlice = createAppSlice({
     selectAccessToken: (state) => state.accessToken,
     selectRefreshToken: (state) => state.refreshToken,
     selectUser: (state) => state.user,
-    selectAdmin: (state) => state.admin,
     selectUserType: (state) => state.userType,
-    selectIsAuthenticated: (state) => !!state.accessToken && (!!state.user || !!state.admin),
+    selectIsAuthenticated: (state) => !!state.accessToken && !!state.user,
     selectUserId: (state) => state.user?.id,
-    selectUserFullName: (state) => state.user?.fullName || state.admin?.fullName,
+    selectUserFullName: (state) => state.user?.fullName,
     selectIsLoading: (state) => state.status === 'loading' || state.socialLoginStatus === 'loading',
     selectIsFormComplete: (state) =>
       state.email.trim().length > 0 && state.password.trim().length > 0,
     selectIsProfileComplete: (state) => state.user?.profileComplete || false,
-    selectIsAdmin: (state) => state.userType === 'admin',
   },
 });
 
@@ -546,7 +411,6 @@ export const {
   selectAccessToken,
   selectRefreshToken,
   selectUser,
-  selectAdmin,
   selectUserType,
   selectIsAuthenticated,
   selectUserId,
@@ -554,5 +418,4 @@ export const {
   selectIsLoading,
   selectIsFormComplete,
   selectIsProfileComplete,
-  selectIsAdmin,
 } = signInSlice.selectors;

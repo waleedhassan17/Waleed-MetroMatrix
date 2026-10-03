@@ -20,6 +20,8 @@ import {
   setAnalyticsRange,
   type AnalyticsRange,
 } from './adminShoppingAnalyticsSlice';
+import { formatMoney } from '../../../../constants/Currency';
+import { formatCount, formatPercent } from '../../../../utils/admin/format';
 
 const COLORS = {
   primary: '#E67E22',
@@ -31,7 +33,6 @@ const COLORS = {
   textLight: '#6C757D',
   border: '#E9ECEF',
 };
-const CURRENCY = 'PKR';
 const RANGES: { key: AnalyticsRange; label: string }[] = [
   { key: '7d', label: '7 days' },
   { key: '30d', label: '30 days' },
@@ -75,13 +76,13 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
   const maxStatus = Math.max(1, ...statusEntries.map(([, count]) => count));
 
   const stats = [
-    { label: 'GMV', value: `${CURRENCY} ${(data?.gmv ?? 0).toLocaleString()}` },
-    { label: 'Commission earned', value: `${CURRENCY} ${(data?.commission ?? 0).toLocaleString()}` },
-    { label: 'Orders', value: String(data?.totalOrders ?? 0) },
-    { label: 'Avg order value', value: `${CURRENCY} ${(data?.avgOrderValue ?? 0).toLocaleString()}` },
-    { label: 'New customers', value: String(data?.newCustomers ?? 0) },
-    { label: 'Active brands', value: String(data?.activeBrands ?? 0) },
-    { label: 'Return rate', value: `${data?.returnRate ?? 0}%` },
+    { label: 'GMV', value: formatMoney(data?.gmv) },
+    { label: 'Commission earned', value: formatMoney(data?.commission) },
+    { label: 'Orders', value: formatCount(data?.totalOrders) },
+    { label: 'Avg order value', value: formatMoney(data?.avgOrderValue) },
+    { label: 'New customers', value: formatCount(data?.newCustomers) },
+    { label: 'Active brands', value: formatCount(data?.activeBrands) },
+    { label: 'Return rate', value: formatPercent(data?.returnRate) },
   ];
 
   return (

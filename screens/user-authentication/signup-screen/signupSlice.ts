@@ -13,12 +13,6 @@ import {
   saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
 
-// ✅ Admin emails that CANNOT register as regular users
-const ADMIN_EMAILS = [
-  'waleedhassansfd@gmail.com',
-  // Add more admin emails here as needed
-];
-
 interface User {
   id: string;
   email: string;
@@ -145,13 +139,6 @@ const saveAuthToStorage = async (
   }
 };
 
-/**
- * ✅ Helper function to check if email is an admin email
- */
-const isAdminEmail = (email: string): boolean => {
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
-};
-
 export const signUpSlice = createAppSlice({
   name: 'signUp',
   initialState,
@@ -206,12 +193,6 @@ export const signUpSlice = createAppSlice({
         try {
           const normalizedEmail = email.trim().toLowerCase();
           
-          // ✅ BLOCK ADMIN EMAILS FROM REGISTRATION
-          if (isAdminEmail(normalizedEmail)) {
-            console.log('❌ Admin email detected, blocking registration');
-            return rejectWithValue('This email is reserved for administrator use. Please use a different email address.');
-          }
-
           const payload: SignUpPayload = {
             fullName: fullName.trim(),
             phoneNumber: phoneNumber.trim(),

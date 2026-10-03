@@ -10,14 +10,15 @@
 //   1. Provider sign-in writes the provider JWT into KeyForStorage.accessToken
 //      as well as providerAccessToken, so the user key is NOT guaranteed to
 //      hold a user token.
-//   2. adminToken outlives a user login unless auth is cleared, so blindly
-//      preferring it hijacks requests for a perfectly valid user session.
+//   2. An admin session outlives a user login unless it is signed out, so
+//      blindly preferring it hijacks requests for a perfectly valid user session.
 //
 // Both are why every token this backend issues carries `userType` in its
 // payload — read it and match it to the route instead of trusting key names.
 // ============================================
 
 import { KeyForStorage, retrieveData } from "../../utils/storage_utils/storageUtils";
+import { loadAdminSession } from "../admin/session";
 
 export type Audience = "user" | "provider" | "admin";
 
@@ -66,8 +67,8 @@ export const tokenAudience = (token: string): Audience | null => {
 // Storage keys that may hold a token for each audience, best candidate first.
 // Provider sign-in only writes accessToken (not providerAccessToken), so the
 // provider list must fall through to it.
-const KEYS_BY_AUDIENCE: Record<Audience, KeyForStorage[]> = {
-  admin: [KeyForStorage.adminToken, KeyForStorage.accessToken],
+// The admin token lives in its own session record (networks/admin/session.ts).
+const KEYS_BY_AUDIENCE: Record<Exclude<Audience, "admin">, KeyForStorage[]> = {
   provider: [KeyForStorage.providerAccessToken, KeyForStorage.accessToken],
   // User routes read ONLY the user key — never adminToken. Preferring the admin
   // token here is what made a signed-in user's cart/wishlist/orders fail with
@@ -82,6 +83,10 @@ const KEYS_BY_AUDIENCE: Record<Audience, KeyForStorage[]> = {
 export const tokenForAudience = async (
   audience: Audience
 ): Promise<string | null> => {
+  if (audience === "admin") {
+    const session = await loadAdminSession();
+    return session && isValidToken(session.accessToken) ? session.accessToken : null;
+  }
   for (const key of KEYS_BY_AUDIENCE[audience]) {
     const token = await retrieveData(key);
     if (!isValidToken(token)) continue;
@@ -111,7 +116,7 @@ export const sessionAudience = async (): Promise<Audience | null> => {
  *     instead of a bare "no token", and costs nothing: the server enforces the
  *     guard either way. What we must never do is attach some OTHER identity's
  *     leftover token, which is what preferring adminToken used to do.
- *  3. Legacy order, only when no session was ever recorded.
+ *  3. The user/provider token, only when no session was ever recorded.
  */
 export const tokenForRequest = async (
   audience: Audience | null
@@ -127,9 +132,7 @@ export const tokenForRequest = async (
     if (own) return { token: own, source: `session:${session}` };
   }
 
-  for (const key of [KeyForStorage.adminToken, KeyForStorage.accessToken]) {
-    const token = await retrieveData(key);
-    if (isValidToken(token)) return { token, source: `${key} (legacy)` };
-  }
+  const token = await retrieveData(KeyForStorage.accessToken);
+  if (isValidToken(token)) return { token, source: "accessToken (legacy)" };
   return { token: null, source: 'none' };
 };

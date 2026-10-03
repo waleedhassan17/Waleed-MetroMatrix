@@ -117,7 +117,7 @@ function LiveTab({ styles }: { styles: Styles }) {
   const tiles: { label: string; value: string; tone?: 'neutral' | 'accent' | 'warning' | 'success' | 'error' }[][] = [
     [
       { label: 'Providers available now', value: fmt(hs.providersAvailableNow), tone: 'accent' },
-      { label: 'Waiting for a provider', value: fmt(hs.waitingForProvider), tone: (hs.waitingForProvider || 0) > 10 ? 'warning' : 'neutral' },
+      { label: 'Waiting for a provider', value: fmt(hs.waitingForProvider), tone: typeof hs.waitingForProvider === 'number' && hs.waitingForProvider > 10 ? 'warning' : 'neutral' },
     ],
     [
       { label: 'Providers on the way', value: fmt(hs.onTheWayNow) },

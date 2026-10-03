@@ -25,14 +25,10 @@ import { resetPasswordSlice } from "../screens/authentication-screens/reset-pass
 import { resetPasswordOtpSlice } from "../screens/authentication-screens/reset-password-otp/resetPasswordOtpSlice";
 import { emailVerificationSlice } from "../screens/authentication-screens/email-verification/emailVerificationSlice";
 
-import { adminSlice } from "../screens/admin/admin-dashboard/adminSlice";
+import { adminAuthSlice } from "../screens/admin/auth/adminAuthSlice";
+import { adminApi } from "../networks/admin/adminApi";
 import { providerApprovalSlice } from "../screens/authentication-screens/provider-approval-pending/providerApprovalSlice";
 import userHomeReducer from "../screens/user-home/userhomeSlice";
-import userManagementReducer from "../screens/admin/user-management/userManagementSlice";
-import providerManagementReducer from "../screens/admin/provider-management/providerManagementSlice";
-import pendingReviewReducer from "../screens/admin/pending-review/pendingReviewSlice";
-import notificationsReducer from "../screens/admin/notifications/notificationSlice";
-import settingsReducer from "../screens/admin/settings/settingsSlice";
 import homeServiceBookingsReducer from "../screens/user/homeservice/tabs/booking-screen/bookingSlice";
 import favoritesReducer from "../screens/user/homeservice/favorites/favoritesSlice";
 import serviceProvidersReducer from "../screens/user/homeservice/service-providers/providersSlice";
@@ -62,8 +58,6 @@ import jobCompletionReducer from "../screens/providers/homeservice/job-completio
 // Centralized User Features (Shared across all services)
 import userProfileReducer from "../screens/user/shared/profile/userProfileSlice";
 import { walletSlice } from "../services/wallet";
-
-// Admin Service Providers slices
 
 // Healthcare Patient slices (screens/user/healthcare/)
 import healthcareHomeReducer from '../screens/user/healthcare/home/healthcareHomeSlice';
@@ -97,7 +91,6 @@ import doctorEarningsReducer from '../screens/providers/healthcare/doctor-earnin
 import doctorProfileReducer from '../screens/providers/healthcare/profile/doctorProfileSlice';
 
 // Admin Healthcare
-import healthcareAnalyticsReducer from '../screens/admin/healthcare/HealthcareAnalytics/healthcareAnalyticsSlice';
 import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
 import doctorManagementReducer from '../screens/admin/healthcare/DoctorManagement/doctorManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
@@ -231,12 +224,9 @@ const appReducer = combineReducers({
   resetPassword: resetPasswordSlice.reducer,
   resetPasswordOtp: resetPasswordOtpSlice.reducer,
   emailVerification: emailVerificationSlice.reducer,
-  admin: adminSlice.reducer,
-  userManagement: userManagementReducer,
-  providerManagement: providerManagementReducer,
-  pendingReview: pendingReviewReducer,
-  notifications: notificationsReducer,
-  settings: settingsReducer,
+  adminAuth: adminAuthSlice.reducer,
+  // Admin console server cache (RTK Query). Account-scoped: wiped on reset.
+  [adminApi.reducerPath]: adminApi.reducer,
   providerApproval: providerApprovalSlice.reducer,
   userHome: userHomeReducer,
   homeServiceBookings: homeServiceBookingsReducer,
@@ -288,7 +278,6 @@ const appReducer = combineReducers({
   patientHistory: patientHistoryReducer,
   doctorEarnings: doctorEarningsReducer,
   doctorProfile: doctorProfileReducer,
-  healthcareAnalytics: healthcareAnalyticsReducer,
   specialtyManagement: specialtyManagementReducer,
   doctorManagement: doctorManagementReducer,
   userProfile: userProfileReducer,
@@ -385,7 +374,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(adminApi.middleware),
 });
 
 export const persistor = persistStore(store);

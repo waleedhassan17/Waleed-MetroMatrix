@@ -42,6 +42,7 @@ import {
   selectError,
 } from './brandManagementSlice';
 import type { BrandStatusFilter } from './brandManagementSlice';
+import { formatCount } from '../../../../utils/admin/format';
 
 type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
 
@@ -145,7 +146,7 @@ const BrandManagementScreen: React.FC = () => {
       <View style={styles.cardStats}>
         <View style={styles.stat}>
           <Package size={14} stroke={COLORS.textLight} strokeWidth={1.75} />
-          <Text style={styles.statText}>{item.productCount ?? 0} products</Text>
+          <Text style={styles.statText}>{formatCount(item.productCount)} products</Text>
         </View>
         <View style={styles.stat}>
           <Text style={[

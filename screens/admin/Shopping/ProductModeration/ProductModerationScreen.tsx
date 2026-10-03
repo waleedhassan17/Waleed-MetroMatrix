@@ -121,7 +121,7 @@ export default function ProductModerationScreen() {
               {item.name}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {[item.brandName, `Rs. ${Math.round(price || 0).toLocaleString('en-PK')}`, item.isActive === false ? 'hidden by vendor' : null]
+              {[item.brandName, typeof price === 'number' ? `Rs. ${Math.round(price).toLocaleString('en-PK')}` : null, item.isActive === false ? 'hidden by vendor' : null]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>

@@ -1,187 +1,149 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Switch,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// Healthcare settings — the three values the backend actually enforces:
+// commission on consultations, the free-cancellation window, and the refund on
+// a late cancellation. (Slot length, booking horizon and doctor auto-approval
+// used to be here; nothing read them, and the backend removed them.)
+// ============================================================================
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+
+import { AppBar, Button, Card, ErrorState, Screen, TextField, showToast } from '../../../../components/ui';
+import { usePermission } from '../../../../hooks/useAdminPermission';
 import {
   fetchHealthcareSettingsApi,
   updateHealthcareSettingsApi,
   type HealthcareSettingsView,
 } from '../../../../networks/healthcare/adminApi';
+import { GUTTER, R, S, T, useTheme, type ThemeColors } from '../../../../theme';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  warn: '#F59E0B',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
+type Key = keyof HealthcareSettingsView;
 
-const FIELDS: { key: keyof Omit<HealthcareSettingsView, 'autoApproveDoctors'>; label: string; hint: string }[] = [
-  { key: 'commissionPercent', label: 'Platform commission (%)', hint: 'Deducted from doctor payouts at completion' },
-  { key: 'cancellationWindowHours', label: 'Cancellation window (hours)', hint: 'Full refund when cancelling at least this early' },
-  { key: 'lateCancelRefundPercent', label: 'Late-cancel refund (%)', hint: 'Refunded inside the window (0 = forfeit)' },
-  { key: 'defaultSlotDurationMinutes', label: 'Default slot duration (min)', hint: 'Used when generating slots' },
-  { key: 'maxAdvanceBookingDays', label: 'Max advance booking (days)', hint: 'How far ahead patients can book' },
+const FIELDS: { key: Key; label: string; helper: string; max: number }[] = [
+  { key: 'commissionPercent', label: 'Platform commission (%)', helper: 'Deducted from the doctor payout when a consultation completes.', max: 100 },
+  { key: 'cancellationWindowHours', label: 'Free cancellation window (hours)', helper: 'Patients cancelling at least this early get a full refund.', max: 168 },
+  { key: 'lateCancelRefundPercent', label: 'Late cancellation refund (%)', helper: 'Refunded when cancelling inside the window. 0 means no refund.', max: 100 },
 ];
 
-const AdminHealthcareSettingsScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const navigation = useNavigation<any>();
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [autoApprove, setAutoApprove] = useState(false);
-  const [loading, setLoading] = useState(true);
+const toForm = (s: HealthcareSettingsView): Record<Key, string> => ({
+  commissionPercent: String(s.commissionPercent),
+  cancellationWindowHours: String(s.cancellationWindowHours),
+  lateCancelRefundPercent: String(s.lateCancelRefundPercent),
+});
+
+export default function AdminHealthcareSettingsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const navigation = useNavigation();
+  const canEdit = usePermission('canManageHealthcare');
+
+  const [saved, setSaved] = useState<Record<Key, string> | null>(null);
+  const [form, setForm] = useState<Record<Key, string> | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<Key, string>>>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoadError(null);
     const res = await fetchHealthcareSettingsApi();
-    if (res.success) {
-      const s = res.data;
-      setForm({
-        commissionPercent: String(s.commissionPercent),
-        cancellationWindowHours: String(s.cancellationWindowHours),
-        lateCancelRefundPercent: String(s.lateCancelRefundPercent),
-        defaultSlotDurationMinutes: String(s.defaultSlotDurationMinutes),
-        maxAdvanceBookingDays: String(s.maxAdvanceBookingDays),
-      });
-      setAutoApprove(s.autoApproveDoctors);
+    if (res.success && res.data) {
+      const values = toForm(res.data);
+      setSaved(values);
+      setForm(values);
     } else {
-      setError(res.message || 'Failed to load settings');
+      setLoadError(res.message || 'Could not load the settings.');
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const handleSave = async () => {
-    const patch: Record<string, number | boolean> = { autoApproveDoctors: autoApprove };
+  const dirty = !!form && !!saved && FIELDS.some((f) => form[f.key] !== saved[f.key]);
+
+  const save = async () => {
+    if (!form) return;
+    const patch: Partial<HealthcareSettingsView> = {};
+    const nextErrors: Partial<Record<Key, string>> = {};
     for (const field of FIELDS) {
-      const parsed = Number(form[field.key]);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        Alert.alert('Invalid value', `${field.label} must be a non-negative number.`);
-        return;
+      const value = Number(form[field.key]);
+      if (form[field.key].trim() === '' || !Number.isFinite(value) || value < 0 || value > field.max) {
+        nextErrors[field.key] = `Enter a number from 0 to ${field.max}.`;
+      } else {
+        patch[field.key] = value;
       }
-      patch[field.key] = parsed;
     }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
     setSaving(true);
     const res = await updateHealthcareSettingsApi(patch);
     setSaving(false);
-    if (res.success) {
-      Alert.alert('Saved', 'Settings updated — these values drive live booking and payment behaviour.');
+    if (res.success && res.data) {
+      const values = toForm(res.data);
+      setSaved(values);
+      setForm(values);
+      showToast({ tone: 'success', message: 'Healthcare settings saved.' });
     } else {
-      Alert.alert('Could not save', res.message || 'Please try again.');
+      showToast({ tone: 'error', message: res.message || 'Could not save. Try again.' });
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Healthcare Settings</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+    <Screen edges={['bottom']}>
+      <AppBar title="Healthcare settings" tone="surface" onBack={() => navigation.goBack()} />
+      {loadError ? (
+        <ErrorState message={loadError} onRetry={load} />
+      ) : !form ? (
+        <View style={styles.centre}>
+          <ActivityIndicator color={colors.inkMuted} accessibilityLabel="Loading settings" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.warnBanner}>
-            <Ionicons name="warning-outline" size={16} color={COLORS.warn} />
-            <Text style={styles.warnText}>
-              These values drive LIVE behaviour: consultation payments, refund windows, doctor payouts and approvals.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.note}>
+            These apply to every consultation from the moment they are saved: payments, refunds and doctor payouts.
+          </Text>
+          <Card>
             {FIELDS.map((field) => (
-              <View key={field.key} style={styles.field}>
-                <Text style={styles.fieldLabel}>{field.label}</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="number-pad"
-                  value={form[field.key] ?? ''}
-                  onChangeText={(value) => setForm((f) => ({ ...f, [field.key]: value }))}
-                />
-                <Text style={styles.fieldHint}>{field.hint}</Text>
-              </View>
-            ))}
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Auto-approve new doctors</Text>
-                <Text style={styles.fieldHint}>When off, doctors stay pending until approved in Doctor Management</Text>
-              </View>
-              <Switch
-                value={autoApprove}
-                onValueChange={setAutoApprove}
-                trackColor={{ true: COLORS.primary, false: COLORS.border }}
-                thumbColor="#FFF"
+              <TextField
+                key={field.key}
+                label={field.label}
+                helper={field.helper}
+                value={form[field.key]}
+                onChangeText={(v) => {
+                  setForm((f) => (f ? { ...f, [field.key]: v.replace(/[^0-9.]/g, '') } : f));
+                  if (errors[field.key]) setErrors((e) => ({ ...e, [field.key]: undefined }));
+                }}
+                keyboardType="decimal-pad"
+                editable={canEdit && !saving}
+                error={errors[field.key]}
               />
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-            <Ionicons name="save-outline" size={18} color="#FFF" />
-            <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save Settings'}</Text>
-          </TouchableOpacity>
+            ))}
+          </Card>
+          {canEdit ? (
+            <Button label="Save changes" onPress={save} loading={saving} disabled={!dirty || saving} fullWidth size="lg" style={styles.save} />
+          ) : (
+            <Text style={styles.readOnly}>You can view these settings. Changing them needs the Healthcare permission.</Text>
+          )}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  center: { alignItems: 'center', padding: 24 },
-  errorText: { color: COLORS.textLight, marginBottom: 12, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  scroll: { padding: 16, paddingBottom: 40 },
-  warnBanner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: sh.ground('#FEF3C7', '#F59E0B'), borderRadius: 12, padding: 12, marginBottom: 14 },
-  warnText: { flex: 1, fontSize: 12, color: sh.hue('#92400E') },
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
-  field: { marginBottom: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  fieldHint: { fontSize: 11, color: COLORS.textLight, marginTop: 3 },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: COLORS.text },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14 },
-  saveText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
-});
-
-export default AdminHealthcareSettingsScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    centre: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    content: { padding: GUTTER, paddingBottom: S.huge },
+    note: {
+      ...T.body,
+      color: c.ink,
+      backgroundColor: c.warningSoft,
+      borderRadius: R.card,
+      padding: S.md,
+      marginBottom: S.lg,
+    },
+    save: { marginTop: S.xl },
+    readOnly: { ...T.caption, color: c.inkMuted, marginTop: S.lg, textAlign: 'center' },
+  });

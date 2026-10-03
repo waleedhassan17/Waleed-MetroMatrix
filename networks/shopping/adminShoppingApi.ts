@@ -82,6 +82,12 @@ export interface AdminAnalyticsView {
 const call = async <T>(fn: () => Promise<{ data: T }>, fallback: string): Promise<T> => {
   try {
     const res = await fn();
+    // Admin lists answer `meta` ({ page, limit, total, pages }); keep the
+    // `pagination` field the slices were written against.
+    const body = res.data as any;
+    if (body && typeof body === 'object' && body.meta && !body.pagination) {
+      return { ...body, pagination: body.meta } as T;
+    }
     return res.data;
   } catch (e) {
     throw new Error(extractShoppingError(e, fallback));

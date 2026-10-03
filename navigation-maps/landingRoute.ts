@@ -25,10 +25,11 @@ export type LandingRoute =
   | 'RoleSelection'
   | 'UserHome'
   | 'HomeServiceProviderDashboard'
-  | 'DoctorStack';
+  | 'DoctorStack'
+  | 'AdminHome';
 
 export interface LandingState {
-  userType: 'user' | 'provider' | null;
+  userType: 'user' | 'provider' | 'admin' | null;
   /** Truthy once `fetchMe` has resolved a session for the stored token. */
   hasUser: boolean;
   hasProvider: boolean;
@@ -55,6 +56,9 @@ export const resolveLandingRoute = ({
   hasProvider,
   providerType,
 }: LandingState): LandingRoute => {
+  // An admin resumes in the console. AdminGate verifies the stored session on
+  // the way in and sends a dead one to AdminSignIn, so nothing is checked here.
+  if (userType === 'admin') return 'AdminHome';
   if (userType === 'provider' && hasProvider) {
     return providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
   }

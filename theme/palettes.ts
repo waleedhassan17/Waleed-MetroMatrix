@@ -22,7 +22,7 @@ import { C, DARK_C, ThemeMode } from '../constants/theme';
 import { B } from '../screens/Shopping/Brand/theme';
 import { AA_BODY, AA_LARGE, lift, mix, textOn, tint } from './contrast';
 
-export type ModuleName = 'neutral' | 'healthcare' | 'homeservice' | 'shopping';
+export type ModuleName = 'neutral' | 'healthcare' | 'homeservice' | 'shopping' | 'admin';
 
 export interface ModulePalette {
   /** Primary action, selected state, accent iconography. */
@@ -107,11 +107,26 @@ const shopping: ModulePalette = {
   barTone: 'surface',
 };
 
+/**
+ * The admin console. One graphite-blue accent — a working tool, not a
+ * storefront — on a quiet surface bar, so status colours (the things an admin
+ * has to act on) are the only saturated colour on the screen.
+ */
+const admin: ModulePalette = {
+  accent: '#2F4A6D',
+  accentDeep: '#1F3550',
+  accentSoft: '#EAF0F7',
+  accentLine: '#C9D6E6',
+  onAccent: C.inkInverse,
+  barTone: 'surface',
+};
+
 export const MODULE_PALETTES: Record<ModuleName, ModulePalette> = {
   neutral,
   healthcare,
   homeservice,
   shopping,
+  admin,
 };
 
 // ── Dark ────────────────────────────────────────────────────────────────────
@@ -183,11 +198,21 @@ const shoppingDark: ModulePalette = {
   barTone: 'surface',
 };
 
+const adminDark: ModulePalette = {
+  accent: '#8FB0D9',
+  accentDeep: '#B9D0EC',
+  accentSoft: '#18222F',
+  accentLine: '#2E4560',
+  onAccent: textOn('#8FB0D9'),
+  barTone: 'surface',
+};
+
 export const MODULE_PALETTES_DARK: Record<ModuleName, ModulePalette> = {
   neutral: neutralDark,
   healthcare: healthcareDark,
   homeservice: homeserviceDark,
   shopping: shoppingDark,
+  admin: adminDark,
 };
 
 /**

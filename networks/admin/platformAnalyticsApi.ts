@@ -5,6 +5,22 @@
 // ============================================================================
 
 import { apiRequest } from '../serviceProviders/config';
+import type { ApiResponse } from '../../models/serviceProviders';
+import { adminApi } from './client';
+
+/**
+ * The admin endpoints go through the typed admin client (admin session,
+ * refresh, the admin error envelope); this keeps the { success, data,
+ * message } shape the analytics screens were written against.
+ */
+async function asResponse<T>(call: Promise<{ data: unknown }>): Promise<ApiResponse<T>> {
+  try {
+    const { data } = await call;
+    return { success: true, data: data as T, message: '' };
+  } catch (err: any) {
+    return { success: false, data: null as unknown as T, message: err?.message || 'Request failed' };
+  }
+}
 
 export type Vertical = 'homeservice' | 'healthcare' | 'shopping';
 
@@ -56,13 +72,13 @@ export interface MyDemand {
   model: { method: string | null; dataQuality: string | null; source: string } | null;
 }
 
-export const fetchRealtimeOverview = () => apiRequest<RealtimeOverview>('/admin/platform/realtime', { bestEffort: true });
+export const fetchRealtimeOverview = () => asResponse<RealtimeOverview>(adminApi.get('/api/admin/platform/realtime'));
 
 export const fetchDemand = (vertical: Vertical, segment = 'all', days = 28) =>
-  apiRequest<DemandResponse>(`/admin/platform/demand?vertical=${vertical}&segment=${encodeURIComponent(segment)}&days=${days}`);
+  asResponse<DemandResponse>(adminApi.get('/api/admin/platform/demand', { query: { vertical, segment, days } }));
 
 export const fetchPerformance = (module: Vertical, days = 90) =>
-  apiRequest<{ module: Vertical; days: number; rows: any[] }>(`/admin/platform/performance?module=${module}&days=${days}`);
+  asResponse<{ module: Vertical; days: number; rows: any[] }>(adminApi.get('/api/admin/platform/performance', { query: { module, days } }));
 
 export const fetchMyDemand = () => apiRequest<MyDemand | null>('/insights/demand/mine', { bestEffort: true });
 
@@ -97,17 +113,18 @@ export interface RegistryModel {
 }
 
 export const fetchModels = (task?: string) =>
-  apiRequest<{ models: RegistryModel[]; serving: { matching: any; ranking: { mode: RankingMode; blendAlpha: number } } }>(
-    `/admin/ml/models${task ? `?task=${task}` : ''}`
+  asResponse<{ models: RegistryModel[]; serving: { matching: any; ranking: { mode: RankingMode; blendAlpha: number } } }>(
+    adminApi.get('/api/admin/ml/models', { query: { task } })
   );
 
 export const activateModel = (id: string, note?: string) =>
-  apiRequest(`/admin/ml/models/${id}/activate`, { method: 'POST', body: JSON.stringify({ note }) });
+  asResponse(adminApi.post('/api/admin/ml/models/{id}/activate', { params: { id }, body: { note } }));
 
-export const archiveModel = (id: string) => apiRequest(`/admin/ml/models/${id}/archive`, { method: 'POST' });
+export const archiveModel = (id: string) => asResponse(adminApi.post('/api/admin/ml/models/{id}/archive', { params: { id }, body: {} }));
 
 export const setRankingMode = (mode: RankingMode, blendAlpha?: number) =>
-  apiRequest('/admin/homeservice/settings', {
-    method: 'PATCH',
-    body: JSON.stringify({ ranking: { mode, ...(blendAlpha !== undefined ? { blendAlpha } : {}) }, reason: `Ranking mode → ${mode}` }),
-  });
+  asResponse(
+    adminApi.patch('/api/admin/homeservice/settings', {
+      body: { ranking: { mode, ...(blendAlpha !== undefined ? { blendAlpha } : {}) }, reason: `Ranking mode → ${mode}` },
+    })
+  );

@@ -4,9 +4,10 @@
 // ============================================
 
 import axios from "axios";
-import { clearAuthData } from "../../utils/storage_utils/storageUtils";
 import { SHOPPING_API_URL } from "../../config/env";
-import { Audience, tokenForRequest } from "../network/tokenSelection";
+import { Audience, tokenAudience, tokenForRequest } from "../network/tokenSelection";
+import { attachAuthRecovery } from "../network/authRecovery";
+import { sharedSessionRecovery } from "../network/network";
 
 const TIMEOUT = 30000;
 
@@ -30,35 +31,20 @@ const ShoppingAxiosInstance = axios.create({
   },
 });
 
-// Request interceptor: attach the token that matches the route's audience.
-ShoppingAxiosInstance.interceptors.request.use(
-  async (config) => {
-    try {
-      const { token } = await tokenForRequest(audienceForUrl(config.url));
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-        (config as any).__sentAuth = true;
-      }
-    } catch {
-      // proceed unauthenticated; protected endpoints will 401
-    }
-    return config;
+// Token attachment and refresh-on-401 are the main API's (one refresher for
+// the whole app — see sharedSessionRecovery). This instance used to clear ALL
+// auth on any 401 without trying to refresh, so an expired access token on a
+// shopping screen signed the user out, and an admin's expired token on a
+// shopping-admin screen signed out whoever else was signed in too.
+attachAuthRecovery(ShoppingAxiosInstance, {
+  ...sharedSessionRecovery,
+  isPublic: () => false,
+  tokenFor: async (url) => {
+    const { token } = await tokenForRequest(audienceForUrl(url));
+    if (!token) return { token: null, audience: "account" };
+    return { token, audience: tokenAudience(token) === "admin" ? "admin" : "account" };
   },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor: 401 clears stale auth — but only when we actually sent
-// a token. If we deliberately withheld a mismatched one, the session we still
-// hold is valid for its own audience and must not be wiped.
-ShoppingAxiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401 && error.config?.__sentAuth) {
-      await clearAuthData();
-    }
-    return Promise.reject(error);
-  }
-);
+});
 
 /**
  * Same message as `extractShoppingError`, but preserves the backend's error
@@ -70,7 +56,8 @@ export const toShoppingError = (
   fallback: string
 ): Error & { code?: string } => {
   const err = new Error(extractShoppingError(e, fallback)) as Error & { code?: string };
-  const code = e?.response?.data?.code;
+  const body = e?.response?.data;
+  const code = body?.error && typeof body.error === 'object' ? body.error.code : body?.code;
   if (typeof code === 'string') err.code = code;
   return err;
 };
@@ -92,6 +79,12 @@ export const extractShoppingError = (e: any, fallback: string): string => {
   }
 
   const data = e?.response?.data;
+  // Admin routes reply { success: false, error: { code, message, details } }.
+  if (data?.error && typeof data.error === 'object') {
+    const fields: { message?: string }[] = Array.isArray(data.error.details?.fields) ? data.error.details.fields : [];
+    const first = fields.find((f) => typeof f?.message === 'string');
+    return first?.message || data.error.message || fallback;
+  }
   if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
     const first = data.errors[0];
     if (typeof first === "string") return first;

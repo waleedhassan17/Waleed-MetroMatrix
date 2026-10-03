@@ -1,6 +1,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { BaseRoutes, BaseRouteName, LightOnlyRoutes, RouteModules, RootStackParamList } from "../navigation-maps/Base";
+import { AdminRoutes, BaseRoutes, BaseRouteName, LightOnlyRoutes, RouteModules, RootStackParamList } from "../navigation-maps/Base";
+import { withAdminGate } from "../components/admin/AdminGate";
 import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { ThemeProvider } from "../theme";
 
@@ -38,12 +39,14 @@ const themed = (route: BaseRoute): React.ComponentType<any> => {
   const moduleName = RouteModules[route.title];
   // Empty today — see LightOnlyRoutes.
   const pinLight = LightOnlyRoutes.has(route.title);
-  if (!moduleName && !pinLight) return route.component;
+  // Admin routes render behind the session gate (see AdminRoutes).
+  const component = AdminRoutes.has(route.title) ? withAdminGate(route.title, route.component) : route.component;
+  if (!moduleName && !pinLight) return component;
 
   const cached = themedCache.get(route.title);
   if (cached) return cached;
 
-  const Screen = route.component;
+  const Screen = component;
   const Themed: React.ComponentType<any> = (props) => (
     <ThemeProvider module={moduleName} mode={pinLight ? 'light' : undefined}>
       <Screen {...props} />

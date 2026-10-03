@@ -26,6 +26,22 @@ SCOPE=(
   screens/Shopping/Brand
   screens/providers/healthcare
   components/Healthcare/doctor
+  components/admin
+  screens/admin/auth
+  screens/admin/account
+  screens/admin/admins
+  screens/admin/modules
+  screens/admin/more
+  screens/admin/overview
+  screens/admin/queue
+  screens/admin/people
+  screens/admin/homeservice
+  screens/admin/notifications
+  screens/admin/settings
+  screens/admin/healthcare/HealthcareAnalytics
+  screens/admin/healthcare/AdminHealthcareDashboard
+  screens/admin/healthcare/AdminHealthcareSettings
+  navigators/AdminTabs.tsx
 )
 
 # Files that legitimately hold raw values: the token definitions themselves, and

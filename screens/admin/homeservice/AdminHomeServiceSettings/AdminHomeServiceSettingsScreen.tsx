@@ -1,255 +1,157 @@
-// ============================================
-// Admin: home-services settings (HS8) — commission %, cancellation window,
-// default search radius, the three matching-score weights, minimum payout.
-// These are the SAME values HS2/HS4 read at runtime (one source of truth).
-// ============================================
+// ============================================================================
+// Home-services settings — values the platform uses live: commission on paid
+// bookings, the smallest payout a provider can request, how far to search for
+// providers, the speed used for arrival estimates, and how matching weighs
+// distance, rating and availability. The server checks every limit; saving
+// asks for a reason, which goes in the audit log.
+// ============================================================================
 
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import {
-  fetchAdminHSSettings,
-  updateAdminHSSettings,
-} from '../../../../networks/serviceProviders/adminHomeServiceApi';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
+import { AdminScreen, ConfirmSheet, PermissionGate, QueryState, Section } from '../../../../components/admin';
+import { Button, TextField, showToast } from '../../../../components/ui';
+import useUnsavedChangesGuard from '../../../../hooks/useUnsavedChangesGuard';
+import { adminErrorOf } from '../../../../networks/admin/adminApi';
+import { useGetHSSettingsQuery, useUpdateHSSettingsMutation, type HSSettings } from '../../../../networks/admin/homeServicesApi';
+import { S, T, useTheme, type ThemeColors } from '../../../../theme';
 
-const AdminHomeServiceSettingsScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const navigation = useNavigation<any>();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+type Form = Record<'commissionPercent' | 'minPayoutAmount' | 'defaultSearchRadiusKm' | 'avgUrbanSpeedKmh' | 'distance' | 'rating' | 'availability', string>;
 
-  const [commission, setCommission] = useState('10');
-  const [cancelWindow, setCancelWindow] = useState('2');
-  const [radius, setRadius] = useState('15');
-  const [wDistance, setWDistance] = useState('0.4');
-  const [wRating, setWRating] = useState('0.4');
-  const [wAvailability, setWAvailability] = useState('0.2');
-  const [minPayout, setMinPayout] = useState('500');
+const toForm = (s: HSSettings): Form => ({
+  commissionPercent: String(s.commissionPercent),
+  minPayoutAmount: String(s.minPayoutAmount),
+  defaultSearchRadiusKm: String(s.defaultSearchRadiusKm),
+  avgUrbanSpeedKmh: String(s.avgUrbanSpeedKmh),
+  distance: String(s.matchingWeights.distance),
+  rating: String(s.matchingWeights.rating),
+  availability: String(s.matchingWeights.availability),
+});
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminHSSettings();
-    if (res.success && res.data) {
-      const d = res.data;
-      setCommission(String(d.commissionPercent));
-      setCancelWindow(String(d.cancellationWindowHours));
-      setRadius(String(d.defaultSearchRadiusKm));
-      setWDistance(String(d.matchingWeights?.distance ?? 0.4));
-      setWRating(String(d.matchingWeights?.rating ?? 0.4));
-      setWAvailability(String(d.matchingWeights?.availability ?? 0.2));
-      setMinPayout(String(d.minPayoutAmount));
-    } else {
-      setError(res.message || 'Failed to load settings');
-    }
-    setLoading(false);
-  }, []);
+const FIELDS: { key: keyof Form; label: string; helper: string; min: number; max: number }[] = [
+  { key: 'commissionPercent', label: 'Commission (%)', helper: 'Taken from each paid booking. 0–100.', min: 0, max: 100 },
+  { key: 'minPayoutAmount', label: 'Smallest payout (PKR)', helper: 'Providers cannot request less.', min: 0, max: 1_000_000 },
+  { key: 'defaultSearchRadiusKm', label: 'Search radius (km)', helper: 'How far from the customer to look for providers. 1–100.', min: 1, max: 100 },
+  { key: 'avgUrbanSpeedKmh', label: 'Average speed (km/h)', helper: 'Used for arrival estimates. 5–120.', min: 5, max: 120 },
+];
+const WEIGHTS: { key: 'distance' | 'rating' | 'availability'; label: string }[] = [
+  { key: 'distance', label: 'Distance' },
+  { key: 'rating', label: 'Rating' },
+  { key: 'availability', label: 'Availability' },
+];
+
+export default function AdminHomeServiceSettingsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const settings = useGetHSSettingsQuery();
+  const [update, updateState] = useUpdateHSSettingsMutation();
+  const [form, setForm] = useState<Form | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<keyof Form | 'matchingWeights', string>>>({});
+  const [confirming, setConfirming] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (settings.data) setForm(toForm(settings.data));
+  }, [settings.data]);
 
-  const weightSum = (Number(wDistance) || 0) + (Number(wRating) || 0) + (Number(wAvailability) || 0);
+  const saved = settings.data ? toForm(settings.data) : null;
+  const dirty = !!form && !!saved && (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== saved[k]);
+  const { sheet } = useUnsavedChangesGuard(dirty);
 
-  const save = async () => {
-    if (Math.abs(weightSum - 1) > 0.01) {
-      Alert.alert(
-        'Weights must sum to 1',
-        `distance + rating + availability = ${weightSum.toFixed(2)}. Adjust before saving.`
-      );
-      return;
+  const weightSum = form ? WEIGHTS.reduce((sum, w) => sum + Number(form[w.key]), 0) : 1;
+
+  const validate = (): boolean => {
+    if (!form) return false;
+    const next: typeof errors = {};
+    for (const f of FIELDS) {
+      const n = Number(form[f.key]);
+      if (form[f.key].trim() === '' || !Number.isFinite(n) || n < f.min || n > f.max) next[f.key] = `Enter a number from ${f.min} to ${f.max}.`;
     }
-    setSaving(true);
-    const res = await updateAdminHSSettings({
-      commissionPercent: Number(commission),
-      cancellationWindowHours: Number(cancelWindow),
-      defaultSearchRadiusKm: Number(radius),
-      matchingWeights: {
-        distance: Number(wDistance),
-        rating: Number(wRating),
-        availability: Number(wAvailability),
-      },
-      minPayoutAmount: Number(minPayout),
+    const weights = WEIGHTS.map((w) => Number(form[w.key]));
+    if (weights.some((w) => !Number.isFinite(w) || w < 0 || w > 1)) next.matchingWeights = 'Each weight is a number from 0 to 1.';
+    else if (Math.abs(weights.reduce((a, b) => a + b, 0) - 1) > 0.01) next.matchingWeights = 'The three weights must add up to 1.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const save = async (reason: string) => {
+    if (!form) return;
+    const res = await update({
+      commissionPercent: Number(form.commissionPercent),
+      minPayoutAmount: Number(form.minPayoutAmount),
+      defaultSearchRadiusKm: Number(form.defaultSearchRadiusKm),
+      avgUrbanSpeedKmh: Number(form.avgUrbanSpeedKmh),
+      matchingWeights: { distance: Number(form.distance), rating: Number(form.rating), availability: Number(form.availability) },
+      reason,
     });
-    setSaving(false);
-    if (res.success) Alert.alert('Saved', 'Home services settings updated.');
-    else Alert.alert('Error', res.message || 'Could not save settings');
+    if ('error' in res) return setSaveError(adminErrorOf(res.error)?.message || 'Could not save.');
+    setConfirming(false);
+    showToast({ tone: 'success', message: 'Home-services settings saved.' });
+  };
+
+  const set = (key: keyof Form) => (v: string) => {
+    setForm((f) => (f ? { ...f, [key]: v.replace(/[^0-9.]/g, '') } : f));
+    setErrors((e) => ({ ...e, [key]: undefined, matchingWeights: undefined }));
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={COLORS.bg} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Home Services Settings</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.stateText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          <View style={styles.liveBanner}>
-            <Ionicons name="flash" size={16} color="#92400E" />
-            <Text style={styles.liveText}>
-              These values drive LIVE behaviour — provider search ranking, commission on
-              every payment, and payout eligibility.
-            </Text>
-          </View>
-
-          <Field label="Platform commission (%)" value={commission} onChange={setCommission} />
-          <Field
-            label="Cancellation window (hours)"
-            value={cancelWindow}
-            onChange={setCancelWindow}
+    <AdminScreen
+      title="Home-services settings"
+      footer={
+        <PermissionGate all={['canManageHomeServices']} fallback={null}>
+          <Button
+            label="Save changes"
+            onPress={() => {
+              if (validate()) {
+                setSaveError(null);
+                setConfirming(true);
+              }
+            }}
+            disabled={!dirty}
+            fullWidth
+            size="lg"
           />
-          <Field label="Default search radius (km)" value={radius} onChange={setRadius} />
-          <Field label="Minimum payout amount (Rs.)" value={minPayout} onChange={setMinPayout} />
+        </PermissionGate>
+      }
+    >
+      <PermissionGate all={['canManageHomeServices']} action="change home-services settings">
+        <QueryState isLoading={settings.isLoading} error={settings.error} onRetry={settings.refetch}>
+          {form && (
+            <>
+              <Section title="Money and matching" card>
+                {FIELDS.map((f) => (
+                  <TextField key={f.key} label={f.label} helper={f.helper} value={form[f.key]} onChangeText={set(f.key)} keyboardType="decimal-pad" error={errors[f.key]} containerStyle={styles.field} />
+                ))}
+              </Section>
+              <Section title="Matching weights" caption={`Must add up to 1. Now: ${Number.isFinite(weightSum) ? weightSum.toFixed(2) : '—'}`} card>
+                {WEIGHTS.map((w) => (
+                  <TextField key={w.key} label={w.label} value={form[w.key]} onChangeText={set(w.key)} keyboardType="decimal-pad" containerStyle={styles.field} />
+                ))}
+                {!!errors.matchingWeights && <Text style={styles.error}>{errors.matchingWeights}</Text>}
+              </Section>
+            </>
+          )}
+        </QueryState>
+      </PermissionGate>
 
-          <Text style={styles.sectionTitle}>Matching score weights</Text>
-          <Text style={styles.hint}>
-            score = distance × distanceScore + rating × ratingScore + availability ×
-            availabilityBonus. Must sum to 1.
-          </Text>
-          <Field label="Distance weight" value={wDistance} onChange={setWDistance} />
-          <Field label="Rating weight" value={wRating} onChange={setWRating} />
-          <Field label="Availability weight" value={wAvailability} onChange={setWAvailability} />
-          <Text
-            style={[
-              styles.weightSum,
-              { color: Math.abs(weightSum - 1) > 0.01 ? '#E74C3C' : '#27AE60' },
-            ]}
-          >
-            Sum: {weightSum.toFixed(2)}
-          </Text>
-
-          <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving}>
-            {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.saveText}>Save settings</Text>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-};
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-        keyboardType="numeric"
+      <ConfirmSheet
+        visible={confirming}
+        title="Save home-services settings?"
+        message="They apply to new bookings, matching and payout requests straight away."
+        confirmLabel="Save"
+        requireReason
+        busy={updateState.isLoading}
+        error={saveError}
+        onConfirm={save}
+        onClose={() => setConfirming(false)}
       />
-    </View>
+      {sheet}
+    </AdminScreen>
   );
 }
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  liveBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: sh.ground('#FEF3C7', '#F59E0B'),
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  liveText: { color: sh.hue('#92400E'), fontSize: 12, marginLeft: 8, flex: 1, lineHeight: 17 },
-  field: { marginBottom: 14 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 6 },
-  input: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginTop: 10, marginBottom: 4 },
-  hint: { fontSize: 12, color: COLORS.textLight, marginBottom: 12, lineHeight: 17 },
-  weightSum: { fontSize: 12, fontWeight: '700', marginTop: -6, marginBottom: 14 },
-  saveBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  saveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  stateText: { marginTop: 10, color: COLORS.textLight, fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
-});
-
-export default AdminHomeServiceSettingsScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    field: { marginTop: S.md },
+    error: { ...T.body, color: c.error, marginBottom: S.md },
+  });

@@ -88,7 +88,7 @@ const saveAuthenticationData = async (
   console.log("📊 Token type:", tokenType || 'FULL');
   
   if (!isValidToken(payload.accessToken)) {
-    console.error("❌ Invalid access token, cannot save:", payload.accessToken);
+    console.error("❌ Verification response had no usable access token");
     return false;
   }
   
