@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { hasPermission, useAdminProfile, type PermissionKey } from '../hooks/useAdminPermission';
-import { useGetUnreadCountQuery } from '../networks/admin/adminApi';
+import { useGetOverviewQuery, useGetUnreadCountQuery } from '../networks/admin/adminApi';
 import { R, S, T, useTheme, type ThemeColors } from '../theme';
 
 import AdminOverviewScreen from '../screens/admin/overview/AdminOverviewScreen';
@@ -51,6 +51,9 @@ const AdminTabs: React.FC = () => {
   const admin = useAdminProfile();
   // The More tab carries the unread count; polled while the console is open.
   const { data: unread } = useGetUnreadCountQuery(undefined, { pollingInterval: 60_000 });
+  // The Queue tab shows how much is waiting (the same counts as Overview).
+  const { data: overview } = useGetOverviewQuery(undefined, { pollingInterval: 60_000 });
+  const waiting = (overview?.queues ?? []).reduce((sum, q) => sum + (q.type !== 'reconciliation_drift' && typeof q.count === 'number' ? q.count : 0), 0);
   const bottom = Math.max(insets.bottom, S.sm);
 
   const showPeople = PEOPLE_PERMISSIONS.some((p) => hasPermission(admin, p));
@@ -75,7 +78,14 @@ const AdminTabs: React.FC = () => {
       })}
     >
       <Tab.Screen name="Overview" component={AdminOverviewScreen} />
-      <Tab.Screen name="Queue" component={AdminQueueScreen} />
+      <Tab.Screen
+        name="Queue"
+        component={AdminQueueScreen}
+        options={{
+          tabBarBadge: waiting ? (waiting > 99 ? '99+' : waiting) : undefined,
+          tabBarAccessibilityLabel: waiting ? `Queue, ${waiting} waiting` : 'Queue',
+        }}
+      />
       {showPeople && <Tab.Screen name="People" component={AdminPeopleScreen} />}
       {showModules && <Tab.Screen name="Modules" component={AdminModulesScreen} />}
       <Tab.Screen
