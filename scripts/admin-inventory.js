@@ -75,8 +75,25 @@ const routesFor = (screenFile) => {
   const noExt = screenFile.replace(/\.(tsx|ts)$/, '');
   return registrations.filter((r) => r.target === noExt || r.target === `${noExt}/index` || `${r.target}/index` === noExt).map((r) => r.route);
 };
+// Tab roots and stack initial routes are entered by the navigator itself.
+const entryRoutes = new Set();
+for (const [file, src] of Object.entries(sources)) {
+  if (!/navigators|navigation-maps/.test(file)) continue;
+  for (const m of src.matchAll(/<Tab\.Screen[^>]*?name=\{?\s*([\w.'"]+)/g)) entryRoutes.add(routeName(m[1]));
+  for (const m of src.matchAll(/initialRouteName=\{\s*([\w.]+)/g)) entryRoutes.add(routeName(m[1]));
+}
+// `navigate(Names.Key)` as well as `navigate('Value')`.
+const constRefs = (route) =>
+  Object.entries(routeConsts).flatMap(([constName, map]) =>
+    Object.entries(map).filter(([, v]) => v === route).map(([k]) => `${constName}\\.${k}\\b`)
+  );
 const inbound = (route) =>
-  Object.entries(sources).some(([f, src]) => !/navigation-maps/.test(f) && new RegExp(`(navigate|push|replace|reset)\\([^)]*['"]${route}['"]|route:\\s*['"]${route}['"]|screen:\\s*['"]${route}['"]`).test(src));
+  entryRoutes.has(route) ||
+  Object.entries(sources).some(([f, src]) => {
+    if (/navigation-maps/.test(f)) return false;
+    const names = [`['"]${route}['"]`, ...constRefs(route)].join('|');
+    return new RegExp(`(navigate|push|replace|reset)\\([^)]*(${names})|route:\\s*(${names})|screen:\\s*(${names})|name:\\s*(${names})`).test(src);
+  });
 
 function dataSource(file, src) {
   const real = /from ['"][./]*(networks|services)\//.test(src) || /adminApi|apiRequest|healthcareAdminApiRequest|adminRequest/.test(src);

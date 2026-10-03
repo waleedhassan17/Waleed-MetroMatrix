@@ -12,6 +12,7 @@ import {
   adminRestrictionChanged,
   adminSignedOut,
 } from '../../screens/admin/auth/adminAuthSlice';
+import { adminApi } from '../../networks/admin/adminApi';
 import { ToastHost } from '../ui';
 
 /**
@@ -36,6 +37,7 @@ const AdminSessionManager: React.FC = () => {
   useEffect(() => {
     const offEnded = onSessionEnded((audience, reason) => {
       if (audience !== 'admin') return;
+      dispatch(adminApi.util.resetApiState());
       dispatch(
         adminSignedOut({
           notice: reason === 'signed_out' ? undefined : 'Your admin session has ended. Please sign in again.',

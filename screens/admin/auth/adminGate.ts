@@ -51,7 +51,7 @@ export function adminGateDecision(status: AdminAuthStatus, restrict: SessionRest
 }
 
 /** The first screen after signing in. */
-export const ADMIN_HOME_ROUTE = 'AdminDashboard';
+export const ADMIN_HOME_ROUTE = 'AdminHome';
 
 export const landingAfterSignIn = (restrict: SessionRestriction): string =>
   restrict ? RESTRICTED_TO[restrict].home : ADMIN_HOME_ROUTE;

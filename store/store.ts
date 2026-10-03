@@ -33,8 +33,6 @@ import userHomeReducer from "../screens/user-home/userhomeSlice";
 import userManagementReducer from "../screens/admin/user-management/userManagementSlice";
 import providerManagementReducer from "../screens/admin/provider-management/providerManagementSlice";
 import pendingReviewReducer from "../screens/admin/pending-review/pendingReviewSlice";
-import notificationsReducer from "../screens/admin/notifications/notificationSlice";
-import settingsReducer from "../screens/admin/settings/settingsSlice";
 import homeServiceBookingsReducer from "../screens/user/homeservice/tabs/booking-screen/bookingSlice";
 import favoritesReducer from "../screens/user/homeservice/favorites/favoritesSlice";
 import serviceProvidersReducer from "../screens/user/homeservice/service-providers/providersSlice";
@@ -237,8 +235,6 @@ const appReducer = combineReducers({
   userManagement: userManagementReducer,
   providerManagement: providerManagementReducer,
   pendingReview: pendingReviewReducer,
-  notifications: notificationsReducer,
-  settings: settingsReducer,
   providerApproval: providerApprovalSlice.reducer,
   userHome: userHomeReducer,
   homeServiceBookings: homeServiceBookingsReducer,

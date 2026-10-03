@@ -1,6 +1,7 @@
 import type { AppDispatch } from '../../../store/store';
 import { resetAllState } from '../../../store/store';
 import type { AdminProfile, SessionRestriction } from '../../../networks/admin/auth';
+import { adminApi } from '../../../networks/admin/adminApi';
 import { adminSignedIn } from './adminAuthSlice';
 import { landingAfterSignIn } from './adminGate';
 
@@ -15,6 +16,7 @@ export function finishAdminSignIn(
   result: { admin: AdminProfile; restrict: SessionRestriction }
 ): void {
   dispatch(resetAllState(true));
+  dispatch(adminApi.util.resetApiState());
   dispatch(adminSignedIn({ admin: result.admin, restrict: result.restrict }));
   navigation.reset({ index: 0, routes: [{ name: landingAfterSignIn(result.restrict) }] });
 }

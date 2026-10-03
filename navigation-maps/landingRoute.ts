@@ -26,7 +26,7 @@ export type LandingRoute =
   | 'UserHome'
   | 'HomeServiceProviderDashboard'
   | 'DoctorStack'
-  | 'AdminDashboard';
+  | 'AdminHome';
 
 export interface LandingState {
   userType: 'user' | 'provider' | 'admin' | null;
@@ -58,7 +58,7 @@ export const resolveLandingRoute = ({
 }: LandingState): LandingRoute => {
   // An admin resumes in the console. AdminGate verifies the stored session on
   // the way in and sends a dead one to AdminSignIn, so nothing is checked here.
-  if (userType === 'admin') return 'AdminDashboard';
+  if (userType === 'admin') return 'AdminHome';
   if (userType === 'provider' && hasProvider) {
     return providerType === 'doctor' ? 'DoctorStack' : 'HomeServiceProviderDashboard';
   }
