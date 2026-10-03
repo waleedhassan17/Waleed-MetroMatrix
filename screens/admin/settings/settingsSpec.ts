@@ -44,7 +44,7 @@ export function fieldProblem(f: FieldSpec, value: string | boolean | undefined):
     }
     default: {
       const text = String(value ?? '').trim();
-      const min = f.allowEmpty ? 0 : f.min ?? 0;
+      const min = f.allowEmpty || f.min === undefined ? 0 : f.min;
       if (text.length < min) return min > 0 ? `Enter at least ${min} character${min === 1 ? '' : 's'}` : null;
       if (f.max && text.length > f.max) return `Use at most ${f.max} characters`;
       return null;

@@ -66,12 +66,6 @@ for (const [file, src] of sources) {
   for (const m of src.matchAll(/AdminShoppingRouteNames\.(\w+)/g)) add(shoppingNames[m[1]] ?? m[1], file);
 }
 
-// Legacy routes the F4 screen migrations remove; they are allowed to be
-// orphaned until then. Keep this list shrinking — never add to it.
-const LEGACY_UNTIL_F4 = new Set<string>(['AdminDashboard', 'ProviderManagement', 'UserManagement']);
-// Opened by code that F4 either deletes (the legacy dashboard's dead links) or
-// lands the screen for (provider and user detail).
-const PENDING_F4 = new Set<string>(['Notifications', 'Settings', 'AdminProviderDetail', 'AdminUserDetail']);
 
 it('finds the admin routes and navigation calls', () => {
   expect(adminRoutes.length).toBeGreaterThan(20);
@@ -79,11 +73,11 @@ it('finds the admin routes and navigation calls', () => {
 });
 
 it('every route the admin code opens is registered', () => {
-  const missing = [...targets.entries()].filter(([name]) => !registered.has(name) && !PENDING_F4.has(name)).map(([name, files]) => `${name} (from ${files[0]})`);
+  const missing = [...targets.entries()].filter(([name]) => !registered.has(name)).map(([name, files]) => `${name} (from ${files[0]})`);
   expect(missing).toEqual([]);
 });
 
 it('every gated admin route has a way in', () => {
-  const orphans = adminRoutes.filter((r) => !targets.has(r) && !LEGACY_UNTIL_F4.has(r));
+  const orphans = adminRoutes.filter((r) => !targets.has(r));
   expect(orphans).toEqual([]);
 });

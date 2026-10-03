@@ -25,14 +25,10 @@ import { resetPasswordSlice } from "../screens/authentication-screens/reset-pass
 import { resetPasswordOtpSlice } from "../screens/authentication-screens/reset-password-otp/resetPasswordOtpSlice";
 import { emailVerificationSlice } from "../screens/authentication-screens/email-verification/emailVerificationSlice";
 
-import { adminSlice } from "../screens/admin/admin-dashboard/adminSlice";
 import { adminAuthSlice } from "../screens/admin/auth/adminAuthSlice";
 import { adminApi } from "../networks/admin/adminApi";
 import { providerApprovalSlice } from "../screens/authentication-screens/provider-approval-pending/providerApprovalSlice";
 import userHomeReducer from "../screens/user-home/userhomeSlice";
-import userManagementReducer from "../screens/admin/user-management/userManagementSlice";
-import providerManagementReducer from "../screens/admin/provider-management/providerManagementSlice";
-import pendingReviewReducer from "../screens/admin/pending-review/pendingReviewSlice";
 import homeServiceBookingsReducer from "../screens/user/homeservice/tabs/booking-screen/bookingSlice";
 import favoritesReducer from "../screens/user/homeservice/favorites/favoritesSlice";
 import serviceProvidersReducer from "../screens/user/homeservice/service-providers/providersSlice";
@@ -228,13 +224,9 @@ const appReducer = combineReducers({
   resetPassword: resetPasswordSlice.reducer,
   resetPasswordOtp: resetPasswordOtpSlice.reducer,
   emailVerification: emailVerificationSlice.reducer,
-  admin: adminSlice.reducer,
   adminAuth: adminAuthSlice.reducer,
   // Admin console server cache (RTK Query). Account-scoped: wiped on reset.
   [adminApi.reducerPath]: adminApi.reducer,
-  userManagement: userManagementReducer,
-  providerManagement: providerManagementReducer,
-  pendingReview: pendingReviewReducer,
   providerApproval: providerApprovalSlice.reducer,
   userHome: userHomeReducer,
   homeServiceBookings: homeServiceBookingsReducer,

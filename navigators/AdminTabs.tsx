@@ -8,10 +8,9 @@ import { hasPermission, useAdminProfile, type PermissionKey } from '../hooks/use
 import { useGetUnreadCountQuery } from '../networks/admin/adminApi';
 import { R, S, T, useTheme, type ThemeColors } from '../theme';
 
-// Overview, Queue and People are the legacy screens until F4 replaces them.
-import AdminOverviewScreen from '../screens/admin/admin-dashboard/adminDashboard';
-import AdminQueueScreen from '../screens/admin/pending-review/pendingReviewScreen';
-import AdminPeopleScreen from '../screens/admin/user-management/userManagementScreen';
+import AdminOverviewScreen from '../screens/admin/overview/AdminOverviewScreen';
+import AdminQueueScreen from '../screens/admin/queue/AdminQueueScreen';
+import AdminPeopleScreen from '../screens/admin/people/AdminPeopleScreen';
 import AdminModulesScreen from '../screens/admin/modules/AdminModulesScreen';
 import AdminMoreScreen from '../screens/admin/more/AdminMoreScreen';
 
