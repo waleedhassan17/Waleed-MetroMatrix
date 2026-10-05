@@ -26,7 +26,7 @@ export default function AdminModulesScreen() {
     { title: 'Payout requests', subtitle: 'Provider withdrawals to approve', icon: 'cash-outline', route: 'AdminHSPayouts', show: finance },
     { title: 'Service categories', subtitle: 'What customers can book', icon: 'grid-outline', route: 'AdminHSServiceCategories', show: true },
     { title: 'Analytics', subtitle: 'Bookings and revenue over time', icon: 'bar-chart-outline', route: 'AdminHSAnalytics', show: true },
-    { title: 'Settings', subtitle: 'Commission, payouts and matching', icon: 'settings-outline', route: 'AdminHSSettings', show: true },
+    { title: 'Settings', subtitle: 'Payouts, search radius and matching', icon: 'settings-outline', route: 'AdminHSSettings', show: true },
   ].filter((r) => r.show);
 
   return (

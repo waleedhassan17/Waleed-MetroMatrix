@@ -174,7 +174,7 @@ const AdminAppointmentDetailScreen: React.FC = () => {
             ) : null}
             {appointment.payout?.paidAt ? (
               <Text style={styles.meta}>
-                Doctor payout: {formatMoney(appointment.payout.amount)} (commission {formatMoney(appointment.payout.commission)})
+                Doctor payout: {formatMoney(appointment.payout.amount)}
               </Text>
             ) : null}
           </View>

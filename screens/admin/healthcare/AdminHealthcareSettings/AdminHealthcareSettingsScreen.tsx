@@ -1,8 +1,9 @@
 // ============================================================================
-// Healthcare settings — the three values the backend actually enforces:
-// commission on consultations, the free-cancellation window, and the refund on
-// a late cancellation. (Slot length, booking horizon and doctor auto-approval
-// used to be here; nothing read them, and the backend removed them.)
+// Healthcare settings — the two values the backend actually enforces: the
+// free-cancellation window and the refund on a late cancellation. Doctors are
+// paid the full fee; the platform takes no share. (Slot length, booking horizon
+// and doctor auto-approval used to be here; nothing read them, and the backend
+// removed them.)
 // ============================================================================
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,13 +22,11 @@ import { GUTTER, R, S, T, useTheme, type ThemeColors } from '../../../../theme';
 type Key = keyof HealthcareSettingsView;
 
 const FIELDS: { key: Key; label: string; helper: string; max: number }[] = [
-  { key: 'commissionPercent', label: 'Platform commission (%)', helper: 'Deducted from the doctor payout when a consultation completes.', max: 100 },
   { key: 'cancellationWindowHours', label: 'Free cancellation window (hours)', helper: 'Patients cancelling at least this early get a full refund.', max: 168 },
   { key: 'lateCancelRefundPercent', label: 'Late cancellation refund (%)', helper: 'Refunded when cancelling inside the window. 0 means no refund.', max: 100 },
 ];
 
 const toForm = (s: HealthcareSettingsView): Record<Key, string> => ({
-  commissionPercent: String(s.commissionPercent),
   cancellationWindowHours: String(s.cancellationWindowHours),
   lateCancelRefundPercent: String(s.lateCancelRefundPercent),
 });

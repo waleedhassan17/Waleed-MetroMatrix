@@ -88,14 +88,13 @@ export interface HSAnalytics {
   byCategory: { category: string; count: number; gross: number }[];
   byStatus: { status: string; count: number }[];
   revenue: number;
-  commission: number;
   averageCompletionMinutes: number | null;
   cancellationRate: number | null;
   topProviders: { id: string; name: string; jobs: number; gross: number; rating: number | null }[];
 }
 
+// Providers are paid in full; the platform takes no share of a booking.
 export interface HSSettings {
-  commissionPercent: number;
   defaultSearchRadiusKm: number;
   matchingWeights: { distance: number; rating: number; availability: number };
   minPayoutAmount: number;

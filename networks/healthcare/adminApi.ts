@@ -247,8 +247,8 @@ export async function deleteHealthcareReviewApi(id: string, reason: string): Pro
 
 // What the server stores and enforces. Slot length, booking horizon and
 // auto-approval were editable once but read by nothing; the backend removed them.
+// There is no commission: doctors are paid the full fee.
 export interface HealthcareSettingsView {
-  commissionPercent: number;
   cancellationWindowHours: number;
   lateCancelRefundPercent: number;
 }

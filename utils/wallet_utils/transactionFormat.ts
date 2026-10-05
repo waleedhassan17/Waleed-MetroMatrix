@@ -98,7 +98,8 @@ const SOURCE_LABELS: Record<string, string> = {
   healthcare_earning: 'Consultation earnings',
   shopping_payment: 'Order payment',
   shopping_earning: 'Order earnings',
-  commission: 'Platform commission',
+  // There is no commission any more; this labels transactions from before Oct 2026.
+  commission: 'Platform fee (before Oct 2026)',
 };
 
 export const prettySource = (source: string): string =>

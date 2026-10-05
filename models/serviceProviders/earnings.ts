@@ -54,7 +54,7 @@ export interface EarningsData {
   periodJobs: number;
   series: EarningsSeriesPoint[];
   seriesTitle: string;
-  /** What a payout request may ask for right now (wallet minus pending commission and payouts). */
+  /** What a payout request may ask for right now (wallet minus payouts already requested). */
   availableBalance: number;
   minPayoutAmount: number;
 }

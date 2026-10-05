@@ -77,7 +77,6 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
 
   const stats = [
     { label: 'GMV', value: formatMoney(data?.gmv) },
-    { label: 'Commission earned', value: formatMoney(data?.commission) },
     { label: 'Orders', value: formatCount(data?.totalOrders) },
     { label: 'Avg order value', value: formatMoney(data?.avgOrderValue) },
     { label: 'New customers', value: formatCount(data?.newCustomers) },

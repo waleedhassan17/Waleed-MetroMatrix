@@ -35,8 +35,7 @@ const COLORS = {
   border: '#E9ECEF',
 };
 
-const NUMERIC_FIELDS: { key: 'commissionPercent' | 'shippingFeePerBrand' | 'freeShippingThreshold' | 'lowStockThreshold' | 'defaultReturnDays'; label: string; hint: string }[] = [
-  { key: 'commissionPercent', label: 'Platform commission (%)', hint: 'Deducted from vendor payouts at delivery' },
+const NUMERIC_FIELDS: { key: 'shippingFeePerBrand' | 'freeShippingThreshold' | 'lowStockThreshold' | 'defaultReturnDays'; label: string; hint: string }[] = [
   { key: 'shippingFeePerBrand', label: 'Shipping fee per brand (PKR)', hint: 'Charged per brand in a checkout' },
   { key: 'freeShippingThreshold', label: 'Free shipping threshold (PKR)', hint: "Waives a brand's fee at this subtotal" },
   { key: 'lowStockThreshold', label: 'Low-stock threshold (units)', hint: 'Flags variants at or below this level' },
@@ -64,7 +63,6 @@ const AdminShoppingSettingsScreen: React.FC = () => {
   useEffect(() => {
     if (settings) {
       setForm({
-        commissionPercent: String(settings.commissionPercent),
         shippingFeePerBrand: String(settings.shippingFeePerBrand),
         freeShippingThreshold: String(settings.freeShippingThreshold),
         lowStockThreshold: String(settings.lowStockThreshold),

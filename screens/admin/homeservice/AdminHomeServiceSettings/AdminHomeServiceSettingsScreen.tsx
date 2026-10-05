@@ -1,6 +1,6 @@
 // ============================================================================
-// Home-services settings — values the platform uses live: commission on paid
-// bookings, the smallest payout a provider can request, how far to search for
+// Home-services settings — values the platform uses live: the smallest payout
+// a provider can request, how far to search for
 // providers, the speed used for arrival estimates, and how matching weighs
 // distance, rating and availability. The server checks every limit; saving
 // asks for a reason, which goes in the audit log.
@@ -16,10 +16,9 @@ import { adminErrorOf } from '../../../../networks/admin/adminApi';
 import { useGetHSSettingsQuery, useUpdateHSSettingsMutation, type HSSettings } from '../../../../networks/admin/homeServicesApi';
 import { S, T, useTheme, type ThemeColors } from '../../../../theme';
 
-type Form = Record<'commissionPercent' | 'minPayoutAmount' | 'defaultSearchRadiusKm' | 'avgUrbanSpeedKmh' | 'distance' | 'rating' | 'availability', string>;
+type Form = Record<'minPayoutAmount' | 'defaultSearchRadiusKm' | 'avgUrbanSpeedKmh' | 'distance' | 'rating' | 'availability', string>;
 
 const toForm = (s: HSSettings): Form => ({
-  commissionPercent: String(s.commissionPercent),
   minPayoutAmount: String(s.minPayoutAmount),
   defaultSearchRadiusKm: String(s.defaultSearchRadiusKm),
   avgUrbanSpeedKmh: String(s.avgUrbanSpeedKmh),
@@ -29,7 +28,6 @@ const toForm = (s: HSSettings): Form => ({
 });
 
 const FIELDS: { key: keyof Form; label: string; helper: string; min: number; max: number }[] = [
-  { key: 'commissionPercent', label: 'Commission (%)', helper: 'Taken from each paid booking. 0–100.', min: 0, max: 100 },
   { key: 'minPayoutAmount', label: 'Smallest payout (PKR)', helper: 'Providers cannot request less.', min: 0, max: 1_000_000 },
   { key: 'defaultSearchRadiusKm', label: 'Search radius (km)', helper: 'How far from the customer to look for providers. 1–100.', min: 1, max: 100 },
   { key: 'avgUrbanSpeedKmh', label: 'Average speed (km/h)', helper: 'Used for arrival estimates. 5–120.', min: 5, max: 120 },
@@ -77,7 +75,6 @@ export default function AdminHomeServiceSettingsScreen() {
   const save = async (reason: string) => {
     if (!form) return;
     const res = await update({
-      commissionPercent: Number(form.commissionPercent),
       minPayoutAmount: Number(form.minPayoutAmount),
       defaultSearchRadiusKm: Number(form.defaultSearchRadiusKm),
       avgUrbanSpeedKmh: Number(form.avgUrbanSpeedKmh),

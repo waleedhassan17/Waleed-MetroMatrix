@@ -452,11 +452,11 @@ const JobDetailScreen: React.FC = () => {
               <Icon name="cash-multiple" size={24} color={colors.accent} />
               <View style={styles.earningsTextContainer}>
                 <Text style={styles.earningsLabel}>Estimated Earnings</Text>
-                <Text style={styles.earningsSubtext}>After platform fee (10%)</Text>
+                <Text style={styles.earningsSubtext}>You keep the full amount</Text>
               </View>
             </View>
             <Text style={styles.earningsValue}>
-              Rs {Math.round(currentJob.estimatedPrice * 0.9).toLocaleString()}
+              Rs {Math.round(currentJob.estimatedPrice).toLocaleString()}
             </Text>
           </View>
         )}

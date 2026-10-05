@@ -43,8 +43,8 @@ export interface DeliveryTierView {
   isActive: boolean;
 }
 
+// There is no commission: vendors are paid the full order value.
 export interface ShoppingSettingsView {
-  commissionPercent: number;
   shippingFeePerBrand: number;
   freeShippingThreshold: number;
   lowStockThreshold: number;
@@ -67,7 +67,6 @@ export interface AdminAnalyticsView {
   gmv: number;
   gmvSeries: { label: string; gmv: number; orders: number }[];
   revenueByBrand: { brandId: string; brandName: string; revenue: number; orders: number }[];
-  commission: number;
   ordersByStatus: Record<string, number>;
   totalOrders: number;
   newCustomers: number;

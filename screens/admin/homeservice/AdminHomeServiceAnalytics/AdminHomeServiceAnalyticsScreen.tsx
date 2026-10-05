@@ -1,6 +1,6 @@
 // ============================================================================
 // Home-services analytics for a period: bookings per Pakistan day, by category
-// and status, paid revenue and the platform's commission, completion time,
+// and status, paid revenue, completion time,
 // cancellations, and the busiest providers. Anything the server could not
 // measure (no completed jobs yet) shows as "—".
 // ============================================================================
@@ -50,7 +50,6 @@ export default function AdminHomeServiceAnalyticsScreen() {
                 <KpiGrid>
                   <KpiTile label="Bookings" value={formatCount(totalBookings)} onPress={() => navigation.navigate('AdminHSBookings')} />
                   <KpiTile label="Paid booking value" value={formatMoney(a.revenue)} />
-                  <KpiTile label="Platform commission" value={formatMoney(a.commission)} />
                   <KpiTile label="Cancelled or rejected" value={formatPercent(a.cancellationRate)} />
                   <KpiTile
                     label="Average job length"

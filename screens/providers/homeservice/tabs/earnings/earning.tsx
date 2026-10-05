@@ -158,7 +158,7 @@ export default function EarningsScreen() {
   }, [dispatch, period]);
 
   // What a payout may ask for is the server's figure: wallet balance minus
-  // commissions still owed on cash jobs and payouts already requested. The
+  // payouts already requested. The
   // screen used to show — and check against — the PENDING payouts total,
   // which is usually zero, so no provider could ever withdraw anything.
   const available = summary.availableBalance;

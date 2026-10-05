@@ -780,8 +780,7 @@ const WalletScreen: React.FC = () => {
  * Pending vs available earnings — computed from the transaction list
  * already in state (no extra endpoint). "Available" is the current wallet
  * balance (spendable / withdrawable now); "Pending" is the sum of credits
- * still settling (e.g. a cash-collected commission the provider's balance
- * couldn't yet absorb — see WALLET_DESIGN.md Part C, homeservice confirmCash).
+ * still settling.
  */
 function ProviderEarningsSplit({
   transactions,

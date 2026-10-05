@@ -33,7 +33,7 @@ const LINKS: { label: string; route: string; icon: string; subtitle: string }[] 
   { label: 'Reviews', route: 'AdminReviewModeration', icon: 'star-half-outline', subtitle: 'Moderate patient reviews' },
   { label: 'Specialties', route: 'SpecialtyManagement', icon: 'grid-outline', subtitle: 'What patients can book' },
   { label: 'Analytics', route: 'HealthcareAnalytics', icon: 'bar-chart-outline', subtitle: 'Appointments and revenue over time' },
-  { label: 'Settings', route: 'AdminHealthcareSettings', icon: 'settings-outline', subtitle: 'Commission and cancellation rules' },
+  { label: 'Settings', route: 'AdminHealthcareSettings', icon: 'settings-outline', subtitle: 'Cancellation and refund rules' },
 ];
 
 export default function AdminHealthcareDashboardScreen() {

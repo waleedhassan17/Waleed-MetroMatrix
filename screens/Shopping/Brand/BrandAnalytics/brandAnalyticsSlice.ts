@@ -28,9 +28,9 @@ export interface CategoryBreakdown {
 
 export interface FinancialSummary {
   totalRevenue: number;
-  totalIncome: number;       // revenue after platform fees
+  totalIncome: number;       // revenue (there is no platform fee)
   totalExpenses: number;     // shipping + returns
-  netProfit: number;         // income - expenses
+  netProfit: number;         // income - refunds
   totalOrders: number;
   avgOrderValue: number;
   // conversionRate is deliberately absent, matching the server: it needs

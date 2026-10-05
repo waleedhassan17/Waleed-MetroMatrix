@@ -2268,7 +2268,7 @@ export interface components {
         Reconciliation: {
             totalUserBalance: number;
             totalProviderBalance: number;
-            platformCommissionBalance: number;
+            platformWalletBalance: number;
             sumOfAllWallets: number;
             totalToppedUp: number;
             totalPaidOut: number;
