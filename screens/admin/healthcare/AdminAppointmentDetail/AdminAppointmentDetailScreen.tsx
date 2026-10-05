@@ -15,6 +15,7 @@ import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { idOf, openProvider } from '../../people/openProvider';
 import {
   fetchAdminAppointmentDetailApi,
   forceAppointmentStatusApi,
@@ -147,7 +148,17 @@ const AdminAppointmentDetailScreen: React.FC = () => {
       ) : appointment ? (
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.card}>
-            <Text style={styles.big}>{patientName} → Dr. {doctorName}</Text>
+            <Text style={styles.big}>
+              {patientName} →{' '}
+              <Text
+                style={styles.doctorLink}
+                onPress={() => openProvider(navigation, idOf(appointment.doctorId?.providerId))}
+                accessibilityRole="link"
+                accessibilityLabel={`Dr. ${doctorName}. Opens their details and analytics.`}
+              >
+                Dr. {doctorName}
+              </Text>
+            </Text>
             <Text style={styles.meta}>Specialty: {appointment.doctorId?.specialtyId?.name || '—'}</Text>
             <Text style={styles.meta}>Clinic: {appointment.clinicId?.name || (appointment.type === 'video' ? 'Video consultation' : '—')}</Text>
             <Text style={styles.meta}>
@@ -213,6 +224,7 @@ const AdminAppointmentDetailScreen: React.FC = () => {
 };
 
 const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },

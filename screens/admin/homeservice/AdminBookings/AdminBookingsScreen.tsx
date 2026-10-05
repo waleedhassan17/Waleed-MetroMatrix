@@ -1,14 +1,15 @@
 // ============================================================================
 // Home-services bookings — every booking, filterable by status (labels and
-// tones from /admin/meta) and searchable by customer.
+// tones from /admin/meta) and searchable by customer. Opened from a provider,
+// it shows only that provider's bookings until the filter is cleared.
 // ============================================================================
 
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { AdminScreen, EntityRow, FilterChips, PermissionGate, QueryState } from '../../../../components/admin';
-import { TextField } from '../../../../components/ui';
+import { Chip, TextField } from '../../../../components/ui';
 import { formatMoney } from '../../../../constants/Currency';
 import { enumOptions, presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
 import useDebouncedValue from '../../../../hooks/useDebouncedValue';
@@ -26,8 +27,14 @@ export default function AdminBookingsScreen() {
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
   const query = useDebouncedValue(search.trim());
+  const params = (useRoute().params ?? {}) as { providerId?: string; providerName?: string };
+  const [provider, setProvider] = useState(params.providerId ? { id: params.providerId, name: params.providerName } : null);
 
-  const list = useListHSBookingsInfiniteQuery({ status: status === 'all' ? undefined : status, search: query || undefined });
+  const list = useListHSBookingsInfiniteQuery({
+    status: status === 'all' ? undefined : status,
+    search: query || undefined,
+    provider: provider?.id,
+  });
   const items = flattenPages(list.data?.pages);
 
   return (
@@ -35,6 +42,15 @@ export default function AdminBookingsScreen() {
       <PermissionGate all={['canManageHomeServices']} action="see home-service bookings">
         <View style={styles.controls}>
           <TextField placeholder="Search customer name or email" value={search} onChangeText={setSearch} autoCapitalize="none" returnKeyType="search" containerStyle={styles.search} accessibilityLabel="Search bookings by customer" />
+          {!!provider && (
+            <Chip
+              label={`Provider: ${provider.name || 'selected'}`}
+              selected
+              icon="close"
+              onPress={() => setProvider(null)}
+              style={styles.providerChip}
+            />
+          )}
           <FilterChips options={[{ value: 'all', label: 'All' }, ...enumOptions(meta, 'bookingStatuses')]} value={status} onChange={setStatus} />
         </View>
         <QueryState
@@ -75,6 +91,7 @@ const makeStyles = (_c: ThemeColors) =>
   StyleSheet.create({
     controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
     search: { marginBottom: S.sm },
+    providerChip: { alignSelf: 'flex-start', marginBottom: S.sm },
     state: { marginHorizontal: GUTTER },
     list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
     more: { marginVertical: S.lg },

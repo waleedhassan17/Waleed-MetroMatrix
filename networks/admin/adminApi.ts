@@ -101,6 +101,8 @@ export type Overview = Schemas['Overview'];
 export type QueueItem = Schemas['QueueItem'];
 export type ProviderSummary = Schemas['ProviderSummary'];
 export type ProviderDetail = Schemas['ProviderDetail'];
+export type ProviderAnalytics = Schemas['ProviderAnalytics'];
+export type AnalyticsRange = ProviderAnalytics['range'];
 export type UserSummary = Schemas['UserSummary'];
 export type UserDetail = Schemas['UserDetail'];
 export type AdminNotification = Schemas['Notification'];
@@ -146,6 +148,11 @@ export const adminApi = createApi({
     getProvider: build.query<ProviderDetail, string>({
       queryFn: (providerId) => run(async () => (await http.get('/api/admin/providers/{providerId}', { params: { providerId } })).data),
       providesTags: (_r, _e, id) => [{ type: 'Provider', id }],
+    }),
+    getProviderAnalytics: build.query<ProviderAnalytics, { id: string; range: AnalyticsRange }>({
+      queryFn: ({ id, range }) =>
+        run(async () => (await http.get('/api/admin/providers/{providerId}/analytics', { params: { providerId: id }, query: { range } })).data),
+      providesTags: (_r, _e, { id }) => [{ type: 'Provider', id }],
     }),
     approveProvider: build.mutation<ProviderDetail, { id: string; notes?: string }>({
       queryFn: ({ id, notes }) =>
@@ -325,6 +332,7 @@ export const {
   useGetQueueInfiniteQuery,
   useListProvidersInfiniteQuery,
   useGetProviderQuery,
+  useGetProviderAnalyticsQuery,
   useApproveProviderMutation,
   useRejectProviderMutation,
   useSuspendProviderMutation,

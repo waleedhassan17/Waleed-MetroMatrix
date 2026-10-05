@@ -16,6 +16,7 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { openProvider } from '../../people/openProvider';
 
 import { AdminScreen, BarList, KpiGrid, KpiTile, QueryState, Section } from '../../../../components/admin';
 import { SegmentedControl } from '../../../../components/ui';
@@ -149,6 +150,7 @@ export default function HealthcareAnalyticsScreen() {
               value: r.totalRevenue,
               display: formatMoney(r.totalRevenue),
               detail: `${formatCount(r.appointmentCount)} consultation${r.appointmentCount === 1 ? '' : 's'}`,
+              onPress: r.providerId ? () => openProvider(navigation, r.providerId) : undefined,
             }))}
             emptyText="No completed consultations in this period."
           />

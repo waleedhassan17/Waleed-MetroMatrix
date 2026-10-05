@@ -35,6 +35,7 @@ import {
   type VerificationFilter,
 } from './doctorManagementSlice';
 import type { Doctor } from '../../../../models/healthcare/types';
+import { openProvider } from '../../people/openProvider';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
@@ -150,7 +151,14 @@ const DoctorManagementScreen: React.FC = () => {
 
     return (
       <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-        <View style={styles.cardHeader}>
+        {/* The doctor is a provider: tapping opens their details and analytics. */}
+        <TouchableOpacity
+          style={styles.cardHeader}
+          onPress={() => openProvider(navigation, item.userId)}
+          disabled={!item.userId}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name || 'Doctor'}, ${item.verificationStatus}. Opens their details and analytics.`}
+        >
           <View style={styles.avatarWrap}>
             <LinearGradient
               colors={[COLORS.primaryLight, COLORS.primary]}
@@ -162,10 +170,10 @@ const DoctorManagementScreen: React.FC = () => {
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.doctorName} numberOfLines={1}>
-              {item.qualifications[0] || 'Doctor'}
+              {item.name ? `Dr. ${item.name}` : item.qualifications[0] || 'Doctor'}
             </Text>
             <Text style={styles.specialtyText} numberOfLines={1}>
-              PMC: {item.pmcNumber}
+              {[item.specialtyName, `PMC: ${item.pmcNumber}`].filter(Boolean).join(' · ')}
             </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, borderColor: statusStyle.border }]}>
@@ -173,7 +181,7 @@ const DoctorManagementScreen: React.FC = () => {
               {item.verificationStatus.charAt(0).toUpperCase() + item.verificationStatus.slice(1)}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.cardMeta}>
           <View style={styles.metaItem}>

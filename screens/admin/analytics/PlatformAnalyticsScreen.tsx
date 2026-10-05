@@ -4,7 +4,8 @@
 //   Live         what is happening right now, refreshed every 15 s while open
 //   Demand       actual demand and the forecast, per vertical and segment,
 //                with the forecast's own accuracy so nobody over-trusts it
-//   Leaders      who serves customers well, per vertical, last 90 days
+//   Leaders      who serves customers well, per vertical, last 90 days; a
+//                row opens that provider's details and analytics
 //   Models       the ML service's models, their honest metrics, and the
 //                provider-search ranking mode
 //
@@ -14,21 +15,23 @@
 
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
+import { AdminScreen } from '../../../components/admin';
 import {
-  AppBar,
   Card,
   Chip,
   EmptyState,
   ErrorState,
-  Screen,
   SectionHeader,
   SegmentedControl,
   SkeletonCard,
   StatTile,
   ToneBadge,
 } from '../../../components/ui';
+import { formatMoney } from '../../../constants/Currency';
+import { openProvider } from '../people/openProvider';
 import ForecastChart from '../../../components/ui/charts/ForecastChart';
 import ModelsTab from './ModelsTab';
 import { GUTTER, S, T } from '../../../constants/theme';
@@ -58,12 +61,10 @@ const pct = (n: number | null | undefined) => (n === null || n === undefined ? '
 export default function PlatformAnalyticsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const navigation = useNavigation<any>();
   const [tab, setTab] = useState<Tab>('live');
 
   return (
-    <Screen>
-      <AppBar title="Platform analytics" subtitle="Live usage, demand and performance" onBack={() => navigation.goBack()} />
+    <AdminScreen title="Platform analytics" subtitle="Live usage, demand and performance" scroll={false}>
       <View style={styles.tabs}>
         <SegmentedControl
           options={[
@@ -80,13 +81,14 @@ export default function PlatformAnalyticsScreen() {
       {tab === 'demand' && <DemandTab styles={styles} />}
       {tab === 'performance' && <PerformanceTab styles={styles} />}
       {tab === 'models' && <ModelsTab />}
-    </Screen>
+    </AdminScreen>
   );
 }
 
 function LiveTab({ styles }: { styles: Styles }) {
   const [data, setData] = useState<RealtimeOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pulling, setPulling] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -143,7 +145,16 @@ function LiveTab({ styles }: { styles: Styles }) {
   const active = data.api ? data.api.activeAccounts5m : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.pad} refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}>
+    <ScrollView contentContainerStyle={styles.pad} refreshControl={
+        <RefreshControl
+          refreshing={pulling}
+          onRefresh={async () => {
+            setPulling(true);
+            await load();
+            setPulling(false);
+          }}
+        />
+      }>
       {tiles.map((row, i) => (
         <View key={i} style={styles.tileRow}>
           {row.map((t) => (
@@ -243,6 +254,8 @@ function DemandTab({ styles }: { styles: Styles }) {
 }
 
 function PerformanceTab({ styles }: { styles: Styles }) {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   const [module, setModule] = useState<Vertical>('homeservice');
   const [rows, setRows] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -268,7 +281,7 @@ function PerformanceTab({ styles }: { styles: Styles }) {
     if (module === 'homeservice')
       return {
         primary: `${r.completed} done of ${r.requests} · ${pct(r.completionRate)} completion`,
-        secondary: `★ ${r.rating || '—'} (${r.reviews}) · ${r.declined} declined · ${r.providerCancelled} cancelled · Rs. ${fmt(r.earnings)}`,
+        secondary: `★ ${r.rating || '—'} (${r.reviews}) · ${r.declined} declined · ${r.providerCancelled} cancelled · ${formatMoney(r.earnings)}`,
       };
     if (module === 'healthcare')
       return {
@@ -276,7 +289,7 @@ function PerformanceTab({ styles }: { styles: Styles }) {
         secondary: `${r.specialty || 'Doctor'} · ★ ${r.rating || '—'} (${r.reviews}) · ${r.doctorCancelled} cancelled by doctor`,
       };
     return {
-      primary: `Rs. ${fmt(r.gmv)} delivered · ${r.orders} orders`,
+      primary: `${formatMoney(r.gmv)} delivered · ${r.orders} orders`,
       secondary: `${pct(r.fulfilmentRate)} fulfilled · ${pct(r.returnRate)} returned · ${r.cancelled} cancelled`,
     };
   };
@@ -294,9 +307,16 @@ function PerformanceTab({ styles }: { styles: Styles }) {
       ) : (
         rows.map((r, i) => {
           const l = line(r);
+          const providerId: string | null = r.providerId ?? null;
           return (
             <Card key={r.id} style={styles.rankCard}>
-              <View style={styles.rankRow}>
+              <Pressable
+                style={({ pressed }) => [styles.rankRow, pressed && styles.rankPressed]}
+                onPress={providerId ? () => openProvider(navigation, providerId) : undefined}
+                disabled={!providerId}
+                accessibilityRole={providerId ? 'button' : undefined}
+                accessibilityLabel={`${i + 1}. ${r.name}. ${l.primary}. ${l.secondary}${providerId ? '. Opens their details and analytics.' : ''}`}
+              >
                 <Text style={styles.rank}>{i + 1}</Text>
                 <View style={styles.rankBody}>
                   <Text style={styles.rankName} numberOfLines={1}>
@@ -304,8 +324,10 @@ function PerformanceTab({ styles }: { styles: Styles }) {
                   </Text>
                   <Text style={styles.rankPrimary}>{l.primary}</Text>
                   <Text style={styles.rankSecondary}>{l.secondary}</Text>
+                  {!providerId && module === 'shopping' && <Text style={styles.rankSecondary}>Admin-managed brand, no provider</Text>}
                 </View>
-              </View>
+                {!!providerId && <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />}
+              </Pressable>
             </Card>
           );
         })
@@ -334,7 +356,8 @@ const makeStyles = (c: ThemeColors) =>
     badge: { marginRight: S.xs, marginBottom: S.xs },
     section: { marginTop: S.lg },
     rankCard: { marginBottom: S.sm },
-    rankRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    rankRow: { flexDirection: 'row', alignItems: 'center' },
+    rankPressed: { opacity: 0.6 },
     rank: { ...T.heading, color: c.inkFaint, width: 32 },
     rankBody: { flex: 1 },
     rankName: { ...T.subhead, color: c.ink },

@@ -14,6 +14,7 @@ import {
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { openProvider } from '../../people/openProvider';
 import { ChevronLeft, ShieldAlert, Banknote } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
@@ -129,7 +130,16 @@ const AdminShoppingOrderDetailScreen: React.FC = () => {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.card}>
             <Text style={styles.orderCode}>{order.odexId}</Text>
-            <Text style={styles.metaLine}>Brand: {order.brandName || order.brandId}</Text>
+            <Text style={styles.metaLine}>
+              Brand:{' '}
+              {order.brandOwnerId ? (
+                <Text style={styles.ownerLink} onPress={() => openProvider(navigation, order.brandOwnerId)} accessibilityRole="link">
+                  {order.brandName || order.brandId}
+                </Text>
+              ) : (
+                order.brandName || order.brandId
+              )}
+            </Text>
             <Text style={styles.metaLine}>
               Customer: {order.customerName || '—'} {order.customerEmail ? `(${order.customerEmail})` : ''}
             </Text>
@@ -228,6 +238,7 @@ const AdminShoppingOrderDetailScreen: React.FC = () => {
 };
 
 const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  ownerLink: { color: COLORS.primary, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },

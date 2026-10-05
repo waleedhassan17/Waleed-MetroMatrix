@@ -13,8 +13,9 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
-import { AdminScreen, ConfirmSheet, DetailRow, FilterChips, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
-import { Button, ListRow, TextField, showToast } from '../../../../components/ui';
+import { EntityRow, AdminScreen, ConfirmSheet, DetailRow, FilterChips, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
+import { Button, ListRow, TextField, ToneBadge, showToast } from '../../../../components/ui';
+import type { Tone } from '../../../../constants/theme';
 import { formatMoney } from '../../../../constants/Currency';
 import { enumOptions, presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
 import { adminErrorOf } from '../../../../networks/admin/adminApi';
@@ -22,6 +23,14 @@ import { useForceHSBookingStatusMutation, useGetHSBookingQuery, useRefundHSBooki
 import { formatDateTime } from '../../../../utils/admin/format';
 import { S, T, useTheme, type ThemeColors } from '../../../../theme';
 import { categoryLabel } from '../labels';
+import { openProvider } from '../../people/openProvider';
+
+const PAYMENT: Record<string, { label: string; tone: Tone }> = {
+  unpaid: { label: 'Unpaid', tone: 'warning' },
+  requested: { label: 'Payment requested', tone: 'info' },
+  paid: { label: 'Paid', tone: 'success' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+};
 
 export default function AdminBookingDetailScreen() {
   const { colors } = useTheme();
@@ -68,7 +77,29 @@ export default function AdminBookingDetailScreen() {
   const remaining = b?.refund?.remaining;
 
   return (
-    <AdminScreen title="Booking" refreshing={query.isFetching && !query.isLoading} onRefresh={query.refetch}>
+    <AdminScreen
+      title="Booking"
+      refreshing={query.isFetching && !query.isLoading}
+      onRefresh={query.refetch}
+      footer={
+        b ? (
+          <PermissionGate all={['canManageHomeServices']} fallback={null}>
+            <View style={styles.footer}>
+              <Button label="Change status" variant="secondary" onPress={() => setSheet('status')} style={styles.footerButton} />
+              <PermissionGate all={['canManageFinance']} fallback={null}>
+                <Button
+                  label="Refund"
+                  variant="secondary"
+                  onPress={() => setSheet('refund')}
+                  disabled={b.payment.status !== 'paid' || remaining === 0}
+                  style={styles.footerButton}
+                />
+              </PermissionGate>
+            </View>
+          </PermissionGate>
+        ) : undefined
+      }
+    >
       <QueryState isLoading={query.isLoading} error={query.error} onRetry={query.refetch} action="see this booking">
         {b && (
           <>
@@ -86,13 +117,32 @@ export default function AdminBookingDetailScreen() {
             </Section>
 
             <Section title="People" card>
-              <DetailRow label="Customer" value={b.customer ? `${b.customer.name} · ${b.customer.email}` : null} />
-              <DetailRow label="Provider" value={b.provider ? `${b.provider.name} · ${b.provider.email}` : 'Not assigned'} last />
+              <EntityRow
+                avatar={{ name: b.customer?.name }}
+                title={b.customer?.name ?? 'Customer removed'}
+                subtitle={b.customer ? `Customer · ${b.customer.email}` : 'Customer'}
+                onPress={b.customer ? () => navigation.navigate('AdminUserDetail', { userId: b.customer!.id }) : undefined}
+              />
+              <EntityRow
+                avatar={{ name: b.provider?.name }}
+                icon={b.provider ? undefined : 'person-outline'}
+                title={b.provider?.name ?? 'Not assigned'}
+                subtitle={b.provider ? `Provider · ${b.provider.email}` : 'Provider'}
+                onPress={b.provider ? () => openProvider(navigation, b.provider!.id) : undefined}
+                accessibilityLabel={b.provider ? `Provider ${b.provider.name}. Opens their details and analytics.` : 'No provider assigned'}
+                divider={false}
+              />
             </Section>
 
             <Section title="Money" card>
               <DetailRow label="Price" value={formatMoney(b.price)} />
-              <DetailRow label="Payment" value={`${b.payment.status}${b.payment.method ? ` · ${b.payment.method}` : ''}`} />
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Payment</Text>
+                <ToneBadge
+                  label={`${PAYMENT[b.payment.status]?.label ?? b.payment.status}${b.payment.method ? ` · ${b.payment.method}` : ''}`}
+                  tone={PAYMENT[b.payment.status]?.tone ?? 'neutral'}
+                />
+              </View>
               <DetailRow label="Paid" value={b.payment.paidAt ? formatDateTime(b.payment.paidAt) : null} />
               {b.refund && <DetailRow label="Refunded so far" value={formatMoney(b.refund.refunded)} />}
               {b.refund && <DetailRow label="Still refundable" value={formatMoney(b.refund.remaining)} last />}
@@ -129,20 +179,6 @@ export default function AdminBookingDetailScreen() {
               )}
             </Section>
 
-            <PermissionGate all={['canManageHomeServices']} fallback={null}>
-              <View style={styles.actions}>
-                <Button label="Change status" variant="secondary" onPress={() => setSheet('status')} fullWidth />
-                <PermissionGate all={['canManageFinance']} fallback={null}>
-                  <Button
-                    label="Refund"
-                    variant="secondary"
-                    onPress={() => setSheet('refund')}
-                    disabled={b.payment.status !== 'paid' || remaining === 0}
-                    fullWidth
-                  />
-                </PermissionGate>
-              </View>
-            </PermissionGate>
           </>
         )}
       </QueryState>
@@ -191,5 +227,8 @@ const makeStyles = (c: ThemeColors) =>
     divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
     historyStatus: { ...T.bodyStrong, color: c.ink },
     historyMeta: { ...T.caption, color: c.inkMuted, marginTop: 2 },
-    actions: { gap: S.sm },
+    footer: { flexDirection: 'row', gap: S.sm },
+    footerButton: { flex: 1 },
+    paymentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+    paymentLabel: { ...T.body, color: c.inkMuted },
   });

@@ -14,7 +14,7 @@ import { S, T, useTheme, type ThemeColors } from '../../theme';
 export interface TimelineEntry {
   id: string;
   action: string;
-  actor?: { id?: string; name?: string; role?: string };
+  actor?: { id?: string; name?: string; role?: string } | null;
   reason?: string | null;
   createdAt: string;
 }

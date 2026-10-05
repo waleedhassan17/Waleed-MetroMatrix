@@ -41,6 +41,8 @@ export interface RevenueRow {
   specialtyName?: string | null;
   doctorId?: string;
   doctorName?: string | null;
+  /** The doctor's provider account — opens their details and analytics. */
+  providerId?: string | null;
   totalRevenue: number;
   appointmentCount: number;
 }

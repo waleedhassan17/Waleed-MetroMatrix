@@ -12,6 +12,7 @@ import {
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
+import { openProvider } from '../../people/openProvider';
 import { ChevronLeft, TrendingUp } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import {
@@ -41,14 +42,21 @@ const RANGES: { key: AnalyticsRange; label: string }[] = [
 
 // Simple horizontal bar — same approach as the vendor analytics screen,
 // no charting library.
-const Bar: React.FC<{ label: string; value: number; max: number; suffix?: string }> = ({ label, value, max, suffix }) => {
+const Bar: React.FC<{ label: string; value: number; max: number; suffix?: string; onPress?: () => void }> = ({ label, value, max, suffix, onPress }) => {
   const { mode } = useTheme();
   const sh = useMemo(() => darkShift(mode), [mode]);
   const styles = useMemo(() => makeStyles(sh), [sh]);
 
   return (
   <View style={styles.barRow}>
-    <Text style={styles.barLabel} numberOfLines={1}>{label}</Text>
+    <Text
+      style={[styles.barLabel, !!onPress && styles.barLink]}
+      numberOfLines={1}
+      onPress={onPress}
+      accessibilityRole={onPress ? 'link' : undefined}
+    >
+      {label}
+    </Text>
     <View style={styles.barTrack}>
       <View style={[styles.barFill, { width: `${max > 0 ? Math.max(4, (value / max) * 100) : 0}%` }]} />
     </View>
@@ -149,7 +157,13 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
                 <Text style={styles.emptyText}>No revenue yet</Text>
               ) : (
                 data.revenueByBrand.map((brand) => (
-                  <Bar key={brand.brandId} label={brand.brandName} value={brand.revenue} max={maxBrand} />
+                  <Bar
+                    key={brand.brandId}
+                    label={brand.brandName}
+                    value={brand.revenue}
+                    max={maxBrand}
+                    onPress={brand.ownerId ? () => openProvider(navigation, brand.ownerId) : undefined}
+                  />
                 ))
               )}
             </View>
@@ -183,6 +197,7 @@ const AdminShoppingAnalyticsScreen: React.FC = () => {
 };
 
 const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  barLink: { color: COLORS.primary, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },

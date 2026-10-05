@@ -392,7 +392,7 @@ export type RootStackParamList = {
   BookingDetail: { bookingId: string };
   RaiseDispute: { bookingId: string };
   HomeServiceNotifications: undefined;
-  AdminHSBookings: undefined;
+  AdminHSBookings: { providerId?: string; providerName?: string } | undefined;
   AdminHSBookingDetail: { bookingId: string };
   AdminHSDisputes: undefined;
   AdminHSPayouts: undefined;

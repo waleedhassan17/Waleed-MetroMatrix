@@ -27,6 +27,8 @@ export interface AdminBrandView extends BrandConfig {
 
 export interface AdminOrderView extends Order {
   brandName?: string;
+  /** The vendor who owns the brand (null when the platform runs it). */
+  brandOwnerId?: string | null;
   customerName?: string;
   customerEmail?: string;
   statusHistory?: { status: string; changedAt: string; note?: string; changedBy?: any }[];
@@ -66,7 +68,8 @@ export interface AdminDashboardView {
 export interface AdminAnalyticsView {
   gmv: number;
   gmvSeries: { label: string; gmv: number; orders: number }[];
-  revenueByBrand: { brandId: string; brandName: string; revenue: number; orders: number }[];
+  /** ownerId: the vendor who owns the brand (null for a brand the platform runs). */
+  revenueByBrand: { brandId: string; brandName: string; ownerId?: string | null; revenue: number; orders: number }[];
   ordersByStatus: Record<string, number>;
   totalOrders: number;
   newCustomers: number;

@@ -13,6 +13,7 @@ import {
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
 import { useNavigation } from '@react-navigation/native';
+import { openProvider } from '../../people/openProvider';
 import {
   ChevronLeft,
   Search,
@@ -139,7 +140,21 @@ const BrandManagementScreen: React.FC = () => {
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.brandName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.brandSlug}>{item.slug}{item.ownerName ? ` · ${item.ownerName}` : ''}</Text>
+          <Text style={styles.brandSlug} numberOfLines={1}>
+            {item.slug} ·{' '}
+            {item.owner ? (
+              <Text
+                style={styles.ownerLink}
+                onPress={() => openProvider(navigation as any, item.owner)}
+                accessibilityRole="link"
+                accessibilityLabel={`Owner ${item.ownerName || ''}. Opens their details and analytics.`}
+              >
+                {item.ownerName || 'Owner'}
+              </Text>
+            ) : (
+              'Admin-managed brand, no provider'
+            )}
+          </Text>
         </View>
       </View>
 
@@ -284,6 +299,7 @@ const BrandManagementScreen: React.FC = () => {
 };
 
 const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  ownerLink: { color: COLORS.primary, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',

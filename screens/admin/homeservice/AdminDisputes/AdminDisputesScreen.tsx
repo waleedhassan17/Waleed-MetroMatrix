@@ -18,6 +18,7 @@ import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi'
 import { useListHSDisputesInfiniteQuery, useResolveHSDisputeMutation, type HSDispute } from '../../../../networks/admin/homeServicesApi';
 import { formatAgo } from '../../../../utils/admin/format';
 import { GUTTER, S, T, useTheme, type ThemeColors } from '../../../../theme';
+import { openProvider } from '../../people/openProvider';
 
 export default function AdminDisputesScreen() {
   const { colors } = useTheme();
@@ -69,7 +70,7 @@ export default function AdminDisputesScreen() {
     <AdminScreen title="Disputes" scroll={false}>
       <PermissionGate all={['canManageHomeServices']} action="see disputes">
         <View style={styles.controls}>
-          <FilterChips options={[...enumOptions(meta, 'disputeStatuses'), { value: 'all', label: 'All' }]} value={filter} onChange={setFilter} />
+          <FilterChips options={[{ value: 'all', label: 'All' }, ...enumOptions(meta, 'disputeStatuses')]} value={filter} onChange={setFilter} />
         </View>
         <QueryState
           isLoading={list.isLoading}
@@ -90,7 +91,7 @@ export default function AdminDisputesScreen() {
                 subtitle={`${item.customer || 'Customer'} vs ${item.provider || 'provider'} · raised by the ${item.raisedByRole}`}
                 badge={presentStatus(meta, 'disputeStatuses', item.status)}
                 meta={formatAgo(item.createdAt)}
-                onPress={canDecide ? () => start(item) : undefined}
+                onPress={canDecide ? () => start(item) : item.providerId ? () => openProvider(navigation, item.providerId) : undefined}
                 divider={index < items.length - 1}
               />
             )}
@@ -125,6 +126,19 @@ export default function AdminDisputesScreen() {
             accessibilityRole="link"
           >
             Open the booking
+          </Text>
+        )}
+        {!!open?.providerId && (
+          <Text
+            style={styles.link}
+            onPress={() => {
+              const id = open.providerId;
+              setOpen(null);
+              openProvider(navigation, id);
+            }}
+            accessibilityRole="link"
+          >
+            Open {open.provider || 'the provider'}
           </Text>
         )}
         <Text style={styles.label}>Decision</Text>

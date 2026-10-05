@@ -14,6 +14,7 @@ import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { useTheme } from '../../../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { idOf, openProvider } from '../../people/openProvider';
 import {
   fetchAdminHealthcareReviewsApi,
   deleteHealthcareReviewApi,
@@ -115,7 +116,10 @@ const AdminReviewModerationScreen: React.FC = () => {
           <View style={styles.card}>
             <View style={styles.cardTop}>
               <Text style={styles.who} numberOfLines={1}>
-                {item.patientId?.fullName || 'Patient'} → Dr. {item.doctorId?.providerId?.fullName || '—'}
+                {item.patientId?.fullName || 'Patient'} →{' '}
+                <Text style={styles.doctorLink} onPress={() => openProvider(navigation, idOf(item.doctorId?.providerId))} accessibilityRole="link">
+                  Dr. {item.doctorId?.providerId?.fullName || '—'}
+                </Text>
               </Text>
               <View style={styles.stars}>
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -156,6 +160,7 @@ const AdminReviewModerationScreen: React.FC = () => {
 };
 
 const makeStyles = (sh: DarkShift) => StyleSheet.create({
+  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },

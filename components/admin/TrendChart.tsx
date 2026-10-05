@@ -49,7 +49,8 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format 
 
   const n = data.length;
   const max = Math.max(0, ...data.map((p) => p.value));
-  const yTicks = ticks(max || 1);
+  // An all-zero series still gets an axis (0 … 1) rather than a collapsed one.
+  const yTicks = ticks(Math.max(max, 1));
   const top = yTicks[yTicks.length - 1];
   const frame: Frame = { width, height, ...PAD };
   const plotW = Math.max(0, width - PAD.padLeft - PAD.padRight);
@@ -68,7 +69,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format 
   const xOf = (i: number) => (kind === 'columns' ? PAD.padLeft + slot * i + slot / 2 : xAt(i, n, frame));
   const pick = (x: number) => {
     if (!n || !width) return;
-    const i = kind === 'columns' ? Math.floor((x - PAD.padLeft) / (slot || 1)) : nearestIndex(x, n, frame);
+    const i = kind === 'columns' ? (slot > 0 ? Math.floor((x - PAD.padLeft) / slot) : 0) : nearestIndex(x, n, frame);
     setActive(Math.min(Math.max(i, 0), n - 1));
   };
 

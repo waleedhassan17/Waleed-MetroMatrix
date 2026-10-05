@@ -44,6 +44,9 @@ export interface HSDispute {
   bookingId: string | null;
   customer: string;
   provider: string;
+  /** Open the provider from a dispute (null when the provider was removed). */
+  providerId?: string | null;
+  customerId?: string | null;
   raisedByRole: string;
   againstRole: string;
   reason: string;
@@ -122,7 +125,7 @@ const FIRST_PAGE: PageParam = { page: 1 };
 
 const homeServicesApi = adminApi.enhanceEndpoints({ addTagTypes: ['HSBooking', 'HSDispute', 'HSPayout', 'HSCategory', 'HSSettings'] }).injectEndpoints({
   endpoints: (build) => ({
-    listHSBookings: build.infiniteQuery<Page<HSBookingRow>, { status?: string; search?: string }, PageParam>({
+    listHSBookings: build.infiniteQuery<Page<HSBookingRow>, { status?: string; search?: string; provider?: string }, PageParam>({
       infiniteQueryOptions: { initialPageParam: FIRST_PAGE, getNextPageParam: (last) => nextPageParam(last) },
       queryFn: ({ queryArg, pageParam }) => run(async () => asPage<HSBookingRow>(await http.get('/api/admin/bookings', { query: { ...(queryArg as Q), ...pageParam } }))),
       providesTags: ['HSBooking'],

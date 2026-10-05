@@ -8,6 +8,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { AdminScreen, ConfirmSheet, EntityRow, FilterChips, PermissionGate, QueryState } from '../../../../components/admin';
 import { Button, showToast } from '../../../../components/ui';
@@ -17,10 +18,12 @@ import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi'
 import { useDecideHSPayoutMutation, useListHSPayoutsInfiniteQuery, type HSPayout } from '../../../../networks/admin/homeServicesApi';
 import { formatAgo, formatCount } from '../../../../utils/admin/format';
 import { GUTTER, S, useTheme, type ThemeColors } from '../../../../theme';
+import { openProvider } from '../../people/openProvider';
 
 export default function AdminPayoutsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
   const { data: meta } = useAdminMeta();
   const [filter, setFilter] = useState('pending');
   const list = useListHSPayoutsInfiniteQuery({ status: filter === 'all' ? undefined : filter });
@@ -68,6 +71,8 @@ export default function AdminPayoutsScreen() {
                   }
                   badge={presentStatus(meta, 'payoutStatuses', item.status)}
                   meta={formatAgo(item.createdAt)}
+                  onPress={item.provider ? () => openProvider(navigation, item.provider!.id) : undefined}
+                  accessibilityLabel={item.provider ? `${formatMoney(item.amount)} payout for ${item.provider.name}. Opens the provider.` : undefined}
                   divider={false}
                 />
                 {item.status === 'pending' && (
