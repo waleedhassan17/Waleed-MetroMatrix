@@ -125,6 +125,37 @@ run('admin console against a live API', () => {
     expect(overview.queues.find((q) => q.type === 'provider_approval')?.count).toBe(0);
   });
 
+  it('A1: there is no platform commission — no setting, and sending one is refused', async () => {
+    const { data: settings } = await client.adminApi.get('/api/admin/homeservice/settings');
+    expect(settings).not.toHaveProperty('commissionPercent');
+    await expect(
+      client.adminApi.patch('/api/admin/homeservice/settings', { body: { commissionPercent: 10, reason: 'E2E' } as never })
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_FAILED' });
+  });
+
+  it('A2: every kind of provider has analytics, paid in full', async () => {
+    const { data: approved } = await client.adminApi.get('/api/admin/providers', { query: { state: 'approved' } });
+    const byType = Object.fromEntries((approved as { id: string; providerType: string }[]).map((p) => [p.providerType, p.id]));
+    expect(Object.keys(byType).sort()).toEqual(['doctor', 'home_service', 'vendor']);
+    const analytics = async (id: string, range: '30d' | '90d' | '12m' = '30d') =>
+      (await client.adminApi.get('/api/admin/providers/{providerId}/analytics', { params: { providerId: id }, query: { range } })).data;
+    const metric = (a: Awaited<ReturnType<typeof analytics>>, key: string) => a.summary.find((m) => m.key === key)?.value;
+
+    const hs = await analytics(byType.home_service);
+    expect(hs.type).toBe('home_service');
+    expect(hs.series).toHaveLength(30);
+    expect(metric(hs, 'paid')).toBe(2500);
+
+    const doctor = await analytics(byType.doctor, '90d');
+    expect(doctor.links.doctorId).toEqual(expect.any(String));
+    expect(metric(doctor, 'paid')).toBe(2000);
+
+    const vendor = await analytics(byType.vendor, '12m');
+    expect(vendor.bucket).toBe('month');
+    expect(vendor.links.brands?.[0]?.name).toBe('Dev Threads');
+    expect(metric(vendor, 'delivered_value')).toBe(3750);
+  });
+
   it('Q19: a booking refund defaults to what was paid and cannot be repeated', async () => {
     const { data: bookings } = await client.adminApi.get('/api/admin/bookings');
     const booking = (bookings as unknown as { id: string }[])[0];
