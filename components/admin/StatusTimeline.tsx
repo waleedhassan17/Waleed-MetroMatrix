@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
+import { toneColours } from '../ui';
+import type { Tone } from '../../constants/theme';
 import { formatAgo, formatDateTime } from '../../utils/admin/format';
 import { S, T, useTheme, type ThemeColors } from '../../theme';
 
@@ -29,6 +32,25 @@ const VERBS: Record<string, string> = {
   update: 'Updated',
 };
 
+/** An icon and tone per verb, so a suspension reads differently from an approval at a glance. */
+const LOOKS: Record<string, { icon: string; tone: Tone }> = {
+  approve: { icon: 'checkmark', tone: 'success' },
+  activate: { icon: 'checkmark', tone: 'success' },
+  restore: { icon: 'refresh', tone: 'success' },
+  unsuspend: { icon: 'play', tone: 'success' },
+  reject: { icon: 'close', tone: 'error' },
+  delete: { icon: 'trash-outline', tone: 'error' },
+  suspend: { icon: 'pause', tone: 'warning' },
+  deactivate: { icon: 'pause', tone: 'warning' },
+  create: { icon: 'add', tone: 'info' },
+  update: { icon: 'create-outline', tone: 'neutral' },
+};
+
+export function lookOf(action: string): { icon: string; tone: Tone } {
+  const verb = action.split('.').pop() || action;
+  return LOOKS[verb] || { icon: 'ellipse', tone: 'neutral' };
+}
+
 /** 'provider.unsuspend' → 'Suspension lifted'; unknown actions are spelled out, not hidden. */
 export function describeAction(action: string): string {
   const verb = action.split('.').pop() || action;
@@ -45,10 +67,15 @@ const StatusTimeline: React.FC<{ entries: TimelineEntry[] }> = ({ entries }) => 
 
   return (
     <View>
-      {entries.map((e, i) => (
+      {entries.map((e, i) => {
+        const look = lookOf(e.action);
+        const { ground, ink } = toneColours(colors, look.tone);
+        return (
         <View key={e.id} style={styles.row}>
           <View style={styles.rail}>
-            <View style={styles.dot} />
+            <View style={[styles.dot, { backgroundColor: ground }]}>
+              <Ionicons name={look.icon as any} size={12} color={ink} />
+            </View>
             {i < entries.length - 1 && <View style={styles.line} />}
           </View>
           <View style={styles.body}>
@@ -59,7 +86,8 @@ const StatusTimeline: React.FC<{ entries: TimelineEntry[] }> = ({ entries }) => 
             {!!e.reason && <Text style={styles.reason}>“{e.reason}”</Text>}
           </View>
         </View>
-      ))}
+        );
+      })}
     </View>
   );
 };
@@ -67,10 +95,10 @@ const StatusTimeline: React.FC<{ entries: TimelineEntry[] }> = ({ entries }) => 
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     row: { flexDirection: 'row' },
-    rail: { width: 20, alignItems: 'center' },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 6 },
+    rail: { width: 24, alignItems: 'center' },
+    dot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
     line: { flex: 1, width: StyleSheet.hairlineWidth * 2, backgroundColor: c.line, marginVertical: 2 },
-    body: { flex: 1, paddingBottom: S.lg, paddingLeft: S.sm },
+    body: { flex: 1, paddingBottom: S.lg, paddingLeft: S.sm, paddingTop: 2 },
     action: { ...T.bodyStrong, color: c.ink },
     meta: { ...T.caption, color: c.inkMuted, marginTop: 2 },
     reason: { ...T.body, color: c.ink, marginTop: S.xs },

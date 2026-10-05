@@ -22,7 +22,7 @@ import { EmptyState, ErrorState } from '../../../components/ui';
 import { useGetOverviewQuery } from '../../../networks/admin/adminApi';
 import { formatAgo, formatCount } from '../../../utils/admin/format';
 import { S } from '../../../theme';
-import { metricCaption, metricTone, metricValue, type Metric } from './metrics';
+import { higherIsBetter, metricCaption, metricDelta, metricIcon, metricTone, metricValue, type Metric } from './metrics';
 
 type Vertical = { label: string; status: 'ok' | 'unavailable'; headline: Metric[] };
 type Activity = { id: string; action: string; actor?: { id?: string; name?: string } | null; reason?: string | null; createdAt: string };
@@ -75,7 +75,7 @@ export default function AdminOverviewScreen() {
         <Section title="Platform">
           <KpiGrid>
             {(data?.kpis ?? []).map((m) => (
-              <KpiTile key={m.key} label={m.label} value={metricValue(m)} caption={metricCaption(m)} tone={metricTone(m)} />
+              <KpiTile key={m.key} label={m.label} value={metricValue(m)} caption={metricCaption(m)} tone={metricTone(m)} icon={metricIcon(m)} delta={metricDelta(m)} higherIsBetter={higherIsBetter(m)} />
             ))}
           </KpiGrid>
         </Section>
@@ -87,7 +87,7 @@ export default function AdminOverviewScreen() {
             ) : (
               <KpiGrid>
                 {v.headline.map((m) => (
-                  <KpiTile key={m.key} label={m.label} value={metricValue(m)} caption={metricCaption(m)} tone={metricTone(m)} />
+                  <KpiTile key={m.key} label={m.label} value={metricValue(m)} caption={metricCaption(m)} tone={metricTone(m)} icon={metricIcon(m)} delta={metricDelta(m)} higherIsBetter={higherIsBetter(m)} />
                 ))}
               </KpiGrid>
             )}

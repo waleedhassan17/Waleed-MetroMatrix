@@ -696,6 +696,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/providers/{providerId}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One provider's analytics (home service, doctor or vendor) */
+        get: operations["getAdminProvidersProviderIdAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/providers/{providerId}/approve": {
         parameters: {
             query?: never;
@@ -2072,7 +2089,82 @@ export interface components {
             suspendedReason?: string | null;
             /** Format: date-time */
             suspendedAt?: string | null;
+            isAvailable?: boolean | null;
+            /** Format: date-time */
+            lastLoginDate?: string | null;
+            counters?: {
+                totalBookings?: number;
+                completedBookings?: number;
+                cancelledBookings?: number;
+            };
+            links?: components["schemas"]["ProviderLinks"];
             history?: components["schemas"]["HistoryEntry"][];
+        };
+        /** @description The module records behind a provider. */
+        ProviderLinks: {
+            doctorId?: string | null;
+            brandIds?: string[];
+            brands?: {
+                id: string;
+                name: string;
+            }[];
+        };
+        /** @description One provider's activity and money over a range. Money is what the provider was paid (there is no platform commission). A figure that cannot be measured is null. */
+        ProviderAnalytics: {
+            providerId: string;
+            /** @enum {string} */
+            type: "home_service" | "doctor" | "vendor" | "pending";
+            /** @enum {string} */
+            range: "30d" | "90d" | "12m";
+            rangeLabel?: string;
+            /** @enum {string} */
+            bucket: "day" | "month";
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            summary: components["schemas"]["Metric"][];
+            /** @description One entry per Pakistan day or month, zero-filled. */
+            series: {
+                /** @description YYYY-MM-DD, or YYYY-MM for monthly buckets. */
+                date: string;
+                count: number;
+                amount: number;
+            }[];
+            seriesLabels: {
+                count: string;
+                amount: string;
+            };
+            breakdowns: {
+                key: string;
+                label: string;
+                unit?: string;
+                rows: {
+                    key: string;
+                    label: string;
+                    value: number;
+                }[];
+            }[];
+            recent: {
+                /** @enum {string} */
+                kind: "booking" | "appointment" | "order";
+                id: string;
+                title: string;
+                subtitle?: string | null;
+                status: string;
+                amount?: number | null;
+                /** Format: date-time */
+                at: string;
+            }[];
+            wallet: {
+                balance: number;
+                lifetimeEarnings: number;
+                pendingPayouts: {
+                    count: number;
+                    amount: number;
+                };
+            };
+            links: components["schemas"]["ProviderLinks"];
         };
         UserSummary: {
             id: string;
@@ -2121,6 +2213,8 @@ export interface components {
             target?: {
                 type?: string;
                 id?: string;
+                /** @description The provider the record belongs to (doctor, brand, payout), when there is one. */
+                providerId?: string;
             } | null;
             read: boolean;
             /** Format: date-time */
@@ -2132,7 +2226,7 @@ export interface components {
             value: number | null;
             unit: string;
             /** @enum {string} */
-            period: "today" | "now" | "month_to_date" | "all_time";
+            period: "today" | "now" | "month_to_date" | "all_time" | "range";
             delta?: number | null;
             comparedTo?: string;
         };
@@ -2164,6 +2258,8 @@ export interface components {
                 type?: string;
                 id?: string;
                 orderId?: string | null;
+                /** @description The provider the work is about (doctor, brand owner, payout requester); null for a brand the platform runs. */
+                providerId?: string | null;
             };
         };
         Vertical: {
@@ -3920,6 +4016,38 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminProvidersProviderIdAnalytics: {
+        parameters: {
+            query?: {
+                range?: "30d" | "90d" | "12m";
+            };
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["ProviderAnalytics"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     putAdminProvidersProviderIdApprove: {

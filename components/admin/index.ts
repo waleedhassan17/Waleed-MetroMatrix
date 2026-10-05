@@ -8,7 +8,7 @@
 // ============================================================================
 
 export { default as AdminScreen } from './AdminScreen';
-export type { AdminScreenProps } from './AdminScreen';
+export type { AdminScreenProps, HeaderAction } from './AdminScreen';
 export { default as AdminGate, withAdminGate } from './AdminGate';
 export { default as BarList } from './BarList';
 export type { BarListItem } from './BarList';
@@ -25,5 +25,7 @@ export { default as PermissionGate } from './PermissionGate';
 export { default as QueryState } from './QueryState';
 export { default as Section, DetailRow } from './Section';
 export { default as StatusBadge } from './StatusBadge';
-export { default as StatusTimeline, describeAction } from './StatusTimeline';
+export { default as StatusTimeline, describeAction, lookOf } from './StatusTimeline';
+export { default as TrendChart, bucketLabel } from './TrendChart';
+export type { TrendPoint, TrendChartProps } from './TrendChart';
 export type { TimelineEntry } from './StatusTimeline';
