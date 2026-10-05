@@ -2,7 +2,9 @@
 // People — providers and customers (and, for admin managers, a way to admins).
 //
 // One list per kind, paged by the server (cursor or page), searchable, with
-// state filters and counts from the server. Replaces three screens of about
+// state filters and counts from the server. A provider row shows their
+// rating and opens their details and analytics; a customer row shows when
+// they were last active. Replaces three screens of about
 // 1,370 lines each (pending review, provider management, user management)
 // that each kept their own copy of the list, its filters and its colours.
 // ============================================================================
@@ -12,12 +14,13 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'r
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { AdminScreen, EntityRow, FilterChips, QueryState } from '../../../components/admin';
-import { Button, SegmentedControl, TextField } from '../../../components/ui';
+import { SegmentedControl, TextField } from '../../../components/ui';
 import { usePermission } from '../../../hooks/useAdminPermission';
 import { enumOptions, presentStatus, useAdminMeta } from '../../../hooks/useAdminMeta';
 import useDebouncedValue from '../../../hooks/useDebouncedValue';
 import { flattenPages, useListProvidersInfiniteQuery, useListUsersInfiniteQuery } from '../../../networks/admin/adminApi';
 import { formatAgo } from '../../../utils/admin/format';
+import { openProvider } from './openProvider';
 import { GUTTER, S, useTheme, type ThemeColors } from '../../../theme';
 
 type Segment = 'providers' | 'users';
@@ -87,7 +90,7 @@ export default function AdminPeopleScreen() {
       title="People"
       hideBack
       scroll={false}
-      right={canAdmins ? <Button label="Admins" variant="ghost" icon="shield-checkmark-outline" onPress={() => navigation.navigate('AdminManagement')} /> : undefined}
+      headerActions={canAdmins ? [{ icon: 'shield-checkmark-outline', label: 'Admins', onPress: () => navigation.navigate('AdminManagement') }] : undefined}
     >
       <View style={styles.controls}>
         {segments.length > 1 && <SegmentedControl options={segments} value={segment} onChange={setSegment} style={styles.segment} />}
@@ -117,6 +120,8 @@ export default function AdminPeopleScreen() {
         emptyTitle={query ? 'No matches' : segment === 'providers' ? 'No providers here' : 'No customers here'}
         emptyMessage={query ? 'Try a different name, email or phone number.' : undefined}
         action={segment === 'providers' ? 'see providers' : 'see customers'}
+        skeleton="rows"
+        skeletonCount={6}
         style={styles.state}
       >
         {segment === 'providers' ? (
@@ -130,10 +135,18 @@ export default function AdminPeopleScreen() {
                 <EntityRow
                   avatar={{ name: item.fullName, uri: item.profilePhoto }}
                   title={item.fullName}
-                  subtitle={[typeLabel(item.providerSubType || item.providerType), item.city].filter(Boolean).join(' · ') || item.email}
+                  subtitle={
+                    [
+                      typeLabel(item.providerSubType || item.providerType),
+                      item.city,
+                      item.rating?.count && typeof item.rating.average === 'number' ? `★ ${item.rating.average.toFixed(1)} (${item.rating.count})` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || item.email
+                  }
                   badge={status}
                   meta={item.state === 'pending' && item.submittedAt ? formatAgo(item.submittedAt) : null}
-                  onPress={() => navigation.navigate('AdminProviderDetail', { providerId: item.id })}
+                  onPress={() => openProvider(navigation, item.id)}
                   divider={index < providerItems.length - 1}
                 />
               );
@@ -150,7 +163,7 @@ export default function AdminPeopleScreen() {
                 title={item.fullName}
                 subtitle={item.email}
                 badge={item.isActive ? null : { label: 'Deactivated', tone: 'error' }}
-                meta={item.lastLoginAt ? formatAgo(item.lastLoginAt) : null}
+                meta={item.lastLoginAt ? `Active ${formatAgo(item.lastLoginAt)}` : null}
                 onPress={() => navigation.navigate('AdminUserDetail', { userId: item.id })}
                 divider={index < userItems.length - 1}
               />
@@ -165,8 +178,8 @@ export default function AdminPeopleScreen() {
 const makeStyles = (_c: ThemeColors) =>
   StyleSheet.create({
     controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
-    segment: { marginBottom: S.md },
-    search: { marginBottom: S.sm },
+    segment: { marginBottom: S.sm },
+    search: { marginBottom: S.xs },
     state: { marginHorizontal: GUTTER },
     list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
     more: { marginVertical: S.lg },

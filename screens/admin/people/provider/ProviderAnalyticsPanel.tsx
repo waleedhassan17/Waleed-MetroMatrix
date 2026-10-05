@@ -3,7 +3,7 @@
 // (30 days, 90 days, 12 months). The same panel serves a home-service
 // provider, a doctor and a vendor — the server sends one shape with figures,
 // a day/month series, breakdowns and recent work. Money is what the provider
-// was paid; there is no platform commission.
+// was paid in full; the platform takes no share.
 // ============================================================================
 
 import React, { useMemo, useState } from 'react';

@@ -2,7 +2,8 @@
 // Sign out of the admin console — this device, or every device.
 //
 // Ends the server session (best effort: offline still signs out locally),
-// drops the console's cached server data, and returns to staff sign-in.
+// drops the console's cached server data, and returns to the app's regular
+// sign-in screen (admins sign in there too; there is no separate staff one).
 // ============================================================================
 
 import { useCallback } from 'react';
