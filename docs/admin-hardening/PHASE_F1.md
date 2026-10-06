@@ -1,5 +1,7 @@
 # Phase F1 — Admin auth, session and guard
 
+> **Superseded (Oct 2026).** The separate staff sign-in described below was removed in 794fd7e. Admins sign in from the regular SignIn form: `ADMIN_CONSOLE_EMAIL` goes straight to the admin login, and any other admin's credentials are tried on the admin login once the customer login answers 401 (`shouldTryAdminSignIn`, `networks/authcalls/userSignin.ts`). A route reached without a session goes to `SignIn`.
+
 Branch `admin-hardening`. This phase pairs with backend B1 (sessions, lockout,
 TOTP and restricted sessions). The app and the backend must ship together:
 admin tokens issued by the old backend have no session id, and the new backend

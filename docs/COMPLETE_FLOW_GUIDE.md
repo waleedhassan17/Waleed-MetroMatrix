@@ -484,20 +484,7 @@ Admin Settings
         └─► Appearance (theme, accent color, font size)
 ```
 
-**All Admin Screens:**
-| Screen | Path |
-|--------|------|
-| AdminDashboard | `screens/admin/admin-dashboard/adminDashboard.tsx` |
-| NotificationScreen | `screens/admin/notifications/notification.tsx` |
-| PendingReviewScreen | `screens/admin/pending-review/pendingReviewScreen.tsx` |
-| ProviderManagementScreen | `screens/admin/provider-management/providerManagementScreen.tsx` |
-| ProviderReviewScreen | `screens/admin/provider-review/providerReviewScreen.tsx` |
-| UserManagementScreen | `screens/admin/user-management/userManagementScreen.tsx` |
-| SettingsScreen | `screens/admin/settings/settings.tsx` |
-| HealthcareAnalyticsScreen | `screens/admin/healthcare/HealthcareAnalytics/HealthcareAnalyticsScreen.tsx` |
-| SpecialtyManagementScreen | `screens/admin/healthcare/SpecialtyManagement/SpecialtyManagementScreen.tsx` |
-| ServiceProvidersAdminTabs | `screens/admin/providers/service-providers/tabs/index.tsx` |
-| AdminDashboardTab | `screens/admin/providers/service-providers/tabs/dashboard/dashboard.tsx` |
+**All Admin Screens:** the admin console was rebuilt in Oct 2026 (tabs: Overview · Queue · People · Modules · More). The current list of screens, their routes and their data sources is generated into `docs/ADMIN_SCREEN_INVENTORY.md` (`npm run admin:inventory`).
 | AdminBookingsTab | `screens/admin/providers/service-providers/tabs/bookings/bookings.tsx` |
 | AdminAnalyticsTab | `screens/admin/providers/service-providers/tabs/analytics/analytics.tsx` |
 

@@ -57,7 +57,8 @@ const QueryState: React.FC<QueryStateProps> = ({
     }
     return <ErrorState title="Couldn't load this" message={failure.message} onRetry={onRetry} style={style} />;
   }
-  if (isLoading) return <Placeholder kind={skeleton} count={skeletonCount} />;
+  // The screen's margins apply while loading too, so the skeleton sits where the content will.
+  if (isLoading) return <View style={style}><Placeholder kind={skeleton} count={skeletonCount} /></View>;
   if (isEmpty) return <EmptyState icon={emptyIcon} title={emptyTitle} message={emptyMessage} style={style} />;
   return <>{children}</>;
 };

@@ -6,7 +6,8 @@
 # screen says there is no data. This gate fails on the patterns that produced
 # invented figures before: Math.random() keys, setTimeout pretending to load,
 # dummy/mock/sample data, literal fixture records, `?? 12` / `|| 12` numeric
-# fallbacks, hardcoded trends, and console.log of auth data.
+# fallbacks, hardcoded trends, console.log of auth data — and platform-revenue
+# wording, since the platform takes no share of any payment.
 #
 # Colour is not data: raw hex is the design gates' job (scripts/design-gates.sh,
 # scoped to the screens migrated to the theme).
@@ -57,6 +58,22 @@ gate "no numeric fallbacks (?? N / || N)"           '(\?\?|\|\|) *-?[0-9]+(\.[0-
 gate "no hardcoded trends"                          'trend=\{ *-?[0-9]'
 gate "no literal records (fixture ids, KPI numbers)"  "\b_?id: *['\"]([0-9]+|[A-Z]{2}[0-9]{3}|c[0-9]+)['\"]|\b(total|value|count|amount|revenue|appointments|completed|cancelled): *['\"]?[0-9][0-9,]{3,}"
 gate "no console.log of auth data"                  'console\.log\([^)]*(token|Token|password|refresh|response\.data|adminResult)'
+
+# MetroMatrix is a community app: the platform takes no share of any payment
+# (no commission since Oct 2026). Money an admin sees is what customers paid
+# providers — "payments", "order value", "sales" — never platform "revenue",
+# "GMV" or "commission". API paths and field names are not text, so only
+# quoted strings and JSX text are checked, and /api/ paths are skipped.
+WORDING_HITS=$(grep -rnE "['\"\`>][^'\"\`<]*\b([Rr]evenue|GMV|[Cc]ommission)\b[^'\"\`<]*['\"\`<]" "${SCOPE[@]}" --include='*.ts' --include='*.tsx' 2>/dev/null \
+  | grep -vE "$EXCLUDE" | grep -vE ':[0-9]+: *(//|\*|/\*)' | grep -v '/api/' || true)
+if [ -n "$WORDING_HITS" ]; then
+  n=$(echo "$WORDING_HITS" | wc -l | tr -d ' ')
+  total=$((total + n))
+  printf '\n\033[31m✗ no platform-revenue wording (%s)\033[0m\n' "$n"
+  echo "$WORDING_HITS" | sed 's/^/    /' | head -40
+else
+  printf '\033[32m✓\033[0m no platform-revenue wording (community app)\n'
+fi
 
 echo
 if [ "$total" -gt 0 ]; then

@@ -24,6 +24,10 @@ export interface SectionSpec {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/** " from 1 to 10", " of 1 or more", " up to 10" — or nothing when the server sets no bound. */
+const rangeText = (min?: number, max?: number): string =>
+  min !== undefined && max !== undefined ? ` from ${min} to ${max}` : min !== undefined ? ` of ${min} or more` : max !== undefined ? ` up to ${max}` : '';
+
 /** What is wrong with `value` for field `f`, or null. */
 export function fieldProblem(f: FieldSpec, value: string | boolean | undefined): string | null {
   switch (f.type) {
@@ -33,7 +37,7 @@ export function fieldProblem(f: FieldSpec, value: string | boolean | undefined):
       const text = String(value ?? '').trim();
       const n = Number(text);
       if (!text || !Number.isInteger(n) || (f.min !== undefined && n < f.min) || (f.max !== undefined && n > f.max)) {
-        return `Enter a whole number from ${f.min} to ${f.max}`;
+        return `Enter a whole number${rangeText(f.min, f.max)}`;
       }
       return null;
     }

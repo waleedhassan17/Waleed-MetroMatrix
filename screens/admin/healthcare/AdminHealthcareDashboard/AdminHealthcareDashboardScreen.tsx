@@ -7,24 +7,14 @@
 // zeros that read as "nothing is happening" instead of "couldn't load".
 // ============================================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 
 import { AdminScreen, BarList, KpiGrid, KpiTile, PermissionGate, QueryState, Section } from '../../../../components/admin';
 import { ListRow } from '../../../../components/ui';
 import { formatMoney } from '../../../../constants/Currency';
-import { fetchAdminHealthcareDashboardApi } from '../../../../networks/healthcare/adminApi';
+import { useGetHCDashboardQuery } from '../../../../networks/admin/healthcareApi';
 import { formatCount, formatPercent } from '../../../../utils/admin/format';
-
-interface DashboardData {
-  pendingDoctorApprovals: number;
-  appointmentsToday: number;
-  revenueToday: number;
-  /** All-time share of appointments that were cancelled; null with no appointments. */
-  cancellationRate: number | null;
-  openRefundCandidates: number;
-  topSpecialties: { specialtyId?: string | null; name?: string | null; count: number }[];
-}
 
 const LINKS: { label: string; route: string; icon: string; subtitle: string }[] = [
   { label: 'Doctors', route: 'DoctorManagement', icon: 'medkit-outline', subtitle: 'Verification, status and documents' },
@@ -38,31 +28,14 @@ const LINKS: { label: string; route: string; icon: string; subtitle: string }[] 
 
 export default function AdminHealthcareDashboardScreen() {
   const navigation = useNavigation<any>();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ code: string; message: string; status: number } | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminHealthcareDashboardApi();
-    if (res.success && res.data) setData(res.data as DashboardData);
-    else {
-      const failed = res as { code?: string; status?: number; message?: string };
-      setError({ code: failed.code || 'ERROR', status: typeof failed.status === 'number' ? failed.status : 0, message: failed.message || 'Could not load the overview.' });
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const dash = useGetHCDashboardQuery();
+  const data = dash.data;
 
   return (
-    <AdminScreen title="Healthcare" refreshing={loading && !!data} onRefresh={load}>
+    <AdminScreen title="Healthcare" refreshing={dash.isFetching && !dash.isLoading} onRefresh={dash.refetch}>
       <PermissionGate all={['canManageHealthcare']} action="manage healthcare">
         <Section title="Needs attention">
-          <QueryState isLoading={loading && !data} error={data ? null : error} onRetry={load} skeletonCount={1}>
+          <QueryState isLoading={dash.isLoading} error={data ? null : dash.error} onRetry={dash.refetch} skeletonCount={1}>
             <KpiGrid>
               <KpiTile
                 label="Doctors awaiting verification"

@@ -128,7 +128,10 @@ const rows = adminFiles
       hex: count(src, /['"]#[0-9A-Fa-f]{3,8}['"]/g),
       alerts: count(src, /Alert\.alert\(/g),
       consoleLogs: count(src, /console\.log\(/g),
-      usesKit: /from ['"][./]*components\/(ui|admin)/.test(src),
+      // On the kit = built on components/admin (AdminScreen, QueryState …).
+      // Importing a stray components/ui piece used to count, which listed
+      // screens with a hand-built header and fifty hex colours as migrated.
+      usesKit: /from ['"][./]*components\/admin['"/]/.test(src),
     };
   })
   .sort((a, b) => a.file.localeCompare(b.file));

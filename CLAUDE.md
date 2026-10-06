@@ -70,7 +70,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
 
 `ThemeProvider` takes a `module` (brand palette per vertical) and `mode` (`'light' | 'dark'`), set **once** at the app root (`App.tsx`'s `ThemedApp`) using `useResolvedMode()` (reads the persisted `theme` slice preference, falls back to `useColorScheme()` for `'system'`). `navigators/BaseNavigator.tsx` re-wraps each route in its own module's `ThemeProvider` per `RouteModules` in `navigation-maps/Base.tsx`, so a stack can't leak its vertical's brand color into another.
 
-`scripts/design-gates.sh` greps for raw hex/fontFamily/fontWeight/font-size literals, but only within a `SCOPE` list of already-migrated folders (`components/ui`, `constants`, `theme`, `screens/user/homeservice`, `screens/providers/homeservice`, `screens/Shopping/Brand`) — Healthcare, admin, and Shopping/User are not yet migrated. Add a folder to `SCOPE` in the same commit that migrates it.
+`scripts/design-gates.sh` greps for raw hex/fontFamily/fontWeight/font-size literals, but only within a `SCOPE` list of already-migrated folders (`components/ui`, `constants`, `theme`, `screens/user/homeservice`, `screens/providers/homeservice`, `screens/providers/healthcare`, `screens/Shopping/Brand`, and the whole admin console: `components/admin`, `screens/admin/**`, the admin navigators) — the customer healthcare screens and Shopping/User are not yet migrated. Add a folder to `SCOPE` in the same commit that migrates it.
 
 ### Navigation
 

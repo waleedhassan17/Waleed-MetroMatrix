@@ -78,6 +78,8 @@ a device — flagged explicitly as `CODE-REVIEWED, NOT DEVICE-TESTED`.
 
 ## Admin path
 
+> A record of the July 2026 run. The admin screens have since been rebuilt and there is no platform commission any more; see `docs/ADMIN_SCREEN_INVENTORY.md` and `e2e/adminConsole.e2e.test.ts` / `e2e/adminModules.e2e.test.ts` for what is verified now.
+
 | Step | Screen | Verified via | Result |
 |---|---|---|---|
 | `admin-dashboard` → `pending-review` → `provider-review` (approve) → `provider-management` (suspend) | pre-existing admin provider screens, untouched | out of scope | — |

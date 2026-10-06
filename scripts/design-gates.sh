@@ -2,11 +2,11 @@
 #
 # Design-system gates.
 #
-# SCOPED ON PURPOSE. Healthcare (44 screens), admin (38) and Shopping/User have
-# not been migrated, and between them still hold roughly 4,000 raw hex literals
-# and 1,500 ad-hoc font sizes. Running these gates app-wide would fail on day
-# one and be switched off by the end of the week, which is how a lint rule
-# becomes decoration.
+# SCOPED ON PURPOSE. The customer healthcare screens and Shopping/User have not
+# been migrated and still hold thousands of raw hex literals and ad-hoc font
+# sizes. Running these gates app-wide would fail on day one and be switched off
+# by the end of the week, which is how a lint rule becomes decoration. (The
+# whole admin console is migrated and in scope as of Oct 2026.)
 #
 # So the gates cover what has actually been migrated. When a module moves, add
 # it to SCOPE in the same commit — the list is the record of how far the

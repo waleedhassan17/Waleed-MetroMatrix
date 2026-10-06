@@ -104,6 +104,23 @@ export interface HCDoctorDetail {
   stats: { appointmentCount: number; revenue: number; rating?: number; reviewCount: number };
 }
 
+export interface HCDashboard {
+  pendingDoctorApprovals: number;
+  appointmentsToday: number;
+  /** Consultations paid today (completed). */
+  revenueToday: number;
+  /** All-time share of appointments that were cancelled; null with no appointments. */
+  cancellationRate: number | null;
+  openRefundCandidates: number;
+  topSpecialties: { specialtyId?: string | null; name?: string | null; count: number }[];
+}
+
+/** What the server stores and enforces. Doctors are paid the full fee: there is no commission. */
+export interface HCSettings {
+  cancellationWindowHours: number;
+  lateCancelRefundPercent: number;
+}
+
 export interface HCSpecialty {
   id: string;
   name: string;
@@ -142,9 +159,23 @@ const FIRST_PAGE: PageParam = { page: 1 };
 const PAGE_SIZE = 20;
 
 const healthcareApi = adminApi
-  .enhanceEndpoints({ addTagTypes: ['HCReview', 'HCClinic', 'HCAppointment', 'HCDoctor', 'HCSpecialty'] })
+  .enhanceEndpoints({ addTagTypes: ['HCReview', 'HCClinic', 'HCAppointment', 'HCDoctor', 'HCSpecialty', 'HCDashboard', 'HCSettings'] })
   .injectEndpoints({
     endpoints: (build) => ({
+      // ── Hub and settings ────────────────────────────────────────────────
+      getHCDashboard: build.query<HCDashboard, void>({
+        queryFn: () => run(async () => (await http.get('/api/v1/admin/healthcare/dashboard')).data as unknown as HCDashboard),
+        providesTags: ['HCDashboard'],
+      }),
+      getHCSettings: build.query<HCSettings, void>({
+        queryFn: () => run(async () => (await http.get('/api/v1/admin/healthcare/settings')).data as unknown as HCSettings),
+        providesTags: ['HCSettings'],
+      }),
+      updateHCSettings: build.mutation<HCSettings, Partial<HCSettings> & { reason?: string }>({
+        queryFn: (body) => run(async () => (await http.patch('/api/v1/admin/healthcare/settings', { body })).data as unknown as HCSettings),
+        invalidatesTags: ['HCSettings'],
+      }),
+
       // ── Reviews ─────────────────────────────────────────────────────────
       listHCReviews: build.infiniteQuery<Page<HCReview>, { maxRating?: number }, PageParam>({
         infiniteQueryOptions: { initialPageParam: FIRST_PAGE, getNextPageParam: (last) => nextPageParam(last) },
@@ -207,12 +238,12 @@ const healthcareApi = adminApi
       }),
       approveHCDoctor: build.mutation<unknown, { id: string; notes?: string }>({
         queryFn: ({ id, notes }) => run(async () => (await http.patch('/api/v1/admin/doctors/{doctorId}/approve', { params: { doctorId: id }, body: { notes: notes ?? '' } })).data),
-        invalidatesTags: ['HCDoctor', 'Queue', 'Overview'],
+        invalidatesTags: ['HCDoctor', 'HCDashboard', 'Queue', 'Overview'],
       }),
       rejectHCDoctor: build.mutation<unknown, { id: string; reason: string; canReapply?: boolean }>({
         queryFn: ({ id, reason, canReapply = true }) =>
           run(async () => (await http.patch('/api/v1/admin/doctors/{doctorId}/reject', { params: { doctorId: id }, body: { reason, canReapply } })).data),
-        invalidatesTags: ['HCDoctor', 'Queue', 'Overview'],
+        invalidatesTags: ['HCDoctor', 'HCDashboard', 'Queue', 'Overview'],
       }),
       setHCDoctorActive: build.mutation<unknown, { id: string; active: boolean; reason: string }>({
         queryFn: ({ id, active, reason }) =>
@@ -252,6 +283,9 @@ const healthcareApi = adminApi
   });
 
 export const {
+  useGetHCDashboardQuery,
+  useGetHCSettingsQuery,
+  useUpdateHCSettingsMutation,
   useListHCReviewsInfiniteQuery,
   useDeleteHCReviewMutation,
   useListHCClinicsInfiniteQuery,

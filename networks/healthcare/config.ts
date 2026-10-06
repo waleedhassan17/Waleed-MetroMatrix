@@ -1,11 +1,11 @@
 import { ApiResponse } from '../../models/serviceProviders';
 import API from '../network/network';
 
-// Healthcare endpoints are served by the main backend under /api/v1/healthcare
-// (and admin healthcare endpoints under /api/v1/admin). The shared axios `API`
-// instance already injects the auth token and points at API_URL (which ends in /api).
+// Healthcare endpoints are served by the main backend under /api/v1/healthcare.
+// The admin console's healthcare calls go through its own typed client
+// (networks/admin/healthcareApi.ts). The shared axios `API` instance already
+// injects the auth token and points at API_URL (which ends in /api).
 const HEALTHCARE_PREFIX = '/v1/healthcare';
-const HEALTHCARE_ADMIN_PREFIX = '/v1/admin';
 
 // NOTE: the USE_HEALTHCARE_DUMMY_DATA flag and the bundled dummyData.ts
 // fixtures it gated were removed. The flag was already false, so all 43
@@ -157,12 +157,4 @@ export async function healthcareApiRequest<T>(
   options: RequestOptions = {}
 ): Promise<HealthcareResponse<T>> {
   return request<T>(HEALTHCARE_PREFIX, endpoint, options);
-}
-
-/** Request against /api/v1/admin/* (healthcare admin endpoints) */
-export async function healthcareAdminApiRequest<T>(
-  endpoint: string,
-  options: RequestOptions = {}
-): Promise<ApiResponse<T>> {
-  return request<T>(HEALTHCARE_ADMIN_PREFIX, endpoint, options);
 }
