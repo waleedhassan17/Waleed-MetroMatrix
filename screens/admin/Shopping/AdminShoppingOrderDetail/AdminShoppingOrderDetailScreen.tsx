@@ -1,276 +1,218 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
-  Alert,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+// ============================================================================
+// One shopping order: who bought what from which brand, the money, its status
+// history, the other orders from the same checkout, and the two audited admin
+// actions.
+//
+//  - Change status (reason required). The moves offered are the server's own
+//    (orderService ALLOWED_TRANSITIONS); its refusal is shown as it is.
+//  - Refund (needs Finance). A paid order, in full, to the customer's wallet;
+//    the brand's payout for it is taken back.
+// ============================================================================
+
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+
+import { AdminScreen, ConfirmSheet, DetailRow, EntityRow, FilterChips, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
+import { Button, ListRow, ToneBadge, showToast } from '../../../../components/ui';
+import { formatMoney } from '../../../../constants/Currency';
+import { presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import { adminErrorOf } from '../../../../networks/admin/adminApi';
+import { useForceShopOrderStatusMutation, useGetShopOrderQuery, useRefundShopOrderMutation } from '../../../../networks/admin/shoppingApi';
+import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
+import { formatDateTime } from '../../../../utils/admin/format';
+import { S, T, useTheme, type ThemeColors } from '../../../../theme';
 import { openProvider } from '../../people/openProvider';
-import { ChevronLeft, ShieldAlert, Banknote } from 'lucide-react-native';
-import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import {
-  adminForceStatus,
-  adminRefund,
-  clearAdminOrderDetail,
-  fetchAdminOrderDetail,
-  selectAdminShoppingOrderDetail,
-} from './adminShoppingOrderDetailSlice';
+import { NEXT_ORDER_STATUSES, humanise, paymentLabel } from '../shared/orders';
 
-const COLORS = {
-  primary: '#E67E22',
-  danger: '#E74C3C',
-  success: '#27AE60',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
-const CURRENCY = 'PKR';
-
-const NEXT_STATUSES: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
-  shipped: ['out_for_delivery'],
-  out_for_delivery: ['delivered'],
-  delivered: ['returned'],
-  returned: ['refunded'],
-  cancelled: [],
-  refunded: [],
-};
-
-const AdminShoppingOrderDetailScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminShoppingOrderDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const dispatch = useAppDispatch();
-  const { order, loading, acting, error } = useAppSelector(selectAdminShoppingOrderDetail);
-  const orderId = route.params?.orderId as string;
-  const [reason, setReason] = useState('');
+  const { orderId } = (useRoute().params ?? {}) as { orderId: string };
+  const { data: meta } = useAdminMeta();
+  const query = useGetShopOrderQuery(orderId);
+  const o = query.data;
+  const [forceStatus, forceState] = useForceShopOrderStatusMutation();
+  const [refund, refundState] = useRefundShopOrderMutation();
 
-  useEffect(() => {
-    if (orderId) dispatch(fetchAdminOrderDetail(orderId));
-    return () => {
-      dispatch(clearAdminOrderDetail());
-    };
-  }, [dispatch, orderId]);
+  const [sheet, setSheet] = useState<null | 'status' | 'refund'>(null);
+  const [target, setTarget] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const requireReason = (): string | null => {
-    if (!reason.trim()) {
-      Alert.alert('Reason required', 'Admin actions are audited — enter a reason first.');
-      return null;
+  const next = o ? NEXT_ORDER_STATUSES[o.orderStatus] ?? [] : [];
+  const paid = o?.paymentStatus === 'paid';
+  const siblings = (o?.group?.orders ?? []).filter((s) => s.orderId !== o?.orderId);
+
+  const close = () => {
+    setSheet(null);
+    setTarget(null);
+    setError(null);
+  };
+
+  const confirm = async (reason: string) => {
+    if (!o) return;
+    if (sheet === 'status') {
+      if (!target) return setError('Choose the new status.');
+      const res = await forceStatus({ id: o.id, status: target, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The status could not be changed.');
+      close();
+      showToast({ tone: 'success', message: `Status changed to ${presentStatus(meta, 'orderStatuses', target).label}.` });
+    } else if (sheet === 'refund') {
+      const res = await refund({ id: o.id, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The refund did not go through.');
+      close();
+      showToast({ tone: 'success', message: `${formatMoney(o.total)} refunded to the customer's wallet.` });
     }
-    return reason.trim();
-  };
-
-  const handleForce = (status: string) => {
-    const r = requireReason();
-    if (!r) return;
-    Alert.alert(
-      'Force status change',
-      `Move this order to "${status.replace(/_/g, ' ')}"?\n\nThis action is recorded in the audit log with your admin ID.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: 'destructive',
-          onPress: () => dispatch(adminForceStatus({ orderId, status, reason: r })),
-        },
-      ]
-    );
-  };
-
-  const handleRefund = () => {
-    const r = requireReason();
-    if (!r) return;
-    Alert.alert(
-      'Manual refund',
-      `Refund ${CURRENCY} ${order?.total.toLocaleString()} to the customer's wallet?\n\nThis action is recorded in the audit log.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Refund', style: 'destructive', onPress: () => dispatch(adminRefund({ orderId, reason: r })) },
-      ]
-    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={COLORS.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Order Detail</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {loading && !order && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />}
-      {error && !order && (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => dispatch(fetchAdminOrderDetail(orderId))}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {order && (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.card}>
-            <Text style={styles.orderCode}>{order.odexId}</Text>
-            <Text style={styles.metaLine}>
-              Brand:{' '}
-              {order.brandOwnerId ? (
-                <Text style={styles.ownerLink} onPress={() => openProvider(navigation, order.brandOwnerId)} accessibilityRole="link">
-                  {order.brandName || order.brandId}
-                </Text>
-              ) : (
-                order.brandName || order.brandId
+    <AdminScreen
+      title={o?.odexId ?? 'Order'}
+      subtitle="Shopping"
+      refreshing={query.isFetching && !query.isLoading}
+      onRefresh={query.refetch}
+      footer={
+        o && (next.length || paid) ? (
+          <PermissionGate all={['canManageShopping']} fallback={null}>
+            <View style={styles.footer}>
+              {next.length > 0 && <Button label="Change status" variant="secondary" onPress={() => setSheet('status')} style={styles.footerButton} />}
+              {paid && (
+                <PermissionGate all={['canManageFinance']} fallback={null}>
+                  <Button label="Refund" variant="secondary" onPress={() => setSheet('refund')} style={styles.footerButton} />
+                </PermissionGate>
               )}
-            </Text>
-            <Text style={styles.metaLine}>
-              Customer: {order.customerName || '—'} {order.customerEmail ? `(${order.customerEmail})` : ''}
-            </Text>
-            <Text style={styles.metaLine}>
-              Status: <Text style={styles.bold}>{order.orderStatus.replace(/_/g, ' ')}</Text> · Payment:{' '}
-              <Text style={styles.bold}>{order.paymentMethod} / {order.paymentStatus}</Text>
-            </Text>
-            <Text style={styles.metaLine}>Total: <Text style={styles.bold}>{CURRENCY} {order.total.toLocaleString()}</Text></Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Items</Text>
-            {order.items.map((item) => (
-              <View key={item.itemId} style={styles.itemRow}>
-                <Text style={styles.itemName} numberOfLines={1}>
-                  {item.productName} {item.variantLabel ? `(${item.variantLabel})` : ''} ×{item.quantity}
-                </Text>
-                <Text style={styles.itemPrice}>{CURRENCY} {item.totalPrice.toLocaleString()}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Status History</Text>
-            {(order.statusHistory || []).map((entry, index) => (
-              <View key={index} style={styles.historyRow}>
-                <View style={styles.historyDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.historyStatus}>{entry.status.replace(/_/g, ' ')}</Text>
-                  <Text style={styles.historyMeta}>
-                    {new Date(entry.changedAt).toLocaleString('en-PK')}
-                    {entry.changedBy?.role ? ` · by ${entry.changedBy.role}` : ''}
-                  </Text>
-                  {entry.note ? <Text style={styles.historyNote}>{entry.note}</Text> : null}
+            </View>
+          </PermissionGate>
+        ) : undefined
+      }
+    >
+      <PermissionGate all={['canManageShopping']} action="see this order">
+        <QueryState isLoading={query.isLoading} error={query.error} onRetry={query.refetch} skeleton="detail" action="see this order">
+          {o && (
+            <>
+              <View style={styles.header}>
+                <Text style={styles.title}>{formatMoney(o.total)}</Text>
+                <Text style={styles.sub}>Placed {formatDateTime(o.createdAt)}</Text>
+                <View style={styles.badges}>
+                  <StatusBadge group="orderStatuses" value={o.orderStatus} />
+                  <ToneBadge label={`${paymentLabel(o.paymentStatus)}${o.paymentMethod ? ` · ${humanise(o.paymentMethod)}` : ''}`} tone={paid ? 'success' : o.paymentStatus === 'refunded' ? 'neutral' : 'warning'} />
                 </View>
               </View>
-            ))}
-          </View>
 
-          {order.group && order.group.orders.length > 1 && (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Sibling orders in this checkout</Text>
-              {order.group.orders
-                .filter((o) => o.orderId !== order.orderId)
-                .map((o) => (
-                  <TouchableOpacity
-                    key={o.orderId}
-                    style={styles.siblingRow}
-                    onPress={() => dispatch(fetchAdminOrderDetail(o.orderId))}
-                  >
-                    <Text style={styles.siblingText}>
-                      {o.odexId} · {o.orderStatus.replace(/_/g, ' ')} · {CURRENCY} {o.total.toLocaleString()}
-                    </Text>
-                  </TouchableOpacity>
+              <Section title="People" card>
+                <EntityRow
+                  avatar={{ name: o.customerName || 'Customer' }}
+                  title={o.customerName || 'Customer'}
+                  subtitle={['Customer', o.customerEmail].filter(Boolean).join(' · ')}
+                  onPress={o.userId ? () => navigation.navigate('AdminUserDetail', { userId: o.userId }) : undefined}
+                />
+                <EntityRow
+                  icon="storefront-outline"
+                  title={o.brandName || 'Brand'}
+                  subtitle={o.brandOwnerId ? 'Brand · opens its vendor' : 'Brand run by the platform'}
+                  onPress={o.brandOwnerId ? () => openProvider(navigation, o.brandOwnerId) : undefined}
+                  divider={false}
+                />
+              </Section>
+
+              <Section title="Items" card>
+                {o.items.map((item, i) => (
+                  <DetailRow
+                    key={item.itemId || `${item.productName}-${i}`}
+                    label={`${item.productName}${item.variantLabel ? ` (${item.variantLabel})` : ''} × ${item.quantity}`}
+                    value={formatMoney(item.totalPrice)}
+                    last={i === o.items.length - 1}
+                  />
                 ))}
-            </View>
-          )}
+              </Section>
 
-          <View style={styles.card}>
-            <View style={styles.auditHeader}>
-              <ShieldAlert size={16} stroke={COLORS.danger} strokeWidth={2} />
-              <Text style={styles.sectionTitle}>Admin actions (audited)</Text>
-            </View>
-            <Text style={styles.fieldLabel}>Reason (mandatory)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Why are you doing this?"
-              placeholderTextColor={COLORS.textLight}
-              value={reason}
-              onChangeText={setReason}
-            />
-            <View style={styles.actionWrap}>
-              {(NEXT_STATUSES[order.orderStatus] || []).map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={styles.forceBtn}
-                  disabled={acting}
-                  onPress={() => handleForce(status)}
-                >
-                  <Text style={styles.forceText}>→ {status.replace(/_/g, ' ')}</Text>
-                </TouchableOpacity>
-              ))}
-              {order.paymentStatus === 'paid' && (
-                <TouchableOpacity style={styles.refundBtn} disabled={acting} onPress={handleRefund}>
-                  <Banknote size={16} stroke="#FFF" strokeWidth={2} />
-                  <Text style={styles.refundText}>{acting ? 'Working…' : 'Manual Refund'}</Text>
-                </TouchableOpacity>
+              <Section title="Money" card>
+                <DetailRow label="Items" value={formatMoney(o.subtotal)} />
+                <DetailRow label="Shipping" value={formatMoney(o.shippingFee)} />
+                {!!o.discount && <DetailRow label="Discount" value={formatMoney(-o.discount)} />}
+                <DetailRow label="Total" value={formatMoney(o.total)} last />
+              </Section>
+
+              {!!o.shippingAddress && (
+                <Section title="Delivery" card>
+                  <DetailRow label="To" value={o.shippingAddress.fullName} />
+                  <DetailRow label="Address" value={[o.shippingAddress.addressLine1, o.shippingAddress.city].filter(Boolean).join(', ')} />
+                  <DetailRow label="Phone" value={o.shippingAddress.phone} last />
+                </Section>
               )}
-            </View>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+
+              <Section title="Status history" card>
+                {(o.statusHistory ?? []).length === 0 ? (
+                  <Text style={styles.muted}>No changes recorded.</Text>
+                ) : (
+                  [...(o.statusHistory ?? [])].reverse().map((h, i, all) => (
+                    <View key={`${h.status}-${h.changedAt}-${i}`} style={[styles.history, i < all.length - 1 && styles.divider]}>
+                      <Text style={styles.historyStatus}>{presentStatus(meta, 'orderStatuses', h.status).label}</Text>
+                      <Text style={styles.historyMeta}>
+                        {formatDateTime(h.changedAt)}
+                        {h.changedBy?.role ? ` · by ${h.changedBy.role}` : ''}
+                        {h.note ? ` — ${h.note}` : ''}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </Section>
+
+              {siblings.length > 0 && (
+                <Section title="Same checkout" caption="The customer paid for these together." card>
+                  {siblings.map((s, i) => (
+                    <ListRow
+                      key={s.orderId}
+                      title={s.odexId}
+                      subtitle={`${presentStatus(meta, 'orderStatuses', s.orderStatus).label} · ${formatMoney(s.total)}`}
+                      icon="receipt-outline"
+                      onPress={() => navigation.push(AdminShoppingRouteNames.AdminShoppingOrderDetail, { orderId: s.orderId })}
+                      divider={i < siblings.length - 1}
+                    />
+                  ))}
+                </Section>
+              )}
+            </>
+          )}
+        </QueryState>
+      </PermissionGate>
+
+      <ConfirmSheet
+        visible={sheet !== null}
+        title={sheet === 'status' ? 'Change order status' : "Refund to the customer's wallet"}
+        message={
+          sheet === 'status'
+            ? 'For when the order is stuck. The customer and the brand see the new status.'
+            : `${formatMoney(o?.total)} goes back to the customer's wallet, and the brand's payout for this order is taken back.`
+        }
+        confirmLabel={sheet === 'status' ? 'Change status' : 'Refund'}
+        destructive={sheet === 'refund'}
+        requireReason
+        busy={forceState.isLoading || refundState.isLoading}
+        error={error}
+        onConfirm={confirm}
+        onClose={close}
+      >
+        {sheet === 'status' && (
+          <FilterChips options={next.map((s) => ({ value: s, label: presentStatus(meta, 'orderStatuses', s).label }))} value={target ?? ''} onChange={setTarget} />
+        )}
+      </ConfirmSheet>
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  ownerLink: { color: COLORS.primary, textDecorationLine: 'underline' },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  center: { alignItems: 'center', padding: 24 },
-  errorText: { color: COLORS.danger, marginTop: 8, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 8 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  scroll: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  orderCode: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-  metaLine: { fontSize: 13, color: COLORS.textLight, marginTop: 4 },
-  bold: { fontWeight: '700', color: COLORS.text, textTransform: 'capitalize' },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: COLORS.border },
-  itemName: { flex: 1, fontSize: 13, color: COLORS.text, marginRight: 8 },
-  itemPrice: { fontSize: 13, fontWeight: '700', color: COLORS.text },
-  historyRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginTop: 5 },
-  historyStatus: { fontSize: 13, fontWeight: '700', color: COLORS.text, textTransform: 'capitalize' },
-  historyMeta: { fontSize: 11, color: COLORS.textLight },
-  historyNote: { fontSize: 12, color: COLORS.textLight, fontStyle: 'italic', marginTop: 2 },
-  siblingRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
-  siblingText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
-  auditHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textLight, marginTop: 8, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: COLORS.text },
-  actionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  forceBtn: { borderWidth: 1, borderColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  forceText: { color: COLORS.primary, fontWeight: '700', fontSize: 13, textTransform: 'capitalize' },
-  refundBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.danger, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  refundText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
-});
-
-export default AdminShoppingOrderDetailScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    header: { marginBottom: S.xl },
+    title: { ...T.heading, color: c.ink },
+    sub: { ...T.body, color: c.inkMuted, marginTop: 2 },
+    badges: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, marginTop: S.sm },
+    muted: { ...T.body, color: c.inkMuted, paddingVertical: S.md },
+    history: { paddingVertical: S.md },
+    divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+    historyStatus: { ...T.bodyStrong, color: c.ink },
+    historyMeta: { ...T.caption, color: c.inkMuted, marginTop: 2 },
+    footer: { flexDirection: 'row', gap: S.sm },
+    footerButton: { flex: 1 },
+  });

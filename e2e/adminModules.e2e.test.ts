@@ -35,6 +35,7 @@ run('admin console modules against a live API', () => {
   jest.setTimeout(60_000);
   let store: ReturnType<typeof makeStore>;
   let hc: typeof import('../networks/admin/healthcareApi');
+  let shop: typeof import('../networks/admin/shoppingApi');
 
   function makeStore() {
     const { adminApi } = require('../networks/admin/adminApi') as typeof import('../networks/admin/adminApi');
@@ -53,6 +54,7 @@ run('admin console modules against a live API', () => {
     net.MainAxiosInstance.defaults.adapter = 'fetch';
     axios.defaults.adapter = 'fetch';
     hc = require('../networks/admin/healthcareApi');
+    shop = require('../networks/admin/shoppingApi');
     store = makeStore();
     const auth = require('../networks/admin/auth') as typeof import('../networks/admin/auth');
     const res = await auth.signInAdmin(EMAIL, PASSWORD!);
@@ -159,4 +161,144 @@ run('admin console modules against a live API', () => {
       expect(reviews.pages[0].items).toEqual([]);
     });
   });
+  describe('shopping', () => {
+    let orderId = '';
+    let brandId = '';
+    let newBrandId = '';
+    let outletId = '';
+    let bannerId = '';
+
+    it('dashboard and analytics answer with figures', async () => {
+      const dash = await query<any>(shop.shoppingEndpoints.getShopDashboard.initiate());
+      expect(dash).toMatchObject({ pendingBrandApprovals: expect.any(Number), ordersToday: expect.any(Number), gmvToday: expect.any(Number) });
+      const to = new Date();
+      const from = new Date(to.getTime() - 30 * 86_400_000);
+      const analytics = await query<any>(shop.shoppingEndpoints.getShopAnalytics.initiate({ from: from.toISOString(), to: to.toISOString() }));
+      expect(analytics).toMatchObject({ gmv: 3750, totalOrders: 1 });
+      expect(analytics.revenueByBrand[0]).toMatchObject({ brandName: 'Dev Threads', revenue: 3750 });
+    });
+
+    it('lists orders, filters them, and opens one with its items and history', async () => {
+      const list = await query<{ pages: { items: any[] }[] }>(shop.shoppingEndpoints.listShopOrders.initiate({}));
+      const order = list.pages[0].items[0];
+      expect(order).toMatchObject({ id: expect.any(String), orderId: expect.any(String), odexId: 'OD-DEV-1', orderStatus: 'delivered', brandName: 'Dev Threads', customerName: 'Ayesha Customer' });
+      expect(order.id).toBe(order.orderId);
+      orderId = order.id;
+      const pending = await query<{ pages: { items: any[] }[] }>(shop.shoppingEndpoints.listShopOrders.initiate({ status: 'pending' }));
+      expect(pending.pages[0].items).toEqual([]);
+      const bySearch = await query<{ pages: { items: any[] }[] }>(shop.shoppingEndpoints.listShopOrders.initiate({ search: 'OD-DEV' }));
+      expect(bySearch.pages[0].items.map((o) => o.id)).toEqual([orderId]);
+      const detail = await query<any>(shop.shoppingEndpoints.getShopOrder.initiate(orderId));
+      expect(detail).toMatchObject({ id: orderId, total: 3750, brandOwnerId: expect.any(String) });
+      expect(detail.items[0]).toMatchObject({ productName: 'Cotton Kurta', quantity: 2 });
+    });
+
+    it('refuses a status move the order state machine forbids', async () => {
+      const res = await mutate(shop.shoppingEndpoints.forceShopOrderStatus.initiate({ id: orderId, status: 'pending', reason: 'E2E' }));
+      expect(res.error).toMatchObject({ status: expect.any(Number), message: expect.any(String) });
+    });
+
+    it('lists brands with their owner, and opens one (the admin view, not the storefront)', async () => {
+      const list = await query<{ pages: { items: any[] }[] }>(shop.shoppingEndpoints.listShopBrands.initiate({}));
+      const brand = list.pages[0].items.find((b) => b.name === 'Dev Threads');
+      expect(brand).toMatchObject({ id: expect.any(String), brandId: expect.any(String), status: 'active', ownerName: 'Usman Vendor' });
+      brandId = brand.id;
+      const detail = await query<any>(shop.shoppingEndpoints.getShopBrand.initiate(brandId));
+      expect(detail).toMatchObject({ id: brandId, name: 'Dev Threads' });
+    });
+
+    it('creates a brand with the server’s default colours, suspends it, and still opens it', async () => {
+      const created = await mutate(
+        shop.shoppingEndpoints.createShopBrand.initiate({ name: 'E2E Brand', description: 'Made by the e2e test', contactEmail: 'e2e@example.com', categories: ['Fashion'] })
+      );
+      expect(created.error).toBeUndefined();
+      newBrandId = created.data.id;
+      expect(created.data).toMatchObject({ name: 'E2E Brand', slug: 'e2e-brand', primaryColor: expect.stringMatching(/^#/) });
+      expect((await mutate(shop.shoppingEndpoints.setShopBrandStatus.initiate({ id: newBrandId, status: 'suspended', reason: 'E2E suspend' }))).error).toBeUndefined();
+      // The storefront hides a suspended brand; the console must still open it.
+      const detail = await query<any>(shop.shoppingEndpoints.getShopBrand.initiate(newBrandId, { forceRefetch: true } as any));
+      expect(detail).toMatchObject({ id: newBrandId, status: 'suspended' });
+      const updated = await mutate(shop.shoppingEndpoints.updateShopBrand.initiate({ id: newBrandId, tagline: 'Edited by e2e' }));
+      expect(updated.data).toMatchObject({ tagline: 'Edited by e2e' });
+    });
+
+    it('creates an outlet, assigns a brand, recolours it, toggles it and deletes it', async () => {
+      const created = await mutate(
+        shop.shoppingEndpoints.createShopOutlet.initiate({ name: 'E2E Outlet', description: 'Test', phone: '0300', email: 'o@example.com', location: { address: '1 Mall Road', city: 'Lahore', state: 'Punjab' } })
+      );
+      expect(created.error).toBeUndefined();
+      outletId = created.data.id;
+      expect(created.data).toMatchObject({ outletId, isActive: true, location: { city: 'Lahore' } });
+      const assigned = await mutate(shop.shoppingEndpoints.assignShopOutletBrand.initiate({ id: outletId, brandId }));
+      expect(assigned.error).toBeUndefined();
+      const coloured = await mutate(shop.shoppingEndpoints.setShopOutletColors.initiate({ id: outletId, colorScheme: { primaryColor: '#123456' } }));
+      expect(coloured.error).toBeUndefined();
+      const toggled = await mutate(shop.shoppingEndpoints.toggleShopOutlet.initiate({ id: outletId }));
+      expect(toggled.data).toMatchObject({ isActive: false });
+      const list = await query<{ pages: { items: any[] }[] }>(shop.shoppingEndpoints.listShopOutlets.initiate({}));
+      expect(list.pages[0].items.find((o) => o.id === outletId)).toBeTruthy();
+      expect((await mutate(shop.shoppingEndpoints.deleteShopOutlet.initiate({ id: outletId }))).error).toBeUndefined();
+    });
+
+    it('adds, edits and deletes a promo banner', async () => {
+      const created = await mutate(shop.shoppingEndpoints.saveShopBanner.initiate({ title: 'E2E Sale', image: 'https://example.com/b.png', brandId, sortOrder: 2 }));
+      expect(created.error).toBeUndefined();
+      bannerId = created.data.id;
+      expect(created.data).toMatchObject({ bannerId, title: 'E2E Sale', isActive: true });
+      const edited = await mutate(shop.shoppingEndpoints.saveShopBanner.initiate({ id: bannerId, isActive: false }));
+      expect(edited.data).toMatchObject({ isActive: false });
+      expect((await mutate(shop.shoppingEndpoints.deleteShopBanner.initiate({ id: bannerId }))).error).toBeUndefined();
+    });
+
+    it('reads and saves settings, product auto-approval included', async () => {
+      const settings = await query<any>(shop.shoppingEndpoints.getShopSettings.initiate());
+      expect(settings).not.toHaveProperty('commissionPercent');
+      const saved = await mutate(shop.shoppingEndpoints.updateShopSettings.initiate({ autoApproveProducts: false, reason: 'E2E' }));
+      expect(saved.data).toMatchObject({ autoApproveProducts: false });
+      await mutate(shop.shoppingEndpoints.updateShopSettings.initiate({ autoApproveProducts: true, reason: 'E2E restore' }));
+    });
+
+    it('lists products for moderation', async () => {
+      const list = await query<{ pages: { items: any[]; meta: any }[] }>(shop.shoppingEndpoints.listShopProducts.initiate({ moderationStatus: 'pending' }));
+      expect(Array.isArray(list.pages[0].items)).toBe(true);
+    });
+
+    it('the server takes exactly what the brand, outlet and settings forms send', async () => {
+      const { EMPTY_BRAND, brandPayload } = require('../screens/admin/Shopping/shared/brandForm');
+      const { EMPTY_OUTLET, outletPayload } = require('../screens/admin/Shopping/shared/outletForm');
+      const { settingsFormFrom, settingsPatch } = require('../screens/admin/Shopping/shared/settingsForm');
+
+      const brandDraft = { ...EMPTY_BRAND, name: 'Form Brand', description: 'From the form', contactEmail: 'form@example.com', categories: ['Men'], paymentMethods: ['cod'] };
+      const brand = await mutate(shop.shoppingEndpoints.createShopBrand.initiate(brandPayload(brandDraft, 'create')));
+      expect(brand.error).toBeUndefined();
+      expect(brand.data).toMatchObject({ slug: 'form-brand', status: 'active', primaryColor: expect.stringMatching(/^#/) });
+      const edited = await mutate(shop.shoppingEndpoints.updateShopBrand.initiate({ id: brand.data.id, ...brandPayload({ ...brandDraft, tagline: 'Edited' }, 'edit') }));
+      expect(edited.error).toBeUndefined();
+      expect(edited.data).toMatchObject({ tagline: 'Edited', policies: { returnDays: 7, paymentMethods: ['cod'] } });
+
+      const outletDraft = { ...EMPTY_OUTLET, name: 'Form Outlet', address: '9 Canal Road', city: 'Lahore', phone: '0300 1234567', brandId: brand.data.id };
+      const outlet = await mutate(shop.shoppingEndpoints.createShopOutlet.initiate(outletPayload(outletDraft, 'create')));
+      expect(outlet.error).toBeUndefined();
+      expect(outlet.data).toMatchObject({ name: 'Form Outlet', brandId: brand.data.id, location: { city: 'Lahore' } });
+      const outletEdit = await mutate(
+        shop.shoppingEndpoints.updateShopOutlet.initiate({ id: outlet.data.id, ...outletPayload({ ...outletDraft, city: 'Karachi', colorScheme: { primaryColor: '#112233' } }, 'edit') })
+      );
+      expect(outletEdit.error).toBeUndefined();
+      expect(outletEdit.data).toMatchObject({ location: { city: 'Karachi' }, colorScheme: { primaryColor: '#112233' } });
+      await mutate(shop.shoppingEndpoints.deleteShopOutlet.initiate({ id: outlet.data.id }));
+      await mutate(shop.shoppingEndpoints.deleteShopBrand.initiate({ id: brand.data.id, reason: 'E2E cleanup' }));
+
+      const current = await query<any>(shop.shoppingEndpoints.getShopSettings.initiate(undefined, { forceRefetch: true } as any));
+      const form = settingsFormFrom(current);
+      const saved = await mutate(shop.shoppingEndpoints.updateShopSettings.initiate({ ...settingsPatch({ ...form, autoApproveProducts: !form.autoApproveProducts }), reason: 'E2E form' }));
+      expect(saved.error).toBeUndefined();
+      expect(saved.data.autoApproveProducts).toBe(!form.autoApproveProducts);
+      await mutate(shop.shoppingEndpoints.updateShopSettings.initiate({ ...settingsPatch(form), reason: 'E2E restore' }));
+    });
+
+    it('deletes a brand, with a reason', async () => {
+      expect((await mutate(shop.shoppingEndpoints.deleteShopBrand.initiate({ id: newBrandId, reason: 'E2E cleanup' }))).error).toBeUndefined();
+    });
+  });
 });
+

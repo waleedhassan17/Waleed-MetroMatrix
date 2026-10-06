@@ -1,192 +1,92 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-  SafeAreaView,
-  RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+// ============================================================================
+// Shopping hub — the entry to everything shopping in the console.
+//
+// Figures from GET /api/shopping/admin/dashboard ("today" in Pakistan time);
+// each opens the list that deals with it. Nothing is drawn until the server
+// has answered, so a failed load reads as "couldn't load", not as zeros.
+// "Order value" is what customers paid brands — the platform takes no share.
+// ============================================================================
+
+import React from 'react';
 import { useNavigation } from '@react-navigation/native';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Store,
-  ClipboardList,
-  Banknote,
-  RotateCcw,
-  TriangleAlert,
-  BarChart3,
-  Settings,
-  Warehouse,
-  Images,
-} from 'lucide-react-native';
-import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
-import {
-  fetchAdminShoppingDashboard,
-  selectAdminShoppingDashboard,
-} from './adminShoppingDashboardSlice';
+
+import { AdminScreen, KpiGrid, KpiTile, PermissionGate, QueryState, Section } from '../../../../components/admin';
+import { ListRow } from '../../../../components/ui';
 import { formatMoney } from '../../../../constants/Currency';
+import { useGetShopDashboardQuery } from '../../../../networks/admin/shoppingApi';
+import { AdminShoppingRouteNames } from '../../../../navigation-maps/Shopping';
 import { formatCount } from '../../../../utils/admin/format';
 
-const COLORS = {
-  primary: '#E67E22',
-  primaryLight: '#FFF3E6',
-  success: '#27AE60',
-  danger: '#E74C3C',
-  info: '#3B82F6',
-  warn: '#F59E0B',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
+const LINKS: { label: string; route: string; icon: string; subtitle: string }[] = [
+  { label: 'Brands', route: AdminShoppingRouteNames.AdminBrandList, icon: 'storefront-outline', subtitle: 'Approval, status and storefront details' },
+  { label: 'Product moderation', route: AdminShoppingRouteNames.AdminProductModeration, icon: 'shield-checkmark-outline', subtitle: 'What customers can see' },
+  { label: 'Orders', route: AdminShoppingRouteNames.AdminShoppingOrders, icon: 'receipt-outline', subtitle: 'Status, refunds and history' },
+  { label: 'Analytics', route: AdminShoppingRouteNames.AdminShoppingAnalytics, icon: 'bar-chart-outline', subtitle: 'Order value, brands and products over time' },
+  { label: 'Outlets', route: AdminShoppingRouteNames.AdminOutletList, icon: 'business-outline', subtitle: 'Physical stores' },
+  { label: 'Promo banners', route: AdminShoppingRouteNames.AdminBannerList, icon: 'images-outline', subtitle: 'The storefront carousel' },
+  { label: 'Settings', route: AdminShoppingRouteNames.AdminShoppingSettings, icon: 'settings-outline', subtitle: 'Shipping, returns, delivery options and approval' },
+];
 
-const AdminShoppingDashboardScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminShoppingDashboardScreen() {
   const navigation = useNavigation<any>();
-  const dispatch = useAppDispatch();
-  const { data, loading, error } = useAppSelector(selectAdminShoppingDashboard);
-
-  const load = useCallback(() => {
-    dispatch(fetchAdminShoppingDashboard());
-  }, [dispatch]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const tiles = [
-    {
-      key: 'pending',
-      label: 'Pending brand approvals',
-      value: formatCount(data?.pendingBrandApprovals),
-      icon: <Store size={20} stroke={COLORS.warn} strokeWidth={2} />,
-      onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminBrandList),
-    },
-    {
-      key: 'orders',
-      label: 'Orders today',
-      value: formatCount(data?.ordersToday),
-      icon: <ClipboardList size={20} stroke={COLORS.info} strokeWidth={2} />,
-      onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders),
-    },
-    {
-      key: 'gmv',
-      label: 'GMV today',
-      value: formatMoney(data?.gmvToday),
-      icon: <Banknote size={20} stroke={COLORS.success} strokeWidth={2} />,
-      onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingAnalytics),
-    },
-    {
-      key: 'returns',
-      label: 'Open return requests',
-      value: formatCount(data?.openReturnRequests),
-      icon: <RotateCcw size={20} stroke={COLORS.primary} strokeWidth={2} />,
-      onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders),
-    },
-    {
-      key: 'lowstock',
-      label: 'Low-stock alerts',
-      value: formatCount(data?.lowStockAlerts),
-      icon: <TriangleAlert size={20} stroke={COLORS.danger} strokeWidth={2} />,
-      onPress: () => navigation.navigate(AdminShoppingRouteNames.AdminBrandList),
-    },
-  ];
-
-  const links = [
-    { label: 'Brand Management', route: AdminShoppingRouteNames.AdminBrandList, icon: <Store size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'Product Moderation', route: AdminShoppingRouteNames.AdminProductModeration, icon: <ClipboardList size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'All Orders', route: AdminShoppingRouteNames.AdminShoppingOrders, icon: <ClipboardList size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'Analytics', route: AdminShoppingRouteNames.AdminShoppingAnalytics, icon: <BarChart3 size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'Outlets', route: AdminShoppingRouteNames.AdminOutletList, icon: <Warehouse size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'Promo Banners', route: AdminShoppingRouteNames.AdminBannerList, icon: <Images size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-    { label: 'Shopping Settings', route: AdminShoppingRouteNames.AdminShoppingSettings, icon: <Settings size={18} stroke={COLORS.primary} strokeWidth={2} /> },
-  ];
+  const dash = useGetShopDashboardQuery();
+  const d = dash.data;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={20} stroke={COLORS.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Shopping Overview</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <AdminScreen title="Shopping" refreshing={dash.isFetching && !dash.isLoading} onRefresh={dash.refetch}>
+      <PermissionGate all={['canManageShopping']} action="manage shopping">
+        <Section title="Needs attention">
+          <QueryState isLoading={dash.isLoading} error={dash.error} onRetry={dash.refetch} skeletonCount={1}>
+            {d && (
+              <KpiGrid>
+                <KpiTile
+                  label="Brands awaiting approval"
+                  value={formatCount(d.pendingBrandApprovals)}
+                  caption="Now"
+                  tone={d.pendingBrandApprovals ? 'warning' : 'neutral'}
+                  onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminBrandList)}
+                />
+                <KpiTile
+                  label="Open return requests"
+                  value={formatCount(d.openReturnRequests)}
+                  caption="Brands decide; refunds come here"
+                  tone={d.openReturnRequests ? 'warning' : 'neutral'}
+                  onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders)}
+                />
+                <KpiTile
+                  label="Low-stock alerts"
+                  value={formatCount(d.lowStockAlerts)}
+                  caption="Variants at or below the threshold"
+                  tone={d.lowStockAlerts ? 'warning' : 'neutral'}
+                  onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminBrandList)}
+                />
+              </KpiGrid>
+            )}
+          </QueryState>
+        </Section>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={loading && !!data} onRefresh={load} />}
-      >
-        {loading && !data && <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 32 }} />}
-        {error && !data && (
-          <View style={styles.center}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={load}>
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+        {d && (
+          <Section title="Today">
+            <KpiGrid>
+              <KpiTile label="Orders" value={formatCount(d.ordersToday)} caption="Placed today" onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminShoppingOrders)} />
+              <KpiTile label="Order value" value={formatMoney(d.gmvToday)} caption="Placed today, not cancelled" onPress={() => navigation.navigate(AdminShoppingRouteNames.AdminShoppingAnalytics)} />
+            </KpiGrid>
+          </Section>
         )}
 
-        {/* Only figures the server sent: no tile grid of zeros while loading or after a failure. */}
-        {!!data && (
-          <View style={styles.tileGrid}>
-            {tiles.map((tile) => (
-              <TouchableOpacity key={tile.key} style={styles.tile} onPress={tile.onPress}>
-                <View style={styles.tileIcon}>{tile.icon}</View>
-                <Text style={styles.tileValue}>{tile.value}</Text>
-                <Text style={styles.tileLabel}>{tile.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Manage</Text>
-        {links.map((link) => (
-          <TouchableOpacity
-            key={link.label}
-            style={styles.linkRow}
-            onPress={() => navigation.navigate(link.route as never)}
-          >
-            <View style={styles.linkIcon}>{link.icon}</View>
-            <Text style={styles.linkLabel}>{link.label}</Text>
-            <ChevronRight size={18} stroke={COLORS.textLight} strokeWidth={2} />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+        <Section title="Manage" card>
+          {LINKS.map((link, i) => (
+            <ListRow
+              key={link.route}
+              title={link.label}
+              subtitle={link.subtitle}
+              icon={link.icon}
+              onPress={() => navigation.navigate(link.route)}
+              divider={i < LINKS.length - 1}
+            />
+          ))}
+        </Section>
+      </PermissionGate>
+    </AdminScreen>
   );
-};
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  scroll: { padding: 16, paddingBottom: 40 },
-  center: { alignItems: 'center', paddingVertical: 24 },
-  errorText: { color: COLORS.textLight, marginBottom: 12, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  tile: { width: '47%', backgroundColor: COLORS.card, borderRadius: 14, padding: 16, elevation: 1, borderWidth: 1, borderColor: COLORS.border },
-  tileIcon: { marginBottom: 8 },
-  tileValue: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-  tileLabel: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginTop: 24, marginBottom: 10 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
-  linkIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  linkLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
-});
-
-export default AdminShoppingDashboardScreen;
+}

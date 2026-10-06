@@ -1,537 +1,188 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  Alert,
-  Switch,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
+// ============================================================================
+// One brand: who runs it, how it is doing, its storefront details, and the
+// decisions on it.
+//
+//  - Approve a pending brand, suspend a live one, reactivate a suspended one.
+//    Each needs a reason, which goes in the audit log.
+//  - Delete (soft: the brand disappears from the storefront and the console,
+//    its orders stay). Needs a reason too.
+//
+// Loaded from the admin brand endpoint. The old screen read the storefront
+// one, which only returns live brands, so every pending or suspended brand —
+// exactly the ones the approval queue opens — showed "Brand not found".
+// ============================================================================
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+
+import { AdminScreen, ConfirmSheet, DetailRow, EntityRow, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
+import { ActionSheet, Button, showToast, type SheetOption } from '../../../../components/ui';
+import { formatMoney } from '../../../../constants/Currency';
+import { usePermission } from '../../../../hooks/useAdminPermission';
+import { useUnsavedChangesGuard } from '../../../../hooks/useUnsavedChangesGuard';
+import { adminErrorOf } from '../../../../networks/admin/adminApi';
 import {
-  ChevronLeft,
-  Check,
-  Save,
-  Tag,
-  Palette,
-  Shield,
-  Mail,
-  Package,
-} from 'lucide-react-native';
-import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { Spacing, BorderRadius, Shadows } from '../../../../constants/Colors';
-import type { AdminShoppingParamList } from '../../../../types/shopping';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RouteProp } from '@react-navigation/native';
-import { SHOPPING_PAYMENT_METHODS, SHOPPING_BRAND_CATEGORIES } from '../../../../constants/shopping';
-import {
-  fetchBrandAsync,
-  saveBrandAsync,
-  updateBrandField,
-  clearError,
-  resetEditBrand,
-  selectBrand,
-  selectChanges,
-  selectIsLoading,
-  selectIsSaving,
-  selectError,
-  selectHasChanges,
-} from './editBrandSlice';
-import { parseWholeNumber } from '../../../../utils/admin/parse';
-import { DEFAULT_RETURN_DAYS } from '../../../../utils/admin/parse';
+  useDeleteShopBrandMutation,
+  useGetShopBrandQuery,
+  useSetShopBrandStatusMutation,
+  useUpdateShopBrandMutation,
+} from '../../../../networks/admin/shoppingApi';
+import { formatCount } from '../../../../utils/admin/format';
+import { S, T, useTheme, type ThemeColors } from '../../../../theme';
+import { idOf, openProvider } from '../../people/openProvider';
+import BrandForm from '../shared/BrandForm';
+import { brandPayload, brandProblems, draftFromBrand, type BrandDraft } from '../shared/brandForm';
+import { nextDecision } from '../shared/brandStatus';
 
-type NavigationProp = NativeStackNavigationProp<AdminShoppingParamList>;
-type RouteProps = RouteProp<AdminShoppingParamList, 'AdminBrandDetail'>;
+export default function EditBrandScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
+  const { brandId } = (useRoute().params ?? {}) as { brandId: string };
+  const canManage = usePermission('canManageShopping');
+  const query = useGetShopBrandQuery(brandId);
+  const brand = query.data;
+  const [update, updateState] = useUpdateShopBrandMutation();
+  const [setStatus, statusState] = useSetShopBrandStatusMutation();
+  const [remove, removeState] = useDeleteShopBrandMutation();
 
-const COLORS = {
-  primary: '#E67E22',
-  success: '#27AE60',
-  danger: '#E74C3C',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
-
-type TabKey = 'basic' | 'branding' | 'categories' | 'policies' | 'contact';
-
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'basic', label: 'Basic', icon: Tag },
-  { key: 'branding', label: 'Branding', icon: Palette },
-  { key: 'categories', label: 'Categories', icon: Package },
-  { key: 'policies', label: 'Policies', icon: Shield },
-  { key: 'contact', label: 'Contact', icon: Mail },
-];
-
-
-const EditBrandScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
-  const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RouteProps>();
-  const dispatch = useAppDispatch();
-  const brand = useAppSelector(selectBrand);
-  const changes = useAppSelector(selectChanges);
-  const loading = useAppSelector(selectIsLoading);
-  const saving = useAppSelector(selectIsSaving);
-  const error = useAppSelector(selectError);
-  const hasChanges = useAppSelector(selectHasChanges);
-  const brandId = route.params?.brandId;
-
-  const [activeTab, setActiveTab] = useState<TabKey>('basic');
+  const [draft, setDraft] = useState<BrandDraft | null>(null);
+  const [tried, setTried] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false);
+  const [sheet, setSheet] = useState<null | 'status' | 'delete'>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (brandId) {
-      dispatch(fetchBrandAsync(brandId));
-    }
-    return () => { dispatch(resetEditBrand()); };
-  }, [brandId, dispatch]);
+    if (brand) setDraft(draftFromBrand(brand));
+  }, [brand]);
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert('Error', error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
+  const saved = brand ? draftFromBrand(brand) : null;
+  const dirty = !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved);
+  const { sheet: guard, allowLeave } = useUnsavedChangesGuard(dirty);
+  const problems = tried && draft ? brandProblems(draft) : {};
+  const decision = nextDecision(brand?.status);
+  const ownerId = idOf(brand?.owner);
+  const ownerName = brand?.owner && typeof brand.owner === 'object' ? brand.owner.fullName : brand?.ownerName;
 
-  const handleSave = () => {
-    if (brandId) dispatch(saveBrandAsync(brandId));
+  const save = async () => {
+    if (!draft) return;
+    setTried(true);
+    setSaveError(null);
+    if (Object.keys(brandProblems(draft)).length) return setSaveError('Some details need fixing first.');
+    const res = await update({ id: brandId, ...brandPayload(draft, 'edit') });
+    if ('error' in res) return setSaveError(adminErrorOf(res.error)?.message || 'The changes were not saved.');
+    setTried(false);
+    showToast({ tone: 'success', message: 'Brand saved.' });
   };
 
-  const handleBack = () => {
-    if (hasChanges) {
-      Alert.alert(
-        'Unsaved Changes',
-        'You have unsaved changes. Discard them?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
-        ]
-      );
-    } else {
+  const confirm = async (reason: string) => {
+    if (sheet === 'status' && decision) {
+      const res = await setStatus({ id: brandId, status: decision.status, reason });
+      if ('error' in res) return setSheetError(adminErrorOf(res.error)?.message || 'That did not work.');
+      setSheet(null);
+      showToast({ tone: 'success', message: decision.status === 'active' ? 'The brand is live.' : 'The brand is suspended.' });
+    } else if (sheet === 'delete') {
+      const res = await remove({ id: brandId, reason });
+      if ('error' in res) return setSheetError(adminErrorOf(res.error)?.message || 'The brand was not deleted.');
+      setSheet(null);
+      allowLeave();
+      showToast({ tone: 'success', message: 'Brand deleted.' });
       navigation.goBack();
     }
   };
 
-  const getValue = (field: keyof typeof changes) => {
-    if (field in changes) return changes[field];
-    if (brand) return brand[field];
-    return '';
-  };
-
-  const TabBasic = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.field}>
-        <Text style={styles.label}>Brand Name</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('name') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ name: t }))}
-          placeholder="Brand name"
-          placeholderTextColor={COLORS.textLight}
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Slug</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('slug') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ slug: t }))}
-          placeholder="brand-slug"
-          placeholderTextColor={COLORS.textLight}
-          autoCapitalize="none"
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Tagline</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('tagline') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ tagline: t }))}
-          placeholder="Tagline"
-          placeholderTextColor={COLORS.textLight}
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={styles.textArea}
-          value={String(getValue('description') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ description: t }))}
-          placeholder="Description"
-          placeholderTextColor={COLORS.textLight}
-          multiline
-          numberOfLines={4}
-        />
-      </View>
-      <View style={styles.rowBetween}>
-        <Text style={styles.label}>Active</Text>
-        <Switch
-          value={Boolean(getValue('isActive') ?? true)}
-          onValueChange={(v) => { dispatch(updateBrandField({ isActive: v })); }}
-          trackColor={{ false: COLORS.border, true: COLORS.success }}
-        />
-      </View>
-    </View>
-  );
-
-  const TabBranding = () => (
-    <View style={styles.tabContent}>
-      <Text style={styles.label}>Primary Color</Text>
-      <View style={styles.colorRow}>
-        {['#E67E22', '#C0392B', '#2980B9', '#27AE60', '#8E44AD', '#D35400'].map(c => (
-          <TouchableOpacity
-            key={c}
-            style={[
-              styles.colorSwatch,
-              { backgroundColor: c },
-              getValue('primaryColor') === c && styles.colorSwatchActive,
-            ]}
-            onPress={() => dispatch(updateBrandField({ primaryColor: c }))}
-          >
-            {getValue('primaryColor') === c && <Check size={14} stroke="#FFF" strokeWidth={3} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={styles.label}>Secondary Color</Text>
-      <View style={styles.colorRow}>
-        {['#2C3E50', '#34495E', '#7F8C8D', '#95A5A6', '#BDC3C7', '#ECF0F1'].map(c => (
-          <TouchableOpacity
-            key={c}
-            style={[
-              styles.colorSwatch,
-              { backgroundColor: c },
-              getValue('secondaryColor') === c && styles.colorSwatchActive,
-            ]}
-            onPress={() => dispatch(updateBrandField({ secondaryColor: c }))}
-          >
-            {getValue('secondaryColor') === c && <Check size={14} stroke="#FFF" strokeWidth={3} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={styles.label}>Accent Color</Text>
-      <View style={styles.colorRow}>
-        {['#F1C40F', '#E74C3C', '#3498DB', '#2ECC71', '#9B59B6', '#E67E22'].map(c => (
-          <TouchableOpacity
-            key={c}
-            style={[
-              styles.colorSwatch,
-              { backgroundColor: c },
-              getValue('accentColor') === c && styles.colorSwatchActive,
-            ]}
-            onPress={() => dispatch(updateBrandField({ accentColor: c }))}
-          >
-            {getValue('accentColor') === c && <Check size={14} stroke="#FFF" strokeWidth={3} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.previewCard}>
-        <View style={[styles.previewHeader, { backgroundColor: String(getValue('primaryColor') || '#E67E22') }]}>
-          <Text style={styles.previewName}>{String(getValue('name') || 'Brand')}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const TabCategories = () => {
-    const cats = (getValue('categories') as string[]) || [];
-    return (
-      <View style={styles.tabContent}>
-        <Text style={styles.subtitle}>Select categories</Text>
-        <View style={styles.chipGrid}>
-          {SHOPPING_BRAND_CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.chip, cats.includes(cat) && styles.chipActive]}
-              onPress={() => {
-                const next = cats.includes(cat) ? cats.filter(c => c !== cat) : [...cats, cat];
-                dispatch(updateBrandField({ categories: next }));
-              }}
-            >
-              <Text style={[styles.chipText, cats.includes(cat) && styles.chipTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const TabPolicies = () => {
-    const policies = (getValue('policies') as any) || {};
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Return Days</Text>
-          <TextInput
-            style={styles.input}
-            value={String(policies.returnDays ?? DEFAULT_RETURN_DAYS)}
-            onChangeText={(t) => dispatch(updateBrandField({
-              policies: { ...policies, returnDays: parseWholeNumber(t) },
-            }))}
-            keyboardType="number-pad"
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Shipping Info</Text>
-          <TextInput
-            style={styles.textArea}
-            value={String(policies.shippingInfo || '')}
-            onChangeText={(t) => dispatch(updateBrandField({
-              policies: { ...policies, shippingInfo: t },
-            }))}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-        <Text style={styles.label}>Payment Methods</Text>
-        <View style={styles.chipGrid}>
-          {SHOPPING_PAYMENT_METHODS.map(({ value, label }) => (
-            <TouchableOpacity
-              key={value}
-              style={[styles.chip, (policies.paymentMethods || []).includes(value) && styles.chipActive]}
-              onPress={() => {
-                const pm = policies.paymentMethods || [];
-                const next = pm.includes(value)
-                  ? pm.filter((p: string) => p !== value)
-                  : [...pm, value];
-                dispatch(updateBrandField({ policies: { ...policies, paymentMethods: next } }));
-              }}
-            >
-              <Text style={[styles.chipText, (policies.paymentMethods || []).includes(value) && styles.chipTextActive]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const TabContact = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.field}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('contactEmail') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ contactEmail: t }))}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Phone</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('contactPhone') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ contactPhone: t }))}
-          keyboardType="phone-pad"
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Website</Text>
-        <TextInput
-          style={styles.input}
-          value={String(getValue('website') || '')}
-          onChangeText={(t) => dispatch(updateBrandField({ website: t }))}
-          autoCapitalize="none"
-        />
-      </View>
-    </View>
-  );
-
-  const tabComponents: Record<TabKey, React.FC> = {
-    basic: TabBasic,
-    branding: TabBranding,
-    categories: TabCategories,
-    policies: TabPolicies,
-    contact: TabContact,
-  };
-
-  const CurrentTab = tabComponents[activeTab];
-
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, styles.center]}>
-        <Text style={styles.loadingText}>Loading brand...</Text>
-      </SafeAreaView>
-    );
+  const options: SheetOption[] = [
+    ...(decision ? [{ label: decision.verb, icon: decision.status === 'active' ? 'checkmark-circle-outline' : 'pause-circle-outline', onPress: () => open('status') }] : []),
+    { label: 'Delete brand', icon: 'trash-outline', tone: 'destructive' as const, onPress: () => open('delete') },
+  ];
+  function open(next: 'status' | 'delete') {
+    setMenu(false);
+    setSheetError(null);
+    setSheet(next);
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.headerBtn}>
-          <ChevronLeft size={22} stroke={COLORS.text} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Brand</Text>
-        <TouchableOpacity
-          style={[styles.saveBtn, !hasChanges && styles.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={!hasChanges || saving}
-        >
-          <Save size={16} stroke={hasChanges ? '#FFF' : COLORS.textLight} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+    <AdminScreen
+      title={brand?.name ?? 'Brand'}
+      subtitle="Shopping"
+      refreshing={query.isFetching && !query.isLoading}
+      onRefresh={query.refetch}
+      headerActions={brand && canManage ? [{ icon: 'ellipsis-horizontal', label: 'More actions', onPress: () => setMenu(true) }] : undefined}
+      footer={
+        brand && draft ? (
+          <PermissionGate all={['canManageShopping']} fallback={null}>
+            <View style={styles.footer}>
+              {decision && (
+                <Button label={decision.verb} variant="secondary" onPress={() => open('status')} style={styles.footerButton} />
+              )}
+              <Button label="Save changes" onPress={save} disabled={!dirty} loading={updateState.isLoading} style={styles.footerButton} />
+            </View>
+          </PermissionGate>
+        ) : undefined
+      }
+    >
+      <PermissionGate all={['canManageShopping']} action="manage brands">
+        <QueryState isLoading={query.isLoading} error={query.error} onRetry={query.refetch} skeleton="detail" action="see this brand">
+          {brand && draft && (
+            <>
+              <View style={styles.header}>
+                <StatusBadge group="brandStatuses" value={brand.status} />
+              </View>
+              <Section title="Run by" card>
+                {ownerId ? (
+                  <EntityRow
+                    avatar={{ name: ownerName }}
+                    title={ownerName || 'Vendor'}
+                    subtitle="Vendor · opens their details and analytics"
+                    onPress={() => openProvider(navigation, ownerId)}
+                    divider={false}
+                  />
+                ) : (
+                  <Text style={styles.muted}>The platform runs this brand; no vendor owns it.</Text>
+                )}
+              </Section>
+              <Section title="So far" card>
+                <DetailRow label="Live products" value={formatCount(brand.productCount)} />
+                <DetailRow label="Orders" value={formatCount(brand.orderCount)} />
+                <DetailRow label="Delivered order value" value={formatMoney(brand.revenue)} last />
+              </Section>
+              <BrandForm draft={draft} onChange={setDraft} problems={problems} mode="edit" />
+              {!!saveError && <Text style={styles.error}>{saveError}</Text>}
+            </>
+          )}
+        </QueryState>
+      </PermissionGate>
 
-      {/* Tabs */}
-      <View style={styles.tabBarWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabBar}
-        >
-          {TABS.map(t => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.key;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                style={[styles.tabBtn, isActive && styles.tabBtnActive]}
-                onPress={() => setActiveTab(t.key)}
-                activeOpacity={0.7}
-              >
-                <Icon size={15} stroke={isActive ? '#FFF' : COLORS.textLight} strokeWidth={2} />
-                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{t.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <ActionSheet visible={menu} title={brand?.name} options={options} onClose={() => setMenu(false)} />
 
-      {/* Content */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <CurrentTab />
-      </ScrollView>
-    </SafeAreaView>
+      <ConfirmSheet
+        visible={sheet !== null}
+        title={sheet === 'delete' ? `Delete ${brand?.name}?` : decision?.title ?? ''}
+        message={
+          sheet === 'delete'
+            ? 'It disappears from the storefront and from this console. Its orders and their history stay.'
+            : decision?.message
+        }
+        confirmLabel={sheet === 'delete' ? 'Delete' : decision?.verb ?? ''}
+        destructive={sheet === 'delete' || !!decision?.destructive}
+        requireReason
+        busy={statusState.isLoading || removeState.isLoading}
+        error={sheetError}
+        onConfirm={confirm}
+        onClose={() => setSheet(null)}
+      />
+      {guard}
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { justifyContent: 'center', alignItems: 'center' },
-  loadingText: { fontSize: 16, color: COLORS.textLight },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingTop: (StatusBar.currentHeight || 44) + Spacing.md,
-    paddingBottom: Spacing.md,
-    backgroundColor: COLORS.card,
-    ...Shadows.small,
-  },
-  headerBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  saveBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveBtnDisabled: { backgroundColor: COLORS.border },
-  tabBarWrap: {
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-  },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  tabBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  tabText: { fontSize: 13, color: COLORS.textLight, fontWeight: '600' },
-  tabTextActive: { color: '#FFF', fontWeight: '700' },
-  scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xl },
-  tabContent: { backgroundColor: COLORS.card, borderRadius: BorderRadius.lg, padding: Spacing.md },
-  field: { marginBottom: Spacing.md },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: Spacing.xs },
-  subtitle: { fontSize: 14, color: COLORS.textLight, marginBottom: Spacing.md },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: 15,
-    color: COLORS.text,
-    backgroundColor: COLORS.bg,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: 15,
-    color: COLORS.text,
-    backgroundColor: COLORS.bg,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  colorRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', marginBottom: Spacing.md },
-  colorSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  colorSwatchActive: { borderColor: COLORS.text },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText: { fontSize: 13, color: COLORS.text },
-  chipTextActive: { color: '#FFF', fontWeight: '600' },
-  previewCard: {
-    marginTop: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    ...Shadows.medium,
-  },
-  previewHeader: { padding: Spacing.md, alignItems: 'center' },
-  previewName: { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-});
-
-export default EditBrandScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    header: { flexDirection: 'row', marginBottom: S.lg },
+    muted: { ...T.body, color: c.inkMuted, paddingVertical: S.md },
+    error: { ...T.body, color: c.error, marginBottom: S.lg },
+    footer: { flexDirection: 'row', gap: S.sm },
+    footerButton: { flex: 1 },
+  });

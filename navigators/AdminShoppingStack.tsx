@@ -22,8 +22,9 @@ const Stack = createNativeStackNavigator<AdminShoppingParamList>();
 
 const AdminShoppingStack: React.FC = () => {
   return (
-    // Admin manages shopping, so it reads as shopping — never a brand.
-    <ThemeProvider module="shopping">
+    // Part of the admin console, so it reads as the console (like healthcare
+    // and home services there), never as shopping or a brand.
+    <ThemeProvider module="admin">
       <Stack.Navigator
         initialRouteName={AdminShoppingRouteNames.AdminShoppingDashboard as keyof AdminShoppingParamList}
         screenOptions={{

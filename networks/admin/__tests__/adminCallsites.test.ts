@@ -2,9 +2,11 @@
  * Admin endpoints are called only through the typed client (networks/admin/*),
  * where tsc checks every path and method against the backend contract.
  *
- * The exceptions are listed with their reason. They are the module network
- * layers whose admin endpoints the contract types generically (backend
- * docs/ADMIN_OPEN_ITEMS.md #14) and the provider-app onboarding call (#12).
+ * The exceptions are listed with their reason: the healthcare module layer's
+ * remaining dashboard and settings calls (the contract types its endpoints
+ * generically, backend docs/ADMIN_OPEN_ITEMS.md #14) and the provider-app
+ * onboarding call (#12). Shopping and the rest of healthcare moved to the
+ * typed client (networks/admin/shoppingApi.ts, healthcareApi.ts).
  * Adding a file here needs a reason as good as these.
  */
 import fs from 'fs';
@@ -16,10 +18,6 @@ const ALLOWED: Record<string, string> = {
   'networks/network/network.ts': 'lists the public admin endpoints for token handling; calls none',
   'networks/network/sessionRefresh.ts': 'the admin token refresh: a bare axios post, so it cannot re-enter the interceptors',
   'networks/healthcare/config.ts': 'healthcare admin prefix (/v1/admin) for the healthcare module layer (#14)',
-  'networks/shopping/adminShoppingApi.ts': 'shopping admin module layer (#14)',
-  'networks/shopping/brandApi.ts': 'shopping admin module layer (#14)',
-  'networks/shopping/outletApi.ts': 'shopping admin module layer (#14)',
-  'networks/shopping/bannerApi.ts': 'shopping admin module layer (#14)',
   'networks/authcalls/providerProfile.ts': 'provider-app onboarding submit (#12), not the admin console',
 };
 

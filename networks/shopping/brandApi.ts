@@ -65,42 +65,4 @@ export const fetchBrandCategoriesApi = async (
   }
 };
 
-// ── Admin: Create Brand ─────────────────────
-
-export const createBrandApi = async (
-  payload: Omit<BrandConfig, "brandId" | "createdAt">
-): Promise<SingleResponse<BrandConfig>> => {
-  try {
-    const res = await ShoppingAxiosInstance.post("/admin/brands", payload);
-    return res.data;
-  } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to create brand"));
-  }
-};
-
-// ── Admin: Update Brand ─────────────────────
-
-export const updateBrandApi = async (
-  brandId: string,
-  payload: Partial<BrandConfig>
-): Promise<SingleResponse<BrandConfig>> => {
-  try {
-    const res = await ShoppingAxiosInstance.patch(`/admin/brands/${brandId}`, payload);
-    return res.data;
-  } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to update brand"));
-  }
-};
-
-// ── Admin: Delete Brand ─────────────────────
-
-export const deleteBrandApi = async (
-  brandId: string
-): Promise<{ success: boolean }> => {
-  try {
-    const res = await ShoppingAxiosInstance.delete(`/admin/brands/${brandId}`);
-    return res.data;
-  } catch (e) {
-    throw new Error(extractShoppingError(e, "Failed to delete brand"));
-  }
-};
+// Creating, editing and deleting brands is the admin console's (networks/admin/shoppingApi.ts).

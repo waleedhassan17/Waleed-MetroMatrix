@@ -10,33 +10,17 @@
 // shopping setting.
 // ============================================================================
 
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import {
-  AppBar,
-  Button,
-  Card,
-  EmptyState,
-  ErrorState,
-  FormSheet,
-  Screen,
-  SegmentedControl,
-  SkeletonCard,
-  TextField,
-  showToast,
-} from '../../../../components/ui';
-import { GUTTER, R, S, T } from '../../../../constants/theme';
-import { ThemeColors, useTheme } from '../../../../theme';
-import {
-  AdminProductView,
-  fetchAdminProductsApi,
-  moderateProductApi,
-} from '../../../../networks/shopping/adminShoppingApi';
-import type { ProductModerationStatus } from '../../../../types/shopping';
+import { AdminScreen, PermissionGate, QueryState } from '../../../../components/admin';
+import { Button, Card, FormSheet, SegmentedControl, TextField, showToast } from '../../../../components/ui';
+import { formatMoney } from '../../../../constants/Currency';
+import { GUTTER, R, S, T, useTheme, type ThemeColors } from '../../../../theme';
+import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi';
+import { useListShopProductsInfiniteQuery, useModerateShopProductMutation, type ModerationStatus, type ShopProduct } from '../../../../networks/admin/shoppingApi';
 
-type Tab = ProductModerationStatus;
+type Tab = ModerationStatus;
 const TABS: { value: Tab; label: string }[] = [
   { value: 'pending', label: 'In review' },
   { value: 'approved', label: 'Live' },
@@ -44,57 +28,29 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'removed', label: 'Removed' },
 ];
 
-type Pending = { product: AdminProductView; action: 'rejected' | 'removed' } | null;
+type Pending = { product: ShopProduct; action: 'rejected' | 'removed' } | null;
 
 export default function ProductModerationScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const navigation = useNavigation<any>();
 
   const [tab, setTab] = useState<Tab>('pending');
-  const [rows, setRows] = useState<AdminProductView[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const list = useListShopProductsInfiniteQuery({ moderationStatus: tab });
+  const rows = flattenPages(list.data?.pages);
+  const [moderate] = useModerateShopProductMutation();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending>(null);
   const [note, setNote] = useState('');
 
-  const load = useCallback(
-    async (asRefresh = false) => {
-      asRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const res = await fetchAdminProductsApi({ moderationStatus: tab, limit: 50 });
-        setRows(res.data || []);
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load products');
-      }
-      asRefresh ? setRefreshing(false) : setLoading(false);
-    },
-    [tab]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
-
-  const act = async (product: AdminProductView, status: 'approved' | 'rejected' | 'removed', why?: string) => {
-    setBusyId(product.productId);
-    try {
-      await moderateProductApi(product.productId, status, why);
-      setRows((prev) => prev.filter((p) => p.productId !== product.productId));
-      showToast({
-        message: status === 'approved' ? `"${product.name}" is live` : status === 'rejected' ? 'Sent back to the vendor' : 'Removed from the store',
-        tone: status === 'approved' ? 'success' : 'neutral',
-      });
-    } catch (e: any) {
-      showToast({ message: e?.message || 'That did not save', tone: 'error' });
-    } finally {
-      setBusyId(null);
-    }
+  const act = async (product: ShopProduct, status: 'approved' | 'rejected' | 'removed', why?: string) => {
+    setBusyId(product.id);
+    const res = await moderate({ id: product.id, status, note: why });
+    setBusyId(null);
+    if ('error' in res) return showToast({ message: adminErrorOf(res.error)?.message || 'That did not save', tone: 'error' });
+    showToast({
+      message: status === 'approved' ? `"${product.name}" is live` : status === 'rejected' ? 'Sent back to the vendor' : 'Removed from the store',
+      tone: status === 'approved' ? 'success' : 'neutral',
+    });
   };
 
   const confirmNote = async () => {
@@ -105,25 +61,19 @@ export default function ProductModerationScreen() {
     setNote('');
   };
 
-  const renderItem = ({ item }: { item: AdminProductView }) => {
+  const renderItem = ({ item }: { item: ShopProduct }) => {
     const price = item.salePrice ?? item.basePrice;
-    const busy = busyId === item.productId;
+    const busy = busyId === item.id;
     return (
       <Card style={styles.card}>
         <View style={styles.row}>
-          {item.images?.[0] ? (
-            <Image source={{ uri: item.images[0] }} style={styles.thumb} />
-          ) : (
-            <View style={[styles.thumb, styles.thumbEmpty]} />
-          )}
+          {item.images?.[0] ? <Image source={{ uri: item.images[0] }} style={styles.thumb} /> : <View style={[styles.thumb, styles.thumbEmpty]} />}
           <View style={styles.info}>
             <Text style={styles.name} numberOfLines={2}>
               {item.name}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {[item.brandName, typeof price === 'number' ? `Rs. ${Math.round(price).toLocaleString('en-PK')}` : null, item.isActive === false ? 'hidden by vendor' : null]
-                .filter(Boolean)
-                .join(' · ')}
+              {[item.brandName, typeof price === 'number' ? formatMoney(price) : null, item.isActive === false ? 'hidden by vendor' : null].filter(Boolean).join(' · ')}
             </Text>
             {!!item.moderation?.note && <Text style={styles.note}>Note: {item.moderation.note}</Text>}
           </View>
@@ -138,81 +88,56 @@ export default function ProductModerationScreen() {
             <Button label="Approve" size="sm" fullWidth={false} loading={busy} onPress={() => act(item, 'approved')} style={styles.btn} />
           )}
           {tab === 'pending' && (
-            <Button
-              label="Reject"
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-              disabled={busy}
-              onPress={() => setPending({ product: item, action: 'rejected' })}
-              style={styles.btn}
-            />
+            <Button label="Reject" variant="secondary" size="sm" fullWidth={false} disabled={busy} onPress={() => setPending({ product: item, action: 'rejected' })} style={styles.btn} />
           )}
           {tab !== 'removed' && (
-            <Button
-              label="Remove"
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-              disabled={busy}
-              onPress={() => setPending({ product: item, action: 'removed' })}
-              style={styles.btn}
-            />
+            <Button label="Remove" variant="secondary" size="sm" fullWidth={false} disabled={busy} onPress={() => setPending({ product: item, action: 'removed' })} style={styles.btn} />
           )}
-          {tab === 'removed' && (
-            <Button label="Restore" size="sm" fullWidth={false} loading={busy} onPress={() => act(item, 'approved')} style={styles.btn} />
-          )}
+          {tab === 'removed' && <Button label="Restore" size="sm" fullWidth={false} loading={busy} onPress={() => act(item, 'approved')} style={styles.btn} />}
         </View>
       </Card>
     );
   };
 
   return (
-    <Screen>
-      <AppBar title="Product moderation" onBack={() => navigation.goBack()} />
-      <View style={styles.tabs}>
-        <SegmentedControl options={TABS} value={tab} onChange={setTab} />
-      </View>
-      {loading ? (
-        <View style={styles.list}>
-          <SkeletonCard lines={3} />
-          <SkeletonCard lines={3} />
+    <AdminScreen title="Product moderation" subtitle="Shopping" scroll={false}>
+      <PermissionGate all={['canManageShopping']} action="moderate products">
+        <View style={styles.tabs}>
+          <SegmentedControl options={TABS} value={tab} onChange={setTab} />
         </View>
-      ) : error ? (
-        <ErrorState title="We couldn't load products" message={error} onRetry={() => load()} />
-      ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(p) => p.productId}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.accent} />}
-          ListEmptyComponent={
-            <EmptyState
-              icon="shield-checkmark-outline"
-              title={tab === 'pending' ? 'Nothing to review' : 'Nothing here'}
-              message={
-                tab === 'pending'
-                  ? 'New and edited products wait here when auto-approve is off in Shopping Settings.'
-                  : 'Products you move here will show up in this list.'
-              }
-            />
+        <QueryState
+          isLoading={list.isLoading}
+          error={list.error}
+          onRetry={list.refetch}
+          isEmpty={!rows.length}
+          emptyIcon="shield-checkmark-outline"
+          emptyTitle={tab === 'pending' ? 'Nothing to review' : 'Nothing here'}
+          emptyMessage={
+            tab === 'pending'
+              ? 'New and edited products wait here when auto-approve is off in Shopping settings.'
+              : 'Products you move here will show up in this list.'
           }
-        />
-      )}
+          style={styles.state}
+        >
+          <FlatList
+            data={rows}
+            keyExtractor={(p) => p.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            refreshControl={<RefreshControl refreshing={list.isFetching && !list.isFetchingNextPage && !list.isLoading} onRefresh={list.refetch} tintColor={colors.inkMuted} />}
+            ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={colors.inkMuted} style={styles.more} /> : null}
+          />
+        </QueryState>
+      </PermissionGate>
 
       <FormSheet
         visible={!!pending}
         title={pending?.action === 'removed' ? 'Remove from the store' : 'Send back for changes'}
         subtitle="The vendor sees this note."
         onClose={() => setPending(null)}
-        footer={
-          <Button
-            label={pending?.action === 'removed' ? 'Remove product' : 'Reject'}
-            onPress={confirmNote}
-            disabled={!note.trim()}
-          />
-        }
+        footer={<Button label={pending?.action === 'removed' ? 'Remove product' : 'Reject'} onPress={confirmNote} disabled={!note.trim()} />}
       >
         <TextField
           label="Reason"
@@ -223,14 +148,16 @@ export default function ProductModerationScreen() {
           maxLength={500}
         />
       </FormSheet>
-    </Screen>
+    </AdminScreen>
   );
 }
 
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    tabs: { paddingHorizontal: GUTTER, paddingTop: S.md },
-    list: { padding: GUTTER, flexGrow: 1 },
+    tabs: { paddingHorizontal: GUTTER, paddingTop: S.md, paddingBottom: S.md },
+    state: { marginHorizontal: GUTTER },
+    list: { paddingHorizontal: GUTTER, paddingBottom: S.huge, flexGrow: 1 },
+    more: { marginVertical: S.lg },
     card: { marginBottom: S.md },
     row: { flexDirection: 'row' },
     thumb: { width: 64, height: 64, borderRadius: R.control, backgroundColor: c.surfaceSunken },

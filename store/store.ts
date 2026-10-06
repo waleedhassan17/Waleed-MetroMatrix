@@ -121,23 +121,11 @@ import processOrderReducer from '../screens/Shopping/Brand/ProcessOrder/processO
 import returnRequestsReducer from '../screens/Shopping/Brand/ReturnRequests/returnRequestsSlice';
 import brandAnalyticsReducer from '../screens/Shopping/Brand/BrandAnalytics/brandAnalyticsSlice';
 import brandDeliveriesReducer from '../screens/Shopping/Brand/BrandDeliveries/brandDeliveriesSlice';
-import addBrandReducer from '../screens/admin/Shopping/AddBrand/addBrandSlice';
-import brandManagementReducer from '../screens/admin/Shopping/BrandManagement/brandManagementSlice';
-import editBrandReducer from '../screens/admin/Shopping/EditBrand/editBrandSlice';
-import outletManagementReducer from '../screens/admin/Shopping/OutletManagement/outletManagementSlice';
-import addOutletReducer from '../screens/admin/Shopping/AddOutlet/addOutletSlice';
-import outletDetailReducer from '../screens/admin/Shopping/OutletDetail/outletDetailSlice';
 import orderDetailReducer from '../screens/Shopping/User/OrderDetail/orderDetailSlice';
 import couponListReducer from '../screens/Shopping/User/CouponList/couponListSlice';
 import brandProfileReducer from '../screens/Shopping/Brand/BrandProfile/brandProfileSlice';
 import brandCouponsReducer from '../screens/Shopping/Brand/BrandCoupons/brandCouponsSlice';
 import brandReviewsReducer from '../screens/Shopping/Brand/BrandReviews/brandReviewsSlice';
-import adminShoppingDashboardReducer from '../screens/admin/Shopping/AdminShoppingDashboard/adminShoppingDashboardSlice';
-import adminShoppingOrdersReducer from '../screens/admin/Shopping/AdminShoppingOrders/adminShoppingOrdersSlice';
-import adminShoppingOrderDetailReducer from '../screens/admin/Shopping/AdminShoppingOrderDetail/adminShoppingOrderDetailSlice';
-import adminShoppingAnalyticsReducer from '../screens/admin/Shopping/AdminShoppingAnalytics/adminShoppingAnalyticsSlice';
-import adminShoppingSettingsReducer from '../screens/admin/Shopping/AdminShoppingSettings/adminShoppingSettingsSlice';
-import bannerManagementReducer from '../screens/admin/Shopping/BannerManagement/bannerManagementSlice';
 import unreadReducer from './unreadSlice';
 import themeReducer from './themeSlice';
 
@@ -305,23 +293,11 @@ const appReducer = combineReducers({
   returnRequests: returnRequestsReducer,
   brandAnalytics: brandAnalyticsReducer,
   brandDeliveries: brandDeliveriesReducer,
-  addBrand: addBrandReducer,
-  brandManagement: brandManagementReducer,
-  editBrand: editBrandReducer,
-  outletManagement: outletManagementReducer,
-  addOutlet: addOutletReducer,
-  outletDetail: outletDetailReducer,
   orderDetail: orderDetailReducer,
   couponList: couponListReducer,
   brandProfile: brandProfileReducer,
   brandCoupons: brandCouponsReducer,
   brandReviews: brandReviewsReducer,
-  adminShoppingDashboard: adminShoppingDashboardReducer,
-  adminShoppingOrders: adminShoppingOrdersReducer,
-  adminShoppingOrderDetail: adminShoppingOrderDetailReducer,
-  adminShoppingAnalytics: adminShoppingAnalyticsReducer,
-  adminShoppingSettings: adminShoppingSettingsReducer,
-  bannerManagement: bannerManagementReducer,
   // App-wide unread message counts, so a badge can exist outside the chat screen.
   unread: unreadReducer,
   // Light / dark / follow-the-system. A device preference, not account state —

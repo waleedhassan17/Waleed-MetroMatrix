@@ -40,7 +40,9 @@ SCOPE=(
   screens/admin/settings
   screens/admin/healthcare
   screens/admin/analytics
+  screens/admin/Shopping
   navigators/AdminTabs.tsx
+  navigators/AdminShoppingStack.tsx
 )
 
 # Files that legitimately hold raw values: the token definitions themselves, and

@@ -7,7 +7,6 @@
 // storefront, admin CRUD for managing them.
 // ============================================
 
-import type { PaginatedResponse, SingleResponse } from "../../types/shopping";
 import ShoppingAxiosInstance, { extractShoppingError } from "./shoppingAxios";
 
 export interface BannerView {
@@ -24,21 +23,6 @@ export interface BannerView {
   createdAt?: string;
   updatedAt?: string;
 }
-
-export type BannerPayload = Partial<
-  Pick<
-    BannerView,
-    | "title"
-    | "subtitle"
-    | "image"
-    | "brandId"
-    | "productId"
-    | "sortOrder"
-    | "isActive"
-    | "validFrom"
-    | "validUntil"
-  >
->;
 
 const call = async <T>(fn: () => Promise<{ data: T }>, fallback: string): Promise<T> => {
   try {
@@ -58,36 +42,4 @@ export const fetchBannersApi = () =>
     "Failed to load banners"
   );
 
-// ── Admin: manage banners ───────────────────
-
-export const fetchAdminBannersApi = (
-  params: { page?: number; limit?: number; isActive?: boolean } = {}
-) =>
-  call<PaginatedResponse<BannerView>>(
-    () => ShoppingAxiosInstance.get("/admin/banners", { params }),
-    "Failed to load banners"
-  );
-
-export const createBannerApi = (payload: BannerPayload) =>
-  call<SingleResponse<BannerView>>(
-    () => ShoppingAxiosInstance.post("/admin/banners", payload),
-    "Failed to create banner"
-  );
-
-export const updateBannerApi = (bannerId: string, payload: BannerPayload) =>
-  call<SingleResponse<BannerView>>(
-    () => ShoppingAxiosInstance.patch(`/admin/banners/${bannerId}`, payload),
-    "Failed to update banner"
-  );
-
-export const deleteBannerApi = (bannerId: string) =>
-  call<{ success: boolean }>(
-    () => ShoppingAxiosInstance.delete(`/admin/banners/${bannerId}`),
-    "Failed to delete banner"
-  );
-
-export const uploadBannerImageApi = (bannerId: string, image: string) =>
-  call<SingleResponse<BannerView>>(
-    () => ShoppingAxiosInstance.post(`/admin/banners/${bannerId}/image`, { image }),
-    "Failed to upload banner image"
-  );
+// Managing banners is the admin console's (networks/admin/shoppingApi.ts).
