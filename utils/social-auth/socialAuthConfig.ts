@@ -18,13 +18,11 @@ import { Platform } from 'react-native';
 // Check if running in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
 
-// The browser build signs in to Google through Firebase's own popup
-// (signInWithGoogleWeb) and never loads the native SDKs, which have no web
-// implementation: Google's throws "Web support is only available to sponsors".
+// The browser build signs in to Google and Facebook through Firebase's own
+// popups (signInWithGoogleWeb, signInWithFacebookWeb) and never loads the
+// native SDKs, which have no web implementation: Google's throws "Web support
+// is only available to sponsors".
 const isWeb = Platform.OS === 'web';
-
-/** Facebook sign-in runs on the native SDK only, so the web build hides it. */
-export const FACEBOOK_SIGN_IN_AVAILABLE = !isWeb;
 
 // Conditionally import native Google Sign-In (only works in dev builds, not Expo Go)
 let GoogleSignin: any = null;
@@ -367,9 +365,8 @@ export const useFacebookAuth = () => {
  * This works in development builds and production, NOT in Expo Go
  */
 export const signInWithFacebookNativeSDK = async (): Promise<FacebookProfileResult> => {
-  if (isWeb) {
-    return { type: 'error', error: 'Facebook sign-in is available in the mobile app. Use Google or your email here.' };
-  }
+  // The browser has no native SDK; the same token comes from Firebase's popup.
+  if (isWeb) return signInWithFacebookWeb();
   if (!LoginManagerNative) {
     console.log('⚠️ Native Facebook SDK not available (running in Expo Go?)');
     return {
@@ -423,6 +420,69 @@ export const signInWithFacebookNativeSDK = async (): Promise<FacebookProfileResu
   } catch (error: any) {
     console.error('❌ Native Facebook Sign-In error:', error);
     return { type: 'error', error: error.message || 'Facebook sign-in failed' };
+  }
+};
+
+/**
+ * Facebook sign-in in the browser build, through Firebase's own popup (the
+ * native SDK has no web implementation). Resolves like the native SDK: the raw
+ * Facebook access token, which the screens send to /auth/facebook-login exactly
+ * as on a phone — the backend checks it with Graph debug_token and links by
+ * Facebook id or email.
+ *
+ * Needs, once, in the consoles: the Facebook provider switched on in Firebase
+ * Auth with the same Facebook app as the backend's FACEBOOK_APP_ID, and
+ * Firebase's handler (https://<project>.firebaseapp.com/__/auth/handler) among
+ * that app's Valid OAuth Redirect URIs. Localhost is already an authorised
+ * Firebase domain; a hosted web build must be added, as for Google.
+ */
+export const signInWithFacebookWeb = async (): Promise<FacebookProfileResult> => {
+  // Browser-only: the React Native build of firebase/auth has no popup flow.
+  const { signInWithPopup } = require('firebase/auth') as typeof import('firebase/auth');
+  const provider = new FacebookAuthProvider();
+  provider.addScope('email');
+  provider.addScope('public_profile');
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const accessToken = FacebookAuthProvider.credentialFromResult(result)?.accessToken;
+    if (!accessToken) return { type: 'error', error: 'Facebook did not return a sign-in token. Please try again.' };
+    const user = result.user;
+    const facebook = user.providerData.find((p) => p.providerId === 'facebook.com');
+    return {
+      type: 'success',
+      accessToken,
+      profile: {
+        userID: facebook?.uid || user.uid,
+        name: user.displayName || '',
+        email: user.email || undefined,
+        imageURL: user.photoURL || undefined,
+      },
+    };
+  } catch (error: any) {
+    switch (error?.code) {
+      case 'auth/popup-closed-by-user':
+      case 'auth/cancelled-popup-request':
+        return { type: 'cancel', error: 'Facebook sign-in was cancelled' };
+      case 'auth/popup-blocked':
+        return {
+          type: 'error',
+          error: 'Your browser blocked the Facebook sign-in window. Allow pop-ups for this site and try again.',
+        };
+      case 'auth/account-exists-with-different-credential': {
+        // The email is already registered another way. The backend links by
+        // email, so hand the Facebook token on, as the phone does.
+        const accessToken = FacebookAuthProvider.credentialFromError(error)?.accessToken;
+        if (accessToken) return { type: 'success', accessToken };
+        break;
+      }
+      case 'auth/operation-not-allowed':
+        return { type: 'error', error: 'Facebook sign-in is not switched on for the web yet. Use Google or your email for now.' };
+      default:
+        break;
+    }
+    console.error('❌ Facebook web sign-in error:', error);
+    return { type: 'error', error: error?.message || 'Facebook sign-in failed' };
   }
 };
 
