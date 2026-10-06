@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { darkShift, type DarkShift } from '../constants/darkShift';
 import { useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from './ui/PlatformDateTimePicker';
 import { useAppSelector, useAppDispatch } from '../hooks/useReduxHooks';
 import {
   selectDateOfBirth,

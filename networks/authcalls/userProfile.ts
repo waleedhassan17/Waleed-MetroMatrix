@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API, API_URL } from "../network/network";
 import { retrieveData, KeyForStorage } from "../../utils/storage_utils/storageUtils";
 import { ProfileCompletionData } from "../../models/user";
+import { appendFile } from "../../services/uploads/appendFile";
 
 // Photo upload uses raw fetch (not the axios instance) so React Native sets
 // the multipart boundary itself, but it must still hit the SAME host as every
@@ -336,8 +337,7 @@ export const uploadProfilePhoto = async (
     // Create FormData
     const formData = new FormData();
     
-    // Format file for React Native
-    const file: any = {
+    const file = {
       uri: Platform.OS === 'android' ? photoUri : photoUri.replace('file://', ''),
       name: fileName,
       type: fileType || 'image/jpeg',
@@ -348,7 +348,7 @@ export const uploadProfilePhoto = async (
     // This used to send 'photo', which multer rejects as an unexpected field
     // with a 400 before the controller ever runs. Together with the dead
     // Heroku host above, that made profile-photo upload fail every time.
-    formData.append('profilePhoto', file);
+    await appendFile(formData, 'profilePhoto', file);
 
     console.log('📤 Sending photo upload request via fetch to:', `${API_BASE_URL}/users/upload-photo`);
 

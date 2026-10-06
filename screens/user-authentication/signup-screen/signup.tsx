@@ -44,6 +44,7 @@ import {
   processGoogleResponse,
   resolveGoogleFirebaseIdToken,
   signInWithFacebookNativeSDK,
+  FACEBOOK_SIGN_IN_AVAILABLE,
 } from '../../../utils/social-auth/socialAuthConfig';
 
 const isAndroid = Platform.OS === 'android';
@@ -522,14 +523,17 @@ const SignUp = () => {
                 <Ionicons name="logo-google" size={20} color="#DB4437" />
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('facebook')}
-                disabled={isLoading}
-              >
-                <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-                <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
+              {/* Native SDK only; the web build has no Facebook sign-in. */}
+              {FACEBOOK_SIGN_IN_AVAILABLE && (
+                <TouchableOpacity
+                  style={styles.socialButton}
+                  onPress={() => handleSocialLogin('facebook')}
+                  disabled={isLoading}
+                >
+                  <Ionicons name="logo-facebook" size={20} color="#4267B2" />
+                  <Text style={styles.socialButtonText}>Facebook</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </ScrollView>

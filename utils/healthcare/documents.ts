@@ -23,13 +23,39 @@
 // request headers, which the authenticated downloads need.
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { API_URL } from '../../networks/network/network';
 import { getAccessToken } from '../storage_utils/storageUtils';
 
 /** Strip anything a filesystem or a share sheet would object to. */
 function safeFileName(name: string): string {
   return name.replace(/[^\w.\- ]+/g, '_').trim() || 'document';
+}
+
+// In a browser there is no document directory (expo-file-system's download
+// throws "unavailable" on web) and no share sheet. The bytes become an object
+// URL instead, and saving it is an <a download> click; the file name is kept
+// here so the saved file has it rather than a random id.
+const webFileNames = new Map<string, string>();
+
+async function webDownload(url: string, filename: string, headers?: Record<string, string>): Promise<string> {
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(describeFailure(res.status));
+  const objectUrl = URL.createObjectURL(await res.blob());
+  webFileNames.set(objectUrl, safeFileName(filename));
+  return objectUrl;
+}
+
+function webSave(uri: string): void {
+  const link = document.createElement('a');
+  link.href = uri;
+  link.download = webFileNames.get(uri) ?? '';
+  // A cross-origin URL ignores `download`; open it beside the app, not over it.
+  link.target = '_blank';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 /**
@@ -95,6 +121,10 @@ export async function downloadAuthedFile(
   const token = await getAccessToken();
   if (!token) throw new Error('Please sign in again to download this document.');
 
+  if (Platform.OS === 'web') {
+    return webDownload(`${API_URL}${path}`, filename, { Authorization: `Bearer ${token}` });
+  }
+
   const target = `${FileSystem.documentDirectory}${safeFileName(filename)}`;
   const result = await FileSystem.downloadAsync(`${API_URL}${path}`, target, {
     headers: { Authorization: `Bearer ${token}` },
@@ -112,6 +142,17 @@ export async function downloadPublicFile(
   url: string,
   filename: string
 ): Promise<string> {
+  if (Platform.OS === 'web') {
+    try {
+      return await webDownload(url, filename);
+    } catch (e) {
+      // A host that refuses cross-origin reads (a TypeError, not an HTTP
+      // status): hand back the URL itself, which still opens and saves.
+      if (e instanceof TypeError) return url;
+      throw e;
+    }
+  }
+
   const target = `${FileSystem.documentDirectory}${safeFileName(filename)}`;
   const result = await FileSystem.downloadAsync(url, target);
 
@@ -132,6 +173,10 @@ export async function saveOrShareFile(
   uri: string,
   opts: { mimeType: string; dialogTitle: string }
 ): Promise<void> {
+  if (Platform.OS === 'web') {
+    webSave(uri);
+    return;
+  }
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, {
       mimeType: opts.mimeType,

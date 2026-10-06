@@ -20,7 +20,7 @@ import { createSingleFlight, type RefreshOutcome } from './authRecovery';
 import { emitAdminSessionRefreshed, type SessionAudience } from './authEvents';
 import { isValidToken } from './tokenSelection';
 import { loadAdminSession, saveAdminSession, tokensFrom } from '../admin/session';
-import { getRefreshToken, saveAuthTokens } from '../../utils/storage_utils/storageUtils';
+import { getAccessToken, getRefreshToken, saveAuthTokens } from '../../utils/storage_utils/storageUtils';
 import { devWarn } from '../../utils/devLog';
 
 export type RefreshPost = (path: string, body: unknown) => Promise<{ data: any }>;
@@ -47,6 +47,15 @@ export function createSessionRefresher(post: RefreshPost, hooks: SessionRefreshH
       return { token: data.accessToken };
     } catch (err: any) {
       devWarn('Session refresh failed:', err?.response?.status ?? err?.code ?? 'network');
+      if (!isTransient(err)) {
+        // On web every tab shares this storage but refreshes on its own. If
+        // another tab rotated the refresh token while this one was refreshing,
+        // this tab lost a race, not the session: carry on with the tokens the
+        // other tab stored rather than signing everyone out.
+        const latest = await getRefreshToken();
+        const access = latest && latest !== refreshToken ? await getAccessToken() : null;
+        if (isValidToken(access)) return { token: access };
+      }
       return { token: null, transient: isTransient(err) };
     }
   };

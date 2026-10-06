@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import React, { useMemo, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
@@ -9,6 +9,7 @@ import { dateFromKey, formatDateLabel } from '../../utils/healthcare/doctorForma
 import { dateKeyOf } from '../../utils/healthcare/timeRanges';
 import Button from './Button';
 import FormSheet from './FormSheet';
+import DateTimePicker from './PlatformDateTimePicker';
 
 /**
  * A calendar day, chosen with the phone's own date picker.
@@ -93,7 +94,9 @@ const DateField: React.FC<DateFieldProps> = ({
       </TouchableOpacity>
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      {Platform.OS === 'ios' && (
+      {/* iOS and web pick in a sheet: the wheel on iOS, the browser's own
+          date input on web (PlatformDateTimePicker.web.tsx). */}
+      {Platform.OS !== 'android' && (
         <FormSheet
           visible={iosOpen}
           title={label || 'Choose a date'}

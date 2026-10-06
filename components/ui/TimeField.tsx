@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import React, { useMemo, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
@@ -8,6 +8,7 @@ import { ThemeColors, useTheme } from '../../theme';
 import { formatTime, uses24HourClock } from '../../utils/healthcare/doctorFormat';
 import Button from './Button';
 import FormSheet from './FormSheet';
+import DateTimePicker from './PlatformDateTimePicker';
 
 /**
  * A time, chosen with the phone's own picker — the clock dial on Android, the
@@ -95,7 +96,9 @@ const TimeField: React.FC<TimeFieldProps> = ({
       </TouchableOpacity>
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      {Platform.OS === 'ios' && (
+      {/* iOS and web pick in a sheet: the wheel on iOS, the browser's own
+          time input on web (PlatformDateTimePicker.web.tsx). */}
+      {Platform.OS !== 'android' && (
         <FormSheet
           visible={iosOpen}
           title={label || 'Choose a time'}

@@ -16,6 +16,7 @@ import { BaseRouteNames } from "../../navigation-maps/Base";
 import { resolveLandingRoute } from "../../navigation-maps/landingRoute";
 import BaseNavigator from "../../navigators/BaseNavigator";
 import AdminSessionManager from "../admin/AdminSessionManager";
+import { useAccountSessionWatcher } from "./AccountSessionWatcher";
 import { restoreAdminSession } from "../../screens/admin/auth/adminAuthSlice";
 
 import {
@@ -66,6 +67,9 @@ interface AppContainerProps {
 
 export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   const dispatch = useAppDispatch();
+  // Listening from the first render: a session can turn out to be dead during
+  // boot, before the navigator below exists to show it on.
+  const { onNavigationReady } = useAccountSessionWatcher();
   const { colors, isDark } = useTheme();
 
   /**
@@ -291,7 +295,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
         {/* Was hardcoded `light`, which was wrong for every light screen in the
             app — white icons on a white bar. It follows the ramp now. */}
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <NavigationContainer ref={navigationRef} linking={linking} theme={navTheme}>
+        <NavigationContainer ref={navigationRef} linking={linking} theme={navTheme} onReady={onNavigationReady}>
           {/* Wraps the navigator so an incoming ring can surface over ANY
               screen — the server targets a per-user room, so a call arrives
               regardless of where the callee happens to be. */}

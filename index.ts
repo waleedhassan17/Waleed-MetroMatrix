@@ -10,8 +10,13 @@ import App from './App';
 // device did nothing — and since that notification is `ongoing`, it could not
 // be swiped away either.
 import { registerCallBackgroundHandler } from './services/call/callBackgroundHandler';
+import { installWebAlert } from './utils/webAlert';
 
 registerCallBackgroundHandler();
+
+// On web, Alert.alert is a no-op in react-native-web: route it to the modal
+// App.tsx mounts, before any screen can call it. Does nothing on native.
+installWebAlert();
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,

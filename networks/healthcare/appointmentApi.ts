@@ -20,6 +20,7 @@ import { Platform } from 'react-native';
 import { healthcareApiRequest } from './config';
 import { API_URL } from '../network/network';
 import { retrieveData, KeyForStorage } from '../../utils/storage_utils/storageUtils';
+import { appendFile } from '../../services/uploads/appendFile';
 import {
   appointmentSerializer,
   timeSlotSerializer,
@@ -357,14 +358,14 @@ export async function uploadMedicalRecordApi(
     if (input.date) form.append('date', input.date);
     form.append('notes', input.notes ?? '');
 
-    input.files.forEach((file) => {
-      form.append('files', {
+    for (const file of input.files) {
+      await appendFile(form, 'files', {
         // iOS rejects the file:// prefix here; Android requires it.
         uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
         name: file.name,
         type: file.mimeType,
-      } as any);
-    });
+      });
+    }
 
     // Raw fetch, not the axios instance, so React Native sets the multipart
     // boundary itself — same approach as uploadProfilePhoto.

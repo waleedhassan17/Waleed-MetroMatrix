@@ -7,6 +7,7 @@ jest.mock('../../../utils/storage_utils/secureStorage', () => ({
 }));
 const mockAccountTokens: { access?: string; refresh?: string } = {};
 jest.mock('../../../utils/storage_utils/storageUtils', () => ({
+  getAccessToken: jest.fn(async () => mockAccountTokens.access ?? null),
   getRefreshToken: jest.fn(async () => mockAccountTokens.refresh ?? null),
   saveAuthTokens: jest.fn(async (a: string, r?: string) => {
     mockAccountTokens.access = a;
@@ -139,5 +140,27 @@ describe('createSessionRefresher', () => {
     expect(mockAccountTokens).toEqual({ access: 'user-access-token-2', refresh: 'user-refresh-token-2' });
     __resetAdminSessionCache();
     await expect(loadAdminSession()).resolves.toEqual(adminTokens(1));
+  });
+
+  it('account: a 401 after another browser tab rotated the token keeps the session', async () => {
+    mockAccountTokens.access = 'user-access-token-1';
+    mockAccountTokens.refresh = 'user-refresh-token-1';
+    // The other tab wins the race: it stores its rotation, then the server
+    // refuses this tab's now-stale refresh token.
+    const post = jest.fn(async () => {
+      mockAccountTokens.access = 'user-access-token-2';
+      mockAccountTokens.refresh = 'user-refresh-token-2';
+      throw httpError(401);
+    });
+    await expect(createSessionRefresher(post)('account')).resolves.toEqual({ token: 'user-access-token-2' });
+  });
+
+  it('account: a 401 with no newer token stored ends the session', async () => {
+    mockAccountTokens.access = 'user-access-token-1';
+    mockAccountTokens.refresh = 'user-refresh-token-1';
+    const post = jest.fn(async () => {
+      throw httpError(401);
+    });
+    await expect(createSessionRefresher(post)('account')).resolves.toEqual({ token: null, transient: false });
   });
 });

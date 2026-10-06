@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { apiRequest } from '../../networks/serviceProviders/config';
+import { appendFile } from './appendFile';
 
 export type UploadPurpose = 'avatar' | 'dispute_evidence' | 'health_record' | 'product_image' | 'product_model3d';
 
@@ -73,8 +74,7 @@ export async function uploadAsset(
 
   const name = opts.name || guessName(uri, purpose === 'product_model3d' ? 'glb' : 'jpg');
   const form = new FormData();
-  // React Native's FormData takes { uri, name, type } for a local file.
-  form.append('file', { uri, name, type: opts.mimeType || guessType(name, 'application/octet-stream') } as any);
+  await appendFile(form, 'file', { uri, name, type: opts.mimeType || guessType(name, 'application/octet-stream') });
   form.append('api_key', s.apiKey);
   form.append('timestamp', String(s.timestamp));
   form.append('signature', s.signature);

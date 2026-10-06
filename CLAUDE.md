@@ -23,6 +23,17 @@ npx tsc --noEmit      # type check (strict: true in tsconfig.json; no dedicated 
 
 There is no ESLint config and no lint script — `tsc --noEmit` and `design-gates.sh` are the closest things to lint gates. There is no `babel.config.js`/`metro.config.js`; Expo SDK 54 supplies these by convention.
 
+### Running on web
+
+`npm run web` serves the same app in a browser against the same backends. Expo takes the first free port (8081 is taken on some dev machines, e.g. by a local phpMyAdmin), and the production API accepts any `http://localhost:<port>` or `http://127.0.0.1:<port>` origin; a LAN address or hosted web build must be listed in the backend's `CORS_ORIGINS`. Web-only stand-ins, so native APIs don't silently do nothing in a browser:
+
+- `Alert.alert` — a no-op in react-native-web; `utils/webAlert.ts` routes it to `components/ui/WebAlertHost.tsx`.
+- File uploads — append files with `services/uploads/appendFile.ts`, never a raw `{ uri, name, type }` (a browser sends that as the text "[object Object]").
+- Date/time pickers — import from `components/ui/PlatformDateTimePicker`, not the community package (which renders nothing on web).
+- Google sign-in goes through a Firebase popup; Facebook sign-in, push notifications and calling (WebRTC) are native-only.
+
+Browser tabs share one `localStorage` but each refreshes its session on its own; the backend keeps a refresh session per client with a short reuse grace window, so two tabs (or the phone and a browser on one account) no longer sign each other out.
+
 ## Architecture
 
 MetroMatrix is a single Expo/React Native app bundling **three independent verticals** — Home Services, Healthcare, and Shopping — each served to **three roles**: User (customer), Provider (service provider/doctor/brand), and Admin. Shared cross-vertical features (auth, wallet, chat/call, theme, notifications) live outside the per-vertical folders and are consumed by all three.
