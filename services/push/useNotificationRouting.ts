@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useDispatch } from 'react-redux';
 import { navigate } from '../../navigation-maps/navigationRef';
@@ -149,6 +150,10 @@ export function useNotificationRouting() {
   const handledColdStart = useRef(false);
 
   useEffect(() => {
+    // No push on web (services/push/pushNotifications.ts), so no taps to
+    // route — and expo-notifications throws for the cold-start lookup there.
+    if (Platform.OS === 'web') return undefined;
+
     // Warm path: user tapped while the app was running or backgrounded.
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const route = routeFromNotification(response.notification.request.content.data);

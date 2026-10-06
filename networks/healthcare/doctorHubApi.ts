@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { healthcareApiRequest, HealthcareResponse } from './config';
+import { appendFile } from '../../services/uploads/appendFile';
 import type {
   AppointmentDetail,
   AppointmentPage,
@@ -546,11 +547,11 @@ export async function uploadDoctorPhotoApi(
     const { token } = await tokenForRequest('provider');
     if (!token) return { success: false, data: null as any, message: 'Your session expired. Please sign in again.' };
     const form = new FormData();
-    form.append('profilePhoto', {
+    await appendFile(form, 'profilePhoto', {
       uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
       name,
       type: mimeType,
-    } as any);
+    });
     const response = await fetch(`${API_URL}/v1/healthcare/doctors/me/image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

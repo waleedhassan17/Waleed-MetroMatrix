@@ -1,10 +1,12 @@
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback } from 'react';
+import { Platform } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './store/store';
 import AppContainer from './components/app-container/appContainer';
 import { ThemeProvider, useResolvedMode } from './theme';
+import WebAlertHost from './components/ui/WebAlertHost';
 
 // Hold the native splash until the store has rehydrated, so the first frame
 // is painted in the appearance the user chose rather than the default.
@@ -49,6 +51,8 @@ const ThemedApp: React.FC<{ onLayout: () => void }> = ({ onLayout }) => {
     // it, and a brand subtree narrows it again.
     <ThemeProvider module="neutral" mode={mode}>
       <AppContainer onLayout={onLayout} />
+      {/* react-native-web's Alert.alert is a no-op; this renders it (utils/webAlert.ts). */}
+      {Platform.OS === 'web' && <WebAlertHost />}
     </ThemeProvider>
   );
 };

@@ -61,6 +61,8 @@ const RINGTONE_SOUND = 'ringtone.wav';
  * appear. When the socket is down the banner is the only signal there is.
  */
 export function configureNotificationHandler() {
+  // Push is native-only here (see registerForPushNotifications).
+  if (Platform.OS === 'web') return;
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const type = notification.request.content.data?.type;
@@ -128,6 +130,10 @@ async function ensureAndroidChannels() {
 export async function registerForPushNotifications(
   opts: { force?: boolean } = {}
 ): Promise<string | null> {
+  // Web push needs a VAPID key and a service worker, and this app ships
+  // neither: asking would only raise the browser's permission prompt and then
+  // fail. Calls and messages still arrive over the socket while the tab is open.
+  if (Platform.OS === 'web') return null;
   try {
     // Respect the settings switch: a user who turned notifications off must
     // not be silently re-registered by the next sign-in.

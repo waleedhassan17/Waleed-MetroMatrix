@@ -1,6 +1,6 @@
 import { UserInfo } from '../../models/user';
 import { ProviderInfo } from '../../models/provider';
-import { API_URL } from '../network/network';
+import { API, API_URL } from '../network/network';
 
 // Use the same configured API host as the app-level network layer so the auth
 // bootstrap does not silently point at the placeholder example.com domain.
@@ -28,25 +28,15 @@ export const me = async (userType: 'user' | 'provider' = 'user'): Promise<UserIn
     // currentUser and currentProvider stayed null on any session restored from
     // storage. Identity then only existed after a fresh in-session login, which
     // is what made the incoming-call bug look intermittent and role-dependent.
-    const endpoint = userType === 'provider' ? '/providers/profile' : '/users/profile';
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const endpoint = userType === 'provider' ? 'providers/profile' : 'users/profile';
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token expired or invalid
-        throw new Error('Authentication token expired');
-      }
-      throw new Error(`Failed to fetch user data: ${response.status}`);
-    }
-
-    const data = await response.json();
+    // Through the shared instance, and with no Authorization header of our
+    // own: the interceptor then attaches the right token and, on a 401,
+    // renews it and replays the call (networks/network/authRecovery.ts). The
+    // bare fetch this used to be failed on any access token past its 15
+    // minutes, so a session left idle came back with no user — on web, after
+    // nearly every page reload.
+    const { data } = await API.GET({ URL: endpoint });
     const normalized = userType === 'provider'
       ? data?.provider ?? data?.data ?? data
       : data?.user ?? data?.data ?? data;
@@ -155,17 +145,21 @@ export const refreshAuthToken = async (): Promise<{ accessToken: string; refresh
  */
 export const logoutApi = async (): Promise<{ success: boolean }> => {
   try {
-    const { getAccessToken } = await import('../../utils/storage_utils/storageUtils');
+    const { getAccessToken, getRefreshToken } = await import('../../utils/storage_utils/storageUtils');
     const token = await getAccessToken();
-    
+    const refreshToken = await getRefreshToken();
+
     if (token) {
-      // Call logout endpoint if available
+      // Call logout endpoint if available. Naming this device's refresh token
+      // ends only its session — signing out of the browser used to sign the
+      // phone out too, and the reverse.
       await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       }).catch(() => {
         // Ignore errors from logout endpoint
         console.log('Logout endpoint failed, continuing with local logout');

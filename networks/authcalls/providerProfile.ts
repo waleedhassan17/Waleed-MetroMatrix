@@ -1,6 +1,7 @@
 import { API } from "../network/network";
 import { retriveData, saveData, KeyForStorage } from "../../utils/storage_utils/storageUtils";
 import type { PersonalInfoData } from "../../models/provider";
+import { appendFile } from "../../services/uploads/appendFile";
 
 /**
  * Document file structure for upload
@@ -65,11 +66,7 @@ export const submitProviderProfileWithDocuments = async (
     // Add all documents
     for (const doc of documents) {
       console.log(`📎 Adding document: ${doc.documentType} - ${doc.name}`);
-      formData.append(doc.documentType, {
-        uri: doc.uri,
-        name: doc.name,
-        type: doc.type,
-      } as any);
+      await appendFile(formData, doc.documentType, { uri: doc.uri, name: doc.name, type: doc.type });
     }
 
     console.log('📤 Making API request to: admin/provider-submissions');
@@ -332,11 +329,7 @@ export const uploadProviderDocument = async (
     console.log('📤 Uploading provider document:', documentType);
 
     const formData = new FormData();
-    formData.append('document', {
-      uri: documentUri,
-      name: fileName,
-      type: fileType,
-    } as any);
+    await appendFile(formData, 'document', { uri: documentUri, name: fileName, type: fileType });
     formData.append('documentType', documentType);
 
     const response = await API.POST({

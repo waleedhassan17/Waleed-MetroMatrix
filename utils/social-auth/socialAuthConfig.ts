@@ -13,9 +13,18 @@ import {
 } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Check if running in Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
+
+// The browser build signs in to Google through Firebase's own popup
+// (signInWithGoogleWeb) and never loads the native SDKs, which have no web
+// implementation: Google's throws "Web support is only available to sponsors".
+const isWeb = Platform.OS === 'web';
+
+/** Facebook sign-in runs on the native SDK only, so the web build hides it. */
+export const FACEBOOK_SIGN_IN_AVAILABLE = !isWeb;
 
 // Conditionally import native Google Sign-In (only works in dev builds, not Expo Go)
 let GoogleSignin: any = null;
@@ -23,7 +32,7 @@ let statusCodes: any = null;
 let isSuccessResponse: any = null;
 let isErrorWithCode: any = null;
 
-if (!isExpoGo) {
+if (!isExpoGo && !isWeb) {
   try {
     const nativeGoogleSignIn = require('@react-native-google-signin/google-signin');
     GoogleSignin = nativeGoogleSignIn.GoogleSignin;
@@ -40,7 +49,7 @@ let LoginManagerNative: any = null;
 let FBAccessToken: any = null;
 let FBProfile: any = null;
 
-if (!isExpoGo) {
+if (!isExpoGo && !isWeb) {
   try {
     const fbsdk = require('react-native-fbsdk-next');
     LoginManagerNative = fbsdk.LoginManager;
@@ -247,10 +256,60 @@ export const useGoogleAuth = () => {
   return {
     request,
     response,
-    promptAsync: currentIsExpoGo ? promptAsync : nativePromptAsync,
-    isReady: currentIsExpoGo ? !!request : true,
-    isNative: !currentIsExpoGo,
+    // On web the popup resolves with the result, as the native SDK does, so
+    // the screens take the same direct path (`isNative`) for both.
+    promptAsync: isWeb ? signInWithGoogleWeb : currentIsExpoGo ? promptAsync : nativePromptAsync,
+    isReady: isWeb || !currentIsExpoGo ? true : !!request,
+    isNative: isWeb || !currentIsExpoGo,
   };
+};
+
+/**
+ * Google sign-in in a browser, through Firebase's own popup.
+ *
+ * Resolves like signInWithGoogleNativeSDK: the raw Google ID token, which the
+ * screens hand to resolveGoogleFirebaseIdToken exactly as on native. Firebase
+ * already authorises localhost, so the local web build needs no console
+ * change; a hosted web build must be added to Firebase Auth's authorised
+ * domains first.
+ */
+export const signInWithGoogleWeb = async (): Promise<SocialAuthResult> => {
+  // Browser-only: the React Native build of firebase/auth has no popup flow.
+  const { signInWithPopup } = require('firebase/auth') as typeof import('firebase/auth');
+  const provider = new GoogleAuthProvider();
+  provider.addScope('profile');
+  provider.addScope('email');
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const idToken = GoogleAuthProvider.credentialFromResult(result)?.idToken;
+    if (!idToken) return { type: 'error', error: 'Google did not return a sign-in token. Please try again.' };
+    return { type: 'success', idToken };
+  } catch (error: any) {
+    switch (error?.code) {
+      case 'auth/popup-closed-by-user':
+      case 'auth/cancelled-popup-request':
+        return { type: 'cancel' };
+      case 'auth/popup-blocked':
+        return {
+          type: 'error',
+          error: 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.',
+        };
+      case 'auth/account-exists-with-different-credential': {
+        // The email is already registered another way. Hand the Google token
+        // on regardless: resolveGoogleFirebaseIdToken links the accounts, as
+        // it does for the same collision on native.
+        const idToken = GoogleAuthProvider.credentialFromError(error)?.idToken;
+        if (idToken) return { type: 'success', idToken };
+        break;
+      }
+      default:
+        break;
+    }
+    console.error('❌ Google web sign-in error:', error);
+    return { type: 'error', error: error?.message || 'Google sign-in failed' };
+  }
 };
 
 /**
@@ -308,6 +367,9 @@ export const useFacebookAuth = () => {
  * This works in development builds and production, NOT in Expo Go
  */
 export const signInWithFacebookNativeSDK = async (): Promise<FacebookProfileResult> => {
+  if (isWeb) {
+    return { type: 'error', error: 'Facebook sign-in is available in the mobile app. Use Google or your email here.' };
+  }
   if (!LoginManagerNative) {
     console.log('⚠️ Native Facebook SDK not available (running in Expo Go?)');
     return {
