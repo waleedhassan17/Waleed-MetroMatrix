@@ -108,17 +108,20 @@ const shopping: ModulePalette = {
 };
 
 /**
- * The admin console. One graphite-blue accent — a working tool, not a
- * storefront — on a quiet surface bar, so status colours (the things an admin
- * has to act on) are the only saturated colour on the screen.
+ * The admin console, in the clinical blue of the customer healthcare screens
+ * and under the same page header — a blue gradient with a large white title —
+ * so the console reads as part of the same app. The accent is one step deeper
+ * than healthcare's own: a white label on `HC.primaryDark` measures 5:1, on
+ * `HC.primary` 3.6, which fails AA for a button's text. Status colours stay the
+ * only other saturated colour on the screen.
  */
 const admin: ModulePalette = {
-  accent: '#2F4A6D',
-  accentDeep: '#1F3550',
-  accentSoft: '#EAF0F7',
-  accentLine: '#C9D6E6',
+  accent: HC.primaryDark,
+  accentDeep: HC.primaryDarker,
+  accentSoft: HC.primaryLight,
+  accentLine: HC.accentLight,
   onAccent: C.inkInverse,
-  barTone: 'surface',
+  barTone: 'gradient',
 };
 
 export const MODULE_PALETTES: Record<ModuleName, ModulePalette> = {
@@ -198,14 +201,8 @@ const shoppingDark: ModulePalette = {
   barTone: 'surface',
 };
 
-const adminDark: ModulePalette = {
-  accent: '#8FB0D9',
-  accentDeep: '#B9D0EC',
-  accentSoft: '#18222F',
-  accentLine: '#2E4560',
-  onAccent: textOn('#8FB0D9'),
-  barTone: 'surface',
-};
+// Healthcare's dark blues on a plain bar, exactly as healthcare does in dark.
+const adminDark: ModulePalette = { ...healthcareDark };
 
 export const MODULE_PALETTES_DARK: Record<ModuleName, ModulePalette> = {
   neutral: neutralDark,

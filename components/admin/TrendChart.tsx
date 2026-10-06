@@ -28,6 +28,12 @@ export interface TrendChartProps {
   /** What is counted, for the summary: "bookings", "paid". */
   unit: string;
   height?: number;
+  /**
+   * What the readout shows while nothing is pressed: the sum of the buckets
+   * (sign-ups over the range), or the last bucket (a running total — summing
+   * one would count everybody once per day).
+   */
+  aggregate?: 'sum' | 'last';
 }
 
 const PAD = { padLeft: 36, padRight: 8, padTop: 10, padBottom: 22 };
@@ -41,7 +47,7 @@ export function bucketLabel(date: string, long = false): string {
   return `${MONTHS[m - 1]} ${d}`;
 }
 
-const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format = (n) => compact(n), unit, height = 168 }) => {
+const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format = (n) => compact(n), unit, height = 168, aggregate = 'sum' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [width, setWidth] = useState(0);
@@ -60,10 +66,13 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format 
 
   const total = data.reduce((s, p) => s + p.value, 0);
   const peakIndex = data.reduce((best, p, i) => (p.value > data[best].value ? i : best), 0);
-  const summary = n
-    ? `${format(total)} ${unit} over ${n} ${data[0].date.length > 7 ? 'days' : 'months'}` +
-      (max > 0 ? `; highest ${format(data[peakIndex].value)} on ${bucketLabel(data[peakIndex].date, true)}.` : '.')
-    : `No ${unit} yet.`;
+  const latest = aggregate === 'last' && n > 0;
+  const summary = !n
+    ? `No ${unit} yet.`
+    : latest
+      ? `${format(data[n - 1].value)} ${unit} on ${bucketLabel(data[n - 1].date, true)}, from ${format(data[0].value)} on ${bucketLabel(data[0].date, true)}.`
+      : `${format(total)} ${unit} over ${n} ${data[0].date.length > 7 ? 'days' : 'months'}` +
+        (max > 0 ? `; highest ${format(data[peakIndex].value)} on ${bucketLabel(data[peakIndex].date, true)}.` : '.');
 
   // Columns are centred in their slot; a line runs point to point.
   const xOf = (i: number) => (kind === 'columns' ? PAD.padLeft + slot * i + slot / 2 : xAt(i, n, frame));
@@ -83,8 +92,14 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, kind = 'columns', format 
   return (
     <View>
       <View style={styles.readout} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Text style={styles.readoutValue}>{format(shown ? shown.value : total)}</Text>
-        <Text style={styles.readoutLabel}>{shown ? bucketLabel(shown.date, true) : `Total, ${data[0].date.length > 7 ? `${n} days` : `${n} months`}`}</Text>
+        <Text style={styles.readoutValue}>{format(shown ? shown.value : latest ? data[n - 1].value : total)}</Text>
+        <Text style={styles.readoutLabel}>
+          {shown
+            ? bucketLabel(shown.date, true)
+            : latest
+              ? `On ${bucketLabel(data[n - 1].date, true)}`
+              : `Total, ${data[0].date.length > 7 ? `${n} days` : `${n} months`}`}
+        </Text>
       </View>
       <View
         onLayout={onLayout}

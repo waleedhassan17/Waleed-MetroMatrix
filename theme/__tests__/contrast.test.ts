@@ -185,9 +185,15 @@ describe('light module palettes', () => {
 
 describe('module page header gradients', () => {
   // Every module that paints this header goes through headerGradientStops, so
-  // this covers the home-service AppBar and shopping's ShoppingHeader from one
-  // place — and would cover healthcare the day it adopts it.
-  const HEADER_MODULES: ModuleName[] = ['homeservice', 'shopping'];
+  // this covers the home-service and admin AppBars and shopping's
+  // ShoppingHeader from one place — and would cover healthcare the day it
+  // adopts it.
+  const HEADER_MODULES: ModuleName[] = ['homeservice', 'shopping', 'admin'];
+
+  it('the admin console uses this header in light, and the plain bar in dark, as healthcare does', () => {
+    expect(modulePalette('admin', 'light').barTone).toBe('gradient');
+    expect(modulePalette('admin', 'dark').barTone).toBe('surface');
+  });
 
   it.each(HEADER_MODULES)(
     '%s: a 90%% white subtitle clears AA body on BOTH stops',

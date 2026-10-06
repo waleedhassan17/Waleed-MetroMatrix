@@ -65,10 +65,11 @@ const healthcareAnalyticsApi = adminApi.injectEndpoints({
         }
       },
     }),
-    getAppointmentTimeline: build.query<AppointmentTimeline, AnalyticsRange>({
-      queryFn: async (range) => {
+    // Monthly unless asked: the analytics screen charts months, the home charts days.
+    getAppointmentTimeline: build.query<AppointmentTimeline, AnalyticsRange & { period?: AppointmentTimeline['period'] }>({
+      queryFn: async ({ period, ...range }) => {
         try {
-          const res = await http.get('/api/v1/admin/analytics/appointments', { query: { period: 'monthly', ...range } });
+          const res = await http.get('/api/v1/admin/analytics/appointments', { query: { ...range, period: period ?? 'monthly' } });
           return { data: res.data as unknown as AppointmentTimeline };
         } catch (err) {
           return fail(err);

@@ -11,7 +11,7 @@
 export { default as ActionSheet } from './ActionSheet';
 export type { ActionSheetProps, SheetOption } from './ActionSheet';
 
-export { default as AppBar } from './AppBar';
+export { default as AppBar, barInk } from './AppBar';
 export type { AppBarProps } from './AppBar';
 
 export { default as Avatar } from './Avatar';

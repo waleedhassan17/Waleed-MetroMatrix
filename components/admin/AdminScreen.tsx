@@ -3,13 +3,15 @@ import { Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, Vie
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AppBar, Screen } from '../ui';
+import { AppBar, barInk, Screen } from '../ui';
 import { GUTTER, S, T, useTheme, type ThemeColors } from '../../theme';
 
 /**
- * The frame of every admin console screen: surface app bar, safe areas, a
- * scrolling body with pull-to-refresh, and an optional pinned footer for the
- * screen's one primary action.
+ * The frame of every admin console screen: the module's page header (the
+ * customer healthcare screens' blue gradient, from the admin palette), a white
+ * page like the customer screens, safe areas, a scrolling body with
+ * pull-to-refresh, and an optional pinned footer for the screen's one primary
+ * action.
  *
  * Back goes back when there is somewhere to go; a tab root has no back arrow.
  * `headerActions` puts up to three icon buttons in the bar (each labelled for
@@ -59,17 +61,19 @@ const AdminScreen: React.FC<AdminScreenProps> = ({
   contentStyle,
   children,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
   const canGoBack = navigation.canGoBack();
+  // Header icons sit on the bar, so they take its ink: white on the gradient.
+  const ink = barInk(colors, isDark);
+  const onGradient = colors.barTone === 'gradient';
 
   return (
-    <Screen edges={['bottom']}>
+    <Screen edges={['bottom']} background={colors.surface}>
       <AppBar
         title={title}
         subtitle={subtitle}
-        tone="surface"
         hideBack={hideBack || (!onBack && !canGoBack)}
         onBack={onBack ?? (() => navigation.goBack())}
         right={
@@ -81,13 +85,14 @@ const AdminScreen: React.FC<AdminScreenProps> = ({
                   key={a.label}
                   onPress={a.onPress}
                   hitSlop={6}
-                  style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                  style={({ pressed }) => [styles.action, pressed && (onGradient ? styles.actionPressedOnBar : styles.actionPressed)]}
                   accessibilityRole="button"
                   accessibilityLabel={a.badge ? `${a.label}, ${a.badge} new` : a.label}
                 >
-                  <Ionicons name={a.icon as any} size={22} color={colors.ink} />
+                  <Ionicons name={a.icon as any} size={22} color={ink} />
                   {!!a.badge && a.badge > 0 && (
-                    <View style={styles.badge}>
+                    // On the gradient the red badge gets a ring in the bar's colour, as in AppBar.
+                    <View style={[styles.badge, onGradient && { borderWidth: 2, borderColor: colors.accentDeep }]}>
                       <Text style={styles.badgeText}>{a.badge > 9 ? '9+' : a.badge}</Text>
                     </View>
                   )}
@@ -125,6 +130,8 @@ const makeStyles = (c: ThemeColors) =>
     actions: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
     action: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     actionPressed: { backgroundColor: c.surfaceSunken },
+    // A grey well on the gradient reads as a hole; dim the icon instead.
+    actionPressedOnBar: { opacity: 0.6 },
     badge: {
       position: 'absolute',
       top: 4,

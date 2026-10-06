@@ -104,6 +104,8 @@ export type ProviderSummary = Schemas['ProviderSummary'];
 export type ProviderDetail = Schemas['ProviderDetail'];
 export type ProviderAnalytics = Schemas['ProviderAnalytics'];
 export type AnalyticsRange = ProviderAnalytics['range'];
+export type RegistrationAnalytics = Schemas['RegistrationAnalytics'];
+export type ProviderTypeRegistrations = Schemas['ProviderTypeRegistrations'];
 export type UserSummary = Schemas['UserSummary'];
 export type UserDetail = Schemas['UserDetail'];
 export type AdminNotification = Schemas['Notification'];
@@ -130,6 +132,12 @@ export const adminApi = createApi({
     }),
     getOverview: build.query<Overview, void>({
       queryFn: () => run(async () => (await http.get('/api/admin/overview')).data),
+      providesTags: ['Overview'],
+    }),
+    // Customers and each provider type, for the home charts (canViewAnalytics).
+    // Tagged with the overview: an approval or suspension moves a provider's state.
+    getRegistrations: build.query<RegistrationAnalytics, { from: string; to: string }>({
+      queryFn: (range) => run(async () => (await http.get('/api/admin/analytics', { query: range })).data),
       providesTags: ['Overview'],
     }),
     getQueue: build.infiniteQuery<Page<QueueItem>, QueueFilters, PageParam>({
@@ -330,6 +338,7 @@ export const adminApi = createApi({
 export const {
   useGetMetaQuery,
   useGetOverviewQuery,
+  useGetRegistrationsQuery,
   useGetQueueInfiniteQuery,
   useListProvidersInfiniteQuery,
   useGetProviderQuery,

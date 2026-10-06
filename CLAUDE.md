@@ -30,7 +30,7 @@ There is no ESLint config and no lint script — `tsc --noEmit` and `design-gate
 - `Alert.alert` — a no-op in react-native-web; `utils/webAlert.ts` routes it to `components/ui/WebAlertHost.tsx`.
 - File uploads — append files with `services/uploads/appendFile.ts`, never a raw `{ uri, name, type }` (a browser sends that as the text "[object Object]").
 - Date/time pickers — import from `components/ui/PlatformDateTimePicker`, not the community package (which renders nothing on web).
-- Google sign-in goes through a Firebase popup; Facebook sign-in, push notifications and calling (WebRTC) are native-only.
+- Google and Facebook sign-in go through Firebase popups (`signInWithGoogleWeb` / `signInWithFacebookWeb`). For Facebook, the Firebase provider has to use the backend's Facebook app, and Firebase's `/__/auth/handler` URL must be one of that app's redirect URIs. Push notifications and calling (WebRTC) are native-only.
 
 Browser tabs share one `localStorage` but each refreshes its session on its own; the backend keeps a refresh session per client with a short reuse grace window, so two tabs (or the phone and a browser on one account) no longer sign each other out.
 
@@ -67,6 +67,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({ ... });
 const { colors } = useTheme();
 const styles = useMemo(() => makeStyles(colors), [colors]);
 ```
+
+The admin console's frame, `components/admin/AdminScreen`, paints the white `surface` ground the customer screens use. Its palette is the healthcare blue, whose `barTone` gives AppBar the healthcare-style gradient header in light mode; dark mode uses a plain bar, as healthcare does. The admin sign-in screens keep their plain bar (`AdminAuthLayout`).
 
 `ThemeProvider` takes a `module` (brand palette per vertical) and `mode` (`'light' | 'dark'`), set **once** at the app root (`App.tsx`'s `ThemedApp`) using `useResolvedMode()` (reads the persisted `theme` slice preference, falls back to `useColorScheme()` for `'system'`). `navigators/BaseNavigator.tsx` re-wraps each route in its own module's `ThemeProvider` per `RouteModules` in `navigation-maps/Base.tsx`, so a stack can't leak its vertical's brand color into another.
 

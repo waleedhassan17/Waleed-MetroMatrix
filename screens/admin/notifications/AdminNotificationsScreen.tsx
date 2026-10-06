@@ -105,24 +105,21 @@ export default function AdminNotificationsScreen() {
   };
 
   return (
-    <AdminScreen
-      title="Notifications"
-      scroll={false}
-      right={
-        unread ? (
-          <Button label="Mark all read" variant="ghost" onPress={onMarkAll} loading={markAllState.isLoading} />
-        ) : undefined
-      }
-    >
+    <AdminScreen title="Notifications" scroll={false}>
+      {/* "Mark all read" sits beside the filters, on the white page: a ghost
+          button's accent label would disappear into the blue header. */}
       <View style={styles.filters}>
-        <FilterChips
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'unread', label: 'Unread', count: unread },
-          ]}
-          value={filter}
-          onChange={(v) => setFilter(v as 'all' | 'unread')}
-        />
+        <View style={styles.chips}>
+          <FilterChips
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'unread', label: 'Unread', count: unread },
+            ]}
+            value={filter}
+            onChange={(v) => setFilter(v as 'all' | 'unread')}
+          />
+        </View>
+        {!!unread && <Button label="Mark all read" variant="ghost" onPress={onMarkAll} loading={markAllState.isLoading} />}
       </View>
       <QueryState
         isLoading={list.isLoading}
@@ -169,7 +166,8 @@ export default function AdminNotificationsScreen() {
 
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    filters: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    filters: { paddingHorizontal: GUTTER, paddingTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.sm },
+    chips: { flex: 1 },
     state: { marginHorizontal: GUTTER },
     list: { paddingBottom: S.huge },
     row: {

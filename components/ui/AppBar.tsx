@@ -70,6 +70,18 @@ export interface AppBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
+/**
+ * The ink of a bar's title and icons — and so of anything a screen puts in its
+ * trailing slot, which sits on the same ground. `tone` is the screen's
+ * override; without one the module's `barTone` decides, as in AppBar itself.
+ */
+export function barInk(colors: ThemeColors, isDark: boolean, tone?: AppBarProps['tone']): string {
+  const resolved = tone ?? colors.barTone;
+  if (resolved === 'gradient') return textOn(colors.accentDeep, colors.ink, colors.inkInverse);
+  if (resolved === 'accent') return textOn(isDark ? colors.accentSoft : colors.accentDeep, colors.ink, colors.inkInverse);
+  return colors.ink;
+}
+
 const AppBar: React.FC<AppBarProps> = ({
   title,
   subtitle,
@@ -102,7 +114,7 @@ const AppBar: React.FC<AppBarProps> = ({
   // It is a taller, louder header than `accent`, and that is the point — it
   // announces the section. Use it on a module's own pages, not on a sheet.
   if (resolved === 'gradient') {
-    const ink = textOn(colors.accentDeep, colors.ink, colors.inkInverse);
+    const ink = barInk(colors, isDark, resolved);
     // ONE surface, from the very top of the screen. The status-bar inset used
     // to live on a wrapper painted flat `accentDeep`, with the gradient
     // starting below it at the lighter `accent` — so every header read as two
@@ -169,7 +181,7 @@ const AppBar: React.FC<AppBarProps> = ({
 
   const accented = resolved === 'accent';
   const ground = accented ? (isDark ? colors.accentSoft : colors.accentDeep) : colors.surface;
-  const ink = accented ? textOn(ground, colors.ink, colors.inkInverse) : colors.ink;
+  const ink = barInk(colors, isDark, resolved);
   // Hierarchy by opacity is only safe here because the value was measured.
   const inkSoft = accented && !isDark ? colors.inkInverseSoft : colors.inkMuted;
 

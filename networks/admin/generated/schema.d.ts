@@ -2396,19 +2396,87 @@ export interface components {
             data: unknown;
             meta?: components["schemas"]["Meta"];
         };
+        /** @description Sign-ups in the range (Asia/Karachi days, inclusive), plus the all-time picture: totals, where a running total over the range starts, and one entry per provider type. */
         RegistrationAnalytics: {
             range: {
-                [key: string]: unknown;
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+                timezone: string;
             };
             users: {
-                [key: string]: unknown;
+                /** @description Customers who signed up in the range. */
+                registered: number;
+                stillActive: number;
+                daily: components["schemas"]["DailyCount"][];
+                /** @description Every customer registered now. */
+                total: number;
+                /** @description Registered before range.from — where a running total over the range starts. */
+                before: number;
             };
             providers: {
-                [key: string]: unknown;
+                /** @description Providers who signed up in the range. */
+                registered: number;
+                /** @description Sign-ups in the range by provider type. */
+                byType: {
+                    type: string | null;
+                    count: number;
+                }[];
+                /** @description Sign-ups in the range by their state now. */
+                byState: {
+                    state: string;
+                    count: number;
+                }[];
+                daily: components["schemas"]["DailyCount"][];
+                /** @description Every provider registered now. */
+                total: number;
+                /** @description Registered before range.from. */
+                before: number;
+                /** @description One entry per provider type, always in this order — doctor, home_service, vendor, pending. */
+                types: components["schemas"]["ProviderTypeRegistrations"][];
             };
             posts: {
-                [key: string]: unknown;
+                created: number;
             };
+        };
+        DailyCount: {
+            /** Format: date */
+            date: string;
+            count: number;
+        };
+        ProviderTypeRegistrations: {
+            /**
+             * @description pending — signed up, type not chosen yet.
+             * @enum {string}
+             */
+            type: "doctor" | "home_service" | "vendor" | "pending";
+            /** @description Registered now, all time. */
+            total: number;
+            /** @description The total by state now; the states add up to the total. */
+            byState: {
+                incomplete: number;
+                pending: number;
+                approved: number;
+                rejected: number;
+                suspended: number;
+            };
+            /** @description Signed up in the range. */
+            registered: number;
+            daily: components["schemas"]["DailyCount"][];
+            /** @description What the type is made of, all time — doctors by specialty, home service by trade (providerSubType), vendors by category. The top six; the rest summed in `other`. Null for providers with no type yet. */
+            breakdown: {
+                /** @enum {string} */
+                field: "specialty" | "providerSubType" | "category";
+                items: {
+                    /** @description Lower-cased value; null when nothing is set. */
+                    key: string | null;
+                    /** @description The value as first spelled. */
+                    label: string | null;
+                    count: number;
+                }[];
+                other: number;
+            } | null;
         };
     };
     responses: {

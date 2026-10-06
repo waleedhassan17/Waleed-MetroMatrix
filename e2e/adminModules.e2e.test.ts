@@ -81,6 +81,47 @@ run('admin console modules against a live API', () => {
   };
   const mutate = async (thunk: any) => (await (store.dispatch(thunk) as any)) as { data?: any; error?: any };
 
+  // First, while the seed is untouched: the Overview's charts, through the
+  // same endpoints and the same 30-day window the screen uses.
+  describe('the home dashboard charts', () => {
+    const endpoints = () => {
+      require('../networks/admin/homeServicesApi');
+      require('../networks/admin/healthcareAnalyticsApi');
+      require('../networks/admin/shoppingApi');
+      return (require('../networks/admin/adminApi') as typeof import('../networks/admin/adminApi')).adminApi.endpoints as any;
+    };
+    const window = () => (require('../screens/admin/overview/dashboardRange') as typeof import('../screens/admin/overview/dashboardRange')).rangeWindow(30);
+
+    it('counts customers and each provider type, and the running total ends at the total', async () => {
+      const w = window();
+      const d = await query<any>(endpoints().getRegistrations.initiate({ from: w.fromKey, to: w.toKey }));
+      expect(d.range).toMatchObject({ from: w.fromKey, to: w.toKey });
+      expect(d.users.daily).toHaveLength(30);
+      expect(d.users.before + d.users.daily.reduce((n: number, x: any) => n + x.count, 0)).toBe(d.users.total);
+      expect(d.users.total).toBeGreaterThanOrEqual(1);
+      expect(d.providers.types.map((t: any) => t.type)).toEqual(['doctor', 'home_service', 'vendor', 'pending']);
+      expect(d.providers.types.reduce((n: number, t: any) => n + t.total, 0)).toBe(d.providers.total);
+      const doctors = d.providers.types.find((t: any) => t.type === 'doctor');
+      expect(doctors.total).toBeGreaterThanOrEqual(1);
+      expect(doctors.byState.approved).toBeGreaterThanOrEqual(1);
+      expect(doctors.breakdown.field).toBe('specialty');
+      expect(d.providers.types.find((t: any) => t.type === 'vendor').total).toBeGreaterThanOrEqual(1);
+    });
+
+    it('loads every module chart over the same window', async () => {
+      const w = window();
+      const e = endpoints();
+      const hsData = await query<any>(e.getHSAnalytics.initiate({ from: w.from, to: w.to }));
+      expect(Array.isArray(hsData.bookingsOverTime) && Array.isArray(hsData.byStatus)).toBe(true);
+      const shopData = await query<any>(e.getShopAnalytics.initiate({ from: w.from, to: w.to }));
+      expect(shopData.gmvSeries.length).toBeGreaterThanOrEqual(1);
+      const timeline = await query<any>(e.getAppointmentTimeline.initiate({ startDate: w.fromKey, endDate: w.toKey, period: 'daily' }));
+      expect(timeline.period).toBe('daily');
+      const bySpecialty = await query<any>(e.getRevenueBreakdown.initiate({ startDate: w.fromKey, endDate: w.toKey, groupBy: 'specialty' }));
+      expect(Array.isArray(bySpecialty)).toBe(true);
+    });
+  });
+
   describe('healthcare', () => {
     let doctorId = '';
     let appointmentId = '';
