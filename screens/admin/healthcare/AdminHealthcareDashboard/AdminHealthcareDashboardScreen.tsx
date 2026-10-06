@@ -32,7 +32,7 @@ const LINKS: { label: string; route: string; icon: string; subtitle: string }[] 
   { label: 'Clinics', route: 'AdminClinicManagement', icon: 'business-outline', subtitle: 'Clinic listings' },
   { label: 'Reviews', route: 'AdminReviewModeration', icon: 'star-half-outline', subtitle: 'Moderate patient reviews' },
   { label: 'Specialties', route: 'SpecialtyManagement', icon: 'grid-outline', subtitle: 'What patients can book' },
-  { label: 'Analytics', route: 'HealthcareAnalytics', icon: 'bar-chart-outline', subtitle: 'Appointments and revenue over time' },
+  { label: 'Analytics', route: 'HealthcareAnalytics', icon: 'bar-chart-outline', subtitle: 'Appointments and payments over time' },
   { label: 'Settings', route: 'AdminHealthcareSettings', icon: 'settings-outline', subtitle: 'Cancellation and refund rules' },
 ];
 
@@ -86,7 +86,7 @@ export default function AdminHealthcareDashboardScreen() {
           <Section title="Activity">
             <KpiGrid>
               <KpiTile label="Appointments booked" value={formatCount(data.appointmentsToday)} caption="Today" />
-              <KpiTile label="Consultation revenue" value={formatMoney(data.revenueToday)} caption="Completed today" />
+              <KpiTile label="Consultations paid" value={formatMoney(data.revenueToday)} caption="Completed today" />
               <KpiTile label="Cancellation rate" value={formatPercent(data.cancellationRate)} caption="All time" />
             </KpiGrid>
           </Section>

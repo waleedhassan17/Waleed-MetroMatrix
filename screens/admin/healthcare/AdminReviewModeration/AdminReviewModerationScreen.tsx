@@ -1,187 +1,163 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// Healthcare review moderation — what patients wrote about their doctors.
+//
+// Removing a review needs a reason (it is audited) and recalculates the
+// doctor's rating from the reviews that remain. The low-rated filter is the
+// usual way in: two stars and under.
+// ============================================================================
+
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { AdminScreen, ConfirmSheet, FilterChips, PermissionGate, QueryState } from '../../../../components/admin';
+import { showToast } from '../../../../components/ui';
+import { usePermission } from '../../../../hooks/useAdminPermission';
+import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi';
+import { nameOf, useDeleteHCReviewMutation, useListHCReviewsInfiniteQuery, type HCReview } from '../../../../networks/admin/healthcareApi';
+import { formatDate } from '../../../../utils/admin/format';
+import { GUTTER, R, S, T, useTheme, type ThemeColors } from '../../../../theme';
 import { idOf, openProvider } from '../../people/openProvider';
-import {
-  fetchAdminHealthcareReviewsApi,
-  deleteHealthcareReviewApi,
-} from '../../../../networks/healthcare/adminApi';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  star: '#F59E0B',
-  danger: '#E74C3C',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
+const FILTERS = [
+  { value: 'all', label: 'All reviews' },
+  { value: 'low', label: 'Two stars and under' },
+];
 
-const AdminReviewModerationScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminReviewModerationScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [lowOnly, setLowOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const canModerate = usePermission('canManageHealthcare');
+  const [filter, setFilter] = useState('all');
+
+  const list = useListHCReviewsInfiniteQuery({ maxRating: filter === 'low' ? 2 : undefined });
+  const items = flattenPages(list.data?.pages);
+  const [remove, removeState] = useDeleteHCReviewMutation();
+  const [removing, setRemoving] = useState<HCReview | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminHealthcareReviewsApi(lowOnly ? { maxRating: 2 } : {});
-    if (res.success) setReviews(res.data);
-    else setError(res.message || 'Failed to load reviews');
-    setLoading(false);
-  }, [lowOnly]);
+  const confirmRemove = async (reason: string) => {
+    if (!removing) return;
+    const res = await remove({ id: removing.id, reason });
+    if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The review was not removed.');
+    setRemoving(null);
+    showToast({ tone: 'success', message: "Review removed. The doctor's rating has been recalculated." });
+  };
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleDelete = (review: any) => {
-    const id = String(review.id || review._id);
-    Alert.prompt?.(
-      'Remove review',
-      "Reason (audited). The doctor's rating is recalculated after removal:",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async (reason?: string) => {
-            const res = await deleteHealthcareReviewApi(id, reason || 'Removed by admin');
-            if (res.success) setReviews((r) => r.filter((x) => String(x.id || x._id) !== id));
-            else Alert.alert('Failed', res.message || 'Could not remove review');
-          },
-        },
-      ],
-      'plain-text'
-    ) ??
-      Alert.alert('Remove review', "Remove this review? The doctor's rating is recalculated. This is audited.", [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await deleteHealthcareReviewApi(id, 'Removed by admin');
-            if (res.success) setReviews((r) => r.filter((x) => String(x.id || x._id) !== id));
-            else Alert.alert('Failed', res.message || 'Could not remove review');
-          },
-        },
-      ]);
+  const renderReview = ({ item, index }: { item: HCReview; index: number }) => {
+    const doctor = item.doctorId?.providerId;
+    const doctorName = nameOf(doctor, 'the doctor');
+    const providerId = idOf(doctor);
+    return (
+      <View style={[styles.review, index < items.length - 1 && styles.divider]}>
+        <View style={styles.top}>
+          <Text style={styles.who} numberOfLines={1}>
+            {nameOf(item.patientId, 'A patient')}
+          </Text>
+          <View style={styles.stars} accessible accessibilityLabel={`${item.rating} out of 5 stars`}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Ionicons key={i} name={i <= Number(item.rating) ? 'star' : 'star-outline'} size={14} color={colors.warning} />
+            ))}
+          </View>
+        </View>
+        {providerId ? (
+          <Pressable
+            onPress={() => openProvider(navigation, providerId)}
+            style={styles.linkHit}
+            accessibilityRole="link"
+            accessibilityLabel={`About Dr. ${doctorName}. Opens their details and analytics.`}
+          >
+            <Text style={styles.link}>About Dr. {doctorName}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.muted}>About Dr. {doctorName}</Text>
+        )}
+        {!!item.comment && <Text style={styles.comment}>{item.comment}</Text>}
+        <View style={styles.bottom}>
+          <Text style={styles.muted}>{formatDate(item.createdAt)}</Text>
+          {canModerate && (
+            <Pressable
+              onPress={() => {
+                setError(null);
+                setRemoving(item);
+              }}
+              style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove the review by ${nameOf(item.patientId, 'a patient')}`}
+            >
+              <Ionicons name="trash-outline" size={16} color={colors.error} />
+              <Text style={styles.removeText}>Remove</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Review Moderation</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <AdminScreen title="Review moderation" subtitle="Healthcare" scroll={false}>
+      <PermissionGate all={['canManageHealthcare']} action="moderate reviews">
+        <View style={styles.controls}>
+          <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
+        </View>
+        <QueryState
+          isLoading={list.isLoading}
+          error={list.error}
+          onRetry={list.refetch}
+          isEmpty={!items.length}
+          emptyIcon="star-outline"
+          emptyTitle={filter === 'low' ? 'No low-rated reviews' : 'No reviews yet'}
+          skeleton="rows"
+          style={styles.state}
+        >
+          <FlatList
+            data={items}
+            keyExtractor={(r) => r.id}
+            renderItem={renderReview}
+            contentContainerStyle={styles.list}
+            onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            refreshControl={<RefreshControl refreshing={list.isFetching && !list.isFetchingNextPage && !list.isLoading} onRefresh={list.refetch} tintColor={colors.inkMuted} />}
+            ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={colors.inkMuted} style={styles.more} /> : null}
+          />
+        </QueryState>
+      </PermissionGate>
 
-      <TouchableOpacity style={[styles.flagChip, lowOnly && styles.flagChipOn]} onPress={() => setLowOnly(!lowOnly)}>
-        <Ionicons name="flag-outline" size={14} color={lowOnly ? '#FFF' : COLORS.danger} />
-        <Text style={[styles.flagText, lowOnly && { color: '#FFF' }]}>
-          {lowOnly ? 'Showing ≤2★ reviews' : 'Flag low-rated (≤2★)'}
-        </Text>
-      </TouchableOpacity>
-
-      <FlatList
-        data={reviews}
-        keyExtractor={(item) => String(item.id || item._id)}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={load}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTop}>
-              <Text style={styles.who} numberOfLines={1}>
-                {item.patientId?.fullName || 'Patient'} →{' '}
-                <Text style={styles.doctorLink} onPress={() => openProvider(navigation, idOf(item.doctorId?.providerId))} accessibilityRole="link">
-                  Dr. {item.doctorId?.providerId?.fullName || '—'}
-                </Text>
-              </Text>
-              <View style={styles.stars}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Ionicons key={i} name={i <= Number(item.rating) ? 'star' : 'star-outline'} size={13} color={COLORS.star} />
-                ))}
-              </View>
-            </View>
-            {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
-            <View style={styles.cardBottom}>
-              <Text style={styles.date}>
-                {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-              </Text>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
-                <Ionicons name="trash-outline" size={14} color={COLORS.danger} />
-                <Text style={styles.deleteText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
-          ) : (
-            <View style={styles.center}>
-              <Ionicons name="star-half-outline" size={40} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>{error || 'No reviews to moderate'}</Text>
-              {error && (
-                <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                  <Text style={styles.retryText}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )
-        }
+      <ConfirmSheet
+        visible={!!removing}
+        title="Remove this review?"
+        message="It disappears from the doctor's profile, and their rating is recalculated from the reviews that remain."
+        confirmLabel="Remove review"
+        destructive
+        requireReason
+        busy={removeState.isLoading}
+        error={error}
+        onConfirm={confirmRemove}
+        onClose={() => setRemoving(null)}
       />
-    </SafeAreaView>
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  flagChip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 4, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  flagChipOn: { backgroundColor: COLORS.danger },
-  flagText: { fontSize: 12, fontWeight: '700', color: COLORS.danger },
-  list: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  who: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text, marginRight: 8 },
-  stars: { flexDirection: 'row', gap: 1 },
-  comment: { fontSize: 13, color: COLORS.textLight, marginTop: 6, lineHeight: 18 },
-  cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  date: { fontSize: 11, color: COLORS.textLight },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  deleteText: { fontSize: 12, fontWeight: '700', color: COLORS.danger },
-  center: { alignItems: 'center', marginTop: 60 },
-  emptyText: { color: COLORS.textLight, marginTop: 10, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-});
-
-export default AdminReviewModerationScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    state: { marginHorizontal: GUTTER },
+    list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
+    more: { marginVertical: S.lg },
+    review: { paddingVertical: S.md },
+    divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+    top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.md },
+    who: { ...T.bodyStrong, color: c.ink, flex: 1 },
+    stars: { flexDirection: 'row', gap: S.xs / 2 },
+    linkHit: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+    link: { ...T.body, color: c.accentDeep },
+    comment: { ...T.body, color: c.ink, marginBottom: S.sm },
+    bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    muted: { ...T.caption, color: c.inkMuted },
+    remove: { flexDirection: 'row', alignItems: 'center', gap: S.xs, minHeight: 44, paddingHorizontal: S.md, borderRadius: R.control },
+    pressed: { backgroundColor: c.surfaceSunken },
+    removeText: { ...T.bodyStrong, color: c.error },
+  });

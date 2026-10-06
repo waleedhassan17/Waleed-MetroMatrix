@@ -1,567 +1,237 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+// ============================================================================
+// Doctors — verification and availability.
+//
+// A doctor is a provider with a medical licence (PMC). Verifying lets them
+// take appointments; rejecting needs a reason, which the doctor is told.
+// Suspending hides a verified doctor from patient search and stops new
+// bookings without touching existing appointments. Every row also opens the
+// doctor's provider details and analytics.
+//
+// Opened from a notification or the Queue with { doctorId }, it goes straight
+// to that doctor.
+// ============================================================================
+
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { skipToken } from '@reduxjs/toolkit/query';
+
+import { AdminScreen, ConfirmSheet, EntityRow, FilterChips, PermissionGate, QueryState } from '../../../../components/admin';
+import { ActionSheet, TextField, showToast, type SheetOption } from '../../../../components/ui';
+import { enumOptions, presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import { usePermission } from '../../../../hooks/useAdminPermission';
+import useDebouncedValue from '../../../../hooks/useDebouncedValue';
+import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  RefreshControl,
-  StatusBar,
-  Animated,
-  Dimensions,
-  Platform,
-  ActivityIndicator,
-  TextInput,
-  Alert,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAppDispatch, useAppSelector } from '../../../../hooks/useReduxHooks';
-import {
-  fetchAllDoctors,
-  verifyDoctor,
-  setSearchQuery,
-  setVerificationFilter,
-  selectFilteredDoctors,
-  selectDoctorManagementLoading,
-  selectVerificationFilter,
-  selectDoctorSearchQuery,
-  selectActionLoading,
-  selectDoctorStats,
-  type VerificationFilter,
-} from './doctorManagementSlice';
-import type { Doctor } from '../../../../models/healthcare/types';
-import { openProvider } from '../../people/openProvider';
+  nameOf,
+  useApproveHCDoctorMutation,
+  useGetHCDoctorQuery,
+  useListHCDoctorsInfiniteQuery,
+  useRejectHCDoctorMutation,
+  useSetHCDoctorActiveMutation,
+  type HCDoctor,
+} from '../../../../networks/admin/healthcareApi';
+import { formatRating } from '../../../../utils/admin/format';
+import { GUTTER, S, useTheme, type ThemeColors } from '../../../../theme';
+import { idOf, openProvider } from '../../people/openProvider';
+import { doctorActions, doctorSubtitle, type DoctorAction } from './doctorRow';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 44;
-
-// ── Theme ─────────────────────────────────────
-
-const COLORS = {
-  primary: '#6366f1',
-  primaryLight: '#818cf8',
-  primaryDark: '#4f46e5',
-  background: '#f1f5f9',
-  surface: '#ffffff',
-  text: { primary: '#1e293b', secondary: '#64748b', tertiary: '#94a3b8' },
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  border: '#e2e8f0',
-  verification: {
-    verified: { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
-    pending: { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
-    rejected: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+const COPY: Record<DoctorAction, { title: (name: string) => string; message: string; label: string; destructive?: boolean; reason: boolean; reasonLabel?: string }> = {
+  verify: {
+    title: (n) => `Verify Dr. ${n}?`,
+    message: 'They can take appointments and appear in patient search.',
+    label: 'Verify',
+    reason: false,
+  },
+  reject: {
+    title: (n) => `Reject Dr. ${n}?`,
+    message: 'They cannot take appointments. They can correct their details and apply again.',
+    label: 'Reject',
+    destructive: true,
+    reason: true,
+    reasonLabel: 'Reason, shown to the doctor',
+  },
+  suspend: {
+    title: (n) => `Suspend Dr. ${n}?`,
+    message: 'They disappear from patient search and cannot take new bookings. Existing appointments stay.',
+    label: 'Suspend',
+    destructive: true,
+    reason: true,
+  },
+  reactivate: {
+    title: (n) => `Reactivate Dr. ${n}?`,
+    message: 'They appear in patient search and can take bookings again.',
+    label: 'Reactivate',
+    reason: true,
   },
 };
 
-// ── Filter Tabs ───────────────────────────────
+const DONE: Record<DoctorAction, string> = {
+  verify: 'Doctor verified.',
+  reject: 'Doctor rejected.',
+  suspend: 'Doctor suspended.',
+  reactivate: 'Doctor reactivated.',
+};
 
-const FILTER_OPTIONS: { key: VerificationFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'verified', label: 'Verified' },
-  { key: 'rejected', label: 'Rejected' },
-];
-
-// ── Component ─────────────────────────────────
-
-const DoctorManagementScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function DoctorManagementScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const dispatch = useAppDispatch();
+  const focusId = ((useRoute().params ?? {}) as { doctorId?: string }).doctorId;
+  const { data: meta } = useAdminMeta();
+  const canDecide = usePermission('canManageHealthcare');
+  const [status, setStatus] = useState(focusId ? 'all' : 'pending');
+  const [search, setSearch] = useState('');
+  const searchQuery = useDebouncedValue(search.trim());
 
-  const doctors = useAppSelector(selectFilteredDoctors);
-  const loading = useAppSelector(selectDoctorManagementLoading);
-  const filter = useAppSelector(selectVerificationFilter);
-  const searchQuery = useAppSelector(selectDoctorSearchQuery);
-  const actionLoading = useAppSelector(selectActionLoading);
-  const stats = useAppSelector(selectDoctorStats);
+  const list = useListHCDoctorsInfiniteQuery({ status: status === 'all' ? undefined : status, search: searchQuery || undefined });
+  const items = flattenPages(list.data?.pages);
+  const counts = list.data?.pages[0]?.meta.counts as Record<string, number> | undefined;
+  const total = counts ? Object.values(counts).reduce((sum, n) => sum + (typeof n === 'number' ? n : 0), 0) : undefined;
 
-  const [refreshing, setRefreshing] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [approve, approveState] = useApproveHCDoctorMutation();
+  const [reject, rejectState] = useRejectHCDoctorMutation();
+  const [setActive, setActiveState] = useSetHCDoctorActiveMutation();
 
+  const [menu, setMenu] = useState<HCDoctor | null>(null);
+  const [acting, setActing] = useState<{ doctor: HCDoctor; action: DoctorAction } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Opened on one doctor: show their choices as soon as they load.
+  const focus = useGetHCDoctorQuery(focusId ?? skipToken);
+  const focused = useRef(false);
   useEffect(() => {
-    dispatch(fetchAllDoctors());
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [dispatch]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await dispatch(fetchAllDoctors()).unwrap().catch(() => {});
-    setRefreshing(false);
-  }, [dispatch]);
-
-  const handleVerify = (doctor: Doctor) => {
-    Alert.alert(
-      'Verify Doctor',
-      `Are you sure you want to verify ${doctor.qualifications[0] || 'this doctor'}?\nPMC: ${doctor.pmcNumber}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Verify',
-          style: 'default',
-          onPress: () => dispatch(verifyDoctor({ doctorId: doctor.doctorId, action: 'verify' })),
-        },
-      ]
-    );
-  };
-
-  const handleReject = (doctor: Doctor) => {
-    Alert.alert(
-      'Reject Doctor',
-      `Are you sure you want to reject this doctor's verification?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: () => dispatch(verifyDoctor({ doctorId: doctor.doctorId, action: 'reject' })),
-        },
-      ]
-    );
-  };
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return COLORS.verification.verified;
-      case 'rejected':
-        return COLORS.verification.rejected;
-      default:
-        return COLORS.verification.pending;
+    if (focus.data?.doctor && !focused.current) {
+      focused.current = true;
+      setMenu(focus.data.doctor);
     }
+  }, [focus.data]);
+
+  const confirm = async (reason: string) => {
+    if (!acting) return;
+    const { doctor, action } = acting;
+    const res =
+      action === 'verify'
+        ? await approve({ id: doctor.id })
+        : action === 'reject'
+          ? await reject({ id: doctor.id, reason })
+          : await setActive({ id: doctor.id, active: action === 'reactivate', reason });
+    if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'That did not work.');
+    setActing(null);
+    showToast({ tone: 'success', message: DONE[action] });
   };
 
-  // ── Render Doctor Card ──────────────────────
+  const menuName = nameOf(menu?.providerId, 'doctor');
+  const menuOptions: SheetOption[] = menu
+    ? [
+        ...(canDecide
+          ? doctorActions(menu).map((action) => ({
+              label: COPY[action].label,
+              icon: action === 'verify' ? 'checkmark-circle-outline' : action === 'reject' ? 'close-circle-outline' : action === 'suspend' ? 'pause-circle-outline' : 'play-circle-outline',
+              tone: COPY[action].destructive ? ('destructive' as const) : ('default' as const),
+              onPress: () => {
+                const doctor = menu;
+                setMenu(null);
+                setError(null);
+                setActing({ doctor, action });
+              },
+            }))
+          : []),
+        ...(idOf(menu.providerId)
+          ? [
+              {
+                label: 'Open their details and analytics',
+                icon: 'person-outline',
+                onPress: () => {
+                  const id = idOf(menu.providerId);
+                  setMenu(null);
+                  openProvider(navigation, id);
+                },
+              },
+            ]
+          : []),
+      ]
+    : [];
 
-  const renderDoctorCard = ({ item, index }: { item: Doctor; index: number }) => {
-    const statusStyle = getStatusStyle(item.verificationStatus);
-
-    return (
-      <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-        {/* The doctor is a provider: tapping opens their details and analytics. */}
-        <TouchableOpacity
-          style={styles.cardHeader}
-          onPress={() => openProvider(navigation, item.userId)}
-          disabled={!item.userId}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.name || 'Doctor'}, ${item.verificationStatus}. Opens their details and analytics.`}
-        >
-          <View style={styles.avatarWrap}>
-            <LinearGradient
-              colors={[COLORS.primaryLight, COLORS.primary]}
-              style={styles.avatar}
-            >
-              <Ionicons name="person" size={20} color="#FFFFFF" />
-            </LinearGradient>
-            {item.isAvailable && <View style={styles.onlineDot} />}
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.doctorName} numberOfLines={1}>
-              {item.name ? `Dr. ${item.name}` : item.qualifications[0] || 'Doctor'}
-            </Text>
-            <Text style={styles.specialtyText} numberOfLines={1}>
-              {[item.specialtyName, `PMC: ${item.pmcNumber}`].filter(Boolean).join(' · ')}
-            </Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg, borderColor: statusStyle.border }]}>
-            <Text style={[styles.statusText, { color: statusStyle.text }]}>
-              {item.verificationStatus.charAt(0).toUpperCase() + item.verificationStatus.slice(1)}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.cardMeta}>
-          <View style={styles.metaItem}>
-            <Ionicons name="star" size={12} color="#FBBF24" />
-            <Text style={styles.metaText}>{item.rating.toFixed(1)}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="people-outline" size={12} color={COLORS.text.secondary} />
-            <Text style={styles.metaText}>{item.totalPatients} patients</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={12} color={COLORS.text.secondary} />
-            <Text style={styles.metaText}>{item.experience} yrs</Text>
-          </View>
-        </View>
-
-        {item.verificationStatus === 'pending' && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.verifyBtn]}
-              onPress={() => handleVerify(item)}
-              disabled={actionLoading}
-            >
-              <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Verify</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.rejectBtn]}
-              onPress={() => handleReject(item)}
-              disabled={actionLoading}
-            >
-              <Ionicons name="close-circle" size={16} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Reject</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Animated.View>
-    );
-  };
-
-  // ── Main Render ─────────────────────────────
+  const copy = acting ? COPY[acting.action] : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={barStyleOn(COLORS.primary)} backgroundColor={COLORS.primary} />
-
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, COLORS.primaryDark]}
-        style={styles.header}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Doctor Management</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statPill}>
-            <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statPill}>
-            <Text style={[styles.statValue, { color: '#a7f3d0' }]}>{stats.verified}</Text>
-            <Text style={styles.statLabel}>Verified</Text>
-          </View>
-          <View style={styles.statPill}>
-            <Text style={[styles.statValue, { color: '#fde68a' }]}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-          <View style={styles.statPill}>
-            <Text style={[styles.statValue, { color: sh.ground('#fecaca', '#EF4444') }]}>{stats.rejected}</Text>
-            <Text style={styles.statLabel}>Rejected</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={COLORS.text.tertiary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search doctors by name or PMC..."
-            placeholderTextColor={COLORS.text.tertiary}
-            value={searchQuery}
-            onChangeText={(text) => dispatch(setSearchQuery(text))}
+    <AdminScreen title="Doctors" subtitle="Healthcare" scroll={false}>
+      <PermissionGate all={['canManageHealthcare']} action="see doctors">
+        <View style={styles.controls}>
+          <TextField
+            placeholder="Search by name or PMC number"
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+            returnKeyType="search"
+            accessibilityLabel="Search doctors by name or PMC number"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => dispatch(setSearchQuery(''))}>
-              <Ionicons name="close-circle" size={18} color={COLORS.text.tertiary} />
-            </TouchableOpacity>
-          )}
+          <FilterChips
+            options={[
+              { value: 'all', label: 'All', count: total },
+              ...enumOptions(meta, 'doctorVerificationStatuses').map((o) => ({ ...o, count: counts?.[o.value] })),
+            ]}
+            value={status}
+            onChange={setStatus}
+          />
         </View>
-      </View>
+        <QueryState
+          isLoading={list.isLoading}
+          error={list.error}
+          onRetry={list.refetch}
+          isEmpty={!items.length}
+          emptyIcon="medkit-outline"
+          emptyTitle={searchQuery ? 'No doctors match' : status === 'pending' ? 'No doctors waiting for verification' : 'No doctors here'}
+          skeleton="rows"
+          style={styles.state}
+        >
+          <FlatList
+            data={items}
+            keyExtractor={(d) => d.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item, index }) => (
+              <EntityRow
+                avatar={{ name: nameOf(item.providerId, 'Doctor') }}
+                title={`Dr. ${nameOf(item.providerId, '—')}`}
+                subtitle={doctorSubtitle(item)}
+                badge={item.isActive === false ? { label: 'Suspended', tone: 'warning' } : presentStatus(meta, 'doctorVerificationStatuses', item.verificationStatus)}
+                meta={item.rating ? formatRating(item.rating, item.totalReviews) : null}
+                onPress={() => setMenu(item)}
+                divider={index < items.length - 1}
+              />
+            )}
+            onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            refreshControl={<RefreshControl refreshing={list.isFetching && !list.isFetchingNextPage && !list.isLoading} onRefresh={list.refetch} tintColor={colors.inkMuted} />}
+            ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={colors.inkMuted} style={styles.more} /> : null}
+          />
+        </QueryState>
+      </PermissionGate>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterRow}>
-        {FILTER_OPTIONS.map((opt) => (
-          <TouchableOpacity
-            key={opt.key}
-            style={[styles.filterTab, filter === opt.key && styles.filterTabActive]}
-            onPress={() => dispatch(setVerificationFilter(opt.key))}
-          >
-            <Text style={[styles.filterTabText, filter === opt.key && styles.filterTabTextActive]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ActionSheet visible={!!menu} title={`Dr. ${menuName}`} message={menu ? doctorSubtitle(menu) : undefined} options={menuOptions} onClose={() => setMenu(null)} />
 
-      {/* Doctor List */}
-      {loading && doctors.length === 0 ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading doctors...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={doctors}
-          renderItem={renderDoctorCard}
-          keyExtractor={(item) => item.doctorId}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[COLORS.primary]} />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Ionicons name="people-outline" size={48} color={COLORS.text.tertiary} />
-              <Text style={styles.emptyTitle}>No doctors found</Text>
-              <Text style={styles.emptyText}>
-                {filter !== 'all' ? `No ${filter} doctors` : 'No doctors match your search'}
-              </Text>
-            </View>
-          }
-        />
-      )}
-    </SafeAreaView>
+      <ConfirmSheet
+        visible={!!acting}
+        title={copy && acting ? copy.title(nameOf(acting.doctor.providerId, 'this doctor')) : ''}
+        message={copy?.message}
+        confirmLabel={copy?.label ?? ''}
+        destructive={copy?.destructive}
+        requireReason={copy?.reason}
+        reasonLabel={copy?.reasonLabel}
+        busy={approveState.isLoading || rejectState.isLoading || setActiveState.isLoading}
+        error={error}
+        onConfirm={confirm}
+        onClose={() => setActing(null)}
+      />
+    </AdminScreen>
   );
-};
+}
 
-// ── Styles ────────────────────────────────────
-
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: STATUS_BAR_HEIGHT + 12,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statPill: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
-  },
-  searchWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: COLORS.text.primary,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 8,
-  },
-  filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterTabText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text.secondary,
-  },
-  filterTabTextActive: {
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.success,
-    borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  cardInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  doctorName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  specialtyText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: 12,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  verifyBtn: {
-    backgroundColor: COLORS.success,
-  },
-  rejectBtn: {
-    backgroundColor: COLORS.error,
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-  loadingWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text.secondary,
-    marginTop: 12,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    marginTop: 4,
-  },
-});
-
-export default DoctorManagementScreen;
+const makeStyles = (_c: ThemeColors) =>
+  StyleSheet.create({
+    controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    state: { marginHorizontal: GUTTER },
+    list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
+    more: { marginVertical: S.lg },
+  });

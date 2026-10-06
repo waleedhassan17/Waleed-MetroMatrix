@@ -38,9 +38,8 @@ SCOPE=(
   screens/admin/homeservice
   screens/admin/notifications
   screens/admin/settings
-  screens/admin/healthcare/HealthcareAnalytics
-  screens/admin/healthcare/AdminHealthcareDashboard
-  screens/admin/healthcare/AdminHealthcareSettings
+  screens/admin/healthcare
+  screens/admin/analytics
   navigators/AdminTabs.tsx
 )
 

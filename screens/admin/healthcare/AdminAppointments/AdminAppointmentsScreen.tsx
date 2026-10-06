@@ -1,200 +1,103 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  FlatList,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// Every healthcare appointment, newest first: filter by status and type,
+// search by patient. A row opens the appointment (payment trail and the two
+// audited admin actions); a long press opens the doctor.
+// ============================================================================
+
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { idOf, openProvider } from '../../people/openProvider';
-import { fetchAdminAppointmentsApi } from '../../../../networks/healthcare/adminApi';
+
+import { AdminScreen, EntityRow, FilterChips, PermissionGate, QueryState } from '../../../../components/admin';
+import { TextField } from '../../../../components/ui';
 import { formatMoney } from '../../../../constants/Currency';
+import { enumOptions, presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import useDebouncedValue from '../../../../hooks/useDebouncedValue';
+import { flattenPages } from '../../../../networks/admin/adminApi';
+import { nameOf, useListHCAppointmentsInfiniteQuery, type HCAppointment } from '../../../../networks/admin/healthcareApi';
+import { GUTTER, S, useTheme, type ThemeColors } from '../../../../theme';
+import { idOf, openProvider } from '../../people/openProvider';
+import { APPOINTMENT_TYPES, appointmentWhen, typeLabel } from '../appointmentLabels';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#F59E0B',
-  confirmed: '#2A7FFF',
-  completed: '#27AE60',
-  cancelled: '#E74C3C',
-};
-
-const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
-const TYPE_FILTERS = ['all', 'in-clinic', 'video'];
-
-const AdminAppointmentsScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminAppointmentsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const [rows, setRows] = useState<any[]>([]);
+  const { data: meta } = useAdminMeta();
   const [status, setStatus] = useState('all');
   const [type, setType] = useState('all');
   const [patient, setPatient] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const patientQuery = useDebouncedValue(patient.trim());
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminAppointmentsApi({
-      page: 1,
-      limit: 50,
-      status: status !== 'all' ? status : undefined,
-      type: type !== 'all' ? type : undefined,
-      patient: patient || undefined,
-    });
-    if (res.success) setRows(res.data);
-    else setError(res.message || 'Failed to load appointments');
-    setLoading(false);
-  }, [status, type, patient]);
-
-  useEffect(() => {
-    load();
-  }, [status, type]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const renderItem = ({ item }: { item: any }) => {
-    const id = String(item.id || item._id);
-    const doctorName = item.doctorId?.providerId?.fullName || 'Doctor';
-    const patientName = item.patientId?.fullName || item.patientInfo?.name || 'Patient';
-    const slot = item.slotId;
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('AdminAppointmentDetail', { appointmentId: id })}
-      >
-        <View style={styles.cardTop}>
-          <Text style={styles.names} numberOfLines={1}>
-            {patientName} →{' '}
-            <Text style={styles.doctorLink} onPress={() => openProvider(navigation, idOf(item.doctorId?.providerId))} accessibilityRole="link">
-              Dr. {doctorName}
-            </Text>
-          </Text>
-          <View style={[styles.chip, { backgroundColor: `${STATUS_COLORS[item.status] || '#999'}20` }]}>
-            <Text style={[styles.chipText, { color: STATUS_COLORS[item.status] || '#999' }]}>
-              {item.status}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.meta}>
-          {item.type}{slot?.date ? ` · ${new Date(slot.date).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' })}` : ''}
-          {slot?.startTime ? ` ${slot.startTime}` : ''}
-          {' · '}{formatMoney(item.totalAmount)}
-          {item.payment?.status ? ` (${item.payment.status})` : ''}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const list = useListHCAppointmentsInfiniteQuery({
+    status: status === 'all' ? undefined : status,
+    type: type === 'all' ? undefined : type,
+    patient: patientQuery || undefined,
+  });
+  const items = flattenPages(list.data?.pages);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>All Appointments</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.searchRow}>
-        <Ionicons name="search" size={16} color={COLORS.textLight} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search patient name or email…"
-          placeholderTextColor={COLORS.textLight}
-          value={patient}
-          onChangeText={setPatient}
-          onSubmitEditing={load}
-          returnKeyType="search"
-        />
-      </View>
-
-      <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {STATUS_FILTERS.map((f) => (
-            <TouchableOpacity key={f} style={[styles.filterChip, status === f && styles.filterChipOn]} onPress={() => setStatus(f)}>
-              <Text style={[styles.filterText, status === f && styles.filterTextOn]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {TYPE_FILTERS.map((f) => (
-            <TouchableOpacity key={f} style={[styles.filterChip, type === f && styles.filterChipOn]} onPress={() => setType(f)}>
-              <Text style={[styles.filterText, type === f && styles.filterTextOn]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <FlatList
-        data={rows}
-        keyExtractor={(item) => String(item.id || item._id)}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={load}
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
-          ) : (
-            <View style={styles.center}>
-              <Ionicons name="calendar-outline" size={40} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>{error || 'No appointments match these filters'}</Text>
-              {error && (
-                <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                  <Text style={styles.retryText}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )
-        }
-      />
-    </SafeAreaView>
+    <AdminScreen title="Appointments" subtitle="Healthcare" scroll={false}>
+      <PermissionGate all={['canManageHealthcare']} action="see appointments">
+        <View style={styles.controls}>
+          <TextField
+            placeholder="Search patient name or email"
+            value={patient}
+            onChangeText={setPatient}
+            autoCapitalize="none"
+            returnKeyType="search"
+            accessibilityLabel="Search appointments by patient"
+          />
+          <FilterChips options={[{ value: 'all', label: 'All' }, ...enumOptions(meta, 'appointmentStatuses')]} value={status} onChange={setStatus} />
+          <FilterChips options={APPOINTMENT_TYPES} value={type} onChange={setType} />
+        </View>
+        <QueryState
+          isLoading={list.isLoading}
+          error={list.error}
+          onRetry={list.refetch}
+          isEmpty={!items.length}
+          emptyIcon="calendar-outline"
+          emptyTitle="No appointments match"
+          skeleton="rows"
+          style={styles.state}
+        >
+          <FlatList
+            data={items}
+            keyExtractor={(a) => a.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item, index }) => {
+              const doctor = item.doctorId?.providerId;
+              const doctorId = idOf(doctor);
+              return (
+                <EntityRow
+                  title={nameOf(item.patientId, item.patientInfo?.name || 'Patient')}
+                  subtitle={[`Dr. ${nameOf(doctor, '—')}`, typeLabel(item.type), appointmentWhen(item)].filter(Boolean).join(' · ')}
+                  badge={presentStatus(meta, 'appointmentStatuses', item.status)}
+                  meta={[formatMoney(item.totalAmount), item.payment?.status].filter(Boolean).join(' · ')}
+                  onPress={() => navigation.navigate('AdminAppointmentDetail', { appointmentId: item.id })}
+                  onLongPress={doctorId ? () => openProvider(navigation, doctorId) : undefined}
+                  accessibilityLabel={`Appointment for ${nameOf(item.patientId, 'a patient')} with Dr. ${nameOf(doctor, 'unknown')}. ${
+                    presentStatus(meta, 'appointmentStatuses', item.status).label
+                  }.${doctorId ? ' Long press to open the doctor.' : ''}`}
+                  divider={index < items.length - 1}
+                />
+              );
+            }}
+            onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            refreshControl={<RefreshControl refreshing={list.isFetching && !list.isFetchingNextPage && !list.isLoading} onRefresh={list.refetch} tintColor={colors.inkMuted} />}
+            ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={colors.inkMuted} style={styles.more} /> : null}
+          />
+        </QueryState>
+      </PermissionGate>
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.card, marginHorizontal: 16, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: COLORS.text },
-  filterRow: { paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
-  filterChip: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: COLORS.card },
-  filterChipOn: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
-  filterText: { fontSize: 12, fontWeight: '600', color: COLORS.textLight, textTransform: 'capitalize' },
-  filterTextOn: { color: COLORS.primary },
-  list: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  names: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.text, marginRight: 8 },
-  chip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  chipText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
-  meta: { fontSize: 12, color: COLORS.textLight, marginTop: 4 },
-  center: { alignItems: 'center', marginTop: 60 },
-  emptyText: { color: COLORS.textLight, marginTop: 10, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-});
-
-export default AdminAppointmentsScreen;
+const makeStyles = (_c: ThemeColors) =>
+  StyleSheet.create({
+    controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    state: { marginHorizontal: GUTTER },
+    list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
+    more: { marginVertical: S.lg },
+  });

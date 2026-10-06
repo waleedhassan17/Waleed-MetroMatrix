@@ -2,7 +2,7 @@
 // Healthcare analytics — only what the server measures.
 //
 // This screen used to start from a hardcoded set of figures (12,458
-// appointments, named "top doctors" with ratings, six months of revenue, a
+// appointments, named "top doctors" with ratings, six months of payments, a
 // satisfaction breakdown) and overlay whatever the API returned on top, so a
 // failed request or an empty database still showed a busy, convincing
 // dashboard. Four of its sections had no backend source at all, and its
@@ -81,13 +81,13 @@ export default function HealthcareAnalyticsScreen() {
         </QueryState>
       </Section>
 
-      <Section title="Consultation revenue" caption="Completed consultations, Pakistan time">
+      <Section title="Consultation payments" caption="Completed consultations, Pakistan time">
         <QueryState isLoading={stats.isLoading} error={stats.error} onRetry={stats.refetch} skeletonCount={1}>
           <KpiGrid>
             <KpiTile
               label="Month to date"
               value={formatMoney(s?.thisMonthRevenue)}
-              caption={s?.growth === null || s?.growth === undefined ? 'No revenue in the same period last month' : `${formatDelta(s.growth)} vs same period last month`}
+              caption={s?.growth === null || s?.growth === undefined ? 'No payments in the same period last month' : `${formatDelta(s.growth)} vs same period last month`}
             />
             <KpiTile label="Last month" value={formatMoney(s?.lastMonthRevenue)} />
           </KpiGrid>
@@ -126,7 +126,7 @@ export default function HealthcareAnalyticsScreen() {
         </QueryState>
       </Section>
 
-      <Section title="Revenue by specialty" caption={rangeCaption} card>
+      <Section title="Payments by specialty" caption={rangeCaption} card>
         <QueryState isLoading={bySpecialty.isLoading} error={bySpecialty.error} onRetry={bySpecialty.refetch} skeletonCount={1}>
           <BarList
             items={(bySpecialty.data ?? []).map((r, i) => ({
@@ -141,7 +141,7 @@ export default function HealthcareAnalyticsScreen() {
         </QueryState>
       </Section>
 
-      <Section title="Top doctors by revenue" caption={rangeCaption} card>
+      <Section title="Top doctors by payments" caption={rangeCaption} card>
         <QueryState isLoading={byDoctor.isLoading} error={byDoctor.error} onRetry={byDoctor.refetch} skeletonCount={1}>
           <BarList
             items={(byDoctor.data ?? []).slice(0, 5).map((r, i) => ({

@@ -91,8 +91,6 @@ import doctorEarningsReducer from '../screens/providers/healthcare/doctor-earnin
 import doctorProfileReducer from '../screens/providers/healthcare/profile/doctorProfileSlice';
 
 // Admin Healthcare
-import specialtyManagementReducer from '../screens/admin/healthcare/SpecialtyManagement/specialtyManagementSlice';
-import doctorManagementReducer from '../screens/admin/healthcare/DoctorManagement/doctorManagementSlice';
 import appointmentConfirmReducer from '../screens/user/healthcare/appointment-confirm/appointmentConfirmSlice';
 
 // Shopping Module reducers
@@ -278,8 +276,6 @@ const appReducer = combineReducers({
   patientHistory: patientHistoryReducer,
   doctorEarnings: doctorEarningsReducer,
   doctorProfile: doctorProfileReducer,
-  specialtyManagement: specialtyManagementReducer,
-  doctorManagement: doctorManagementReducer,
   userProfile: userProfileReducer,
   wallet: walletSlice.reducer,
   shoppingHome: shoppingHomeReducer,

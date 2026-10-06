@@ -1,177 +1,155 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// Clinics — where doctors see patients in person.
+//
+// A deactivated clinic stops taking in-clinic bookings; existing appointments
+// stay. Every change carries a reason and is audited. A row's doctor opens
+// that doctor's details and analytics.
+// ============================================================================
+
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+
+import { AdminScreen, ConfirmSheet, EntityRow, PermissionGate, QueryState } from '../../../../components/admin';
+import { ActionSheet, TextField, showToast } from '../../../../components/ui';
+import { usePermission } from '../../../../hooks/useAdminPermission';
+import useDebouncedValue from '../../../../hooks/useDebouncedValue';
+import { adminErrorOf, flattenPages } from '../../../../networks/admin/adminApi';
+import { nameOf, useListHCClinicsInfiniteQuery, useSetHCClinicActiveMutation, type HCClinic } from '../../../../networks/admin/healthcareApi';
+import { GUTTER, S, useTheme, type ThemeColors } from '../../../../theme';
 import { idOf, openProvider } from '../../people/openProvider';
-import {
-  fetchAdminClinicsApi,
-  setClinicStatusApi,
-} from '../../../../networks/healthcare/adminApi';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  primaryLight: '#EAF3FF',
-  success: '#27AE60',
-  danger: '#E74C3C',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
-};
-
-const AdminClinicManagementScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminClinicManagementScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const [clinics, setClinics] = useState<any[]>([]);
+  const canManage = usePermission('canManageHealthcare');
   const [city, setCity] = useState('');
-  const [loading, setLoading] = useState(true);
+  const cityQuery = useDebouncedValue(city.trim());
+
+  const list = useListHCClinicsInfiniteQuery({ city: cityQuery || undefined });
+  const items = flattenPages(list.data?.pages);
+  const [setActive, setActiveState] = useSetHCClinicActiveMutation();
+
+  const [menu, setMenu] = useState<HCClinic | null>(null);
+  const [changing, setChanging] = useState<HCClinic | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const res = await fetchAdminClinicsApi({ city: city || undefined });
-    if (res.success) setClinics(res.data);
-    else setError(res.message || 'Failed to load clinics');
-    setLoading(false);
-  }, [city]);
-
-  useEffect(() => {
-    load();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleToggle = (clinic: any) => {
-    const id = String(clinic.id || clinic._id);
-    const activating = !clinic.isActive;
-    Alert.alert(
-      activating ? 'Activate clinic' : 'Deactivate clinic',
-      `${activating ? 'Activate' : 'Deactivate'} "${clinic.name}"? This is recorded in the audit log.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: activating ? 'Activate' : 'Deactivate',
-          style: activating ? 'default' : 'destructive',
-          onPress: async () => {
-            const res = await setClinicStatusApi(id, activating, `${activating ? 'Activated' : 'Deactivated'} by admin`);
-            if (res.success) {
-              setClinics((list) =>
-                list.map((c) => (String(c.id || c._id) === id ? { ...c, isActive: activating } : c))
-              );
-            } else {
-              Alert.alert('Failed', res.message || 'Could not update clinic');
-            }
-          },
-        },
-      ]
-    );
+  const confirmChange = async (reason: string) => {
+    if (!changing) return;
+    const activating = !changing.isActive;
+    const res = await setActive({ id: changing.id, isActive: activating, reason });
+    if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The clinic was not updated.');
+    setChanging(null);
+    showToast({ tone: 'success', message: `${changing.name} ${activating ? 'is taking bookings again' : 'is deactivated'}.` });
   };
 
+  const doctorOf = (clinic: HCClinic | null) => clinic?.doctorId?.providerId;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Clinics</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <AdminScreen title="Clinics" subtitle="Healthcare" scroll={false}>
+      <PermissionGate all={['canManageHealthcare']} action="see clinics">
+        <View style={styles.controls}>
+          <TextField
+            placeholder="Filter by city, e.g. Lahore"
+            value={city}
+            onChangeText={setCity}
+            returnKeyType="search"
+            accessibilityLabel="Filter clinics by city"
+          />
+        </View>
+        <QueryState
+          isLoading={list.isLoading}
+          error={list.error}
+          onRetry={list.refetch}
+          isEmpty={!items.length}
+          emptyIcon="business-outline"
+          emptyTitle={cityQuery ? `No clinics in ${cityQuery}` : 'No clinics yet'}
+          skeleton="rows"
+          style={styles.state}
+        >
+          <FlatList
+            data={items}
+            keyExtractor={(c) => c.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item, index }) => (
+              <EntityRow
+                icon="business-outline"
+                title={item.name}
+                subtitle={[`Dr. ${nameOf(doctorOf(item), '—')}`, item.city || item.address].filter(Boolean).join(' · ')}
+                badge={item.isActive ? { label: 'Active', tone: 'success' } : { label: 'Deactivated', tone: 'neutral' }}
+                onPress={() => setMenu(item)}
+                divider={index < items.length - 1}
+              />
+            )}
+            onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+            onEndReachedThreshold={0.5}
+            refreshControl={<RefreshControl refreshing={list.isFetching && !list.isFetchingNextPage && !list.isLoading} onRefresh={list.refetch} tintColor={colors.inkMuted} />}
+            ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={colors.inkMuted} style={styles.more} /> : null}
+          />
+        </QueryState>
+      </PermissionGate>
 
-      <View style={styles.searchRow}>
-        <Ionicons name="location-outline" size={16} color={COLORS.textLight} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Filter by city (e.g. Lahore)…"
-          placeholderTextColor={COLORS.textLight}
-          value={city}
-          onChangeText={setCity}
-          onSubmitEditing={load}
-          returnKeyType="search"
-        />
-      </View>
-
-      <FlatList
-        data={clinics}
-        keyExtractor={(item) => String(item.id || item._id)}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={load}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardBody}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.meta}>
-                <Text style={styles.doctorLink} onPress={() => openProvider(navigation, idOf(item.doctorId?.providerId))} accessibilityRole="link">
-                  Dr. {item.doctorId?.providerId?.fullName || '—'}
-                </Text>{' '}
-                · {item.city || item.address || ''}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.stateBtn, { backgroundColor: item.isActive ? '#FEE2E2' : '#DCFCE7' }]}
-              onPress={() => handleToggle(item)}
-            >
-              <Text style={[styles.stateText, { color: item.isActive ? COLORS.danger : COLORS.success }]}>
-                {item.isActive ? 'Deactivate' : 'Activate'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
-          ) : (
-            <View style={styles.center}>
-              <Ionicons name="business-outline" size={40} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>{error || 'No clinics found'}</Text>
-              {error && (
-                <TouchableOpacity style={styles.retryBtn} onPress={load}>
-                  <Text style={styles.retryText}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )
-        }
+      <ActionSheet
+        visible={!!menu}
+        title={menu?.name}
+        onClose={() => setMenu(null)}
+        options={[
+          ...(idOf(doctorOf(menu))
+            ? [
+                {
+                  label: `Open Dr. ${nameOf(doctorOf(menu), '')}`.trim(),
+                  icon: 'person-outline',
+                  onPress: () => {
+                    const id = idOf(doctorOf(menu));
+                    setMenu(null);
+                    openProvider(navigation, id);
+                  },
+                },
+              ]
+            : []),
+          ...(canManage && menu
+            ? [
+                {
+                  label: menu.isActive ? 'Deactivate clinic' : 'Activate clinic',
+                  icon: menu.isActive ? 'pause-circle-outline' : 'play-circle-outline',
+                  tone: menu.isActive ? ('destructive' as const) : ('default' as const),
+                  onPress: () => {
+                    const clinic = menu;
+                    setMenu(null);
+                    setError(null);
+                    setChanging(clinic);
+                  },
+                },
+              ]
+            : []),
+        ]}
       />
-    </SafeAreaView>
+
+      <ConfirmSheet
+        visible={!!changing}
+        title={changing?.isActive ? `Deactivate ${changing?.name}?` : `Activate ${changing?.name}?`}
+        message={
+          changing?.isActive
+            ? 'Patients can no longer book in-clinic visits here. Existing appointments stay as they are.'
+            : 'Patients can book in-clinic visits here again.'
+        }
+        confirmLabel={changing?.isActive ? 'Deactivate' : 'Activate'}
+        destructive={!!changing?.isActive}
+        requireReason
+        busy={setActiveState.isLoading}
+        error={error}
+        onConfirm={confirmChange}
+        onClose={() => setChanging(null)}
+      />
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.card, marginHorizontal: 16, borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: COLORS.text },
-  list: { padding: 16, paddingBottom: 40 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
-  cardBody: { flex: 1, marginRight: 10 },
-  name: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  meta: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  stateBtn: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  stateText: { fontSize: 12, fontWeight: '700' },
-  center: { alignItems: 'center', marginTop: 60 },
-  emptyText: { color: COLORS.textLight, marginTop: 10, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-});
-
-export default AdminClinicManagementScreen;
+const makeStyles = (_c: ThemeColors) =>
+  StyleSheet.create({
+    controls: { paddingHorizontal: GUTTER, paddingTop: S.md },
+    state: { marginHorizontal: GUTTER },
+    list: { paddingHorizontal: GUTTER, paddingBottom: S.huge },
+    more: { marginVertical: S.lg },
+  });

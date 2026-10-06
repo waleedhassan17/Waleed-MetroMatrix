@@ -1,252 +1,216 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { darkShift, type DarkShift } from '../../../../constants/darkShift';
-import { useTheme } from '../../../../theme';
-import { Ionicons } from '@expo/vector-icons';
+// ============================================================================
+// One healthcare appointment: the visit, the patient and doctor, the payment
+// trail, and the two audited admin actions.
+//
+//  - Change status (reason required). Pending → confirmed or cancelled,
+//    confirmed → completed or cancelled; the server enforces the same and its
+//    refusal is shown as it is. Cancelling a paid appointment refunds it in
+//    full; completing it pays the doctor.
+//  - Refund (needs Finance). A paid appointment, in full, to the patient's
+//    wallet.
+// ============================================================================
+
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { idOf, openProvider } from '../../people/openProvider';
-import {
-  fetchAdminAppointmentDetailApi,
-  forceAppointmentStatusApi,
-  refundAppointmentAdminApi,
-} from '../../../../networks/healthcare/adminApi';
+
+import { AdminScreen, ConfirmSheet, DetailRow, EntityRow, FilterChips, PermissionGate, QueryState, Section, StatusBadge } from '../../../../components/admin';
+import { Button, ToneBadge, showToast } from '../../../../components/ui';
+import type { Tone } from '../../../../constants/theme';
 import { formatMoney } from '../../../../constants/Currency';
+import { presentStatus, useAdminMeta } from '../../../../hooks/useAdminMeta';
+import { adminErrorOf } from '../../../../networks/admin/adminApi';
+import {
+  nameOf,
+  useForceHCAppointmentStatusMutation,
+  useGetHCAppointmentQuery,
+  useRefundHCAppointmentMutation,
+} from '../../../../networks/admin/healthcareApi';
+import { formatDateTime } from '../../../../utils/admin/format';
+import { S, T, useTheme, type ThemeColors } from '../../../../theme';
+import { idOf, openProvider } from '../../people/openProvider';
+import { NEXT_STATUSES, appointmentWhen, typeLabel } from '../appointmentLabels';
 
-const COLORS = {
-  primary: '#2A7FFF',
-  danger: '#E74C3C',
-  success: '#27AE60',
-  bg: '#F8F9FA',
-  card: '#FFFFFF',
-  text: '#1A1A2E',
-  textLight: '#6C757D',
-  border: '#E9ECEF',
+const PAYMENT: Record<string, { label: string; tone: Tone }> = {
+  unpaid: { label: 'Unpaid', tone: 'warning' },
+  pending: { label: 'Payment pending', tone: 'info' },
+  paid: { label: 'Paid', tone: 'success' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+  failed: { label: 'Payment failed', tone: 'error' },
 };
 
-const NEXT_STATUSES: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['completed', 'cancelled'],
-  completed: [],
-  cancelled: [],
-};
-
-const AdminAppointmentDetailScreen: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const styles = useMemo(() => makeStyles(sh), [sh]);
+export default function AdminAppointmentDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const appointmentId = route.params?.appointmentId as string;
+  const { appointmentId } = (useRoute().params ?? {}) as { appointmentId: string };
+  const { data: meta } = useAdminMeta();
+  const query = useGetHCAppointmentQuery(appointmentId);
+  const a = query.data;
+  const [forceStatus, forceState] = useForceHCAppointmentStatusMutation();
+  const [refund, refundState] = useRefundHCAppointmentMutation();
 
-  const [appointment, setAppointment] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [sheet, setSheet] = useState<null | 'status' | 'refund'>(null);
+  const [target, setTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
-  const [acting, setActing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const close = () => {
+    setSheet(null);
+    setTarget(null);
     setError(null);
-    const res = await fetchAdminAppointmentDetailApi(appointmentId);
-    if (res.success) setAppointment(res.data);
-    else setError(res.message || 'Failed to load appointment');
-    setLoading(false);
-  }, [appointmentId]);
+  };
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const next = a ? NEXT_STATUSES[a.status] ?? [] : [];
+  const paid = a?.payment?.status === 'paid';
+  const refundable = a?.payment?.amount ?? a?.totalAmount;
 
-  const requireReason = (): string | null => {
-    if (!reason.trim()) {
-      Alert.alert('Reason required', 'Admin actions are audited — enter a reason first.');
-      return null;
+  const confirm = async (reason: string) => {
+    if (!a) return;
+    if (sheet === 'status') {
+      if (!target) return setError('Choose the new status.');
+      const res = await forceStatus({ id: a.id, status: target, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The status could not be changed.');
+      close();
+      showToast({ tone: 'success', message: `Status changed to ${presentStatus(meta, 'appointmentStatuses', target).label}.` });
+    } else if (sheet === 'refund') {
+      const res = await refund({ id: a.id, reason });
+      if ('error' in res) return setError(adminErrorOf(res.error)?.message || 'The refund did not go through.');
+      close();
+      showToast({ tone: 'success', message: "Refunded to the patient's wallet." });
     }
-    return reason.trim();
   };
 
-  const handleForce = (status: string) => {
-    const r = requireReason();
-    if (!r) return;
-    Alert.alert(
-      'Force status change',
-      `Move this appointment to "${status}"?\n\nThis is recorded in the audit log with your admin ID.${status === 'cancelled' ? ' A paid appointment will be refunded in full.' : ''}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: 'destructive',
-          onPress: async () => {
-            setActing(true);
-            const res = await forceAppointmentStatusApi(appointmentId, status, r);
-            setActing(false);
-            if (res.success) load();
-            else Alert.alert('Failed', res.message || 'Could not change status');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleRefund = () => {
-    const r = requireReason();
-    if (!r) return;
-    Alert.alert(
-      'Manual refund',
-      `Refund ${formatMoney(appointment?.payment?.amount)} to the patient's wallet?\n\nThis is recorded in the audit log.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Refund',
-          style: 'destructive',
-          onPress: async () => {
-            setActing(true);
-            const res = await refundAppointmentAdminApi(appointmentId, r);
-            setActing(false);
-            if (res.success) load();
-            else Alert.alert('Failed', res.message || 'Could not refund');
-          },
-        },
-      ]
-    );
-  };
-
-  const doctorName = appointment?.doctorId?.providerId?.fullName || '—';
-  const patientName = appointment?.patientId?.fullName || appointment?.patientInfo?.name || '—';
+  const doctor = a?.doctorId?.providerId;
+  const doctorId = idOf(doctor);
+  const patientId = idOf(a?.patientId);
+  const specialty = a?.doctorId?.specialtyId;
+  const pay = a?.payment?.status ? PAYMENT[a.payment.status] ?? { label: a.payment.status, tone: 'neutral' as Tone } : PAYMENT.unpaid;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Appointment Detail</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {loading && !appointment ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
-      ) : error && !appointment ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : appointment ? (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.card}>
-            <Text style={styles.big}>
-              {patientName} →{' '}
-              <Text
-                style={styles.doctorLink}
-                onPress={() => openProvider(navigation, idOf(appointment.doctorId?.providerId))}
-                accessibilityRole="link"
-                accessibilityLabel={`Dr. ${doctorName}. Opens their details and analytics.`}
-              >
-                Dr. {doctorName}
-              </Text>
-            </Text>
-            <Text style={styles.meta}>Specialty: {appointment.doctorId?.specialtyId?.name || '—'}</Text>
-            <Text style={styles.meta}>Clinic: {appointment.clinicId?.name || (appointment.type === 'video' ? 'Video consultation' : '—')}</Text>
-            <Text style={styles.meta}>
-              Slot: {appointment.slotId?.date ? new Date(appointment.slotId.date).toLocaleDateString('en-PK') : '—'} {appointment.slotId?.startTime || ''}
-            </Text>
-            <Text style={styles.meta}>
-              Status: <Text style={styles.bold}>{appointment.status}</Text> · Type: <Text style={styles.bold}>{appointment.type}</Text>
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Payment Trail</Text>
-            <Text style={styles.meta}>Fee: {formatMoney(appointment.fee)} · Discount: {formatMoney(appointment.discount)}</Text>
-            <Text style={styles.meta}>Total: <Text style={styles.bold}>{formatMoney(appointment.totalAmount)}</Text></Text>
-            <Text style={styles.meta}>
-              Payment: <Text style={styles.bold}>{appointment.payment?.status || 'unpaid'}</Text>
-              {appointment.payment?.method ? ` via ${appointment.payment.method}` : ''}
-              {appointment.payment?.paidAt ? ` · paid ${new Date(appointment.payment.paidAt).toLocaleString('en-PK')}` : ''}
-            </Text>
-            {appointment.payment?.refundedAt ? (
-              <Text style={styles.meta}>
-                Refunded {formatMoney(appointment.payment.refundAmount)} on {new Date(appointment.payment.refundedAt).toLocaleString('en-PK')}
-              </Text>
-            ) : null}
-            {appointment.payout?.paidAt ? (
-              <Text style={styles.meta}>
-                Doctor payout: {formatMoney(appointment.payout.amount)}
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.auditHeader}>
-              <Ionicons name="shield-half-outline" size={16} color={COLORS.danger} />
-              <Text style={styles.sectionTitle}>Admin actions (audited)</Text>
-            </View>
-            <Text style={styles.fieldLabel}>Reason (mandatory)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Why are you doing this?"
-              placeholderTextColor={COLORS.textLight}
-              value={reason}
-              onChangeText={setReason}
-            />
-            <View style={styles.actionWrap}>
-              {(NEXT_STATUSES[appointment.status] || []).map((status) => (
-                <TouchableOpacity key={status} style={styles.forceBtn} disabled={acting} onPress={() => handleForce(status)}>
-                  <Text style={styles.forceText}>→ {status}</Text>
-                </TouchableOpacity>
-              ))}
-              {appointment.payment?.status === 'paid' && (
-                <TouchableOpacity style={styles.refundBtn} disabled={acting} onPress={handleRefund}>
-                  <Ionicons name="cash-outline" size={16} color="#FFF" />
-                  <Text style={styles.refundText}>{acting ? 'Working…' : 'Manual Refund'}</Text>
-                </TouchableOpacity>
+    <AdminScreen
+      title="Appointment"
+      subtitle="Healthcare"
+      refreshing={query.isFetching && !query.isLoading}
+      onRefresh={query.refetch}
+      footer={
+        a && (next.length || paid) ? (
+          <PermissionGate all={['canManageHealthcare']} fallback={null}>
+            <View style={styles.footer}>
+              {next.length > 0 && (
+                <Button label="Change status" variant="secondary" onPress={() => setSheet('status')} style={styles.footerButton} />
+              )}
+              {paid && (
+                <PermissionGate all={['canManageFinance']} fallback={null}>
+                  <Button label="Refund" variant="secondary" onPress={() => setSheet('refund')} style={styles.footerButton} />
+                </PermissionGate>
               )}
             </View>
-          </View>
-        </ScrollView>
-      ) : null}
-    </SafeAreaView>
+          </PermissionGate>
+        ) : undefined
+      }
+    >
+      <PermissionGate all={['canManageHealthcare']} action="see this appointment">
+        <QueryState isLoading={query.isLoading} error={query.error} onRetry={query.refetch} skeleton="detail" action="see this appointment">
+          {a && (
+            <>
+              <View style={styles.header}>
+                <Text style={styles.title}>{a.type === 'video' ? 'Video consultation' : 'In-clinic visit'}</Text>
+                <Text style={styles.sub}>Booked {formatDateTime(a.createdAt)}</Text>
+                <StatusBadge group="appointmentStatuses" value={a.status} style={styles.badge} />
+              </View>
+
+              <Section title="Visit" card>
+                <DetailRow label="When" value={appointmentWhen(a)} />
+                <DetailRow label="Type" value={typeLabel(a.type)} />
+                <DetailRow label="Specialty" value={specialty && typeof specialty === 'object' ? specialty.name : null} />
+                <DetailRow
+                  label="Clinic"
+                  value={a.clinicId?.name ? [a.clinicId.name, a.clinicId.city].filter(Boolean).join(', ') : a.type === 'video' ? 'Video consultation' : null}
+                  last={!a.cancellationReason}
+                />
+                {!!a.cancellationReason && <DetailRow label="Cancelled" value={a.cancellationReason} last />}
+              </Section>
+
+              <Section title="People" card>
+                <EntityRow
+                  avatar={{ name: nameOf(a.patientId, a.patientInfo?.name || 'Patient') }}
+                  title={nameOf(a.patientId, a.patientInfo?.name || 'Patient')}
+                  subtitle={['Patient', typeof a.patientId === 'object' ? a.patientId?.email : null].filter(Boolean).join(' · ')}
+                  onPress={patientId ? () => navigation.navigate('AdminUserDetail', { userId: patientId }) : undefined}
+                />
+                <EntityRow
+                  avatar={{ name: nameOf(doctor, 'Doctor') }}
+                  title={`Dr. ${nameOf(doctor, '—')}`}
+                  subtitle={['Doctor', typeof doctor === 'object' ? doctor?.email : null].filter(Boolean).join(' · ')}
+                  onPress={doctorId ? () => openProvider(navigation, doctorId) : undefined}
+                  accessibilityLabel={`Dr. ${nameOf(doctor, 'unknown')}. Opens their details and analytics.`}
+                  divider={false}
+                />
+              </Section>
+
+              <Section title="Money" card>
+                <DetailRow label="Fee" value={formatMoney(a.fee)} />
+                <DetailRow label="Discount" value={formatMoney(a.discount)} />
+                <DetailRow label="Total" value={formatMoney(a.totalAmount)} />
+                <View style={styles.paymentRow}>
+                  <Text style={styles.paymentLabel}>Payment</Text>
+                  <ToneBadge label={`${pay.label}${a.payment?.method ? ` · ${a.payment.method}` : ''}`} tone={pay.tone} />
+                </View>
+                <DetailRow label="Paid" value={a.payment?.paidAt ? formatDateTime(a.payment.paidAt) : null} />
+                {!!a.payment?.refundedAt && (
+                  <DetailRow label="Refunded" value={`${formatMoney(a.payment.refundAmount)} on ${formatDateTime(a.payment.refundedAt)}`} />
+                )}
+                <DetailRow label="Paid to the doctor" value={a.payout?.paidAt ? `${formatMoney(a.payout.amount)} on ${formatDateTime(a.payout.paidAt)}` : null} last />
+              </Section>
+            </>
+          )}
+        </QueryState>
+      </PermissionGate>
+
+      <ConfirmSheet
+        visible={sheet !== null}
+        title={sheet === 'status' ? 'Change appointment status' : "Refund to the patient's wallet"}
+        message={
+          sheet === 'status'
+            ? 'For when the appointment is stuck. Cancelling a paid appointment refunds it in full; completing it pays the doctor.'
+            : `${formatMoney(refundable)} goes back to the patient's wallet.`
+        }
+        confirmLabel={sheet === 'status' ? 'Change status' : 'Refund'}
+        destructive={sheet === 'refund'}
+        requireReason
+        busy={forceState.isLoading || refundState.isLoading}
+        error={error}
+        onConfirm={confirm}
+        onClose={close}
+      >
+        {sheet === 'status' && (
+          <FilterChips
+            options={next.map((s) => ({ value: s, label: presentStatus(meta, 'appointmentStatuses', s).label }))}
+            value={target ?? ''}
+            onChange={setTarget}
+          />
+        )}
+      </ConfirmSheet>
+    </AdminScreen>
   );
-};
+}
 
-const makeStyles = (sh: DarkShift) => StyleSheet.create({
-  doctorLink: { color: COLORS.primary, textDecorationLine: 'underline' },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  center: { alignItems: 'center', padding: 24 },
-  errorText: { color: COLORS.textLight, marginBottom: 12, textAlign: 'center' },
-  retryBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: '#FFF', fontWeight: '700' },
-  scroll: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  big: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 6 },
-  meta: { fontSize: 13, color: COLORS.textLight, marginTop: 3 },
-  bold: { fontWeight: '700', color: COLORS.text, textTransform: 'capitalize' },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
-  auditHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textLight, marginTop: 8, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: COLORS.text },
-  actionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  forceBtn: { borderWidth: 1, borderColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  forceText: { color: COLORS.primary, fontWeight: '700', fontSize: 13, textTransform: 'capitalize' },
-  refundBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.danger, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  refundText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
-});
-
-export default AdminAppointmentDetailScreen;
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    header: { marginBottom: S.xl },
+    title: { ...T.heading, color: c.ink },
+    sub: { ...T.body, color: c.inkMuted, marginTop: 2 },
+    badge: { alignSelf: 'flex-start', marginTop: S.sm },
+    footer: { flexDirection: 'row', gap: S.sm },
+    footerButton: { flex: 1 },
+    paymentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: S.lg,
+      paddingVertical: S.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.line,
+    },
+    paymentLabel: { ...T.body, color: c.inkMuted },
+  });
