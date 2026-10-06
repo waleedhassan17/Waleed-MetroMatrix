@@ -181,6 +181,24 @@ describe('attachAuthRecovery', () => {
     expect(t.refreshes).toEqual([]);
   });
 
+  it('renews when the stored token it replayed with has expired too, instead of signing out', async () => {
+    // A provider's second token copy: the request goes out with an expired
+    // copy, and the token in storage has since expired as well.
+    const t = setup({ tokenFor: async () => ({ token: 'user-token-0', audience: 'account' }) });
+    await expect(t.instance.get('providers/me')).resolves.toMatchObject({ data: { auth: 'Bearer user-token-2' } });
+    expect(t.seen.map((s) => s.auth)).toEqual(['Bearer user-token-0', 'Bearer user-token-1', 'Bearer user-token-2']);
+    expect(t.refreshes).toEqual(['account']);
+    expect(t.lost).toEqual([]);
+  });
+
+  it('after a stored-token replay, a rejected renewal still ends the session (no loop)', async () => {
+    const t = setup({ tokenFor: async () => ({ token: 'user-token-0', audience: 'account' }) });
+    t.setRefresh(async () => ({ token: 'user-token-rejected' }));
+    await expect(t.instance.get('providers/me')).rejects.toMatchObject({ response: { status: 401 } });
+    expect(t.refreshes).toEqual(['account']);
+    expect(t.lost).toEqual(['account']);
+  });
+
   it('does not try to recover a 401 on a request sent without a token', async () => {
     const t = setup({ tokenFor: async () => ({ token: null, audience: 'account' }) });
     await expect(t.instance.get('users/profile')).rejects.toBeTruthy();

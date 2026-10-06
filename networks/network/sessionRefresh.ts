@@ -20,7 +20,7 @@ import { createSingleFlight, type RefreshOutcome } from './authRecovery';
 import { emitAdminSessionRefreshed, type SessionAudience } from './authEvents';
 import { isValidToken } from './tokenSelection';
 import { loadAdminSession, saveAdminSession, tokensFrom } from '../admin/session';
-import { getRefreshToken, saveAuthTokens } from '../../utils/storage_utils/storageUtils';
+import { getRefreshToken, saveAuthTokens, syncProviderAccessToken } from '../../utils/storage_utils/storageUtils';
 import { devWarn } from '../../utils/devLog';
 
 export type RefreshPost = (path: string, body: unknown) => Promise<{ data: any }>;
@@ -43,6 +43,8 @@ export function createSessionRefresher(post: RefreshPost, hooks: SessionRefreshH
       const { data } = await post('auth/refresh', { refreshToken });
       if (!isValidToken(data?.accessToken)) return { token: null, transient: false };
       await saveAuthTokens(data.accessToken, data.refreshToken);
+      // A provider holds a second copy that provider requests send first.
+      await syncProviderAccessToken(data.accessToken);
       hooks.onAccountToken?.(data.accessToken);
       return { token: data.accessToken };
     } catch (err: any) {

@@ -13,11 +13,13 @@ jest.mock('../../../utils/storage_utils/storageUtils', () => ({
     if (r) mockAccountTokens.refresh = r;
     return true;
   }),
+  syncProviderAccessToken: jest.fn(async () => undefined),
   retrieveData: jest.fn(async () => null),
   KeyForStorage: { accessToken: 'accessToken', providerAccessToken: 'providerAccessToken', userType: 'userType' },
 }));
 
 import { AxiosError } from 'axios';
+import { syncProviderAccessToken } from '../../../utils/storage_utils/storageUtils';
 import { createSessionRefresher } from '../sessionRefresh';
 import { onAdminSessionRefreshed } from '../authEvents';
 import {
@@ -139,5 +141,12 @@ describe('createSessionRefresher', () => {
     expect(mockAccountTokens).toEqual({ access: 'user-access-token-2', refresh: 'user-refresh-token-2' });
     __resetAdminSessionCache();
     await expect(loadAdminSession()).resolves.toEqual(adminTokens(1));
+  });
+
+  it("account: renews the provider's second token copy too", async () => {
+    mockAccountTokens.refresh = 'provider-refresh-token-1';
+    const post = jest.fn(async () => ({ data: { accessToken: 'provider-access-token-2', refreshToken: 'provider-refresh-token-2' } }));
+    await createSessionRefresher(post)('account');
+    expect(syncProviderAccessToken).toHaveBeenCalledWith('provider-access-token-2');
   });
 });

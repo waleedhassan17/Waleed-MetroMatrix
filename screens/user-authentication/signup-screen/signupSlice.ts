@@ -1,6 +1,7 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createAppSlice } from '../../../store/createAppSlice';
 import { authRegister } from '../../../networks/authcalls/userSignup';
+import { isAdminConsoleEmail } from '../../../networks/authcalls/userSignin';
 import {
   googleLoginAPI,
   facebookLoginAPI,
@@ -192,6 +193,12 @@ export const signUpSlice = createAppSlice({
 
         try {
           const normalizedEmail = email.trim().toLowerCase();
+
+          // The sign-in form sends this address to the admin login, so a
+          // customer account with it could never sign in.
+          if (isAdminConsoleEmail(normalizedEmail)) {
+            return rejectWithValue('This email is reserved for administrator use. Please use a different email address.');
+          }
           
           const payload: SignUpPayload = {
             fullName: fullName.trim(),

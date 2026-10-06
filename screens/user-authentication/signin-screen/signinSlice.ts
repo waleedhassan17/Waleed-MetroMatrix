@@ -11,6 +11,7 @@ import {
   saveData,
   saveUserInfo,
 } from '../../../utils/storage_utils/storageUtils';
+import { clearAdminSession } from '../../../networks/admin/session';
 
 // This slice is the customer flow. The admin account signs in from the same
 // form: signin.tsx sends ADMIN_CONSOLE_EMAIL (networks/authcalls/userSignin.ts)
@@ -108,6 +109,9 @@ const saveAuthToStorage = async (
     }
     await saveData(KeyForStorage.userType, userType);
     await saveData(KeyForStorage.isAuthenticated, true);
+    // A different account now owns this device: an admin console session
+    // left behind must not stay usable underneath it.
+    await clearAdminSession();
     return true;
   } catch (error) {
     console.error('❌ Error saving auth data:', (error as Error)?.message);
@@ -153,10 +157,16 @@ export const signInSlice = createAppSlice({
       state.socialLoginStatus = 'idle';
     }),
 
-    // Customer email/password sign-in, with awaited saves.
-    submitSignInAsync: create.asyncThunk(
+    // Customer email/password sign-in, with awaited saves. A rejection carries
+    // the HTTP status in `meta.status`: signin.tsx tries the admin login when
+    // the customer login answers 401 (see shouldTryAdminSignIn).
+    submitSignInAsync: create.asyncThunk<
+      { type: 'user'; data: SignInResponse },
+      SignInPayload,
+      { rejectValue: string; rejectedMeta: { status?: number } }
+    >(
       async (
-        { email, password }: SignInPayload,
+        { email, password },
         { rejectWithValue }
       ) => {
         try {
@@ -189,7 +199,7 @@ export const signInSlice = createAppSlice({
           }
         } catch (error: any) {
           console.log('❌ submitSignInAsync caught error:', error.message);
-          return rejectWithValue(error.message || 'Sign in failed');
+          return rejectWithValue(error.message || 'Sign in failed', { status: error.status });
         }
       },
       {

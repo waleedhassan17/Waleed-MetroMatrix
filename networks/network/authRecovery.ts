@@ -75,12 +75,20 @@ type RecoverableConfig = InternalAxiosRequestConfig & {
   __sentToken?: string;
   __authAudience?: SessionAudience;
   __retriedAfterRefresh?: boolean;
+  /** The replay carried the token found in storage, not one this request renewed. */
+  __replayedWithStored?: boolean;
 };
 
 /** True when the response interceptor will try to recover this 401 (for quieter logging). */
 export const willRecover = (error: AxiosError, isPublic: (url?: string) => boolean): boolean => {
   const cfg = error.config as RecoverableConfig | undefined;
-  return !!cfg && error.response?.status === 401 && !!cfg.__sentAuth && !cfg.__retriedAfterRefresh && !isPublic(cfg.url);
+  return (
+    !!cfg &&
+    error.response?.status === 401 &&
+    !!cfg.__sentAuth &&
+    (!cfg.__retriedAfterRefresh || !!cfg.__replayedWithStored) &&
+    !isPublic(cfg.url)
+  );
 };
 
 export function attachAuthRecovery(instance: AxiosInstance, options: AuthRecoveryOptions): void {
@@ -115,7 +123,25 @@ export function attachAuthRecovery(instance: AxiosInstance, options: AuthRecover
     }
     const audience = cfg.__authAudience ?? 'account';
 
+    const renewAndReplay = async () => {
+      const outcome = await options.refresh(audience);
+      if (outcome.token === null) {
+        if (!outcome.transient) await options.onSessionLost(audience);
+        throw error;
+      }
+      cfg.headers.Authorization = `Bearer ${outcome.token}`;
+      cfg.__sentToken = outcome.token;
+      return instance(cfg);
+    };
+
     if (cfg.__retriedAfterRefresh) {
+      // A replay with the STORED token proves nothing about the session: that
+      // token may simply have expired since it was stored (a provider's second
+      // copy goes stale this way). Renew once before giving up.
+      if (cfg.__replayedWithStored) {
+        cfg.__replayedWithStored = false;
+        return renewAndReplay();
+      }
       // The fresh token was rejected too: the session cannot be recovered.
       await options.onSessionLost(audience);
       throw error;
@@ -125,18 +151,12 @@ export function attachAuthRecovery(instance: AxiosInstance, options: AuthRecover
     // Another request may have renewed the session while this one was in
     // flight; use that token instead of rotating again.
     const current = await options.currentToken(audience);
-    let token = current && current !== cfg.__sentToken ? current : null;
-    if (!token) {
-      const outcome = await options.refresh(audience);
-      if (outcome.token === null) {
-        if (!outcome.transient) await options.onSessionLost(audience);
-        throw error;
-      }
-      token = outcome.token;
+    if (current && current !== cfg.__sentToken) {
+      cfg.__replayedWithStored = true;
+      cfg.headers.Authorization = `Bearer ${current}`;
+      cfg.__sentToken = current;
+      return instance(cfg);
     }
-
-    cfg.headers.Authorization = `Bearer ${token}`;
-    cfg.__sentToken = token;
-    return instance(cfg);
+    return renewAndReplay();
   });
 }

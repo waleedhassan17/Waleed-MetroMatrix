@@ -34,10 +34,17 @@ import {
   submitGoogleSignInAsync,
   submitFacebookSignInAsync,
 } from './signinSlice';
-import { adminConsoleLogin, isAdminConsoleEmail } from '../../../networks/authcalls/userSignin';
+import {
+  adminConsoleLogin,
+  fallbackErrorSource,
+  isAdminConsoleEmail,
+  shouldTryAdminSignIn,
+} from '../../../networks/authcalls/userSignin';
+import type { SignInResult } from '../../../networks/admin/auth';
 import { toAdminApiError } from '../../../networks/admin/errors';
 import { finishAdminSignIn } from '../../admin/auth/finishSignIn';
 import { signInErrorMessage } from '../../admin/auth/messages';
+import { clearAdminNotice } from '../../admin/auth/adminAuthSlice';
 import {
   useGoogleAuth,
   processGoogleResponse,
@@ -63,9 +70,14 @@ const SignIn = () => {
   // The admin console signs in from this same form (see isAdminConsoleEmail).
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminSubmitting, setAdminSubmitting] = useState(false);
-  const error = reduxError || adminError;
+  // Why an admin was sent back here ("Your admin session has ended…").
+  const adminNotice = useAppSelector((state) => state.adminAuth.notice);
+  // While a sign-in is in flight nothing is shown: a rejected customer login
+  // may still turn out to be an admin's (see shouldTryAdminSignIn).
+  const error = adminSubmitting ? null : reduxError || adminError || adminNotice;
   useEffect(() => {
     if (adminError) setAdminError(null);
+    if (adminNotice) dispatch(clearAdminNotice());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, password]);
 
@@ -218,10 +230,24 @@ const SignIn = () => {
     return true;
   };
 
+  // An admin's credentials were accepted: a 2FA code next, or into the console.
+  const continueAdminSignIn = (result: SignInResult) => {
+    dispatch(setPassword(''));
+    if (result.step === 'totp_required') {
+      (navigation as any).navigate('AdminTotp', {
+        challengeToken: result.challengeToken,
+        expiresInSeconds: result.expiresInSeconds,
+      });
+    } else {
+      finishAdminSignIn(dispatch, navigation as any, result);
+    }
+  };
+
   const handleSignIn = async () => {
     if (error) {
       dispatch(clearError());
     }
+    if (adminNotice) dispatch(clearAdminNotice());
 
     if (!validateForm()) {
       return;
@@ -233,16 +259,7 @@ const SignIn = () => {
       setAdminError(null);
       setAdminSubmitting(true);
       try {
-        const result = await adminConsoleLogin(email, password);
-        dispatch(setPassword(''));
-        if (result.step === 'totp_required') {
-          (navigation as any).navigate('AdminTotp', {
-            challengeToken: result.challengeToken,
-            expiresInSeconds: result.expiresInSeconds,
-          });
-        } else {
-          finishAdminSignIn(dispatch, navigation as any, result);
-        }
+        continueAdminSignIn(await adminConsoleLogin(email, password));
       } catch (err) {
         setAdminError(signInErrorMessage(toAdminApiError(err)));
       } finally {
@@ -251,25 +268,50 @@ const SignIn = () => {
       return;
     }
 
+    setAdminError(null);
+    setAdminSubmitting(true);
     try {
       // Clear any previous account's state BEFORE the new session lands, so a
       // crashed or interrupted logout cannot leak the last user's data into
       // this one's screens.
       dispatch(resetAllState(true));
 
-      const result = await dispatch(
+      const action = await dispatch(
         submitSignInAsync({ email: email.trim().toLowerCase(), password })
-      ).unwrap();
+      );
 
-      // Hydrate the app shell before navigating, so it renders the home
-      // screen instead of waiting on a profile fetch behind its boot spinner.
-      const userPayload = (result as any)?.data?.user ?? (result as any)?.user;
-      if (userPayload) dispatch(setCurrentUser(userPayload));
+      if (submitSignInAsync.fulfilled.match(action)) {
+        // Hydrate the app shell before navigating, so it renders the home
+        // screen instead of waiting on a profile fetch behind its boot spinner.
+        const result = action.payload;
+        const userPayload = (result as any)?.data?.user ?? (result as any)?.user;
+        if (userPayload) dispatch(setCurrentUser(userPayload));
 
-      (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
+        (navigation as any).reset({ index: 0, routes: [{ name: 'UserHome' }] });
+        return;
+      }
+
+      // The customer login said no. The error is already in Redux state and is
+      // shown above the form when this attempt ends — unless the credentials
+      // are an admin's (every admin other than the console account signs in
+      // through here too).
+      if (submitSignInAsync.rejected.match(action) && shouldTryAdminSignIn(email, action.meta.status)) {
+        try {
+          const result = await adminConsoleLogin(email, password);
+          dispatch(clearError());
+          continueAdminSignIn(result);
+        } catch (err) {
+          const adminErr = toAdminApiError(err);
+          if (fallbackErrorSource(adminErr) === 'admin') {
+            dispatch(clearError());
+            setAdminError(signInErrorMessage(adminErr));
+          }
+        }
+      }
     } catch (err: any) {
       console.log('❌ Sign in failed:', err);
-      // Error is already set in Redux state and rendered above the form.
+    } finally {
+      setAdminSubmitting(false);
     }
   };
 
@@ -453,7 +495,7 @@ const SignIn = () => {
               disabled={!isFormComplete || isLoading}
             >
               <Text style={styles.signInButtonText}>
-                {status === 'loading' ? 'Signing in...' : 'Sign In'}
+                {status === 'loading' || adminSubmitting ? 'Signing in...' : 'Sign In'}
               </Text>
             </TouchableOpacity>
 

@@ -414,6 +414,28 @@ export const saveAuthTokens = async (accessToken: string, refreshToken?: string)
 };
 
 /**
+ * Renew the provider's second copy of its access token.
+ *
+ * Provider sign-in writes the JWT to providerAccessToken as well as
+ * accessToken, and provider requests read providerAccessToken FIRST
+ * (networks/network/tokenSelection.ts). A refresh that renewed only
+ * accessToken left every provider request carrying the expired copy, and once
+ * the renewed token expired as well the provider was signed out mid-session.
+ * Only a slot that is already in use is written: a customer never gets one.
+ */
+export const syncProviderAccessToken = async (accessToken: string): Promise<void> => {
+  try {
+    if (!isValidToken(accessToken)) return;
+    const existing = await store.getItem(KeyForStorage.providerAccessToken);
+    if (isValidToken(existing)) {
+      await store.setItem(KeyForStorage.providerAccessToken, accessToken);
+    }
+  } catch (error) {
+    console.error('❌ Error renewing the provider access token:', error);
+  }
+};
+
+/**
  * Check if user is authenticated
  */
 export const isAuthenticated = async (): Promise<boolean> => {

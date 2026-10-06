@@ -15,7 +15,7 @@
 import { Platform } from 'react-native';
 import { adminApi, AdminApiError, type Schemas } from './client';
 import { clearAdminSession, saveAdminSession, tokensFrom } from './session';
-import { KeyForStorage, removeData, retrieveData, saveData } from '../../utils/storage_utils/storageUtils';
+import { KeyForStorage, clearAuthData, removeData, retrieveData, saveData } from '../../utils/storage_utils/storageUtils';
 
 export type AdminProfile = Schemas['AdminProfile'];
 export type AdminPermissions = Schemas['Permissions'];
@@ -42,6 +42,9 @@ async function completeSignIn(data: Schemas['LoginResult']): Promise<SignInResul
   if (!tokens || !data.admin) {
     throw new AdminApiError(0, 'INVALID_RESPONSE', 'The server sent an incomplete sign-in response.');
   }
+  // Switching accounts on this device: a customer or provider session left
+  // in storage must not ride along with the admin one.
+  await clearAuthData();
   await saveAdminSession(tokens);
   // Tells the next launch to resume the admin console (landingRoute.ts).
   await saveData(KeyForStorage.userType, 'admin');

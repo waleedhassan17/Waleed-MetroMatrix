@@ -25,6 +25,32 @@ export const adminConsoleLogin = (email: string, password: string): Promise<Sign
   signInAdmin(email, password);
 
 /**
+ * Every other admin (the ones created in Admin Management) has an email of
+ * their own, so the form cannot know them in advance. When the customer login
+ * REJECTS the credentials — 401, which the server answers alike for an unknown
+ * email and a wrong password — the same credentials are tried once on the
+ * admin login. Never on any other failure: a network error, a 5xx or a 403
+ * (blocked or unverified account) says nothing about who is signing in.
+ */
+export const shouldTryAdminSignIn = (email: string, customerStatus: number | undefined): boolean =>
+  !isAdminConsoleEmail(email) && customerStatus === 401;
+
+/**
+ * Whose message the form shows when that admin attempt fails as well. Only a
+ * deactivated admin is told — the server says so only after the password
+ * matched. Anything else (no such admin, wrong password, lockout) keeps the
+ * customer's own message, so the form never reveals whether an email belongs
+ * to an admin.
+ */
+export const fallbackErrorSource = (adminError: { code: string }): 'admin' | 'customer' =>
+  adminError.code === 'ACCOUNT_DEACTIVATED' ? 'admin' : 'customer';
+
+/** A sign-in failure that remembers the HTTP status the server answered with. */
+export interface SignInError extends Error {
+  status?: number;
+}
+
+/**
  * User Sign In (Login)
  * POST /auth/login
  */
@@ -64,7 +90,9 @@ export const authLogin = async ({ signInInfo }: { signInInfo: UserLoginData }) =
                         e.message || 
                         "Invalid email or password";
     
-    throw new Error(errorMessage);
+    const error: SignInError = new Error(errorMessage);
+    error.status = e.response?.status;
+    throw error;
   }
 };
 

@@ -20,6 +20,7 @@
 import type { Dispatch } from '@reduxjs/toolkit';
 import { logoutApi } from '../../networks/authcalls/me';
 import { clearAuthData } from '../../utils/storage_utils/storageUtils';
+import { clearAdminSession } from '../../networks/admin/session';
 import { disconnectSocket } from '../socket/socketClient';
 import { unregisterPushOnLogout } from '../push/pushNotifications';
 import { resetAllState } from '../../store/store';
@@ -66,6 +67,14 @@ export async function performLogout(dispatch: Dispatch): Promise<void> {
     await clearAuthData();
   } catch (e) {
     console.log('[logout] clearAuthData failed:', e);
+  }
+
+  // An admin console session left on this device (the console is signed in
+  // to from the same form) must not outlive the next sign-out either.
+  try {
+    await clearAdminSession();
+  } catch (e) {
+    console.log('[logout] clearAdminSession failed:', e);
   }
 
   // Interaction events queued under this account must not leave under the next one's token.
