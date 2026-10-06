@@ -12,8 +12,8 @@ What was reviewed, what was wrong, what changed, how it was verified, and what i
   - No change to the authentication screens beyond what 794fd7e added.
   - MetroMatrix is a community app: the platform takes no share of any payment.
 - **Branches:** `qa/admin-flow-hardening` in both repos.
-  - Both are local and not pushed.
-  - `main` (app a1b868d, backend 104fc73) is merged in, so this is tested against what production runs.
+  - Both were fast-forwarded into `main` on 2026-10-06, backend first.
+  - `main` (app a1b868d, backend 104fc73) was merged in before testing, so this was tested against what production ran.
 
 ## Findings and fixes
 
@@ -88,12 +88,14 @@ What was reviewed, what was wrong, what changed, how it was verified, and what i
 
 **Not verified yet: the app on a phone.** There is no emulator on this machine. See the device checklist below.
 
-## Production checklist (nothing here has been run on production)
+## Production checklist (no database step has been run on production)
 
 Rehearsed in this order against a throwaway database. Every step passed.
 
 1. Take an Atlas snapshot.
 2. Deploy the backend: merge `qa/admin-flow-hardening` → `main` and push; Vercel deploys. Check that `GET /health/ready` returns 200.
+   - **Done 2026-10-06** (904ed4d; `/health/ready` 200). The deploy changes no data, so the snapshot is still due before step 3.
+   - On a cold instance the first `/health/ready` can answer 503 "ping timed out" (the ping limit is 2 s). Retry before treating it as an outage.
 3. Run the migrations in order. Each runs `--dry` first, then for real:
    ```
    node scripts/migrations/01-admin-auth-cleanup.js     --confirm-db=<db> --dry   # then without --dry
