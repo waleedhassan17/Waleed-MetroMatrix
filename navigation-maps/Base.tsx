@@ -120,6 +120,8 @@ import AdminHSBookingsScreen from "../screens/admin/homeservice/AdminBookings/Ad
 import AdminHSBookingDetailScreen from "../screens/admin/homeservice/AdminBookingDetail/AdminBookingDetailScreen";
 import AdminHSDisputesScreen from "../screens/admin/homeservice/AdminDisputes/AdminDisputesScreen";
 import AdminHSPayoutsScreen from "../screens/admin/homeservice/AdminPayouts/AdminPayoutsScreen";
+import AdminWalletsScreen from "../screens/admin/finance/AdminWalletsScreen";
+import AdminWalletDetailScreen from "../screens/admin/finance/AdminWalletDetailScreen";
 import AdminHSServiceCategoriesScreen from "../screens/admin/homeservice/AdminServiceCategories/AdminServiceCategoriesScreen";
 import AdminHSAnalyticsScreen from "../screens/admin/homeservice/AdminHomeServiceAnalytics/AdminHomeServiceAnalyticsScreen";
 import AdminHSSettingsScreen from "../screens/admin/homeservice/AdminHomeServiceSettings/AdminHomeServiceSettingsScreen";
@@ -233,6 +235,8 @@ export const BaseRouteNames = {
   AdminHSBookingDetail: "AdminHSBookingDetail",
   AdminHSDisputes: "AdminHSDisputes",
   AdminHSPayouts: "AdminHSPayouts",
+  AdminWallets: "AdminWallets",
+  AdminWalletDetail: "AdminWalletDetail",
   AdminHSServiceCategories: "AdminHSServiceCategories",
   AdminHSAnalytics: "AdminHSAnalytics",
   AdminHSSettings: "AdminHSSettings",
@@ -396,6 +400,8 @@ export type RootStackParamList = {
   AdminHSBookingDetail: { bookingId: string };
   AdminHSDisputes: undefined;
   AdminHSPayouts: undefined;
+  AdminWallets: { segment?: 'wallets' | 'adjustments' | 'ledger'; adjustmentId?: string } | undefined;
+  AdminWalletDetail: { walletId: string; ownerName?: string; ownerType?: 'User' | 'Provider' | 'Platform'; ownerId?: string };
   AdminHSServiceCategories: undefined;
   AdminHSAnalytics: undefined;
   AdminHSSettings: undefined;
@@ -963,6 +969,16 @@ export const BaseRoutes: IRoute[] = [
     options: { headerShown: false, animation: 'slide_from_right' }
   },
   {
+    component: AdminWalletsScreen,
+    title: BaseRouteNames.AdminWallets,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
+    component: AdminWalletDetailScreen,
+    title: BaseRouteNames.AdminWalletDetail,
+    options: { headerShown: false, animation: 'slide_from_right' }
+  },
+  {
     component: AdminHSServiceCategoriesScreen,
     title: BaseRouteNames.AdminHSServiceCategories,
     options: { headerShown: false, animation: 'slide_from_right' }
@@ -1153,6 +1169,8 @@ export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.AdminHSBookingDetail,
   BaseRouteNames.AdminHSDisputes,
   BaseRouteNames.AdminHSPayouts,
+  BaseRouteNames.AdminWallets,
+  BaseRouteNames.AdminWalletDetail,
   BaseRouteNames.AdminHSServiceCategories,
   BaseRouteNames.AdminHSAnalytics,
   BaseRouteNames.AdminHSSettings,
@@ -1220,6 +1238,8 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
   [BaseRouteNames.AdminHSBookingDetail]: 'admin',
   [BaseRouteNames.AdminHSDisputes]: 'admin',
   [BaseRouteNames.AdminHSPayouts]: 'admin',
+  [BaseRouteNames.AdminWallets]: 'admin',
+  [BaseRouteNames.AdminWalletDetail]: 'admin',
   [BaseRouteNames.AdminHSServiceCategories]: 'admin',
   [BaseRouteNames.AdminHSAnalytics]: 'admin',
   [BaseRouteNames.AdminHSSettings]: 'admin',

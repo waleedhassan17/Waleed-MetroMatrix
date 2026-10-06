@@ -2079,6 +2079,12 @@ export interface components {
                 count?: number;
             } | null;
             isOnline?: boolean;
+            /**
+             * Format: date-time
+             * @description Only on a deleted account (state=deleted, super admins), which can be restored.
+             */
+            deletedAt?: string;
+            deleteReason?: string | null;
         };
         ProviderDetail: components["schemas"]["ProviderSummary"] & {
             emailVerified?: boolean;
@@ -2178,6 +2184,12 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             lastLoginAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Only on a deleted account (status=deleted, super admins), which can be restored.
+             */
+            deletedAt?: string;
+            deleteReason?: string | null;
         };
         UserDetail: components["schemas"]["UserSummary"] & {
             counts?: {

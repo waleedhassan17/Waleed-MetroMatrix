@@ -86,6 +86,13 @@ export default function AdminMoreScreen() {
       {canManageFinance && (
         <Section title="Wallets and payouts" card>
           <ListRow
+            title="Wallets and adjustments"
+            subtitle="Balances, ledgers, manual adjustments and the ledger check"
+            icon="wallet-outline"
+            onPress={() => navigation.navigate('AdminWallets')}
+            divider
+          />
+          <ListRow
             title="Payout requests"
             subtitle="Provider withdrawals to approve"
             icon="cash-outline"

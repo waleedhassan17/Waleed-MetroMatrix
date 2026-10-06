@@ -44,6 +44,8 @@ export function routeForTarget(target: Target | null | undefined): RouteTarget |
       return target.orderId
         ? { name: 'AdminShopping', params: { screen: 'AdminShoppingOrderDetail', params: { orderId: target.orderId } } }
         : { name: 'AdminShopping', params: { screen: 'AdminShoppingOrders' } };
+    case 'WalletAdjustment':
+      return { name: 'AdminWallets', params: id ? { segment: 'adjustments', adjustmentId: id } : { segment: 'adjustments' } };
     case 'Order':
       return id
         ? { name: 'AdminShopping', params: { screen: 'AdminShoppingOrderDetail', params: { orderId: id } } }

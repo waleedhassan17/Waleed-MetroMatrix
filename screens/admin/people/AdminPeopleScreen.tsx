@@ -7,18 +7,29 @@
 // they were last active. Replaces three screens of about
 // 1,370 lines each (pending review, provider management, user management)
 // that each kept their own copy of the list, its filters and its colours.
+//
+// A super admin also gets a "Deleted" filter on both lists: a deleted account
+// opens a sheet to restore it (with a reason, for the audit log). Restoring
+// gives the person their email back unless someone has taken it since.
 // ============================================================================
 
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
-import { AdminScreen, EntityRow, FilterChips, QueryState } from '../../../components/admin';
-import { SegmentedControl, TextField } from '../../../components/ui';
-import { usePermission } from '../../../hooks/useAdminPermission';
+import { AdminScreen, ConfirmSheet, EntityRow, FilterChips, QueryState } from '../../../components/admin';
+import { SegmentedControl, TextField, showToast } from '../../../components/ui';
+import { useIsSuperAdmin, usePermission } from '../../../hooks/useAdminPermission';
 import { enumOptions, presentStatus, useAdminMeta } from '../../../hooks/useAdminMeta';
 import useDebouncedValue from '../../../hooks/useDebouncedValue';
-import { flattenPages, useListProvidersInfiniteQuery, useListUsersInfiniteQuery } from '../../../networks/admin/adminApi';
+import {
+  adminErrorOf,
+  flattenPages,
+  useListProvidersInfiniteQuery,
+  useListUsersInfiniteQuery,
+  useRestoreProviderMutation,
+  useRestoreUserMutation,
+} from '../../../networks/admin/adminApi';
 import { formatAgo } from '../../../utils/admin/format';
 import { openProvider } from './openProvider';
 import { GUTTER, S, useTheme, type ThemeColors } from '../../../theme';
@@ -33,11 +44,12 @@ export default function AdminPeopleScreen() {
   const canProviders = usePermission('canApproveProviders');
   const canUsers = usePermission('canManageUsers');
   const canAdmins = usePermission('canManageAdmins');
+  const isSuperAdmin = useIsSuperAdmin();
 
   const requested = (route.params as { segment?: Segment | 'admins' } | undefined)?.segment;
   const [segment, setSegment] = useState<Segment>(requested === 'users' || !canProviders ? 'users' : 'providers');
   const [providerState, setProviderState] = useState('pending');
-  const [userStatus, setUserStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [userStatus, setUserStatus] = useState<'all' | 'active' | 'inactive' | 'deleted'>('all');
   const [search, setSearch] = useState('');
   const query = useDebouncedValue(search.trim());
   const { data: meta } = useAdminMeta();
@@ -58,15 +70,34 @@ export default function AdminPeopleScreen() {
 
   const providerCounts = providers.data?.pages[0]?.meta.counts as Record<string, number> | undefined;
   const userCounts = users.data?.pages[0]?.meta.counts as Record<string, number> | undefined;
+  const deletedChip = (counts?: Record<string, number>) => (isSuperAdmin ? [{ value: 'deleted', label: 'Deleted', count: counts?.deleted }] : []);
   const providerFilters = [
     { value: 'all', label: 'All' },
     ...enumOptions(meta, 'providerStates').map((o) => ({ value: o.value, label: o.label, count: providerCounts?.[o.value] })),
+    ...deletedChip(providerCounts),
   ];
   const userFilters = [
     { value: 'all', label: 'All', count: userCounts && typeof userCounts.active === 'number' && typeof userCounts.inactive === 'number' ? userCounts.active + userCounts.inactive : undefined },
     { value: 'active', label: 'Active', count: userCounts?.active },
     { value: 'inactive', label: 'Deactivated', count: userCounts?.inactive },
+    ...deletedChip(userCounts),
   ];
+
+  const [restoreProvider, restoreProviderState] = useRestoreProviderMutation();
+  const [restoreUser, restoreUserState] = useRestoreUserMutation();
+  const [restoring, setRestoring] = useState<{ kind: 'provider' | 'user'; id: string; name: string } | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const startRestore = (kind: 'provider' | 'user', id: string, name: string) => {
+    setRestoreError(null);
+    setRestoring({ kind, id, name });
+  };
+  const confirmRestore = async (reason: string) => {
+    if (!restoring) return;
+    const res = restoring.kind === 'provider' ? await restoreProvider({ id: restoring.id, reason }) : await restoreUser({ id: restoring.id, reason });
+    if ('error' in res) return setRestoreError(adminErrorOf(res.error)?.message || 'The account was not restored.');
+    setRestoring(null);
+    showToast({ tone: 'success', message: `${restoring.name} is back. They can sign in again.` });
+  };
   const typeLabel = (value: string) => enumOptions(meta, 'providerTypes').find((o) => o.value === value)?.label ?? value;
 
   const active = segment === 'providers' ? providers : users;
@@ -131,6 +162,20 @@ export default function AdminPeopleScreen() {
             keyExtractor={(p) => p.id}
             renderItem={({ item, index }) => {
               const status = presentStatus(meta, 'providerStates', item.state);
+              if (item.deletedAt) {
+                return (
+                  <EntityRow
+                    avatar={{ name: item.fullName, uri: item.profilePhoto }}
+                    title={item.fullName}
+                    subtitle={[item.email, item.deleteReason].filter(Boolean).join(' · ')}
+                    badge={{ label: 'Deleted', tone: 'neutral' }}
+                    meta={formatAgo(item.deletedAt)}
+                    onPress={() => startRestore('provider', item.id, item.fullName)}
+                    accessibilityLabel={`${item.fullName}, deleted. Restore.`}
+                    divider={index < providerItems.length - 1}
+                  />
+                );
+              }
               return (
                 <EntityRow
                   avatar={{ name: item.fullName, uri: item.profilePhoto }}
@@ -157,20 +202,45 @@ export default function AdminPeopleScreen() {
             {...listProps}
             data={userItems}
             keyExtractor={(u) => u.id}
-            renderItem={({ item, index }) => (
-              <EntityRow
-                avatar={{ name: item.fullName, uri: item.profilePhoto }}
-                title={item.fullName}
-                subtitle={item.email}
-                badge={item.isActive ? null : { label: 'Deactivated', tone: 'error' }}
-                meta={item.lastLoginAt ? `Active ${formatAgo(item.lastLoginAt)}` : null}
-                onPress={() => navigation.navigate('AdminUserDetail', { userId: item.id })}
-                divider={index < userItems.length - 1}
-              />
-            )}
+            renderItem={({ item, index }) =>
+              item.deletedAt ? (
+                <EntityRow
+                  avatar={{ name: item.fullName, uri: item.profilePhoto }}
+                  title={item.fullName}
+                  subtitle={[item.email, item.deleteReason].filter(Boolean).join(' · ')}
+                  badge={{ label: 'Deleted', tone: 'neutral' }}
+                  meta={formatAgo(item.deletedAt)}
+                  onPress={() => startRestore('user', item.id, item.fullName)}
+                  accessibilityLabel={`${item.fullName}, deleted. Restore.`}
+                  divider={index < userItems.length - 1}
+                />
+              ) : (
+                <EntityRow
+                  avatar={{ name: item.fullName, uri: item.profilePhoto }}
+                  title={item.fullName}
+                  subtitle={item.email}
+                  badge={item.isActive ? null : { label: 'Deactivated', tone: 'error' }}
+                  meta={item.lastLoginAt ? `Active ${formatAgo(item.lastLoginAt)}` : null}
+                  onPress={() => navigation.navigate('AdminUserDetail', { userId: item.id })}
+                  divider={index < userItems.length - 1}
+                />
+              )
+            }
           />
         )}
       </QueryState>
+
+      <ConfirmSheet
+        visible={!!restoring}
+        title={`Restore ${restoring?.name}?`}
+        message="Their account comes back as it was, with their email if no one has taken it since. They can sign in again."
+        confirmLabel="Restore"
+        requireReason
+        busy={restoreProviderState.isLoading || restoreUserState.isLoading}
+        error={restoreError}
+        onConfirm={confirmRestore}
+        onClose={() => setRestoring(null)}
+      />
     </AdminScreen>
   );
 }

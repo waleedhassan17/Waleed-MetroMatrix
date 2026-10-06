@@ -36,6 +36,8 @@ run('admin console modules against a live API', () => {
   let store: ReturnType<typeof makeStore>;
   let hc: typeof import('../networks/admin/healthcareApi');
   let shop: typeof import('../networks/admin/shoppingApi');
+  let wallets: typeof import('../networks/admin/walletsApi');
+  let auth: typeof import('../networks/admin/auth');
 
   function makeStore() {
     const { adminApi } = require('../networks/admin/adminApi') as typeof import('../networks/admin/adminApi');
@@ -55,8 +57,9 @@ run('admin console modules against a live API', () => {
     axios.defaults.adapter = 'fetch';
     hc = require('../networks/admin/healthcareApi');
     shop = require('../networks/admin/shoppingApi');
+    wallets = require('../networks/admin/walletsApi');
     store = makeStore();
-    const auth = require('../networks/admin/auth') as typeof import('../networks/admin/auth');
+    auth = require('../networks/admin/auth');
     const res = await auth.signInAdmin(EMAIL, PASSWORD!);
     expect(res).toMatchObject({ step: 'signed_in', restrict: null });
   });
@@ -66,6 +69,8 @@ run('admin console modules against a live API', () => {
     const { adminApi } = require('../networks/admin/adminApi') as typeof import('../networks/admin/adminApi');
     store.dispatch(adminApi.util.resetApiState());
   });
+
+  const client = () => (require('../networks/admin/client') as typeof import('../networks/admin/client')).adminApi;
 
   const query = async <T>(thunk: any): Promise<T> => {
     const sub = store.dispatch(thunk) as any;
@@ -298,6 +303,93 @@ run('admin console modules against a live API', () => {
 
     it('deletes a brand, with a reason', async () => {
       expect((await mutate(shop.shoppingEndpoints.deleteShopBrand.initiate({ id: newBrandId, reason: 'E2E cleanup' }))).error).toBeUndefined();
+    });
+  });
+  describe('restoring a deleted account', () => {
+    it('a deleted provider is listed for a super admin and can be restored, with a reason', async () => {
+      const api = require('../networks/admin/adminApi') as typeof import('../networks/admin/adminApi');
+      const pending = await query<{ pages: { items: any[] }[] }>(api.adminApi.endpoints.listProviders.initiate({ state: 'pending' }));
+      const provider = pending.pages[0].items.find((p) => p.email === 'provider@example.com');
+      expect(provider).toBeTruthy();
+
+      const deleted = await mutate(api.adminApi.endpoints.deleteProvider.initiate({ id: provider.id, reason: 'E2E delete' }));
+      expect(deleted.error).toBeUndefined();
+
+      const list = await query<{ pages: { items: any[]; meta: any }[] }>(api.adminApi.endpoints.listProviders.initiate({ state: 'deleted' }));
+      expect(list.pages[0].items).toEqual([expect.objectContaining({ id: provider.id, email: 'provider@example.com', deleteReason: 'E2E delete', deletedAt: expect.any(String) })]);
+      expect(list.pages[0].meta.counts.deleted).toBe(1);
+
+      const restored = await mutate(api.adminApi.endpoints.restoreProvider.initiate({ id: provider.id, reason: 'E2E restore' }));
+      expect(restored.error).toBeUndefined();
+      const back = await query<{ pages: { items: any[] }[] }>(api.adminApi.endpoints.listProviders.initiate({ state: 'pending' }, { forceRefetch: true } as any));
+      expect(back.pages[0].items.map((p) => p.id)).toContain(provider.id);
+    });
+  });
+
+  describe('wallets and a second super admin (maker-checker)', () => {
+    let walletId = '';
+    let adjustmentId = '';
+    let start = 0;
+    let driftBefore = 0;
+    const second = { email: `second-${Date.now()}@example.com`, password: `${PASSWORD}-second-1` };
+    const balanceNow = async () => (await query<any>(wallets.walletEndpoints.walletTransactions.initiate(walletId, { forceRefetch: true } as any))).pages[0].wallet.balance;
+
+    it('lists wallets with their owner and balance, and searches them', async () => {
+      const list = await query<{ pages: { items: any[] }[] }>(wallets.walletEndpoints.listWallets.initiate({ ownerType: 'User' }));
+      const w = list.pages[0].items.find((x) => x.ownerName === 'Ayesha Customer');
+      expect(w).toMatchObject({ id: expect.any(String), ownerType: 'User', balance: expect.any(Number), currency: expect.any(String) });
+      walletId = w.id;
+      start = w.balance;
+      const found = await query<{ pages: { items: any[] }[] }>(wallets.walletEndpoints.listWallets.initiate({ search: 'ayesha' }));
+      expect(found.pages[0].items.map((x) => x.id)).toContain(walletId);
+      driftBefore = (await query<any>(wallets.walletEndpoints.getReconciliation.initiate())).drift;
+    });
+
+    it('shows a wallet’s ledger, the seeded top-up included', async () => {
+      const ledger = await query<any>(wallets.walletEndpoints.walletTransactions.initiate(walletId));
+      expect(ledger.pages[0].wallet.balance).toBe(start);
+      expect(ledger.pages[0].items.find((t: any) => t.source === 'stripe_topup')).toMatchObject({ id: expect.any(String), type: 'credit', amount: 5000 });
+    });
+
+    it('a small adjustment is applied at once', async () => {
+      const res = await mutate(wallets.walletEndpoints.adjustWallet.initiate({ id: walletId, type: 'debit', amount: 100, reason: 'E2E small debit' }));
+      expect(res.error).toBeUndefined();
+      expect(res.data).toMatchObject({ requiresApproval: false, wallet: { balance: start - 100 } });
+    });
+
+    it('a large one waits for approval, and its requester cannot approve it', async () => {
+      const res = await mutate(wallets.walletEndpoints.adjustWallet.initiate({ id: walletId, type: 'credit', amount: 20000, reason: 'E2E large credit' }));
+      expect(res.error).toBeUndefined();
+      expect(res.data).toMatchObject({ requiresApproval: true, adjustment: { status: 'pending' } });
+      adjustmentId = res.data.adjustment.id;
+      expect(await balanceNow()).toBe(start - 100);
+      const pending = await query<{ pages: { items: any[] }[] }>(wallets.walletEndpoints.listAdjustments.initiate({ status: 'pending' }));
+      expect(pending.pages[0].items.map((a) => a.id)).toContain(adjustmentId);
+      const own = await mutate(wallets.walletEndpoints.decideAdjustment.initiate({ id: adjustmentId, decision: 'approve' }));
+      expect(own.error).toMatchObject({ code: 'SECOND_APPROVER_REQUIRED' });
+    });
+
+    it('a second super admin, created in Admin Management, signs in and approves it', async () => {
+      const created = await client().post('/api/admin/admins', { body: { email: second.email, fullName: 'Second Admin', role: 'super_admin' } as never });
+      const temporary = (created.data as any).temporaryPassword as string;
+      expect(temporary).toEqual(expect.any(String));
+
+      const signIn = await auth.signInAdmin(second.email, temporary);
+      expect(signIn).toMatchObject({ step: 'signed_in', restrict: 'password_change' });
+      const changed = await auth.changeAdminPassword(temporary, second.password);
+      expect(changed.restrict).toBeNull();
+
+      store.dispatch(require('../networks/admin/adminApi').adminApi.util.resetApiState());
+      const approved = await mutate(wallets.walletEndpoints.decideAdjustment.initiate({ id: adjustmentId, decision: 'approve', note: 'E2E second approver' }));
+      expect(approved.error).toBeUndefined();
+      expect(await balanceNow()).toBe(start - 100 + 20000);
+    });
+
+    it('adjustments keep the books consistent: the ledger check moves by nothing', async () => {
+      const r = await query<any>(wallets.walletEndpoints.getReconciliation.initiate(undefined, { forceRefetch: true } as any));
+      expect(r.drift).toBe(driftBefore);
+      expect(r.netAdjustments).toBe(19900);
+      expect(r.platformWalletBalance).toBe(0);
     });
   });
 });

@@ -41,6 +41,7 @@ SCOPE=(
   screens/admin/healthcare
   screens/admin/analytics
   screens/admin/Shopping
+  screens/admin/finance
   navigators/AdminTabs.tsx
   navigators/AdminShoppingStack.tsx
 )

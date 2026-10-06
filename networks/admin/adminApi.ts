@@ -92,7 +92,8 @@ export type ProviderFilters = {
   sort?: string;
   limit?: number;
 };
-export type UserFilters = { status?: 'active' | 'inactive'; search?: string; sort?: string; limit?: number };
+/** `deleted` (super admins): soft-deleted accounts, to restore one. */
+export type UserFilters = { status?: 'active' | 'inactive' | 'deleted'; search?: string; sort?: string; limit?: number };
 export type NotificationFilters = { unread?: boolean; type?: string; limit?: number };
 export type QueueFilters = { type?: string; limit?: number };
 
@@ -179,9 +180,9 @@ export const adminApi = createApi({
         run(async () => (await http.delete('/api/admin/providers/{providerId}', { params: { providerId: id }, body: { reason } })).data),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'Provider', id }, 'ProviderList', 'Queue', 'Overview'],
     }),
-    restoreProvider: build.mutation<Schemas['RestoreResult'], { id: string }>({
-      queryFn: ({ id }) =>
-        run(async () => (await http.post('/api/admin/providers/{providerId}/restore', { params: { providerId: id } })).data),
+    restoreProvider: build.mutation<Schemas['RestoreResult'], { id: string; reason?: string }>({
+      queryFn: ({ id, reason }) =>
+        run(async () => (await http.post('/api/admin/providers/{providerId}/restore', { params: { providerId: id }, body: { reason } })).data),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'Provider', id }, 'ProviderList', 'Overview'],
     }),
 
@@ -210,8 +211,8 @@ export const adminApi = createApi({
         run(async () => (await http.delete('/api/admin/users/{userId}', { params: { userId: id }, body: { reason } })).data),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'User', id }, 'UserList', 'Overview'],
     }),
-    restoreUser: build.mutation<Schemas['RestoreResult'], { id: string }>({
-      queryFn: ({ id }) => run(async () => (await http.post('/api/admin/users/{userId}/restore', { params: { userId: id } })).data),
+    restoreUser: build.mutation<Schemas['RestoreResult'], { id: string; reason?: string }>({
+      queryFn: ({ id, reason }) => run(async () => (await http.post('/api/admin/users/{userId}/restore', { params: { userId: id }, body: { reason } })).data),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'User', id }, 'UserList', 'Overview'],
     }),
 

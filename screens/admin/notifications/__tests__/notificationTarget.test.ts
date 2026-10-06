@@ -15,6 +15,7 @@ describe('routeForTarget', () => {
     ],
     [{ type: 'ReturnRequest', id: 'r1' }, { name: 'AdminShopping', params: { screen: 'AdminShoppingOrders' } }],
     [{ type: 'Order', id: 'o2' }, { name: 'AdminShopping', params: { screen: 'AdminShoppingOrderDetail', params: { orderId: 'o2' } } }],
+    [{ type: 'WalletAdjustment', id: 'w1' }, { name: 'AdminWallets', params: { segment: 'adjustments', adjustmentId: 'w1' } }],
   ])('%j', (target, expected) => {
     expect(routeForTarget(target)).toEqual(expected);
   });
