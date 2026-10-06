@@ -2227,6 +2227,8 @@ export interface components {
                 id?: string;
                 /** @description The provider the record belongs to (doctor, brand, payout), when there is one. */
                 providerId?: string;
+                /** @description A return request's order (vendors decide returns; the console opens the order). */
+                orderId?: string;
             } | null;
             read: boolean;
             /** Format: date-time */
