@@ -42,7 +42,8 @@ const ICONS: Record<keyof AdminTabParamList, [string, string]> = {
 };
 
 export const PEOPLE_PERMISSIONS: PermissionKey[] = ['canApproveProviders', 'canManageUsers', 'canManageAdmins'];
-export const MODULE_PERMISSIONS: PermissionKey[] = ['canManageHomeServices', 'canManageHealthcare', 'canManageShopping'];
+// Modules also holds Platform analytics, so an analytics-only admin gets the tab.
+export const MODULE_PERMISSIONS: PermissionKey[] = ['canManageHomeServices', 'canManageHealthcare', 'canManageShopping', 'canViewAnalytics'];
 
 const AdminTabs: React.FC = () => {
   const { colors } = useTheme();

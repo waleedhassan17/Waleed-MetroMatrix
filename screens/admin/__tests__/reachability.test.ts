@@ -2,7 +2,9 @@
  * Admin console navigation is complete in both directions:
  *  - every route the admin code navigates to is registered (no dead buttons);
  *  - every gated admin route has a way in (no orphaned screens — five
- *    healthcare screens, notifications and settings were unreachable before).
+ *    healthcare screens, notifications and settings were unreachable before);
+ *  - every route that renders an admin screen is gated and reads as the
+ *    console (PlatformAnalytics was registered with neither).
  *
  * Read from source, so it covers screens nobody has opened in a test.
  */
@@ -80,4 +82,28 @@ it('every route the admin code opens is registered', () => {
 it('every gated admin route has a way in', () => {
   const orphans = adminRoutes.filter((r) => !targets.has(r));
   expect(orphans).toEqual([]);
+});
+
+// Routes whose component is an admin screen or an admin navigator.
+const adminScreenRoutes = (() => {
+  const adminComponents = new Set(
+    [...base.matchAll(/^import (\w+) from ["']\.\.\/(?:screens\/admin\/|navigators\/Admin)[^"']*["']/gm)].map((m) => m[1])
+  );
+  return [...base.matchAll(/component:\s*(\w+),\s*title:\s*BaseRouteNames\.(\w+)/g)]
+    .filter((m) => adminComponents.has(m[1]))
+    .map((m) => baseNames[m[2]]);
+})();
+
+const consoleThemed = (() => {
+  const block = /export const RouteModules[\s\S]*?=\s*\{([\s\S]*?)\n\};/.exec(base)?.[1] ?? '';
+  return new Set([...block.matchAll(/\[BaseRouteNames\.(\w+)\]:\s*'admin'/g)].map((m) => baseNames[m[1]]));
+})();
+
+// The 2FA step is part of the way in, so it renders without a session.
+const UNGATED = new Set(['AdminTotp']);
+
+it('every route that renders an admin screen is gated and themed as the console', () => {
+  expect(adminScreenRoutes.length).toBeGreaterThan(25);
+  expect(adminScreenRoutes.filter((r) => !UNGATED.has(r) && !adminRoutes.includes(r))).toEqual([]);
+  expect(adminScreenRoutes.filter((r) => !consoleThemed.has(r))).toEqual([]);
 });

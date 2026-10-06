@@ -1,6 +1,10 @@
 // ============================================================================
 // More tab — the signed-in admin, their account, notifications, admins,
-// platform settings, and sign-out.
+// platform settings, wallets and payouts, appearance, and sign-out.
+//
+// Each door is shown to the admins who can use what is behind it, and every
+// one a permission allows is reachable from here: an admin with only finance
+// or only analytics has no module to reach them through.
 // ============================================================================
 
 import React, { useMemo, useState } from 'react';
@@ -9,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { AdminScreen, ConfirmSheet, Section } from '../../../components/admin';
 import { Avatar, ListRow, ToneBadge } from '../../../components/ui';
+import DarkModeSwitch from '../../../components/ui/DarkModeSwitch';
 import { useAdminProfile, usePermission } from '../../../hooks/useAdminPermission';
 import { useAdminSignOut } from '../../../hooks/useAdminSignOut';
 import { useAdminMeta } from '../../../hooks/useAdminMeta';
@@ -23,6 +28,8 @@ export default function AdminMoreScreen() {
   const { data: meta } = useAdminMeta();
   const { data: unread } = useGetUnreadCountQuery();
   const canManageAdmins = usePermission('canManageAdmins');
+  const canManageFinance = usePermission('canManageFinance');
+  const canViewAnalytics = usePermission('canViewAnalytics');
   const signOut = useAdminSignOut();
   const [confirm, setConfirm] = useState<null | 'here' | 'everywhere'>(null);
   const [busy, setBusy] = useState(false);
@@ -58,9 +65,34 @@ export default function AdminMoreScreen() {
           onPress={() => navigation.navigate('AdminNotifications')}
           divider
         />
-        <ListRow title="Platform settings" icon="options-outline" onPress={() => navigation.navigate('AdminSettings')} divider={canManageAdmins} />
+        <ListRow
+          title="Platform settings"
+          icon="options-outline"
+          onPress={() => navigation.navigate('AdminSettings')}
+          divider={canManageAdmins || canViewAnalytics}
+        />
+        {canViewAnalytics && (
+          <ListRow
+            title="Platform analytics"
+            subtitle="Live usage, demand, leaderboards and ML models"
+            icon="pulse-outline"
+            onPress={() => navigation.navigate('PlatformAnalytics')}
+            divider={canManageAdmins}
+          />
+        )}
         {canManageAdmins && <ListRow title="Admins" subtitle="Accounts, roles and sessions" icon="shield-checkmark-outline" onPress={() => navigation.navigate('AdminManagement')} />}
       </Section>
+
+      {canManageFinance && (
+        <Section title="Wallets and payouts" card>
+          <ListRow
+            title="Payout requests"
+            subtitle="Provider withdrawals to approve"
+            icon="cash-outline"
+            onPress={() => navigation.navigate('AdminHSPayouts')}
+          />
+        </Section>
+      )}
 
       <Section title="Your account" card>
         <ListRow
@@ -69,6 +101,10 @@ export default function AdminMoreScreen() {
           icon="person-circle-outline"
           onPress={() => navigation.navigate('AdminProfile')}
         />
+      </Section>
+
+      <Section title="This device" card>
+        <DarkModeSwitch />
       </Section>
 
       <Section title="Sign out" card>

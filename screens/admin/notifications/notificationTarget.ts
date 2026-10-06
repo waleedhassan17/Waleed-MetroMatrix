@@ -1,12 +1,23 @@
 // ============================================================================
-// Where tapping a notification goes, from its `target` ({ type, id }).
-// Pure, so it is tested. A target with no screen yet (wallet adjustments wait
-// for the Finance UI) opens nothing rather than somewhere wrong.
+// Where tapping a notification or a Queue item goes, from its `target`
+// ({ type, id, providerId?, orderId? }). Pure, so it is tested. A record with
+// a screen of its own opens that screen; a record without one opens the list
+// that handles it. A target with no screen at all opens nothing rather than
+// somewhere wrong.
 // ============================================================================
 
 export type RouteTarget = { name: string; params?: Record<string, unknown> };
 
-export function routeForTarget(target: { type?: string; id?: string } | null | undefined): RouteTarget | null {
+export interface Target {
+  type?: string;
+  id?: string;
+  /** The provider the work is about (doctor, brand, payout). */
+  providerId?: string | null;
+  /** A return request's order (vendors decide returns; the admin sees the order). */
+  orderId?: string | null;
+}
+
+export function routeForTarget(target: Target | null | undefined): RouteTarget | null {
   if (!target?.type) return null;
   const id = target.id;
   switch (target.type) {
@@ -15,7 +26,8 @@ export function routeForTarget(target: { type?: string; id?: string } | null | u
     case 'User':
       return id ? { name: 'AdminUserDetail', params: { userId: id } } : null;
     case 'Doctor':
-      return { name: 'DoctorManagement' };
+      // Verification lives with the doctors; the list opens on this one.
+      return { name: 'DoctorManagement', params: id ? { doctorId: id } : undefined };
     case 'Dispute':
       return { name: 'AdminHSDisputes' };
     case 'PayoutRequest':
@@ -25,10 +37,17 @@ export function routeForTarget(target: { type?: string; id?: string } | null | u
     case 'Appointment':
       return id ? { name: 'AdminAppointmentDetail', params: { appointmentId: id } } : null;
     case 'Brand':
-      return { name: 'AdminShopping', params: { screen: 'AdminBrandList' } };
+      return id
+        ? { name: 'AdminShopping', params: { screen: 'AdminBrandDetail', params: { brandId: id } } }
+        : { name: 'AdminShopping', params: { screen: 'AdminBrandList' } };
     case 'ReturnRequest':
+      return target.orderId
+        ? { name: 'AdminShopping', params: { screen: 'AdminShoppingOrderDetail', params: { orderId: target.orderId } } }
+        : { name: 'AdminShopping', params: { screen: 'AdminShoppingOrders' } };
     case 'Order':
-      return { name: 'AdminShopping', params: { screen: 'AdminShoppingOrders' } };
+      return id
+        ? { name: 'AdminShopping', params: { screen: 'AdminShoppingOrderDetail', params: { orderId: id } } }
+        : { name: 'AdminShopping', params: { screen: 'AdminShoppingOrders' } };
     default:
       return null;
   }

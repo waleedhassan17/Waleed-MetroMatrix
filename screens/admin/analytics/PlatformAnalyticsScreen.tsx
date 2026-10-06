@@ -18,7 +18,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AdminScreen } from '../../../components/admin';
+import { AdminScreen, PermissionGate } from '../../../components/admin';
 import {
   Card,
   Chip,
@@ -65,22 +65,24 @@ export default function PlatformAnalyticsScreen() {
 
   return (
     <AdminScreen title="Platform analytics" subtitle="Live usage, demand and performance" scroll={false}>
-      <View style={styles.tabs}>
-        <SegmentedControl
-          options={[
-            { value: 'live' as Tab, label: 'Live' },
-            { value: 'demand' as Tab, label: 'Demand' },
-            { value: 'performance' as Tab, label: 'Leaders' },
-            { value: 'models' as Tab, label: 'Models' },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
-      </View>
-      {tab === 'live' && <LiveTab styles={styles} />}
-      {tab === 'demand' && <DemandTab styles={styles} />}
-      {tab === 'performance' && <PerformanceTab styles={styles} />}
-      {tab === 'models' && <ModelsTab />}
+      <PermissionGate all={['canViewAnalytics']} action="see platform analytics">
+        <View style={styles.tabs}>
+          <SegmentedControl
+            options={[
+              { value: 'live' as Tab, label: 'Live' },
+              { value: 'demand' as Tab, label: 'Demand' },
+              { value: 'performance' as Tab, label: 'Leaders' },
+              { value: 'models' as Tab, label: 'Models' },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        </View>
+        {tab === 'live' && <LiveTab styles={styles} />}
+        {tab === 'demand' && <DemandTab styles={styles} />}
+        {tab === 'performance' && <PerformanceTab styles={styles} />}
+        {tab === 'models' && <ModelsTab />}
+      </PermissionGate>
     </AdminScreen>
   );
 }

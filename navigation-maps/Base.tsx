@@ -1108,10 +1108,8 @@ export const BaseRoutes: IRoute[] = [
 // BookingScreen, JobDetail …) therefore resolves the same green header as the
 // tab it came from, instead of falling back to the neutral root.
 //
-// Only list a route once its screens actually read useTheme(). The
-// admin-side home-service screens (AdminHS*) are deliberately absent: they live
-// under screens/admin, have not been migrated, and would change appearance for
-// no one's benefit.
+// Only list a route once its screens actually read useTheme(). Every admin
+// console route reads as the console ('admin'), whichever vertical it manages.
 // ============================================================================
 // ============================================================================
 // Routes held back from dark mode.
@@ -1168,6 +1166,7 @@ export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.AdminClinicManagement,
   BaseRouteNames.AdminReviewModeration,
   BaseRouteNames.AdminHealthcareSettings,
+  BaseRouteNames.PlatformAnalytics,
 ]);
 
 export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping' | 'admin'>> = {
@@ -1227,4 +1226,12 @@ export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeser
   [BaseRouteNames.AdminHealthcareDashboard]: 'admin',
   [BaseRouteNames.HealthcareAnalytics]: 'admin',
   [BaseRouteNames.AdminHealthcareSettings]: 'admin',
+  [BaseRouteNames.PlatformAnalytics]: 'admin',
+  [BaseRouteNames.DoctorManagement]: 'admin',
+  [BaseRouteNames.SpecialtyManagement]: 'admin',
+  [BaseRouteNames.AdminAppointments]: 'admin',
+  [BaseRouteNames.AdminAppointmentDetail]: 'admin',
+  [BaseRouteNames.AdminClinicManagement]: 'admin',
+  [BaseRouteNames.AdminReviewModeration]: 'admin',
+  [BaseRouteNames.AdminShopping]: 'admin',
 };

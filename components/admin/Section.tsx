@@ -23,6 +23,10 @@ export interface SectionProps {
   children: React.ReactNode;
 }
 
+// A one-line link is about 20pt tall; the slop takes its target to 44pt
+// without moving the header.
+const SEE_ALL_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
+
 const Section: React.FC<SectionProps> = ({ title, caption, count, action, onSeeAll, seeAllLabel = 'See all', card, style, children }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -44,7 +48,7 @@ const Section: React.FC<SectionProps> = ({ title, caption, count, action, onSeeA
         </View>
         {action}
         {!!onSeeAll && (
-          <Pressable onPress={onSeeAll} hitSlop={8} accessibilityRole="link" accessibilityLabel={`${seeAllLabel}: ${title}`}>
+          <Pressable onPress={onSeeAll} hitSlop={SEE_ALL_HIT_SLOP} accessibilityRole="link" accessibilityLabel={`${seeAllLabel}: ${title}`}>
             <Text style={styles.seeAll}>{seeAllLabel}</Text>
           </Pressable>
         )}

@@ -4,16 +4,16 @@ import { formatWait, localPasswordProblems, passwordProblems, signInErrorMessage
 
 describe('adminGateDecision', () => {
   it.each([
-    ['unknown', null, 'AdminDashboard', { kind: 'restore' }],
-    ['restoring', null, 'AdminDashboard', { kind: 'wait' }],
-    ['offline', null, 'AdminDashboard', { kind: 'offline' }],
-    ['signedOut', null, 'AdminDashboard', { kind: 'redirect', route: 'SignIn' }],
-    ['signedIn', null, 'AdminDashboard', { kind: 'render' }],
+    ['unknown', null, 'AdminHome', { kind: 'restore' }],
+    ['restoring', null, 'AdminHome', { kind: 'wait' }],
+    ['offline', null, 'AdminHome', { kind: 'offline' }],
+    ['signedOut', null, 'AdminHome', { kind: 'redirect', route: 'SignIn' }],
+    ['signedIn', null, 'AdminHome', { kind: 'render' }],
     ['signedIn', null, 'AdminChangePassword', { kind: 'render' }],
-    ['signedIn', 'password_change', 'AdminDashboard', { kind: 'redirect', route: 'AdminChangePassword' }],
+    ['signedIn', 'password_change', 'AdminHome', { kind: 'redirect', route: 'AdminChangePassword' }],
     ['signedIn', 'password_change', 'AdminChangePassword', { kind: 'render' }],
     ['signedIn', 'password_change', 'AdminTwoFactorEnrol', { kind: 'redirect', route: 'AdminChangePassword' }],
-    ['signedIn', 'totp_enrol', 'UserManagement', { kind: 'redirect', route: 'AdminTwoFactorEnrol' }],
+    ['signedIn', 'totp_enrol', 'AdminNotifications', { kind: 'redirect', route: 'AdminTwoFactorEnrol' }],
     ['signedIn', 'totp_enrol', 'AdminTwoFactorEnrol', { kind: 'render' }],
   ] as const)('%s / %s on %s', (status, restrict, route, expected) => {
     expect(adminGateDecision(status, restrict, route)).toEqual(expected);

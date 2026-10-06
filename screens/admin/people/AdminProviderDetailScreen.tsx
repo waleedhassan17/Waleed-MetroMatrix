@@ -98,6 +98,8 @@ export default function AdminProviderDetailScreen() {
   const { providerId } = (useRoute().params ?? {}) as { providerId: string };
   const { data: meta } = useAdminMeta();
   const canDecide = usePermission('canApproveProviders');
+  const canManageHomeServices = usePermission('canManageHomeServices');
+  const canManageShopping = usePermission('canManageShopping');
   const query = useGetProviderQuery(providerId);
   const p = query.data as ProviderView | undefined;
 
@@ -155,10 +157,11 @@ export default function AdminProviderDetailScreen() {
     ? [
         ...(p.phoneNumber ? [{ icon: 'call-outline', label: 'Call', onPress: () => Linking.openURL(`tel:${p.phoneNumber}`) }] : []),
         { icon: 'mail-outline', label: 'Email', onPress: () => Linking.openURL(`mailto:${p.email}`) },
-        ...(p.providerType === 'home_service'
+        // Shortcuts into a module only for an admin who manages it.
+        ...(p.providerType === 'home_service' && canManageHomeServices
           ? [{ icon: 'calendar-outline', label: 'Bookings', onPress: () => navigation.navigate('AdminHSBookings', { providerId: p.id, providerName: p.fullName }) }]
           : []),
-        ...(brand
+        ...(brand && canManageShopping
           ? [{ icon: 'storefront-outline', label: 'Brand', onPress: () => navigation.navigate('AdminShopping', { screen: 'AdminBrandDetail', params: { brandId: brand.id } }) }]
           : []),
       ]
