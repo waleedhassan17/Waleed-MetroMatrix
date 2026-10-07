@@ -9,7 +9,7 @@ import {
   lift,
   softInkOn,
 } from '../contrast';
-import { brandPalette, ModuleName, modulePalette } from '../palettes';
+import { BRAND_GRADIENT, brandPalette, ModuleName, modulePalette } from '../palettes';
 
 // ============================================================================
 // Every colour pair in both ramps, measured.
@@ -28,7 +28,7 @@ import { brandPalette, ModuleName, modulePalette } from '../palettes';
 // ============================================================================
 
 const MODES: ThemeMode[] = ['light', 'dark'];
-const MODULES: ModuleName[] = ['neutral', 'healthcare', 'homeservice', 'shopping', 'admin'];
+const MODULES: ModuleName[] = ['neutral', 'brand', 'healthcare', 'homeservice', 'shopping', 'admin'];
 
 const ramps: Record<ThemeMode, Ramp> = { light: C, dark: DARK_C };
 
@@ -157,11 +157,25 @@ describe('dark module palettes', () => {
 });
 
 describe('light module palettes', () => {
-  const LIGHT_OK: ModuleName[] = ['neutral', 'healthcare', 'homeservice', 'admin'];
+  const LIGHT_OK: ModuleName[] = ['neutral', 'brand', 'healthcare', 'homeservice', 'admin'];
 
   it('admin: label on an accent fill is readable', () => {
     const p = modulePalette('admin', 'light');
     expect(contrastRatio(p.onAccent, p.accent)).toBeGreaterThanOrEqual(AA_BODY);
+  });
+
+  // The onboarding button. The hub's emerald (#10B981) measures 2.5:1 under a
+  // white label, which is why the brand's fill is not that green.
+  it('brand: label on an accent fill is readable', () => {
+    const p = modulePalette('brand', 'light');
+    expect(contrastRatio(p.onAccent, p.accent)).toBeGreaterThanOrEqual(AA_BODY);
+    expect(contrastRatio(C.inkInverse, '#10B981')).toBeLessThan(AA_LARGE);
+  });
+
+  // The splash wordmark sets "Matrix" in the brand accent on the paper ground.
+  it('brand: accent reads as text on the page', () => {
+    expect(contrastRatio(modulePalette('brand', 'light').accent, C.bg))
+      .toBeGreaterThanOrEqual(AA_BODY);
   });
 
   it.each(LIGHT_OK)('%s: accentDeep is readable as text on white', (name) => {
@@ -209,6 +223,14 @@ describe('module page header gradients', () => {
     const deep = modulePalette(name, 'light').accentDeep;
     for (const stop of headerGradientStops(deep)) {
       expect(contrastRatio(C.inkInverse, stop)).toBeGreaterThanOrEqual(AA_LARGE);
+    }
+  });
+
+  // The overview card on onboarding paints the logo's sweep as written rather
+  // than deriving it, so it has to clear the same bar on its own.
+  it('BRAND_GRADIENT: a 90% white label clears AA body on BOTH stops', () => {
+    for (const stop of BRAND_GRADIENT) {
+      expect(contrastRatio(softInkOn(stop), stop)).toBeGreaterThanOrEqual(AA_BODY);
     }
   });
 

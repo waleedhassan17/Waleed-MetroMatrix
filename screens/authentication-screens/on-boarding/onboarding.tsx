@@ -6,6 +6,16 @@
 // UI — a booking row, an appointment, an order — rather than an icon standing
 // in for it. A picture of the thing beats a symbol for the thing.
 //
+// The card's head is that module's real page header: the same derived gradient
+// AppBar paints (`headerGradientStops` of the module's `accentDeep`), so the
+// green, blue and orange a user meets here are the ones waiting inside. The
+// overview card wears the logo's emerald -> teal instead.
+//
+// The screen itself wears the `brand` palette (RouteModules), MetroMatrix's own
+// emerald: the logo and wordmark in the top bar, and the one primary button,
+// which stays brand on every slide — one action, one colour. Each slide's own
+// colour travels in its glow, its card and the page indicator.
+//
 // EACH SLIDE CARRIES A WHOLE ModulePalette, NOT A HEX
 // --------------------------------------------------
 // The five slots are not interchangeable and using the wrong one is how an
@@ -19,7 +29,9 @@
 //
 // Shopping orange (#E67E22) on paper is 2.7:1 — it fails even the large-text
 // bar. Its `accentDeep` (#D35400) passes. That is exactly why the slot exists,
-// and why no slide here holds a raw colour of its own.
+// and why no slide here holds a raw colour of its own. The same goes for the
+// brand: white on the hub's `#10B981` is 2.5:1, so the button is the brand's
+// `accent` (#047857, 5.5:1), not that green.
 //
 // WHY THERE IS NO ENTRANCE ANIMATION
 // ----------------------------------
@@ -33,10 +45,12 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
+  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StyleSheet,
@@ -50,14 +64,19 @@ import {
   setOnboardingStatus,
   setSelectedRole,
 } from '../../../components/app-container/appContainerSlice';
+import { AmbientGlow, BrandMark, BrandWordmark } from '../../../components/brand';
+import Button from '../../../components/ui/Button';
 import Screen from '../../../components/ui/Screen';
+import { darkShift } from '../../../constants/darkShift';
 import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
 import { resolveLandingRoute } from '../../../navigation-maps/landingRoute';
 import useReducedMotion from '../../../hooks/useReducedMotion';
 import {
-  C,
+  BRAND_GLOW,
+  BRAND_GRADIENT,
   E,
   GUTTER,
+  headerGradientStops,
   MODULE_PALETTES,
   modulePalette,
   type ModuleName,
@@ -105,12 +124,15 @@ interface Slide {
 const paletteFor = (name: ModuleName, mode: ThemeMode) => modulePalette(name, mode);
 
 /**
- * The primary-action green, shared with the sign-in and sign-up buttons.
- *
- * It measures 6.61:1 against the dark card, so white sits on it comfortably and
- * it needs no lifting — the brand green is the same green in both modes.
+ * The preview card's header, exactly as the module paints its own: AppBar's
+ * `darkShift(mode).grad(headerGradientStops(colors.accentDeep))`, so a 90%-white
+ * label clears AA on both stops. The brand has no module header to copy, so the
+ * overview card takes the logo's sweep, which clears the same bar as written.
  */
-const BRAND_GREEN = '#10B981';
+const headerFor = (name: ModuleName, mode: ThemeMode): [string, string] =>
+  darkShift(mode).grad(
+    name === 'brand' ? BRAND_GRADIENT : headerGradientStops(paletteFor(name, mode).accentDeep),
+  );
 
 // The row dots are the accent itself, which is legible in both modes, so these
 // stay simple lookups rather than becoming another per-mode table.
@@ -121,10 +143,10 @@ const SH = MODULE_PALETTES.shopping;
 const SLIDES: Slide[] = [
   {
     key: 'overview',
-    // Neutral is ink: nothing has claimed the app yet, so the overview slide
-    // stays monochrome and the colour arrives with the verticals.
-    paletteKey: 'neutral' as ModuleName,
-    eyebrow: 'MetroMatrix',
+    // MetroMatrix's own emerald: the overview is about the app, not a vertical.
+    // The top bar already carries the name, so the eyebrow greets instead.
+    paletteKey: 'brand' as ModuleName,
+    eyebrow: 'Welcome',
     title: 'Your city,',
     titleAccent: 'one app.',
     subtitle:
@@ -243,11 +265,19 @@ const WORM = 24;
 const PITCH = 20;
 const TRACK = WORM + PITCH * (SLIDES.length - 1);
 
+// How far a stat pill hangs off the card. About half of the pill sits outside,
+// so the half over the card lands on the header's empty corner at the top and
+// in the body's foot padding at the bottom, never on a row.
+const PILL_OVERHANG = S.xxl + S.xs;
+
+/** The glow behind each card: wider than the card, so light spills past it. */
+const GLOW = 380;
+
 // ============================================================================
 
 const Onboarding: React.FC = () => {
-  const { colors, mode, isDark } = useTheme();
-  const s = useMemo(() => makeSheet(colors, isDark), [colors, isDark]);
+  const { colors, mode } = useTheme();
+  const s = useMemo(() => makeSheet(colors), [colors]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { width } = useWindowDimensions();
@@ -261,6 +291,10 @@ const Onboarding: React.FC = () => {
   const userType = useAppSelector((state) => state.appContainer.userType);
 
   const [index, setIndex] = useState(0);
+  // A horizontal list's items fill its height on native but not on web, where
+  // `flex: 1` leaves each slide content-high and the slide's centring never
+  // happens. Measured once and handed to every slide, so both agree.
+  const [pageHeight, setPageHeight] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<FlatList<Slide>>(null);
 
@@ -335,6 +369,11 @@ const Onboarding: React.FC = () => {
       return;
     }
     listRef.current?.scrollToIndex({ index: index + 1, animated: !reduced });
+    // The button knows where it is going. Web fires no scroll-end event for a
+    // programmatic scroll, so leaving this to onSettle stranded the web build
+    // on slide two with "Get started" out of reach; on native onSettle lands
+    // on the same value.
+    setIndex(index + 1);
   }, [finish, index, isLast, reduced]);
 
   // "I already have an account" is the customer path — providers reach their
@@ -351,21 +390,7 @@ const Onboarding: React.FC = () => {
 
   const renderSlide = useCallback(
     ({ item }: { item: Slide }) => (
-      <View style={[s.slide, { width }]}>
-        {/* Ambient module wash, well under the card. `accentSoft` is the token
-            designed for exactly this — a tinted ground, not a colour. */}
-        <View
-          style={[
-            s.washOuter,
-            {
-              width: width * 0.9,
-              height: width * 0.9,
-              borderRadius: width * 0.45,
-              backgroundColor: paletteFor(item.paletteKey, mode).accentSoft,
-            },
-          ]}
-        />
-
+      <View style={[s.slide, { width }, pageHeight > 0 && { height: pageHeight }]}>
         <View style={s.slideBody}>
           <PreviewCard slide={item} />
 
@@ -384,11 +409,31 @@ const Onboarding: React.FC = () => {
         </View>
       </View>
     ),
-    [width],
+    [mode, pageHeight, s, width],
   );
 
   return (
-    <Screen background={colors.bg} barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
+      {/* The brand on every slide, and Skip where people look for it. Skip
+          leaves on the last slide, where the primary button already finishes;
+          the bar's height is the mark's, so nothing below moves. */}
+      <View style={s.topBar}>
+        <View style={s.brandRow} accessible accessibilityLabel="MetroMatrix">
+          <BrandMark size={28} />
+          <BrandWordmark variant="compact" style={s.brandName} />
+        </View>
+        {!isLast && (
+          <TouchableOpacity
+            onPress={() => void finish()}
+            hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+            accessibilityRole="button"
+            accessibilityLabel="Skip the introduction"
+          >
+            <Text style={s.skipText}>Skip</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <Animated.FlatList
         ref={listRef as any}
         style={s.list}
@@ -404,6 +449,7 @@ const Onboarding: React.FC = () => {
           offset: width * i,
           index: i,
         })}
+        onLayout={(e: LayoutChangeEvent) => setPageHeight(e.nativeEvent.layout.height)}
         onScroll={onScroll}
         onMomentumScrollEnd={onSettle}
         onScrollEndDrag={onSettle}
@@ -450,15 +496,15 @@ const Onboarding: React.FC = () => {
           )}
         </View>
 
-        <TouchableOpacity
-          style={s.cta}
+        {/* The shared Button, so under the `brand` route it is the brand's
+            emerald with its measured `onAccent` label in both modes — the one
+            primary action, the same colour on every slide. */}
+        <Button
+          size="lg"
+          label={isLast ? 'Get started' : 'Continue'}
           onPress={onPrimary}
-          activeOpacity={0.85}
-          accessibilityRole="button"
           accessibilityLabel={isLast ? 'Get started' : 'Continue to the next slide'}
-        >
-          <Text style={s.ctaText}>{isLast ? 'Get started' : 'Continue'}</Text>
-        </TouchableOpacity>
+        />
 
         <TouchableOpacity
           onPress={onSignIn}
@@ -473,21 +519,6 @@ const Onboarding: React.FC = () => {
             <Text style={s.linkStrong}>Sign in</Text>
           </Text>
         </TouchableOpacity>
-
-        {/* Reserved height so the row below the CTA never changes size — a
-            skip link that appears and disappears must not move the button. */}
-        <View style={s.skipSlot}>
-          {index === 0 && (
-            <TouchableOpacity
-              onPress={() => void finish()}
-              hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
-              accessibilityRole="button"
-              accessibilityLabel="Skip onboarding"
-            >
-              <Text style={s.skipText}>Skip for now</Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
     </Screen>
   );
@@ -496,66 +527,86 @@ const Onboarding: React.FC = () => {
 // ── Preview card ────────────────────────────────────────────────────────────
 
 const PreviewCard: React.FC<{ slide: Slide }> = ({ slide }) => {
-  const { colors, mode, isDark } = useTheme();
-  const s = useMemo(() => makeSheet(colors, isDark), [colors, isDark]);
+  const { colors, mode } = useTheme();
+  const s = useMemo(() => makeSheet(colors), [colors]);
   const { paletteKey, card, badges } = slide;
   const palette = paletteFor(paletteKey, mode);
 
   return (
     <View style={s.cardWrap}>
+      {/* Ambient light in the slide's colour, centred behind the card — the
+          same glow the splash blooms behind the logo, so the two screens read
+          as one sequence. */}
+      <AmbientGlow
+        size={GLOW}
+        color={paletteKey === 'brand' ? BRAND_GLOW[0] : palette.accent}
+        edge={paletteKey === 'brand' ? BRAND_GLOW[1] : undefined}
+        strength={0.2}
+        style={s.glow}
+      />
+
       <View style={s.card}>
-        <View style={s.cardHead}>
+        {/* A miniature of the module's own page header — see headerFor. */}
+        <LinearGradient
+          colors={headerFor(paletteKey, mode)}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.cardHead}
+        >
           <Text style={s.cardTitle}>{card.title}</Text>
-          {/* Ground carries the module, label stays ink. `accentDeep` on
-              `accentSoft` is only 3.9:1 for shopping — fine for the icon below
-              (icons need 3.0) but short of the 4.5 this 12pt label needs. */}
-          <View style={[s.cardChip, { backgroundColor: palette.accentSoft }]}>
+          {/* Beside the title, not at the far edge: the top-right corner
+              belongs to the overhanging stat pill. A surface pill with an ink
+              label is legible on every header in both modes, where a tinted
+              chip would need re-measuring per module against a gradient. */}
+          <View style={s.cardChip}>
             <Text style={s.cardChipText}>{card.chip}</Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        {card.rows.map((row, i) => (
-          <View key={`${card.title}-${i}`} style={[s.row, row.rule && s.rowRuled]}>
-            {row.dot ? (
-              <View style={s.rowLead}>
-                <View style={[s.rowDot, { backgroundColor: row.dot }]} />
-              </View>
-            ) : (
-              <View style={[s.rowLead, s.rowIcon, { backgroundColor: palette.accentSoft }]}>
-                <Ionicons
-                  name={row.icon ?? 'ellipse-outline'}
-                  size={14}
-                  color={palette.accentDeep}
-                />
-              </View>
-            )}
+        <View style={s.cardBody}>
+          {card.rows.map((row, i) => (
+            <View key={`${card.title}-${i}`} style={[s.row, row.rule && s.rowRuled]}>
+              {row.dot ? (
+                <View style={s.rowLead}>
+                  <View style={[s.rowDot, { backgroundColor: row.dot }]} />
+                </View>
+              ) : (
+                <View style={[s.rowLead, s.rowIcon, { backgroundColor: palette.accentSoft }]}>
+                  <Ionicons
+                    name={row.icon ?? 'ellipse-outline'}
+                    size={14}
+                    color={palette.accentDeep}
+                  />
+                </View>
+              )}
 
-            <View style={s.rowText}>
-              <Text style={s.rowPrimary} numberOfLines={1}>
-                {row.primary}
-              </Text>
-              {!!row.secondary && (
-                <Text style={s.rowSecondary} numberOfLines={1}>
-                  {row.secondary}
+              <View style={s.rowText}>
+                <Text style={s.rowPrimary} numberOfLines={1}>
+                  {row.primary}
                 </Text>
+                {!!row.secondary && (
+                  <Text style={s.rowSecondary} numberOfLines={1}>
+                    {row.secondary}
+                  </Text>
+                )}
+              </View>
+
+              {!!row.trailing && (
+                <View style={s.rowTrail}>
+                  {!!row.trailingIcon && (
+                    <Ionicons
+                      name={row.trailingIcon}
+                      size={11}
+                      color={colors.star}
+                      style={s.rowTrailIcon}
+                    />
+                  )}
+                  <Text style={s.rowTrailText}>{row.trailing}</Text>
+                </View>
               )}
             </View>
-
-            {!!row.trailing && (
-              <View style={s.rowTrail}>
-                {!!row.trailingIcon && (
-                  <Ionicons
-                    name={row.trailingIcon}
-                    size={11}
-                    color={colors.star}
-                    style={s.rowTrailIcon}
-                  />
-                )}
-                <Text style={s.rowTrailText}>{row.trailing}</Text>
-              </View>
-            )}
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
 
       {/* Stat pills overhanging the card. They read as data lifted out of the
@@ -576,32 +627,63 @@ export default Onboarding;
 
 // ============================================================================
 
-const makeSheet = (c: ThemeColors, isDark: boolean) => StyleSheet.create({
+const makeSheet = (c: ThemeColors) => StyleSheet.create({
+  // ── Top bar ──
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: GUTTER,
+    paddingVertical: S.md,
+  },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  brandName: { marginLeft: S.sm },
+  skipText: { ...T.label, color: c.inkMuted },
+
   list: { flex: 1 },
-  slide: { flex: 1, justifyContent: 'center' },
+  // Clipped, so a glow wider than a narrow phone stays on its own slide.
+  slide: { flex: 1, justifyContent: 'center', overflow: 'hidden' },
   slideBody: { paddingHorizontal: S.xxxl, alignItems: 'center' },
 
-  washOuter: { position: 'absolute', top: '6%', left: '5%' },
+  glow: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -GLOW / 2,
+    marginLeft: -GLOW / 2,
+  },
 
   // ── Card ──
-  cardWrap: { width: '100%', maxWidth: 300, marginBottom: S.xxxl },
+  cardWrap: { width: '100%', maxWidth: 300, marginTop: PILL_OVERHANG, marginBottom: S.huge },
   card: {
     backgroundColor: c.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: c.line,
     borderRadius: R.sheet,
-    padding: S.lg,
     ...E.raised,
   },
+  // The header owns the card's top corners rather than the card clipping it:
+  // `overflow: 'hidden'` on the card would clip its own iOS shadow too.
   cardHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: S.md,
+    gap: S.sm,
+    paddingHorizontal: S.lg,
+    paddingVertical: S.md,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
   },
-  cardTitle: { ...T.label, color: c.ink },
-  cardChip: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.chip },
+  cardTitle: { ...T.label, color: c.inkInverse },
+  cardChip: {
+    backgroundColor: c.surface,
+    paddingHorizontal: S.sm,
+    paddingVertical: 3,
+    borderRadius: R.chip,
+  },
   cardChipText: { ...T.caption, color: c.ink },
+  // S.xl at the foot so the bottom pill's overlap lands in padding, not on the
+  // last row.
+  cardBody: { paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: S.xl },
 
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: S.sm },
   rowRuled: {
@@ -630,8 +712,8 @@ const makeSheet = (c: ThemeColors, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: S.md,
     ...E.raised,
   },
-  badgeTop: { top: -14, right: -10 },
-  badgeBottom: { bottom: -14, left: -10 },
+  badgeTop: { top: -PILL_OVERHANG, right: -10 },
+  badgeBottom: { bottom: -PILL_OVERHANG, left: -10 },
   badgeValue: { ...T.bodyStrong, color: c.ink },
   badgeLabel: { ...T.caption, color: c.inkMuted, marginTop: 1 },
 
@@ -664,27 +746,9 @@ const makeSheet = (c: ThemeColors, isDark: boolean) => StyleSheet.create({
     height: DOT,
     borderRadius: R.pill,
   },
-  cta: {
-    alignSelf: 'stretch',
-    height: 52,
-    borderRadius: R.control,
-    // Light keeps the ink-black slab it has always had. Dark does NOT invert it
-    // to a near-white one: a full-width white pill is the brightest thing on a
-    // dark screen and pulls the eye off the copy it is meant to follow. It gets
-    // the brand emerald instead — the same green the sign-in CTA uses, so the
-    // primary action looks like one action across the whole entry flow.
-    backgroundColor: isDark ? BRAND_GREEN : c.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaText: {
-    ...T.subhead,
-    color: isDark ? C.inkInverse : c.onAccent,
-  },
-  link: { paddingVertical: S.md },
+  // The sign-in half is the brand's text green: it is the link in the line.
+  link: { paddingTop: S.md, paddingBottom: S.sm },
   linkText: { ...T.body, color: c.inkMuted },
   linkSep: { color: c.disabled },
-  linkStrong: { ...T.bodyStrong, color: c.ink },
-  skipSlot: { height: 36, justifyContent: 'center' },
-  skipText: { ...T.body, color: c.inkMuted },
+  linkStrong: { ...T.bodyStrong, color: c.accentDeep },
 });

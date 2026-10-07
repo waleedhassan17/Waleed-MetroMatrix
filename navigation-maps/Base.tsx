@@ -1187,7 +1187,11 @@ export const AdminRoutes: ReadonlySet<BaseRouteName> = new Set<BaseRouteName>([
   BaseRouteNames.PlatformAnalytics,
 ]);
 
-export const RouteModules: Partial<Record<BaseRouteName, 'healthcare' | 'homeservice' | 'shopping' | 'admin'>> = {
+export const RouteModules: Partial<Record<BaseRouteName, 'brand' | 'healthcare' | 'homeservice' | 'shopping' | 'admin'>> = {
+  // The intro wears MetroMatrix's own emerald, before any vertical claims the app.
+  [BaseRouteNames.Splash]: 'brand',
+  [BaseRouteNames.Onboarding]: 'brand',
+
   // Customer
   [BaseRouteNames.HomeServiceLayout]: 'homeservice',
   [BaseRouteNames.ProvidersScreen]: 'homeservice',

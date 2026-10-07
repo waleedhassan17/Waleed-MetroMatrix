@@ -11,11 +11,6 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FAFAF9"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.waleed17.MetroMatrix",
@@ -101,6 +96,15 @@
     },
     "scheme": "metromatrix",
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-mark.png",
+          "imageWidth": 104,
+          "resizeMode": "contain",
+          "backgroundColor": "#FAFAF9"
+        }
+      ],
       "expo-web-browser",
       "@maplibre/maplibre-react-native",
       [

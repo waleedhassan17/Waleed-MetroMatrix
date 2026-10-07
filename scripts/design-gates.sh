@@ -19,9 +19,11 @@ cd "$(dirname "$0")/.."
 
 SCOPE=(
   components/ui
+  components/brand
   constants
   theme
   screens/user/homeservice
+  screens/authentication-screens/on-boarding
   screens/providers/homeservice
   screens/Shopping/Brand
   screens/providers/healthcare

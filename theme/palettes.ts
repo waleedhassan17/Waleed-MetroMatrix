@@ -22,7 +22,7 @@ import { C, DARK_C, ThemeMode } from '../constants/theme';
 import { B } from '../screens/Shopping/Brand/theme';
 import { AA_BODY, AA_LARGE, lift, mix, textOn, tint } from './contrast';
 
-export type ModuleName = 'neutral' | 'healthcare' | 'homeservice' | 'shopping' | 'admin';
+export type ModuleName = 'neutral' | 'brand' | 'healthcare' | 'homeservice' | 'shopping' | 'admin';
 
 export interface ModulePalette {
   /** Primary action, selected state, accent iconography. */
@@ -70,6 +70,43 @@ const neutral: ModulePalette = {
   // Nothing has claimed this part of the app yet, so the bar stays quiet.
   barTone: 'surface',
 };
+
+/**
+ * MetroMatrix itself — the emerald of the logo, worn by the entry flow (splash,
+ * onboarding) before any vertical claims the app.
+ *
+ * The app already speaks this colour: the hub wordmark and the customer sign-in
+ * button are emerald `#10B981`. But white on `#10B981` measures 2.54:1 and fails
+ * even the large-text bar, so the brand's FILL is two steps deeper — white on
+ * `#047857` is 5.48:1 — the same step admin takes off healthcare's blue.
+ *
+ * It sits next to home services' green on purpose: the logo is green, and so is
+ * the brand. What tells them apart is BRAND_GRADIENT below, which sweeps to the
+ * logo's teal where the home-service header stays emerald.
+ */
+const brand: ModulePalette = {
+  accent: '#047857',
+  accentDeep: '#065F46',
+  accentSoft: '#ECFDF5',
+  accentLine: '#A7F3D0',
+  onAccent: C.inkInverse,
+  barTone: 'surface',
+};
+
+/**
+ * The logo's emerald -> teal sweep, for the brand's one gradient moment (the
+ * overview card's header on onboarding). Both stops carry a 90%-white label at
+ * AA body (4.78 / 4.75), so it needs no `headerGradientStops` derivation.
+ */
+export const BRAND_GRADIENT: [string, string] = ['#047857', '#0F766E'];
+
+/**
+ * The brand as LIGHT — the glow the splash blooms behind the logo. The hub's
+ * own emerald, which cannot carry a white label but is exactly right as a halo:
+ * the deep fill at low alpha goes sage on warm paper, this stays fresh. Never
+ * text, never a fill under text.
+ */
+export const BRAND_GLOW: [string, string] = ['#10B981', '#14B8A6'];
 
 /** Clinical blue. Already consolidated in constants/HealthcareTheme.ts. */
 const healthcare: ModulePalette = {
@@ -126,6 +163,7 @@ const admin: ModulePalette = {
 
 export const MODULE_PALETTES: Record<ModuleName, ModulePalette> = {
   neutral,
+  brand,
   healthcare,
   homeservice,
   shopping,
@@ -174,6 +212,17 @@ const neutralDark: ModulePalette = {
   barTone: 'surface',
 };
 
+// The light emerald family, inverted as every dark palette is. Home services'
+// dark green is the same family for the same reason the light ones are close.
+const brandDark: ModulePalette = {
+  accent: '#34D399',
+  accentDeep: '#6EE7B7',
+  accentSoft: '#0F2C23',
+  accentLine: '#1E5546',
+  onAccent: textOn('#34D399'),
+  barTone: 'surface',
+};
+
 const healthcareDark: ModulePalette = {
   accent: '#6BA5FF',
   accentDeep: '#9CC4FF',
@@ -206,6 +255,7 @@ const adminDark: ModulePalette = { ...healthcareDark };
 
 export const MODULE_PALETTES_DARK: Record<ModuleName, ModulePalette> = {
   neutral: neutralDark,
+  brand: brandDark,
   healthcare: healthcareDark,
   homeservice: homeserviceDark,
   shopping: shoppingDark,

@@ -42,7 +42,7 @@ export {
   tint,
 } from './contrast';
 
-export { brandPalette, modulePalette, MODULE_PALETTES, MODULE_PALETTES_DARK } from './palettes';
+export { BRAND_GLOW, BRAND_GRADIENT, brandPalette, modulePalette, MODULE_PALETTES, MODULE_PALETTES_DARK } from './palettes';
 export type { ModuleName, ModulePalette } from './palettes';
 
 export { useResolvedMode } from './mode';

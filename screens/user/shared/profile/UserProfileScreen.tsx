@@ -167,6 +167,8 @@ const asProfileTab = (tab: string | undefined): ProfileTab => {
 /** Names the module block after the vertical, not after "Services". */
 const MODULE_SECTION_TITLE: Record<ModuleName, string> = {
   neutral: '',
+  // The intro's palette — a profile never renders under it.
+  brand: '',
   shopping: 'Shopping',
   healthcare: 'Healthcare',
   homeservice: 'Home Services',
