@@ -60,16 +60,12 @@ import {
   View,
 } from 'react-native';
 
-import {
-  setOnboardingStatus,
-  setSelectedRole,
-} from '../../../components/app-container/appContainerSlice';
+import { setOnboardingStatus } from '../../../components/app-container/appContainerSlice';
 import { AmbientGlow, BrandMark, BrandWordmark } from '../../../components/brand';
 import Button from '../../../components/ui/Button';
 import Screen from '../../../components/ui/Screen';
 import { darkShift } from '../../../constants/darkShift';
-import { useAppDispatch, useAppSelector } from '../../../hooks/useReduxHooks';
-import { resolveLandingRoute } from '../../../navigation-maps/landingRoute';
+import { useAppDispatch } from '../../../hooks/useReduxHooks';
 import useReducedMotion from '../../../hooks/useReducedMotion';
 import {
   BRAND_GLOW,
@@ -283,13 +279,6 @@ const Onboarding: React.FC = () => {
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
 
-  // The intro plays on every launch, so this screen — not AppContainer — is
-  // what stands between a returning session and its own home. `fetchMe` has
-  // already settled by the time the navigator mounted, so this state is final.
-  const currentUser = useAppSelector((state) => state.appContainer.currentUser);
-  const currentProvider = useAppSelector((state) => state.appContainer.currentProvider);
-  const userType = useAppSelector((state) => state.appContainer.userType);
-
   const [index, setIndex] = useState(0);
   // A horizontal list's items fill its height on native but not on web, where
   // `flex: 1` leaves each slide content-high and the slide's centring never
@@ -344,24 +333,20 @@ const Onboarding: React.FC = () => {
   );
 
   /**
-   * Persist first, then leave. Called by both "Get started" and Skip.
+   * Persist first, then leave. The ONE way out of the intro: "Get started",
+   * Skip and "Sign in" all call it, and it always opens RoleSelection.
    *
-   * A visitor with no session lands on RoleSelection — the first screen that
-   * actually asks them something. A signed-in session goes straight back to
-   * its own home: replaying the intro is not a sign-out.
+   * It used to send a stored session straight to its home, which meant a
+   * browser or phone that had ever signed in — including a stale admin
+   * `userType` — never showed RoleSelection again. The session is not lost:
+   * RoleSelection resumes it when the matching role is picked (see
+   * `resumeRouteFor` in navigation-maps/landingRoute.ts).
    */
   const finish = useCallback(async () => {
     await setOnboardingComplete(true);
     dispatch(setOnboardingStatus(true));
-    navigation.replace(
-      resolveLandingRoute({
-        userType,
-        hasUser: !!currentUser,
-        hasProvider: !!currentProvider,
-        providerType: currentProvider?.providerType,
-      })
-    );
-  }, [currentProvider, currentUser, dispatch, navigation, userType]);
+    navigation.replace('RoleSelection');
+  }, [dispatch, navigation]);
 
   const onPrimary = useCallback(() => {
     if (isLast) {
@@ -375,18 +360,6 @@ const Onboarding: React.FC = () => {
     // on the same value.
     setIndex(index + 1);
   }, [finish, index, isLast, reduced]);
-
-  // "I already have an account" is the customer path — providers reach their
-  // sign-in through RoleSelection. The role still has to be set before leaving:
-  // it is what puts `userType` at 'user', which `fetchMe` reads to decide which
-  // account the credentials belong to. It no longer has anything to do with
-  // where the next launch starts — that is always the intro now.
-  const onSignIn = useCallback(async () => {
-    await setOnboardingComplete(true);
-    dispatch(setOnboardingStatus(true));
-    dispatch(setSelectedRole('user'));
-    navigation.replace('SignIn');
-  }, [dispatch, navigation]);
 
   const renderSlide = useCallback(
     ({ item }: { item: Slide }) => (
@@ -507,7 +480,10 @@ const Onboarding: React.FC = () => {
         />
 
         <TouchableOpacity
-          onPress={onSignIn}
+          // Through RoleSelection like every other exit, not straight to the
+          // customer SignIn: an account can be a customer's or a provider's,
+          // and RoleSelection is what asks which before its sign-in opens.
+          onPress={() => void finish()}
           style={s.link}
           hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
           accessibilityRole="button"

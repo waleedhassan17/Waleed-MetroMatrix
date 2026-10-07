@@ -14,11 +14,13 @@ import {
 import { darkShift, type DarkShift } from '../../constants/darkShift';
 import { useTheme } from '../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { setUserRole, selectUserRole, selectIsRoleSelected, selectRoleError } from './roleSlice';
+import { useAppSelector } from '../../hooks/useReduxHooks';
+import { resumeRouteFor } from '../../navigation-maps/landingRoute';
 
 const { width, height } = Dimensions.get('window');
 const isAndroid = Platform.OS === 'android';
@@ -56,6 +58,12 @@ export default function RoleSelectionScreen() {
   const currentRole = useSelector(selectUserRole);
   const isRoleSelected = useSelector(selectIsRoleSelected);
   const roleError = useSelector(selectRoleError);
+
+  // The stored session, settled by `fetchMe` before the navigator mounted.
+  // Every launch now passes through this screen, so it is what resumes one.
+  const userType = useAppSelector((state) => state.appContainer.userType);
+  const currentUser = useAppSelector((state) => state.appContainer.currentUser);
+  const currentProvider = useAppSelector((state) => state.appContainer.currentProvider);
   
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -123,7 +131,20 @@ export default function RoleSelectionScreen() {
     
     // Dispatch role selection to Redux store
     dispatch(setUserRole(role));
-    
+
+    // Already signed in as this role: resume it rather than asking for
+    // credentials again. Replace, so Back does not return here.
+    const resume = resumeRouteFor(role, {
+      userType,
+      hasUser: !!currentUser,
+      hasProvider: !!currentProvider,
+      providerType: currentProvider?.providerType,
+    });
+    if (resume) {
+      navigation.dispatch(StackActions.replace(resume));
+      return;
+    }
+
     // Navigate to the correct next screen
     if (role === 'provider') {
       navigation.navigate('ProviderSelection');

@@ -1,5 +1,11 @@
 // ============================================================================
-// Where a launch lands, once the intro is done
+// Where a signed-in session resumes
+//
+// The intro hands every launch to RoleSelection, signed in or not — the user
+// asked for RoleSelection after onboarding without exception. A session is not
+// thrown away for that: when the role picked on RoleSelection matches the
+// stored session, `resumeRouteFor` sends it to its home instead of asking for
+// credentials again. The history below is why this lives in its own file.
 //
 // WHY THIS IS NOT IN appContainer.tsx ANY MORE
 // --------------------------------------------
@@ -64,4 +70,26 @@ export const resolveLandingRoute = ({
   }
   if (userType === 'user' && hasUser) return 'UserHome';
   return 'RoleSelection';
+};
+
+/**
+ * Where a role picked on RoleSelection should go when a session is already
+ * stored for it, or null to carry on to that role's sign-in.
+ *
+ * "User" is also the admin's door — the admin console signs in through the
+ * customer SignIn — so a stored admin session resumes from it, and AdminGate
+ * still verifies that session on the way in. A session for the OTHER role does
+ * not resume: a signed-in customer who picks "Service provider" is asking for
+ * the provider sign-in.
+ */
+export const resumeRouteFor = (
+  role: 'user' | 'provider',
+  state: LandingState,
+): Exclude<LandingRoute, 'RoleSelection'> | null => {
+  const landing = resolveLandingRoute(state);
+  if (role === 'user' && (landing === 'UserHome' || landing === 'AdminHome')) return landing;
+  if (role === 'provider' && (landing === 'HomeServiceProviderDashboard' || landing === 'DoctorStack')) {
+    return landing;
+  }
+  return null;
 };

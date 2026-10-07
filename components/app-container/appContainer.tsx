@@ -193,8 +193,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({ onLayout }) => {
   }
 
   // Every launch opens on the intro. Splash replaces itself with Onboarding,
-  // and Onboarding hands off to `resolveLandingRoute` — so where the session
-  // belongs is still decided from exactly this state, just one screen later.
+  // Onboarding always hands off to RoleSelection, and RoleSelection resumes a
+  // stored session when its role is picked (`resumeRouteFor`) — so where the
+  // session belongs is still decided from exactly this state. `willLandOn` is
+  // where that session would resume.
   //
   // This used to branch on `onboardingComplete`, which Onboarding itself sets
   // to true on the way out: run one saw the intro and no run after it ever
