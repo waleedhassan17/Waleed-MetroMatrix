@@ -17,6 +17,7 @@
 
 import { Platform } from 'react-native';
 
+import { tint } from '../theme/contrast';
 import { darkShift } from './darkShift';
 import { type ThemeMode } from './theme';
 
@@ -248,3 +249,109 @@ export const STATUS_STYLE: Record<
 
 export const STATUS_BAR_HEIGHT_ANDROID =
   Platform.OS === 'android' ? 24 : 0;
+
+// ── Health home (the patient's landing page) ─────────────────────────────────
+//
+// The photo-led home: a bento of soft cards whose photos fade into their own
+// ground, photo tiles, staff banners, a specialty grid in categorical colours,
+// and the city's top doctors on deep-blue cards. Raw values live here (this
+// file is the token source the design gates exempt); the components under
+// components/Healthcare/home read them and nothing else.
+
+export const HC_HOME = {
+  /** Bento: the tall card equals two short ones and the gap between them. */
+  careTall: 268,
+  careShort: 128,
+  photoTileWidth: 112,
+  photoTileImage: 84,
+  spotlightWidth: 272,
+  railCardWidth: 280,
+  /** A specialty or concern's round icon well. */
+  well: 52,
+  /** The arrow disc on a care card. */
+  arrowWell: 32,
+  /** The white ring round a portrait on a blue card. */
+  portraitRing: 2,
+  bannerAspect: 2,
+  pageDot: 8,
+  pageDotActive: 24,
+  touch: 48,
+  /** Banners advance this often, and hold still while touched. */
+  bannerInterval: 6000,
+  imageFade: 150,
+  /** A video visit opens this long before it starts. */
+  joinEarlyMinutes: 15,
+} as const;
+
+/**
+ * Type for the home's own roles. Section heads are the FYP's 19/800, the same
+ * weight as the header, so the page reads as one design; the rest follow the
+ * healthcare screens' sizes.
+ */
+export const HC_TYPE = {
+  sectionTitle: { fontSize: 19, lineHeight: 24, fontWeight: '800', letterSpacing: -0.4 },
+  bannerTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', letterSpacing: -0.3 },
+  cardTitle: { fontSize: 16, lineHeight: 21, fontWeight: '700', letterSpacing: -0.2 },
+  body: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  small: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  chip: { fontSize: 12, lineHeight: 16, fontWeight: '700' },
+  link: { fontSize: 13, lineHeight: 18, fontWeight: '700' },
+} as const;
+
+/** Words and wells painted on the deep-blue cards (the same in both modes). */
+export const HC_ON_BLUE = {
+  ink: '#FFFFFF',
+  soft: 'rgba(255, 255, 255, 0.82)',
+  tint: 'rgba(255, 255, 255, 0.18)',
+  /** The top doctors' cards, and the next visit's. White text clears AA on both. */
+  spotlight: '#1857C0',
+  nextVisit: '#1E6AE1',
+  /** Photo scrims under white banner copy. */
+  scrimFaint: 'rgba(15, 23, 42, 0.05)',
+  scrimMid: 'rgba(15, 23, 42, 0.35)',
+  scrimDeep: 'rgba(15, 23, 42, 0.78)',
+} as const;
+
+export type CareTint = 'video' | 'clinic' | 'today';
+
+const CARE_TINTS: Record<CareTint, { bg: string; fg: string }> = {
+  video: { bg: '#E6F0FF', fg: '#1857C0' },
+  clinic: { bg: '#FDEEE6', fg: '#9A3412' },
+  today: { bg: '#E3F6EE', fg: '#047857' },
+};
+
+/**
+ * The bento's soft grounds. `fade` is the ground at zero opacity, for the
+ * scrim that runs the ground into the photo. Dark mode derives each ground
+ * from the dark surface, like every other tinted well here.
+ */
+export const makeCareTints = (mode: ThemeMode): Record<CareTint, { bg: string; fade: string; fg: string }> => {
+  const { hue, ground } = darkShift(mode);
+  const out = {} as Record<CareTint, { bg: string; fade: string; fg: string }>;
+  (Object.keys(CARE_TINTS) as CareTint[]).forEach((k) => {
+    const bg = ground(CARE_TINTS[k].bg, CARE_TINTS[k].fg);
+    out[k] = { bg, fade: tint(bg, 0), fg: hue(CARE_TINTS[k].fg) };
+  });
+  return out;
+};
+
+/**
+ * Specialty wells: a categorical colour per tile (cycled), so a grid of eight
+ * reads as eight things at a glance. Each glyph clears 3:1 on its ground.
+ */
+const SPECIALTY_TINTS: { fg: string; bg: string }[] = [
+  { fg: '#1857C0', bg: '#E6F0FF' },
+  { fg: '#BE185D', bg: '#FCE7F3' },
+  { fg: '#7C3AED', bg: '#EDE9FE' },
+  { fg: '#B45309', bg: '#FEF3C7' },
+  { fg: '#B91C1C', bg: '#FEE2E2' },
+  { fg: '#047857', bg: '#D1FAE5' },
+  { fg: '#0E7490', bg: '#CFFAFE' },
+  { fg: '#4338CA', bg: '#E0E7FF' },
+];
+
+export const makeSpecialtyTints = (mode: ThemeMode): { fg: string; bg: string }[] => {
+  const { hue, ground } = darkShift(mode);
+  return SPECIALTY_TINTS.map((t) => ({ fg: hue(t.fg), bg: ground(t.bg, t.fg) }));
+};

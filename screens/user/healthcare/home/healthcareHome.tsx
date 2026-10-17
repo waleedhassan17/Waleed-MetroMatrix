@@ -1,3 +1,17 @@
+// ═══════════════════════════════════════════════════════
+// Healthcare home — the patient's landing page in the Health module
+// ═══════════════════════════════════════════════════════
+// The header is the FYP's own and stays exactly as it was: the clinical-blue
+// gradient, the way back to the module chooser, "Find Your Doctor", the
+// search bar riding its lower edge, and the white title that fades in on
+// scroll. Under it the page is photo-led, top to bottom: the wallet; "how
+// can we help you today?" (the two ways to be seen, and who is free today);
+// the next visit and its one action; Health's own services as photo tiles;
+// staff banners; the specialty grid; the city's top doctors; doctors free
+// today; the concerns patients name; why MetroMatrix Health; and, quietly
+// last, the emergency line. Every photo is licensed (assets/images/
+// healthcare/CREDITS.md). The page comes from one call, GET /home.
+
 import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
@@ -7,34 +21,60 @@ import {
   StatusBar,
   TouchableOpacity,
   TextInput,
-  FlatList,
   RefreshControl,
-  Dimensions,
   Animated,
   Platform,
 } from 'react-native';
 import { darkShift, type DarkShift } from '../../../../constants/darkShift';
 import { type ThemeMode } from '../../../../constants/theme';
 import { barStyleOn, useTheme } from '../../../../theme';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BackButton } from '../../../../components/ui';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { ActionSheet, BackButton, Skeleton } from '../../../../components/ui';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { fetchHomeData, clearError } from './healthcareHomeSlice';
-import type { HealthcareHomeState } from './healthcareHomeSlice';
+import { fetchHomeData, clearError, setCityPicker, selectHealthcareHome } from './healthcareHomeSlice';
 import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
-import { fromLocalISODate } from '../../../../utils/date/localDate';
 import { makeColors, Spacing, type ColorType } from '../../../../constants/Colors';
 import { Typography } from '../../../../constants/Fonts';
-import type { Doctor, Specialty } from '../../../../models/healthcare/types';
-import DoctorCard from '../../../../components/Healthcare/DoctorCard';
-import RecommendedDoctors from '../../../../components/Healthcare/RecommendedDoctors';
+import {
+  HC_HOME,
+  HC_TYPE,
+  HCRadius,
+  HCShadow,
+  HCSpace,
+  makeHC,
+  makeSpecialtyTints,
+  type HCPalette,
+} from '../../../../constants/HealthcareTheme';
+import type { Doctor, DoctorListPreset, HealthcareBanner, HealthConcern, Specialty } from '../../../../models/healthcare/types';
 import MiniWalletCard from '../../../../components/MiniWalletCard/MiniWalletCard';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SPECIALTY_CARD_WIDTH = 88;
-const DOCTOR_CARD_HEIGHT = 140;
+import {
+  CareCard,
+  CityChip,
+  ConcernTile,
+  DoctorRailCard,
+  DoctorSpotlightCard,
+  EmergencyStrip,
+  HEALTH_PHOTOS,
+  HomeSection,
+  PHOTO_FOCUS,
+  NextVisitCard,
+  PhotoBannerCarousel,
+  PhotoTile,
+  QuickRow,
+  SpecialtyGridTile,
+  TrustList,
+  type HealthPhoto,
+} from '../../../../components/Healthcare/home';
+import {
+  bannerCta,
+  bannerRoute,
+  homeSpecialties,
+  nextVisitAction,
+  specialtyIcon,
+  visitSoonLabel,
+} from '../../../../utils/healthcare/homeDisplay';
 
 // ── Theme Colors ────────────────────────────
 
@@ -56,174 +96,19 @@ const makeTHEME = (mode: ThemeMode) => {
   },
   };
 };
-
-// ── Specialty Icon Map ──────────────────────
-
-// Gradients per specialty. A function of the mode: a ramp tuned for a white
-// page is a lamp on a dark one, so `grad` walks it down toward the surface.
-const makeSpecialtyIcons = (
-  sh: DarkShift,
-): Record<string, { icon: string; gradient: string[] }> => ({
-  'stethoscope': { icon: 'stethoscope', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) },
-  'heart-pulse': { icon: 'heart-pulse', gradient: sh.grad(['#EF4444', '#DC2626']) },
-  'hand': { icon: 'hand-heart', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) },
-  'bone': { icon: 'bone', gradient: sh.grad(['#5A9FFF', '#1E6AE1']) },
-  'baby': { icon: 'baby-face-outline', gradient: sh.grad(['#5A9FFF', '#2A7FFF']) },
-  'smile': { icon: 'emoticon-happy-outline', gradient: sh.grad(['#10B981', '#059669']) },
-  'ear': { icon: 'ear-hearing', gradient: sh.grad(['#06B6D4', '#0891B2']) },
-  'brain': { icon: 'brain', gradient: sh.grad(['#1857C0', '#0D4299']) },
-});
-
-const getSpecialtyConfig = (icon: string, sh: DarkShift) => {
-  const icons = makeSpecialtyIcons(sh);
-  return icons[icon] || { icon: 'stethoscope', gradient: sh.grad(['#2A7FFF', '#1E6AE1']) };
-};
-
-// ── Quick Action Data ───────────────────────
-
-// The tiles' pale grounds are the thing that reads as white plates on a dark
-// page, so the table varies with the mode like every other palette here.
-const makeQuickActions = (sh: DarkShift) => [
-  {
-    id: 'appointments',
-    label: 'Appointments',
-    icon: 'clipboard-list-outline',
-    route: HealthcareRouteNames.MyAppointments,
-    color: sh.hue('#2A7FFF'),
-    bg: sh.ground('#EAF3FF', '#2A7FFF'),
-  },
-  {
-    id: 'records',
-    label: 'Records',
-    icon: 'file-document-outline',
-    route: HealthcareRouteNames.HealthRecords,
-    color: sh.hue('#10B981'),
-    bg: sh.ground('#ECFDF5', '#10B981'),
-  },
-  {
-    id: 'emergency',
-    label: 'Emergency',
-    icon: 'ambulance',
-    route: HealthcareRouteNames.Emergency,
-    color: sh.hue('#EF4444'),
-    bg: sh.ground('#FEF2F2', '#EF4444'),
-  },
-  {
-    id: 'prescriptions',
-    label: 'Prescriptions',
-    icon: 'pill',
-    route: HealthcareRouteNames.MyPrescriptions,
-    color: sh.hue('#8B5CF6'),
-    bg: sh.ground('#EDE9FE', '#8B5CF6'),
-  },
-  {
-    id: 'symptom-checker',
-    label: 'Symptom Check',
-    icon: 'stethoscope',
-    route: HealthcareRouteNames.SymptomChecker,
-    color: sh.hue('#F59E0B'),
-    bg: sh.ground('#FEF3C7', '#F59E0B'),
-  },
-  {
-    // Heart rate / blood pressure — from a Bluetooth monitor or typed in.
-    id: 'vitals',
-    label: 'Vitals',
-    icon: 'heart-pulse',
-    route: HealthcareRouteNames.Vitals,
-    color: sh.hue('#E11D48'),
-    bg: sh.ground('#FFE4E6', '#E11D48'),
-  },
+// Health's own services, as photo tiles (the emergency tile's name is red).
+const TILES: { key: string; label: string; photo: HealthPhoto; route: string; tone?: 'danger' }[] = [
+  { key: 'specialties', label: 'Specialties', photo: 'specialties', route: HealthcareRouteNames.SpecialtyList },
+  { key: 'records', label: 'Health records', photo: 'records', route: HealthcareRouteNames.HealthRecords },
+  { key: 'prescriptions', label: 'Prescriptions', photo: 'prescriptions', route: HealthcareRouteNames.MyPrescriptions },
+  { key: 'symptoms', label: 'Symptom checker', photo: 'symptoms', route: HealthcareRouteNames.SymptomChecker },
+  { key: 'vitals', label: 'Vitals', photo: 'vitals', route: HealthcareRouteNames.Vitals },
+  { key: 'emergency', label: 'Emergency', photo: 'emergency', route: HealthcareRouteNames.Emergency, tone: 'danger' },
 ];
 
-// ── Skeleton Components ─────────────────────
-
-const SkeletonBox: React.FC<{
-  width: number | string;
-  height: number;
-  borderRadius?: number;
-  style?: any;
-}> = ({ width, height, borderRadius = 8, style }) => {
-  const animatedValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, []);
-
-  const opacity = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width,
-          height,
-          borderRadius,
-          backgroundColor: '#E5E7EB',
-          opacity,
-        },
-        style,
-      ]}
-    />
-  );
-};
-
-const SpecialtyCardSkeleton: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const Colors = useMemo(() => makeColors(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
-  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
-
-  return (
-  <View style={styles.specialtyCard}>
-    <SkeletonBox width={60} height={60} borderRadius={20} />
-    <SkeletonBox width={60} height={12} style={{ marginTop: 10 }} />
-    <SkeletonBox width={45} height={10} style={{ marginTop: 6 }} />
-  </View>
-  );
-};
-
-const DoctorCardSkeleton: React.FC = () => {
-  const { mode } = useTheme();
-  const sh = useMemo(() => darkShift(mode), [mode]);
-  const THEME = useMemo(() => makeTHEME(mode), [mode]);
-  const Colors = useMemo(() => makeColors(mode), [mode]);
-  const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
-  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
-
-  return (
-  <View style={styles.doctorCard}>
-    <SkeletonBox width={64} height={64} borderRadius={20} />
-    <View style={{ flex: 1, marginLeft: 16 }}>
-      <SkeletonBox width="70%" height={16} />
-      <SkeletonBox width="50%" height={12} style={{ marginTop: 8 }} />
-      <SkeletonBox width="40%" height={10} style={{ marginTop: 8 }} />
-    </View>
-    <View style={{ alignItems: 'flex-end' }}>
-      <SkeletonBox width={60} height={24} borderRadius={12} />
-    </View>
-  </View>
-  );
-};
+const GRID_COLUMNS = 4;
+/** The next visit's countdown ("Starts in 12 min") refreshes this often. */
+const CLOCK_TICK = 30 * 1000;
 
 // ── Main Component ──────────────────────────
 
@@ -233,51 +118,51 @@ const HealthcareHomeScreen: React.FC = () => {
   const THEME = useMemo(() => makeTHEME(mode), [mode]);
   const Colors = useMemo(() => makeColors(mode), [mode]);
   const styles = useMemo(() => makeStyles(THEME, sh, Colors), [THEME, sh, Colors]);
-  const QUICK_ACTIONS = useMemo(() => makeQuickActions(sh), [sh]);
+  const HC = useMemo(() => makeHC(mode), [mode]);
+  const body = useMemo(() => makeBodyStyles(HC), [HC]);
+  const tints = useMemo(() => makeSpecialtyTints(mode), [mode]);
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
-  const { featuredDoctors, specialties, nextAppointment, stats, loading, error } = useAppSelector(
-    (state) => state.healthcareHome
-  ) as HealthcareHomeState;
+  const { home, loading, error, cityPicker } = useAppSelector(selectHealthcareHome);
 
   const [refreshing, setRefreshing] = React.useState(false);
   const [searchText, setSearchText] = React.useState('');
   const [searchFocused, setSearchFocused] = React.useState(false);
+  const [now, setNow] = React.useState(() => Date.now());
 
   // Animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const staggerAnims = useRef(
-    QUICK_ACTIONS.map(() => new Animated.Value(0))
-  ).current;
 
   // Initial load animation
   useEffect(() => {
-    dispatch(fetchHomeData());
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
 
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.stagger(
-        80,
-        staggerAnims.map((anim) =>
-          Animated.spring(anim, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          })
-        )
-      ),
-    ]).start();
-  }, [dispatch]);
+  // Every visit to the tab: reuse a copy younger than a minute, else refetch —
+  // so a visit booked a moment ago is the next visit when the patient returns.
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchHomeData());
+    }, [dispatch])
+  );
+
+  // The countdown on the next visit ("Starts in 12 min", "Join") moves on its own.
+  const upcoming = home?.upcoming ?? null;
+  useEffect(() => {
+    if (!upcoming) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), CLOCK_TICK);
+    return () => clearInterval(t);
+  }, [upcoming]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await dispatch(fetchHomeData());
+    await dispatch(fetchHomeData({ force: true }));
     setRefreshing(false);
   }, [dispatch]);
 
@@ -332,164 +217,56 @@ const HealthcareHomeScreen: React.FC = () => {
     });
   };
 
-  const handleSpecialtyPress = (specialty: Specialty) => {
-    navigation.navigate(HealthcareRouteNames.DoctorList, {
-      specialtyId: specialty.specialtyId,
-      specialtyName: specialty.name,
-    });
+  const city = home?.city ?? 'Lahore';
+
+  // Every home link into the doctor list carries its own filters (or none), so
+  // nothing left from an earlier visit narrows it.
+  const openDoctors = (specialtyId: string, specialtyName: string, filter: DoctorListPreset = {}) =>
+    navigation.navigate(HealthcareRouteNames.DoctorList, { specialtyId, specialtyName, filter });
+
+  const openVideo = () => openDoctors('', 'Video consultation', { consultationType: 'video' });
+  const openClinic = () => openDoctors('', `Clinic visits in ${city}`, { consultationType: 'in-clinic', city });
+  const openToday = () => openDoctors('', `Available today in ${city}`, { availability: 'today', city });
+  const openSpecialty = (s: Specialty) => openDoctors(s.specialtyId, s.name);
+  const openConcern = (c: HealthConcern) => openDoctors(c.specialtyId, c.specialtyName || c.name);
+  const openDoctor = (d: Doctor) => navigation.navigate(HealthcareRouteNames.DoctorDetail, { doctorId: d.doctorId });
+  const openAppointments = () => navigation.navigate(HealthcareRouteNames.MyAppointments);
+
+  const openBanner = (b: HealthcareBanner) => {
+    const route = bannerRoute(b);
+    if (route) navigation.navigate(route.name, route.params);
   };
 
-  const handleDoctorPress = (doctor: Doctor) => {
-    navigation.navigate(HealthcareRouteNames.DoctorDetail, {
-      doctorId: doctor.doctorId,
-    });
+  const action = upcoming ? nextVisitAction(upcoming, now, HC_HOME.joinEarlyMinutes) : null;
+  const onVisitAction = () => {
+    if (!upcoming || !action) return;
+    if (action.kind === 'join') {
+      // The same unified call screen the appointment's own Join opens.
+      navigation.navigate('HealthcareConsultCall', {
+        roomId: upcoming.appointmentId,
+        appointmentId: upcoming.appointmentId,
+        roomType: 'healthcare',
+        media: 'video',
+        counterpartName: upcoming.doctorName,
+      });
+    } else {
+      navigation.navigate(HealthcareRouteNames.AppointmentPayment, { appointmentId: upcoming.appointmentId });
+    }
   };
 
-  const handleQuickAction = (route: string) => {
-    navigation.navigate(route as never);
+  const chooseCity = (next: string) => {
+    if (next !== city) dispatch(fetchHomeData({ city: next, force: true }));
   };
 
-  // The "Your health" tiles. Same destinations as the Quick Actions above, so
-  // a count and the shortcut to it lead to exactly the same screen.
-  const handleViewAppointments = () => {
-    navigation.navigate(HealthcareRouteNames.MyAppointments as never);
-  };
-
-  const handleViewRecords = () => {
-    navigation.navigate(HealthcareRouteNames.HealthRecords as never);
-  };
-
-  const handleViewPrescriptions = () => {
-    navigation.navigate(HealthcareRouteNames.MyPrescriptions as never);
-  };
-
-  const handleViewAllSpecialties = () => {
-    navigation.navigate(HealthcareRouteNames.SpecialtyList as never);
-  };
-
-  const handleViewAllDoctors = () => {
-    navigation.navigate(HealthcareRouteNames.DoctorList as never);
-  };
-
-  const handleVideoBanner = () => {
-    navigation.navigate(HealthcareRouteNames.DoctorList, {
-      specialtyId: '',
-      specialtyName: 'Video Consultation',
-      isVideoOnly: true,
-    });
-  };
-
-  // ── Specialty Card ──────────────────────────
-
-  const renderSpecialtyCard = useCallback(
-    ({ item, index }: { item: Specialty; index: number }) => {
-      const config = getSpecialtyConfig(item.icon, sh);
-
-      return (
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
-          }}
-        >
-          <TouchableOpacity
-            style={styles.specialtyCard}
-            onPress={() => handleSpecialtyPress(item)}
-            activeOpacity={0.7}
-          >
-            <LinearGradient
-              colors={config.gradient as any}
-              style={styles.specialtyIconContainer}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <MaterialCommunityIcons
-                name={config.icon as any}
-                size={26}
-                color="#FFFFFF"
-              />
-            </LinearGradient>
-            <Text style={styles.specialtyName} numberOfLines={2}>
-              {item.name}
-            </Text>
-            <View style={styles.specialtyCountBadge}>
-              <Text style={styles.specialtyCount}>{item.doctorCount}</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
-    },
-    [fadeAnim]
-  );
-
-  // ── Doctor Card ─────────────────────────────
-
-  const renderDoctorCard = useCallback(
-    ({ item }: { item: Doctor; index: number }) => (
-      <Animated.View
-        style={{
-          marginHorizontal: 20,
-          opacity: fadeAnim,
-          transform: [
-            {
-              translateX: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [50, 0],
-              }),
-            },
-          ],
-        }}
-      >
-        <DoctorCard doctor={item} onPress={handleDoctorPress} onBook={handleDoctorPress} />
-      </Animated.View>
-    ),
-    [fadeAnim]
-  );
-
-  // ── Quick Action Card ───────────────────────
-
-  const renderQuickAction = (action: typeof QUICK_ACTIONS[0], index: number) => {
-    const scale = staggerAnims[index].interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.8, 1],
-    });
-
-    return (
-      <Animated.View
-        key={action.id}
-        style={{
-          opacity: staggerAnims[index],
-          transform: [{ scale }],
-        }}
-      >
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => handleQuickAction(action.route)}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.quickActionIconBg, { backgroundColor: action.bg }]}>
-            <MaterialCommunityIcons
-              name={action.icon as any}
-              size={24}
-              color={action.color}
-            />
-          </View>
-          <Text style={styles.quickActionLabel}>{action.label}</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
+  const grid = homeSpecialties(home?.specialties ?? []);
+  const gridRows = [grid.slice(0, GRID_COLUMNS), grid.slice(GRID_COLUMNS, GRID_COLUMNS * 2)].filter((r) => r.length);
+  const tintAt = (i: number) => tints[i % tints.length];
+  const cities = home?.cities ?? [];
+  const canChangeCity = cities.length > 1 || (cities.length === 1 && cities[0].toLowerCase() !== city.toLowerCase());
 
   // ── Error State ─────────────────────────────
 
-  if (error && !loading && specialties.length === 0) {
+  if (error && !loading && !home) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={Colors.surface} />
@@ -508,7 +285,7 @@ const HealthcareHomeScreen: React.FC = () => {
             style={styles.retryButton}
             onPress={() => {
               dispatch(clearError());
-              dispatch(fetchHomeData());
+              dispatch(fetchHomeData({ force: true }));
             }}
             activeOpacity={0.8}
           >
@@ -641,306 +418,182 @@ const HealthcareHomeScreen: React.FC = () => {
         {/* Wallet — one component, one data source, everywhere (W2 Part 4) */}
         <MiniWalletCard onPress={() => (navigation as any).navigate('WalletScreen')} />
 
-        {/* ── Quick Actions ──────────────────── */}
-        <View style={styles.quickActionsContainer}>
-          {/* Five cards were laid out as a flex:1 row, so each one sized to
-              whatever space was left — the labels are different lengths, so
-              the cards came out different widths and the last one ran off the
-              screen with no way to reach it. Fixed-width cards in a horizontal
-              scroller keep them identical and all reachable. */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickActionsGrid}
-          >
-            {QUICK_ACTIONS.map((action, index) => renderQuickAction(action, index))}
+        <View style={body.page}>
+          {/* ── How can we help you today? ─────── */}
+          <View style={body.block}>
+            <HomeSection title="How can we help you today?" />
+            <View style={body.bento}>
+              <View style={body.bentoColumn}>
+                <CareCard
+                  tall
+                  tint="video"
+                  title="Video consultation"
+                  body="See a doctor from home"
+                  image={HEALTH_PHOTOS.video}
+                  focus={PHOTO_FOCUS.video}
+                  onPress={openVideo}
+                />
+              </View>
+              <View style={body.bentoColumn}>
+                <CareCard
+                  tint="clinic"
+                  title="Clinic visit"
+                  body="Book a confirmed time"
+                  image={HEALTH_PHOTOS.clinic}
+                  focus={PHOTO_FOCUS.clinic}
+                  onPress={openClinic}
+                />
+                <CareCard
+                  tint="today"
+                  title="Available today"
+                  body="Doctors free now"
+                  image={HEALTH_PHOTOS.available}
+                  focus={PHOTO_FOCUS.available}
+                  onPress={openToday}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* ── Your next visit ────────────────── */}
+          {!home ? (
+            <Skeleton height={HC_HOME.careShort} radius={HCRadius.lg} />
+          ) : upcoming ? (
+            <View style={body.block}>
+              <HomeSection title="Your next visit" onSeeAll={openAppointments} seeAllLabel="All appointments" />
+              <NextVisitCard
+                appointment={upcoming}
+                soon={visitSoonLabel(upcoming, now)}
+                action={action}
+                onPress={() => navigation.navigate(HealthcareRouteNames.AppointmentDetail, { appointmentId: upcoming.appointmentId })}
+                onAction={onVisitAction}
+              />
+            </View>
+          ) : (
+            <QuickRow icon="calendar-outline" title="My appointments" body="Upcoming and past visits" onPress={openAppointments} />
+          )}
+
+          {/* ── Health's own services ──────────── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={body.rail} contentContainerStyle={body.railContent}>
+            {TILES.map((t) => (
+              <PhotoTile
+                key={t.key}
+                label={t.label}
+                image={HEALTH_PHOTOS[t.photo]}
+                focus={PHOTO_FOCUS[t.photo]}
+                tone={t.tone}
+                onPress={() => navigation.navigate(t.route)}
+              />
+            ))}
           </ScrollView>
-        </View>
 
-        {/* ── Your Health At A Glance ───────────
-            This was a "trust bar" reading 50,000+ Patients, 200+ Doctors and a
-            4.8 Rating — three figures nobody had measured, stated as fact to
-            every patient. These are this patient's own counts, all of them
-            real, and each one goes somewhere. */}
-        <View style={styles.trustBar}>
-          <TouchableOpacity
-            style={styles.trustItem}
-            onPress={handleViewAppointments}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${stats.upcoming} upcoming appointments`}
-          >
-            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#EAF3FF', '#2A7FFF') }]}>
-              <Ionicons name="calendar" size={16} color="#2A7FFF" />
+          {/* ── Staff banners ──────────────────── */}
+          {home?.banners.length ? (
+            <View style={body.bleed}>
+              <PhotoBannerCarousel banners={home.banners} onOpen={openBanner} cta={bannerCta} />
             </View>
-            <View style={styles.trustText}>
-              <Text style={styles.trustValue}>{stats.upcoming}</Text>
-              <Text style={styles.trustLabel} numberOfLines={1}>Upcoming</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.trustDivider} />
-          <TouchableOpacity
-            style={styles.trustItem}
-            onPress={handleViewRecords}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${stats.records} health records`}
-          >
-            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#ECFDF5', '#10B981') }]}>
-              <Ionicons name="document-text" size={16} color="#10B981" />
-            </View>
-            <View style={styles.trustText}>
-              <Text style={styles.trustValue}>{stats.records}</Text>
-              <Text style={styles.trustLabel} numberOfLines={1}>Records</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.trustDivider} />
-          <TouchableOpacity
-            style={styles.trustItem}
-            onPress={handleViewPrescriptions}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${stats.prescriptions} prescriptions`}
-          >
-            <View style={[styles.trustIconBg, { backgroundColor: sh.ground('#FFFBEB', '#F59E0B') }]}>
-              <MaterialCommunityIcons name="pill" size={16} color="#F59E0B" />
-            </View>
-            <View style={styles.trustText}>
-              <Text style={styles.trustValue}>{stats.prescriptions}</Text>
-              <Text style={styles.trustLabel} numberOfLines={1}>Prescriptions</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+          ) : null}
 
-        {/* ── Upcoming Appointment Card ────────── */}
-        {nextAppointment && (
-          <TouchableOpacity
-            style={styles.upcomingCard}
-            activeOpacity={0.9}
-            onPress={() =>
-              navigation.navigate(HealthcareRouteNames.AppointmentDetail, {
-                appointmentId: nextAppointment.appointmentId,
-              })
-            }
-          >
-            <LinearGradient
-              colors={nextAppointment.type === 'video' ? ['#5A9FFF', '#1E6AE1'] : ['#2A7FFF', '#1857C0']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.upcomingGradient}
-            >
-              <View style={styles.upcomingHeader}>
-                <View style={styles.upcomingBadge}>
-                  <Ionicons
-                    name={nextAppointment.type === 'video' ? 'videocam' : 'location'}
-                    size={12}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.upcomingBadgeText}>
-                    {nextAppointment.type === 'video' ? 'Video Call' : 'In-Clinic'}
-                  </Text>
-                </View>
-                <Text style={styles.upcomingDate}>
-                  {fromLocalISODate(nextAppointment.date).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </Text>
-              </View>
-              <Text style={styles.upcomingTitle}>Upcoming Appointment</Text>
-              <View style={styles.upcomingTimeRow}>
-                <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.upcomingTime}>
-                  {nextAppointment.timeSlot.start} – {nextAppointment.timeSlot.end}
-                </Text>
-              </View>
-              <View style={styles.upcomingFooter}>
-                <Text style={styles.upcomingViewText}>View Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        {/* ── Specialties Section ─────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Medical Specialties</Text>
-              <Text style={styles.sectionSubtitle}>
-                {specialties.length} specialties available
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.seeAllButton}
-              onPress={handleViewAllSpecialties}
-            >
-              <Text style={styles.seeAllText}>See All</Text>
-              <Ionicons name="chevron-forward" size={16} color={THEME.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {loading && specialties.length === 0 ? (
-            <FlatList
-              data={[1, 2, 3, 4, 5]}
-              renderItem={() => <SpecialtyCardSkeleton />}
-              keyExtractor={(item) => `skeleton-${item}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.specialtiesList}
-            />
-          ) : (
-            <FlatList
-              data={specialties}
-              renderItem={renderSpecialtyCard}
-              keyExtractor={(item) => item.specialtyId}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.specialtiesList}
-            />
-          )}
-        </View>
-
-        {/* ── Video Consultation Banner ───────── */}
-        <TouchableOpacity
-          style={styles.bannerContainer}
-          onPress={handleVideoBanner}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={['#1E6AE1', '#2A7FFF', '#5A9FFF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.bannerGradient}
-          >
-            <View style={styles.bannerContent}>
-              <View style={styles.bannerTextGroup}>
-                <View style={styles.bannerBadge}>
-                  <MaterialCommunityIcons name="video" size={12} color="#FFFFFF" />
-                  <Text style={styles.bannerBadgeText}>VIDEO CONSULT</Text>
-                </View>
-                <Text style={styles.bannerTitle}>Consult from Home</Text>
-                <Text style={styles.bannerSubtitle}>
-                  Connect with verified doctors instantly via secure video call
-                </Text>
-                <View style={styles.bannerFeatures}>
-                  <View style={styles.bannerFeature}>
-                    <Ionicons name="checkmark-circle" size={14} color="#A5F3FC" />
-                    <Text style={styles.bannerFeatureText}>24/7 Available</Text>
+          {/* ── Find by specialty ──────────────── */}
+          <View style={body.block}>
+            <HomeSection title="Find by specialty" onSeeAll={() => navigation.navigate(HealthcareRouteNames.SpecialtyList)} />
+            {!home ? (
+              <Skeleton height={HC_HOME.careTall - HCSpace.xxxl} radius={HCRadius.lg} />
+            ) : gridRows.length ? (
+              <View style={body.grid}>
+                {gridRows.map((row, r) => (
+                  <View key={r} style={body.gridRow}>
+                    {row.map((sp, i) => (
+                      <SpecialtyGridTile key={sp.specialtyId} specialty={sp} tint={tintAt(r * GRID_COLUMNS + i)} onPress={() => openSpecialty(sp)} />
+                    ))}
+                    {Array.from({ length: GRID_COLUMNS - row.length }, (_, k) => (
+                      <View key={`gap-${k}`} style={body.gridGap} />
+                    ))}
                   </View>
-                  <View style={styles.bannerFeature}>
-                    <Ionicons name="checkmark-circle" size={14} color="#A5F3FC" />
-                    <Text style={styles.bannerFeatureText}>Secure & Private</Text>
-                  </View>
-                </View>
-                <View style={styles.bannerCTA}>
-                  <Text style={styles.bannerCTAText}>Start Consultation</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#1857C0" />
-                </View>
+                ))}
               </View>
-              <View style={styles.bannerIllustration}>
-                <View style={styles.bannerIconWrapper}>
-                  <MaterialCommunityIcons
-                    name="video-account"
-                    size={56}
-                    color="rgba(255,255,255,0.25)"
+            ) : null}
+          </View>
+
+          {/* ── Top doctors in the city ────────── */}
+          <View style={body.block}>
+            <HomeSection
+              title={`Top doctors in ${city}`}
+              subtitle="Rated highest by their patients"
+              trailing={canChangeCity ? <CityChip city={city} onPress={() => dispatch(setCityPicker(true))} /> : undefined}
+            />
+            {!home ? (
+              <View style={body.railSkeleton}>
+                <Skeleton width={HC_HOME.spotlightWidth} height={HC_HOME.careShort + HCSpace.xxxl} radius={HCRadius.lg} />
+                <Skeleton width={HC_HOME.spotlightWidth} height={HC_HOME.careShort + HCSpace.xxxl} radius={HCRadius.lg} />
+              </View>
+            ) : home.featuredDoctors.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={body.rail} contentContainerStyle={body.railContent}>
+                {home.featuredDoctors.map((d) => (
+                  <DoctorSpotlightCard key={d.doctorId} doctor={d} onPress={() => openDoctor(d)} onBook={() => openDoctor(d)} />
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={body.muted}>{`No doctors are listed in ${city} yet.`}</Text>
+            )}
+          </View>
+
+          {/* ── Available today ────────────────── */}
+          <View style={body.block}>
+            <HomeSection title={`Available today in ${city}`} onSeeAll={openToday} />
+            {!home ? (
+              <View style={body.railSkeleton}>
+                <Skeleton width={HC_HOME.railCardWidth} height={HC_HOME.careShort + HCSpace.md} radius={HCRadius.lg} />
+                <Skeleton width={HC_HOME.railCardWidth} height={HC_HOME.careShort + HCSpace.md} radius={HCRadius.lg} />
+              </View>
+            ) : home.availableToday.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={body.rail} contentContainerStyle={body.railContent}>
+                {home.availableToday.map((d) => (
+                  <DoctorRailCard key={d.doctorId} doctor={d} onPress={() => openDoctor(d)} />
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={body.muted}>No doctor has time left today. Tomorrow’s times are open on each profile.</Text>
+            )}
+          </View>
+
+          {/* ── Common concerns ────────────────── */}
+          {home?.commonConcerns.length ? (
+            <View style={body.block}>
+              <HomeSection title="Common concerns" subtitle="Not sure of the specialty? Start with what you feel." />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={body.rail} contentContainerStyle={body.concerns}>
+                {home.commonConcerns.map((c, i) => (
+                  <ConcernTile
+                    key={`${c.specialtyId}-${c.name}`}
+                    name={c.name}
+                    icon={specialtyIcon(c.icon, c.specialtyName)}
+                    tint={tintAt(i + 3)}
+                    onPress={() => openConcern(c)}
                   />
-                </View>
-              </View>
+                ))}
+              </ScrollView>
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
+          ) : null}
 
-        {/* ── Recommended for you (from this patient's history) ── */}
-        <RecommendedDoctors
-          onOpenDoctor={handleDoctorPress}
-          sectionStyle={styles.section}
-          headerStyle={styles.sectionHeader}
-          titleStyle={styles.sectionTitle}
-          subtitleStyle={styles.sectionSubtitle}
-        />
+          <TrustList />
 
-        {/* ── Featured Doctors Section ─────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Top-Rated Doctors</Text>
-              <Text style={styles.sectionSubtitle}>
-                Based on patient reviews & experience
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.seeAllButton}
-              onPress={handleViewAllDoctors}
-            >
-              <Text style={styles.seeAllText}>See All</Text>
-              <Ionicons name="chevron-forward" size={16} color={THEME.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {loading && featuredDoctors.length === 0 ? (
-            <>
-              <DoctorCardSkeleton />
-              <DoctorCardSkeleton />
-              <DoctorCardSkeleton />
-            </>
-          ) : (
-            featuredDoctors.map((doctor: Doctor, index: number) => (
-              <View key={doctor.doctorId}>
-                {renderDoctorCard({ item: doctor, index })}
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* ── Health Tips Section ─────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Health Tips</Text>
-              <Text style={styles.sectionSubtitle}>Stay informed, stay healthy</Text>
-            </View>
-          </View>
-          <View style={styles.healthTipsSection}>
-            <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
-              <LinearGradient
-                colors={sh.grad(['#ECFDF5', '#D1FAE5'])}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.healthTipGradient}
-              >
-                <View style={styles.healthTipIconWrap}>
-                  <MaterialCommunityIcons name="heart-pulse" size={20} color="#059669" />
-                </View>
-                <Text style={styles.healthTipTitle}>Preventive Care</Text>
-                <Text style={styles.healthTipText}>
-                  Regular checkups detect issues early. Book an annual health screening today.
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.85} style={styles.healthTipCard}>
-              <LinearGradient
-                colors={sh.grad(['#EFF6FF', '#DBEAFE'])}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.healthTipGradient}
-              >
-                <View style={styles.healthTipIconWrap}>
-                  <MaterialCommunityIcons name="water" size={20} color="#2563EB" />
-                </View>
-                <Text style={styles.healthTipTitle}>Stay Hydrated</Text>
-                <Text style={styles.healthTipText}>
-                  Drink 8 glasses of water daily for optimal body function and energy.
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+          <EmergencyStrip numbers={home?.emergencyNumbers ?? []} onOpen={() => navigation.navigate(HealthcareRouteNames.Emergency)} />
         </View>
 
         {/* Bottom Safe Area */}
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
+
+      <ActionSheet
+        visible={cityPicker}
+        title="Choose your city"
+        options={cities.map((c) => ({
+          label: c,
+          icon: c.toLowerCase() === city.toLowerCase() ? 'checkmark' : 'location-outline',
+          onPress: () => chooseCity(c),
+        }))}
+        onClose={() => dispatch(setCityPicker(false))}
+      />
     </View>
   );
 };
@@ -1093,566 +746,6 @@ const makeStyles = (
     alignItems: 'center',
   },
 
-  // Quick Actions
-  quickActionsContainer: {
-    // No horizontal padding here: the scroller runs edge to edge and insets
-    // its own content, so cards slide fully off-screen rather than clipping
-    // against a padded parent.
-    marginBottom: 28,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-  },
-  quickActionCard: {
-    // Fixed rather than flex:1 — identical cards regardless of label length.
-    width: 104,
-    borderRadius: 16,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    paddingVertical: 18,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: sh.n('#EEF2FF', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
-  },
-  quickActionIconBg: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: sh.n('#1E293B', 'ink'),
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-
-  // Trust Stats Bar
-  trustBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: sh.n('#EEF2FF', 'lineSoft'),
-    ...Platform.select({
-      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
-      android: { elevation: 2 },
-    }),
-  },
-  // Stacked, not icon-beside-text. These labels ("Prescriptions") are longer
-  // than the ones this bar used to carry ("Rating"), and a row layout left
-  // roughly 55pt for them on a narrow phone — enough to ellipsize the word.
-  trustItem: {
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  trustIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trustText: {
-    alignItems: 'center',
-  },
-  trustValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.3,
-  },
-  trustLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    marginTop: 1,
-  },
-  trustDivider: {
-    width: 1,
-    height: 48,
-    backgroundColor: sh.n('#E2E8F0', 'line'),
-  },
-
-  // Upcoming Appointment Card
-  upcomingCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: sh.hue('#2A7FFF'),
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  upcomingGradient: {
-    padding: 18,
-    borderRadius: 16,
-  },
-  upcomingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  upcomingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  upcomingBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-  upcomingDate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-  },
-  upcomingTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-    marginBottom: 6,
-  },
-  upcomingTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
-  },
-  upcomingTime: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-  },
-  upcomingFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-end',
-  },
-  upcomingViewText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-
-  // Sections
-  section: {
-    marginBottom: 28,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 18,
-  },
-  sectionTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: sh.n('#0F172A', 'ink'),
-    letterSpacing: -0.4,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: sh.n('#94A3B8', 'inkFaint'),
-    marginTop: 3,
-  },
-  seeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: sh.ground('#EAF3FF', '#2A7FFF'),
-  },
-  seeAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
-
-  // Specialties
-  specialtiesList: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  specialtyCard: {
-    width: SPECIALTY_CARD_WIDTH,
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  specialtyIconContainer: {
-    width: 62,
-    height: 62,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: sh.hue('#2A7FFF'),
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  specialtyName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: sh.n('#1E293B', 'ink'),
-    textAlign: 'center',
-    marginBottom: 4,
-    lineHeight: 16,
-  },
-  specialtyCountBadge: {
-    backgroundColor: sh.n('#F1F5F9', 'lineSoft'),
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  specialtyCount: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-
-  // Banner
-  bannerContainer: {
-    marginHorizontal: 20,
-    marginBottom: 28,
-    borderRadius: 12,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: sh.hue('#2A7FFF'),
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  bannerGradient: {
-    padding: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-
-  bannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bannerTextGroup: {
-    flex: 1,
-  },
-  bannerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  bannerBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-    letterSpacing: 0.5,
-  },
-  bannerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-    marginBottom: 6,
-  },
-  bannerSubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  bannerFeatures: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16,
-  },
-  bannerFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  bannerFeatureText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: sh.hue('#A5F3FC'),
-  },
-  bannerCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  bannerCTAText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: sh.hue('#1857C0'),
-  },
-  bannerIllustration: {
-    marginLeft: 16,
-  },
-  bannerIconWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Doctor Card
-  doctorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    marginHorizontal: 20,
-    marginBottom: 14,
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: sh.n('#EEF2FF', 'lineSoft'),
-    ...Platform.select({
-      ios: {
-        shadowColor: sh.n('#64748B', 'inkMuted'),
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  doctorAvatarWrapper: {
-    position: 'relative',
-  },
-  doctorAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  availabilityBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: sh.n('#FFFFFF', 'surface'),
-  },
-  availabilityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: THEME.success,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: sh.n('#FFFFFF', 'surface'),
-    borderRadius: 10,
-  },
-  doctorInfo: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  doctorNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  doctorName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  doctorSpecialty: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.text.secondary,
-    marginBottom: 8,
-  },
-  doctorMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: sh.ground('#FFFBEB', '#F59E0B'),
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: sh.hue('#D97706'),
-  },
-  metaDivider: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: sh.n('#CBD5E1', 'disabled'),
-    marginHorizontal: 8,
-  },
-  experienceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  experienceText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-  patientsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  patientsText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-  },
-  doctorActionSection: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  feeContainer: {
-    alignItems: 'flex-end',
-  },
-  feeLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: Colors.text.tertiary,
-    marginBottom: 2,
-  },
-  feeAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
-  bookButton: {
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  bookButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  bookButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: sh.n('#FFFFFF', 'inkInverse'),
-  },
-
-  // Health Tips
-  healthTipsSection: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  healthTipCard: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: sh.n('#64748B', 'inkMuted'), shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8 },
-      android: { elevation: 2 },
-    }),
-  },
-  healthTipGradient: {
-    padding: 16,
-    borderRadius: 16,
-    minHeight: 140,
-  },
-  healthTipIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  healthTipTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: sh.n('#0F172A', 'ink'),
-    marginBottom: 6,
-  },
-  healthTipText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: sh.n('#475569', 'inkMuted'),
-    lineHeight: 16,
-  },
-
   // Error State
   errorContainer: {
     flex: 1,
@@ -1699,5 +792,32 @@ const makeStyles = (
     color: sh.n('#FFFFFF', 'inkInverse'),
   },
 });
+
+// ── The page under the header (the FYP's 20 side gutter, 32 between sections) ──
+
+const makeBodyStyles = (HC: HCPalette) =>
+  StyleSheet.create({
+    page: { paddingHorizontal: HCSpace.xl, paddingTop: HCSpace.lg, gap: HCSpace.xxxl },
+    block: { gap: HCSpace.md },
+    bento: { flexDirection: 'row', gap: HCSpace.md },
+    bentoColumn: { flex: 1, gap: HCSpace.md },
+    rail: { marginHorizontal: -HCSpace.xl },
+    railContent: { paddingHorizontal: HCSpace.xl, gap: HCSpace.md, paddingBottom: HCSpace.xs },
+    concerns: { paddingHorizontal: HCSpace.xl, gap: HCSpace.sm },
+    bleed: { marginHorizontal: -HCSpace.xl },
+    grid: {
+      padding: HCSpace.md,
+      gap: HCSpace.xs,
+      borderRadius: HCRadius.lg,
+      backgroundColor: HC.card,
+      borderWidth: 1,
+      borderColor: HC.borderLight,
+      ...HCShadow.xs,
+    },
+    gridRow: { flexDirection: 'row', gap: HCSpace.xs },
+    gridGap: { flex: 1 },
+    railSkeleton: { flexDirection: 'row', gap: HCSpace.md, overflow: 'hidden' },
+    muted: { ...HC_TYPE.small, color: HC.textLight },
+  });
 
 export default HealthcareHomeScreen;

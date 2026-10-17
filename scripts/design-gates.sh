@@ -28,6 +28,7 @@ SCOPE=(
   screens/Shopping/Brand
   screens/providers/healthcare
   components/Healthcare/doctor
+  components/Healthcare/home
   components/admin
   screens/admin/auth
   screens/admin/account

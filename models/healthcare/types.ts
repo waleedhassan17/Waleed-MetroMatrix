@@ -99,6 +99,51 @@ export interface Appointment {
   patientName?: string;
 }
 
+// ── Health home (GET /home) ─────────────────
+
+/** Where a home banner's own-screen target leads. */
+export type HealthBannerScreen = 'video_consultation' | 'available_today' | 'symptom_checker' | 'emergency' | 'records';
+
+/** A staff promotion on the Health home. */
+export interface HealthcareBanner {
+  bannerId: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  targetType: 'specialty' | 'doctor' | 'screen' | 'none';
+  targetScreen: HealthBannerScreen | null;
+  /** The specialty or doctor it opens (null for a screen or no target). */
+  target: { id: string; name: string } | null;
+}
+
+/** A concern patients name ("Back pain"), with the specialty that treats it. */
+export interface HealthConcern {
+  name: string;
+  specialtyId: string;
+  specialtyName: string;
+  icon: string;
+}
+
+export interface EmergencyNumber {
+  label: string;
+  number: string;
+}
+
+export interface HealthcareHome {
+  city: string;
+  cities: string[];
+  specialties: Specialty[];
+  commonConcerns: HealthConcern[];
+  /** The city's listed doctors, best rated first. */
+  featuredDoctors: Doctor[];
+  /** Doctors with a bookable time left today. */
+  availableToday: Doctor[];
+  banners: HealthcareBanner[];
+  /** The signed-in patient's next visit. */
+  upcoming: Appointment | null;
+  emergencyNumbers: EmergencyNumber[];
+}
+
 // ── TimeSlot ────────────────────────────────
 
 export interface TimeSlot {
@@ -494,12 +539,30 @@ export interface Coupon {
 
 // ── Navigation Param Types ──────────────────
 
+/** Filters a link can open the doctor list with. */
+export interface DoctorListPreset {
+  consultationType?: 'video' | 'in-clinic';
+  availability?: 'today';
+  city?: string;
+}
+
+
 export type HealthcareStackParamList = {
   HealthcareTabs: undefined;
   HealthcareHome: undefined;
   SpecialtyList: undefined;
   DoctorSearch: undefined;
-  DoctorList: { specialtyId: string; specialtyName?: string; searchQuery?: string };
+  DoctorList: {
+    specialtyId: string;
+    specialtyName?: string;
+    searchQuery?: string;
+    /**
+     * Set by the Health home: the list starts from exactly these filters (an
+     * empty object clears them), so a filter left from an earlier visit can
+     * never narrow what a home card opens.
+     */
+    filter?: DoctorListPreset;
+  };
   DoctorDetail: { doctorId: string };
   DoctorReviews: { doctorId: string; doctorName?: string };
   ClinicSelection: { doctorId: string; clinicId?: string };

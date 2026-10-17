@@ -251,6 +251,21 @@ const DoctorListScreen: React.FC = () => {
     // Entering with a query (e.g. from the home search bar) must seed the
     // search state, otherwise the screen shows the label but searches nothing.
     dispatch(setSearchQuery(route.params?.searchQuery ?? ''));
+    // A Health home card opens the list with exactly its own filters (video,
+    // clinic, free today, a city). Filters persist in the slice between
+    // visits, so they are cleared first — a "Video" filter from an earlier
+    // visit must not quietly narrow a specialty opened from the home.
+    const preset = route.params?.filter;
+    if (preset) {
+      dispatch(clearFilters());
+      dispatch(
+        setFilters({
+          consultationType: preset.consultationType ?? 'both',
+          availability: preset.availability ?? 'any',
+          city: preset.city ?? '',
+        })
+      );
+    }
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -269,6 +284,7 @@ const DoctorListScreen: React.FC = () => {
     route.params?.specialtyId,
     route.params?.specialtyName,
     route.params?.searchQuery,
+    route.params?.filter,
     dispatch,
   ]);
 
