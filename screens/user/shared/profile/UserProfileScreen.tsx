@@ -53,6 +53,7 @@ import { barStyleOn, DARK_C, ThemeProvider, useTheme, type ModuleName, type Them
 import { AA_BODY, lift, mix } from '../../../../theme/contrast';
 import { BackButton, BackButtonSpacer } from '../../../../components/ui';
 import { useAppSelector, useAppDispatch } from '../../../../hooks/useReduxHooks';
+import { useSignOut } from '../../../../hooks/useSignOut';
 import { selectTotalUnread } from '../../../../store/unreadSlice';
 import { selectThemePreference, setThemePreference } from '../../../../store/themeSlice';
 import {
@@ -324,6 +325,9 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
   const isLoading = useAppSelector(selectProfileLoading);
   const profileError = useAppSelector(selectProfileError);
   const themePreference = useAppSelector(selectThemePreference);
+  // This one screen is the profile tab for Home Services, Healthcare and
+  // Shopping, so its Logout is the module-level sign-out for all three.
+  const { requestSignOut, sheet: signOutSheet } = useSignOut();
 
   /**
    * WHICH ADDRESS BOOK THIS TAB SHOWS
@@ -775,7 +779,12 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
       </View>
 
       {/* Logout */}
-      <TouchableOpacity style={styles.logoutButton}>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={requestSignOut}
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
+      >
         <View style={styles.logoutIconContainer}>
           <LogOut size={20} color={colors.error} />
         </View>
@@ -1097,6 +1106,8 @@ function ProfileContent({ asTab, initialTab }: { asTab: boolean; initialTab: Pro
           </View>
         </View>
       </Modal>
+
+      {signOutSheet}
     </View>
   );
 }

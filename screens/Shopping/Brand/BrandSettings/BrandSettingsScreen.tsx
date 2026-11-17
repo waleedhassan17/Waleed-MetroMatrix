@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Save } from 'lucide-react-native';
+import { LogOut, Save } from 'lucide-react-native';
 import { BorderRadius, Shadows, Spacing } from '../../../../constants/Colors';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchMyBrand, selectBrandProfile, updateMyBrand } from '../BrandProfile/brandProfileSlice';
@@ -22,6 +22,7 @@ import DarkModeSwitch from '../../../../components/ui/DarkModeSwitch';
 import { ThemeColors, useTheme } from '../../../../theme';
 import { T, W } from '../../../../constants/theme';
 import { SHOPPING_PAYMENT_VALUES, paymentMethodLabel } from '../../../../constants/shopping';
+import { useSignOut } from '../../../../hooks/useSignOut';
 
 // Same two rails, same values, one definition — see constants/shopping.ts.
 const PAYMENT_OPTIONS = SHOPPING_PAYMENT_VALUES;
@@ -32,6 +33,9 @@ const BrandSettingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { brand, loading, saving, error } = useAppSelector(selectBrandProfile);
+  const { requestSignOut, sheet: signOutSheet } = useSignOut({
+    message: 'You can sign back in at any time. Your store and orders stay as they are.',
+  });
 
   const [returnDays, setReturnDays] = useState('7');
   const [shippingInfo, setShippingInfo] = useState('');
@@ -172,8 +176,22 @@ const BrandSettingsScreen: React.FC = () => {
             <Save size={18} stroke={colors.onAccent} strokeWidth={2} />
             <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save Settings'}</Text>
           </TouchableOpacity>
+
+          <View style={[styles.card, styles.accountCard]}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <TouchableOpacity
+              style={styles.signOutRow}
+              onPress={requestSignOut}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <LogOut size={18} stroke={colors.error} strokeWidth={2} />
+              <Text style={styles.signOutText}>Sign out</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       )}
+      {signOutSheet}
     </View>
   );
 };
@@ -212,6 +230,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   switchLabel: { ...T.body, color: c.ink },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.accent, borderRadius: BorderRadius.lg, paddingVertical: 14 },
   saveText: { color: c.onAccent, ...T.body, fontWeight: W.bold },
+  accountCard: { marginTop: Spacing.xl },
+  signOutRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
+  signOutText: { ...T.body, fontWeight: W.semibold, color: c.error },
 });
 
 export default BrandSettingsScreen;
