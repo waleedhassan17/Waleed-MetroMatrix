@@ -86,7 +86,6 @@ export default function FavoritesScreen({ asTab }: FavoritesScreenProps) {
       return (
         <Card
           elevation="raised"
-          accentRule={accent.tint}
           onPress={() =>
             navigation.navigate('ProviderProfile', { id: item.id, category: item.category })
           }

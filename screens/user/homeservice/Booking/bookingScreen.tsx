@@ -285,7 +285,7 @@ export default function BookingScreen() {
       <AppBar title="Book a visit" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card accentRule={accent.tint} elevation="raised">
+        <Card elevation="raised">
           <View style={styles.providerRow}>
             <Avatar
               uri={provider.image}

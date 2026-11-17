@@ -165,7 +165,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   const distance = distanceLabel(item);
 
   return (
-    <Card accentRule={tint} style={styles.providerCard}>
+    <Card style={styles.providerCard}>
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => onPress(item.id)}

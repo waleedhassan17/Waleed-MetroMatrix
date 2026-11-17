@@ -247,7 +247,7 @@ export default function ReviewRatingScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Card accentRule={accent.tint}>
+          <Card>
             <View style={styles.providerRow}>
               <Avatar
                 uri={provider.image}

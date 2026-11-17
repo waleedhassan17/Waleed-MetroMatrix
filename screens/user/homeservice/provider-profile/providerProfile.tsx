@@ -511,7 +511,7 @@ export default function ProviderProfileScreen() {
       {appBar}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card elevation="raised" accentRule={accent.tint} style={styles.hero}>
+        <Card elevation="raised" style={styles.hero}>
           <View style={styles.heroTop}>
             <View>
               <Avatar

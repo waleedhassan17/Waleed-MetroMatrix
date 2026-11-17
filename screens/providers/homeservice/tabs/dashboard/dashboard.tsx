@@ -302,7 +302,6 @@ const JobsSection: React.FC<JobsSectionProps> = ({
           // sides of the marketplace read as one app.
           <Card
             key={job.id}
-            accentRule={activeTab === 'today' ? colors.accent : colors.info}
             style={styles.jobCard}
           >
             <View style={styles.jobTop}>

@@ -156,7 +156,6 @@ const BookingCard = React.memo(function BookingCard({ booking }: { booking: Book
   return (
     <Card
       elevation="raised"
-      accentRule={category.tint}
       onPress={() => navigation.navigate('BookingDetail', { bookingId: booking.id })}
       accessibilityLabel={`${booking.serviceName} with ${booking.providerName}`}
       style={styles.card}

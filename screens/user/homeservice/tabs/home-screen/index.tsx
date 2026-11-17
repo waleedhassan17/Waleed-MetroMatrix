@@ -122,10 +122,6 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onPress }) => {
     <Card
       padded={false}
       elevation="raised"
-      // The category's one structural job. Every other card in the module
-      // already carries this rule; the picker that introduces the categories
-      // was the only place it was missing.
-      accentRule={category.tint}
       onPress={onPress}
       accessibilityLabel={service.name}
       style={styles.card}

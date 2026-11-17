@@ -46,7 +46,7 @@ export const HS = {
 export type ServiceCategory = 'electricians' | 'plumbers' | 'ac-repairers';
 
 export interface CategoryAccent {
-  /** Singular, how a person says it. Used in card rules and titles. */
+  /** Singular, how a person says it. Used in card titles. */
   label: string;
   /** Plural, for list headers ("12 electricians available"). */
   labelPlural: string;

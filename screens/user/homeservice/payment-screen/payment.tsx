@@ -268,7 +268,7 @@ export default function PaymentScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Card accentRule={accent.tint}>
+          <Card>
             <View style={styles.recipientRow}>
               <Avatar
                 uri={recipient.image}

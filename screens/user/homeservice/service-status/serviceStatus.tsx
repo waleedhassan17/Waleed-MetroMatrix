@@ -331,7 +331,7 @@ export default function ServiceStatusScreen() {
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
         >
-          <Card accentRule={accent.tint}>
+          <Card>
             <View style={styles.providerRow}>
               <Avatar
                 uri={provider.image}

@@ -223,7 +223,7 @@ export default function BookConfirmationScreen() {
   const stepIndex = bookingStatus === 'accepted' ? 3 : 2;
 
   const renderProviderCard = () => (
-    <Card accentRule={accent.tint} style={styles.providerCard}>
+    <Card style={styles.providerCard}>
       <View style={styles.providerRow}>
         <Avatar
           uri={provider?.image}

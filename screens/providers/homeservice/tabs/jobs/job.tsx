@@ -74,11 +74,10 @@ const HIT = { top: 6, bottom: 6, left: 6, right: 6 };
 // on every change reads as jitter, not polish.
 //
 // The shape deliberately mirrors the customer's BookingCard — same Card, same
-// accent rule, same avatar / status / meta / footer order — because "the
-// provider side looks like a different app" is the thing being fixed. The
-// category thumbnail is gone with the Unsplash map that fed it: a category is
-// identity, not decoration, and it earns a 3px rule and a tinted glyph
-// (constants/HomeServiceTheme.ts).
+// avatar / status / meta / footer order — because "the provider side looks
+// like a different app" is the thing being fixed. The category thumbnail is
+// gone with the Unsplash map that fed it: a category is identity, not
+// decoration, and it earns a tinted glyph (constants/HomeServiceTheme.ts).
 interface JobCardProps {
   job: Job;
   onCall: (job: Job) => void;
@@ -95,7 +94,7 @@ const JobCard = React.memo(function JobCard({ job, onCall, onMessage, onDecide }
   const rating = job.customer.rating;
 
   return (
-    <Card elevation="raised" accentRule={category.tint} style={styles.card}>
+    <Card elevation="raised" style={styles.card}>
       <View style={styles.top}>
         <Text style={styles.title} numberOfLines={1}>
           {job.title}
