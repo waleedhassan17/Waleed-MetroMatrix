@@ -32,7 +32,6 @@ export const HealthcareRouteNames = {
   MyPrescriptions: 'MyPrescriptions',
   SymptomChecker: 'SymptomChecker',
   Vitals: 'Vitals',
-  ConnectVitalsDevice: 'ConnectVitalsDevice',
 } as const;
 
 // Doctor / Provider Routes

@@ -479,7 +479,7 @@ export default function LiveTrackingScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Doorstep identity check: QR code, NFC badge or 6-digit code. */}
+        {/* Doorstep identity check: the provider reads out a 6-digit code. */}
         {identityVerified ? (
           <View style={styles.verifiedRow} accessibilityRole="text">
             <Ionicons name="shield-checkmark" size={16} color={colors.success} />

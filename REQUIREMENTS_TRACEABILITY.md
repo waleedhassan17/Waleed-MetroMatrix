@@ -26,7 +26,7 @@ API paths are relative to the API host. Every row is implemented and tested. A f
 | 3 | AI provider matching engine: Haversine proximity + rating weight + availability filter, list by quality | Home Services | **Done** | 4-term weighted score (distance, Bayesian rating, available-now, quality); learned TF.js re-ranker on top |
 | 4 | FCM push for Home Services, Healthcare and Shopping | All three | **Done** | Expo Push → FCM HTTP v1 from the realtime service; the push matrix is in §3.4 |
 | 5 | Browse approved providers by category, with rating, availability and proximity filters | Home Services (+ doctors, outlets) | **Done** | Filters and sorts reach the server; paging; "available now"; distance on cards |
-| 6 | Vendor listing management | Shopping | **Done** | Publish / unpublish, moderation queue, status pills, 3D models, rating filter |
+| 6 | Vendor listing management | Shopping | **Done** | Publish / unpublish, moderation queue, status pills, rating filter |
 | 7 | AI/ML: suggestions, demand prediction, NLP search | All three | **Done** | Recommendations, "Describe the problem", Holt-Winters forecasts, natural-language product search |
 | 8 | Personalised recommendations in all 3 modules | All three | **Done** | `/api/recommendations/{shopping,homeservice,healthcare}` + app rails |
 | 9 | AI/ML service: TF.js + Python for matching scores and recommendations | Cross-cutting | **Done** | `ml/` Python batch (nightly GitHub Action) + TF.js serving in the API |
@@ -36,7 +36,7 @@ API paths are relative to the API host. Every row is implemented and tested. A f
 | 13 | `service_providers` 2dsphere index | Home Services | **Done** (the collection is `providers`) | `Provider.js` index + `scripts/sync-indexes.js` |
 | 14 | Cloud storage (report says Firebase Storage): profile, documents, medication uploads | All three | **Done** (Cloudinary) | Signed direct uploads, `POST /api/uploads/sign` |
 | 15 | FCM for all booking lifecycle events | Home Services | **Done** | Every transition, expiry, ~5-min-away, reminder, review, identity check |
-| 16 | AR / Bluetooth / NFC support | Shopping / Healthcare / Home Services | **Done** (one focused feature each) | AR "View in your room"; BLE heart-rate / BP monitors; NFC + QR doorstep ID check |
+| 16 | AR / Bluetooth / NFC support | Shopping / Healthcare / Home Services | **Removed** (by decision, Nov 2026) | Hardware gimmicks taken out; vitals are typed in and the doorstep ID check uses a 6-digit code (§3.7) |
 
 ---
 
@@ -49,8 +49,8 @@ API paths are relative to the API host. Every row is implemented and tested. A f
 | `service_providers` collection | Collection **`providers`** (Mongoose model `Provider`), with the same 2dsphere index. | Existing schema name. |
 | API Gateway (separate component) | **In-process API gateway layer** inside the modular monolith (`src/gateway/`). It handles request ids, access log, CORS/helmet, Redis-shared rate limits, JWT per router, and one route table. | On serverless hosting a separate gateway adds a network hop to every request and gains nothing. |
 | Redis for sessions | **Sessions are not in Redis.** They use stateless JWT access tokens plus refresh-token rotation in MongoDB. Redis holds hot data, rate limits, real-time usage and cached search/availability. | Refresh tokens must survive a cache flush. Redis is fail-open by design. |
-| NFC phone-to-phone | **NFC badge (tag) + QR code + 6-digit code.** | Android removed phone-to-phone NFC (Beam) in Android 10. |
-| AR inside the app | **The phone's own AR viewer**: Google Scene Viewer on Android, AR Quick Look on iPhone. | No AR engine ships in the app; works on any ARCore phone. |
+| NFC phone-to-phone | **A 6-digit code** the provider reads out at the door. | NFC badges and QR scanning were removed (§3.7); a code needs no hardware. |
+| AR inside the app | **Not built** (removed). | See §3.7. |
 | AI matching engine | **Heuristic score + learned model.** The weighted score ranks by default. A Python-trained MLP served in TF.js re-ranks only when an admin enables it and its checks pass. | Honest with thin data: the model must prove itself against the heuristic first. |
 
 ---
@@ -105,13 +105,12 @@ API paths are relative to the API host. Every row is implemented and tested. A f
   - publish / unpublish (`isActive`);
   - status pills (Live / Hidden / In review / Needs changes / Removed) on `BrandProductsScreen`;
   - content edits re-enter review when the admin turns auto-approve off;
-  - 3D model upload for AR ([§3.7](#37-ar--bluetooth--nfc-row-16)).
 - **Admin:**
   - moderation queue `screens/admin/Shopping/ProductModeration/ProductModerationScreen.tsx` (`GET /api/shopping/admin/products`, `PATCH …/:id/moderation` with a required note to reject or remove; pushes the vendor);
   - `autoApproveProducts` setting.
 - **Customers** only ever see products that are published, not held by moderation, and from an active brand. They also get a **minimum rating** filter.
 
-**Tests:** `shopping/__tests__/moderation.test.js`, `model3d.test.js`, `catalog.test.js`.
+**Tests:** `shopping/__tests__/moderation.test.js`, `catalog.test.js`.
 
 **Demo:**
 1. The vendor unpublishes a product: it vanishes from the store.
@@ -122,7 +121,7 @@ API paths are relative to the API host. Every row is implemented and tested. A f
 
 **Built:**
 
-- **Signed direct uploads:** `POST /api/uploads/sign` with purpose `avatar | dispute_evidence | health_record | product_image | product_model3d`.
+- **Signed direct uploads:** `POST /api/uploads/sign` with purpose `avatar | dispute_evidence | health_record | product_image`.
   - Each signature is confined to `metromatrix/<purpose>/<account>/`.
   - The API re-checks every returned URL (`src/utils/assetUrl.js`), so `file://` paths and other people's uploads are refused.
 - **Fixed upload bugs:**
@@ -269,47 +268,26 @@ Admins also get a **Models** tab. The old hard-coded admin Home Services dashboa
 
 **Tests:** `gateway/__tests__/rateLimit.test.js`, `requestContext.test.js`, `registry.test.js` (route order unchanged); `lib/__tests__/cache.test.js`, `noCacheInMoneyPaths.test.js`; `analytics/__tests__/analytics.test.js`; app `components/ui/charts/__tests__/geometry.test.ts`.
 
-### 3.7 AR / Bluetooth / NFC (row 16)
+### 3.7 AR / Bluetooth / NFC (row 16) — removed
 
-Android-first. These features need a new app build ([§4](#4-what-needs-a-person-deploy-and-device-steps)). Older builds degrade gracefully instead of crashing (guarded native loading, as already done for MapLibre).
+Removed by decision (Nov 2026): AR "View in your room" (Shopping), Bluetooth vital-sign monitors (Healthcare), and NFC badge / QR scan for the doorstep check (Home Services) did not earn their place in the product. Their native modules (`react-native-ble-plx`, `react-native-nfc-manager`, `expo-camera`, `react-native-qrcode-svg`), permissions, routes and API endpoints are gone. What stays:
 
-**AR: "View in your room" (Shopping)**
-- The vendor attaches a `.glb` (and optionally a `.usdz`) in the product form. The upload goes direct to Cloudinary.
-- `PATCH /api/shopping/vendor/products/:id/model3d` checks:
-  - it is the vendor's own upload;
-  - the file's first bytes (ranged request): glTF 2.0 binary ≤ 10 MB, or a USDZ/ZIP.
-- The product page shows **View in your room**:
-  - Android opens Google Scene Viewer (AR with ARCore, otherwise 3D);
-  - iPhone opens AR Quick Look;
-  - anything else gets a web 3D viewer.
-- Code: `src/modules/shopping/services/model3dService.js`; app `utils/shopping/arLauncher.ts`, `screens/Shopping/Brand/ProductForm/Model3dSection.tsx`.
-- Tests: `shopping/__tests__/model3d.test.js`; app `arLauncher.test.ts`.
-
-**Bluetooth: vital signs (Healthcare)**
-- Standard Bluetooth SIG monitors, no vendor SDKs:
-  - heart rate: service 0x180D, measurement 0x2A37;
-  - blood pressure: service 0x1810, measurement 0x2A35 (IEEE-11073 SFLOAT, kPa → mmHg).
-- Patients scan, connect, see the live reading and save it (Vitals quick action → Connect a monitor), or type a reading.
-- The treating doctor sees the readings in the appointment detail.
+**Vital signs (Healthcare), typed in**
+- Patients type heart-rate and blood-pressure readings on the Vitals screen; the treating doctor sees them in the appointment detail.
 - API:
   - `GET/POST/DELETE /api/v1/healthcare/vitals`: batch with per-reading validation and idempotent `clientId`;
   - `GET /api/v1/healthcare/doctors/me/patients/:id/vitals`: treating doctor only.
-- Code: app `utils/healthcare/bleParsers.ts`, `services/ble/bleVitals.ts`, `screens/user/healthcare/vitals/*`, `components/Healthcare/doctor/PatientVitalsCard.tsx`.
-- Tests: app `bleParsers.test.ts` (spec byte vectors: 8/16-bit HR, contact, energy, RR intervals, kPa, timestamps, special values); API `healthcare/__tests__/vitals.test.js`.
-- Demo without hardware: the nRF Connect app's heart-rate peripheral simulator.
+- Readings saved by the old Bluetooth path keep `source.kind: 'ble'` and still display.
+- Code: app `screens/user/healthcare/vitals/VitalsScreen.tsx`, `components/Healthcare/doctor/PatientVitalsCard.tsx`. Tests: API `healthcare/__tests__/vitals.test.js`.
 
-**NFC: doorstep identity check (Home Services)**
-- **The proof:** when en route or at the door, the provider's app gets a **10-minute, single-use, HMAC-signed, booking-bound** proof (`POST /api/provider/jobs/:id/identity-token`). It is shown as:
-  - a **QR code**;
-  - a **6-digit code**, which allows 5 wrong guesses and then dies;
-  - an **NFC badge**: written to any NTAG213+ sticker; the token is short enough for the smallest one.
-- **The check:** the customer taps the badge, scans the QR or types the code (`POST /api/bookings/:id/verify-identity`).
+**Doorstep identity check (Home Services), 6-digit code**
+- When en route or at the door, the provider's app gets a **10-minute, single-use, booking-bound 6-digit code** (`POST /api/provider/jobs/:id/identity-token`) and reads it out.
+- The customer types it (`POST /api/bookings/:id/verify-identity`). Five wrong guesses retire the code.
   - An `EN_ROUTE` booking becomes `ARRIVED`.
   - The provider is told.
-  - Only the newest token counts, and never for another job.
-- **Opening the app from outside:** tapping the badge, or scanning the QR with the phone's camera app, opens the verify screen (`metromatrix://verify?…`, Android NDEF intent filter).
-- Code: API `src/modules/homeservice/services/identityService.js`, `controllers/identityController.js`; app `services/nfc/nfcBadge.ts`, `screens/providers/homeservice/show-id/ShowIdScreen.tsx`, `screens/user/homeservice/verify-provider/VerifyProviderScreen.tsx`.
-- Tests: API `homeservice/__tests__/identity.test.js` (forgery, expiry, replacement, single use, code lockout, wrong party); app `identityLink.test.ts`; realtime `test/routes.test.js`.
+  - Only the newest code counts, and never for another job.
+- Code: API `src/modules/homeservice/services/identityService.js`, `controllers/identityController.js`; app `screens/providers/homeservice/show-id/ShowIdScreen.tsx`, `screens/user/homeservice/verify-provider/VerifyProviderScreen.tsx`.
+- Tests: API `homeservice/__tests__/identity.test.js` (expiry, replacement, single use, code lockout, wrong party); realtime `test/routes.test.js`.
 
 ---
 
@@ -319,7 +297,7 @@ Nothing below has been run. Each step changes shared infrastructure, so it is th
 
 1. **Backend (Vercel):**
    - merge to `main`;
-   - add env vars `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `REDIS_ENV=prod`, `NFC_TOKEN_SECRET` (`openssl rand -hex 32`), and optionally `GEMINI_MODEL` (`GEMINI_API_KEY` already exists);
+   - add env vars `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `REDIS_ENV=prod`, and optionally `GEMINI_MODEL` (`GEMINI_API_KEY` already exists);
    - then `vercel redeploy`.
 2. **Database, once, against production:**
    - `node scripts/geo-hygiene.js` (dry run; read the report), then `--apply`;
@@ -333,13 +311,10 @@ Nothing below has been run. Each step changes shared infrastructure, so it is th
    - `INTERNAL_API_KEY`.
    - Then run **ml-nightly** once by hand.
 5. **App:**
-   - one **EAS rebuild**: development client + `preview` APK, because BLE, NFC and the camera are new native modules;
+   - one **EAS rebuild**: development client + `preview` APK, because native modules changed (BLE, NFC and the camera were removed) and the app icon changed;
    - social login on the preview APK still needs the EAS keystore SHA-1 registered.
 6. **Device QA:**
-   - two phones for the push matrix and the identity check;
-   - an NFC sticker (NTAG213/215);
-   - the nRF Connect heart-rate simulator or a real strap;
-   - an ARCore phone for Scene Viewer.
+   - two phones for the push matrix and the identity check.
 
 ## 5. Test evidence (2026-10-02)
 

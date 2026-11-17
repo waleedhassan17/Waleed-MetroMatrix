@@ -1,7 +1,7 @@
 // ============================================================================
-// Vitals — the patient's heart-rate and blood-pressure readings: from a
-// Bluetooth monitor (Connect a monitor) or typed in. Doctors the patient has
-// booked see the same readings (read-only) from the appointment.
+// Vitals — the heart-rate and blood-pressure readings the patient types in.
+// Doctors the patient has booked see the same readings (read-only) from the
+// appointment.
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,6 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import { AppBar, Button, Card, EmptyState, Screen, SectionHeader, SegmentedControl, StatTile, TextField } from '../../../../components/ui';
 import { GUTTER, S, T } from '../../../../constants/theme';
 import { ThemeColors, useTheme } from '../../../../theme';
-import { HealthcareRouteNames } from '../../../../navigation-maps/Healthcare';
 import {
   deleteVital,
   describeVital,
@@ -119,14 +118,6 @@ export default function VitalsScreen() {
           />
         </View>
 
-        <Button
-          label="Connect a Bluetooth monitor"
-          icon="bluetooth"
-          fullWidth
-          onPress={() => navigation.navigate(HealthcareRouteNames.ConnectVitalsDevice)}
-          style={styles.connect}
-        />
-
         <Card style={styles.card}>
           <Text style={styles.cardTitle}>Add a reading</Text>
           <SegmentedControl<VitalType>
@@ -156,7 +147,7 @@ export default function VitalsScreen() {
         {error ? (
           <EmptyState icon="alert-circle-outline" title="Couldn't load readings" message={error} />
         ) : !loading && data && data.items.length === 0 ? (
-          <EmptyState icon="pulse-outline" title="No readings yet" message="Connect a monitor or add one above." />
+          <EmptyState icon="pulse-outline" title="No readings yet" message="Add your first reading above." />
         ) : (
           (data?.items || []).map((v) => (
             <Pressable key={v.id} onLongPress={() => confirmDelete(v)} style={styles.item} accessibilityHint="Long-press to delete">
@@ -164,7 +155,7 @@ export default function VitalsScreen() {
               <View style={styles.itemText}>
                 <Text style={styles.itemValue}>{describeVital(v)}</Text>
                 <Text style={styles.itemMeta}>
-                  {when(v.measuredAt)} · {v.source.kind === 'ble' ? v.source.deviceName || 'Bluetooth monitor' : 'Typed in'}
+                  {when(v.measuredAt)} · {v.source.kind === 'ble' ? v.source.deviceName || 'Monitor' : 'Typed in'}
                 </Text>
               </View>
             </Pressable>
@@ -180,7 +171,6 @@ const makeStyles = (c: ThemeColors) =>
     content: { paddingHorizontal: GUTTER, paddingTop: S.lg, paddingBottom: S.huge },
     tiles: { flexDirection: 'row', gap: S.md },
     tile: { flex: 1 },
-    connect: { marginTop: S.lg },
     card: { marginTop: S.lg },
     cardTitle: { ...T.subhead, color: c.ink, marginBottom: S.md },
     segment: { marginBottom: S.md },

@@ -370,7 +370,7 @@ const JobInProgressScreen: React.FC = () => {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionLabel}>Quick Actions</Text>
           <View style={styles.quickActionsRow}>
-            {/* Doorstep identity check: QR / 6-digit code / NFC badge. Before work starts. */}
+            {/* Doorstep identity check: a 6-digit code for the customer. Before work starts. */}
             {!workStarted && (
               <TouchableOpacity
                 style={styles.quickActionBtn}

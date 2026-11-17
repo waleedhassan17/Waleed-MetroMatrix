@@ -16,7 +16,7 @@
 import { apiRequest } from '../../networks/serviceProviders/config';
 import { appendFile } from './appendFile';
 
-export type UploadPurpose = 'avatar' | 'dispute_evidence' | 'health_record' | 'product_image' | 'product_model3d';
+export type UploadPurpose = 'avatar' | 'dispute_evidence' | 'health_record' | 'product_image';
 
 interface Signature {
   uploadUrl: string;
@@ -45,8 +45,6 @@ function guessType(name: string, fallback: string) {
     webp: 'image/webp',
     heic: 'image/heic',
     pdf: 'application/pdf',
-    glb: 'model/gltf-binary',
-    usdz: 'model/vnd.usdz+zip',
   };
   return map[ext] || fallback;
 }
@@ -72,7 +70,7 @@ export async function uploadAsset(
     throw new UploadError(`That file is too large — the limit is ${Math.round(s.maxBytes / 1e6)} MB.`);
   }
 
-  const name = opts.name || guessName(uri, purpose === 'product_model3d' ? 'glb' : 'jpg');
+  const name = opts.name || guessName(uri, 'jpg');
   const form = new FormData();
   await appendFile(form, 'file', { uri, name, type: opts.mimeType || guessType(name, 'application/octet-stream') });
   form.append('api_key', s.apiKey);

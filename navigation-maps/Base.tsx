@@ -369,8 +369,7 @@ export type RootStackParamList = {
   NavigationMap: undefined;
   JobInProgress: undefined;
   ShowProviderId: { jobId: string; customerName?: string };
-  /** `t`/`via` arrive from metromatrix://verify?t=…&via=… (badge or camera-app link). */
-  VerifyProvider: { bookingId?: string; providerName?: string; t?: string; via?: string };
+  VerifyProvider: { bookingId?: string; providerName?: string };
   AwaitingApproval: undefined;
   PaymentRequest: undefined;
   JobCompletion: undefined;

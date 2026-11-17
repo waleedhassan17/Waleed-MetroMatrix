@@ -12,6 +12,7 @@ export interface VitalReading {
   type: VitalType;
   heartRate?: { bpm: number };
   bloodPressure?: { systolic: number; diastolic: number; meanArterial?: number; pulse?: number };
+  /** `ble` only on readings saved before the Bluetooth monitor path was removed. */
   source: { kind: 'ble' | 'manual'; deviceName?: string };
   measuredAt: string;
 }
@@ -29,7 +30,7 @@ export interface NewReading {
   meanArterial?: number;
   pulse?: number;
   measuredAt: string;
-  source: { kind: 'ble' | 'manual'; deviceName?: string };
+  source: { kind: 'manual' };
   /** Idempotency key: a retried save is not stored twice. */
   clientId: string;
 }

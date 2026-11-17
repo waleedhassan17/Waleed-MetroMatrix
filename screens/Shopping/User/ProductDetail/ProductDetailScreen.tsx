@@ -24,7 +24,6 @@ import {
   Plus,
   ShoppingCart,
   ChevronRight,
-  Rotate3d,
 } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { Spacing, BorderRadius, Shadows, makeColors, type ColorType } from '../../../../constants/Colors';
@@ -53,7 +52,6 @@ import { swatchColor } from '../../../../constants/ProductColors';
 import RecommendationRail from '../../../../components/Shopping/RecommendationRail';
 import { fetchSimilarProducts, type ProductPick } from '../../../../networks/recommendations/recommendationsApi';
 import { track } from '../../../../services/analytics/track';
-import { arCapability, openInAR } from '../../../../utils/shopping/arLauncher';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -129,17 +127,6 @@ const ProductDetailScreen: React.FC = () => {
       alive = false;
     };
   }, [productId, activeBrand?.brandId]);
-
-  // "View in your room": only for products whose vendor attached a 3D model.
-  const arMode = arCapability(product?.model3d);
-  const handleViewInRoom = useCallback(async () => {
-    if (!product?.model3d) return;
-    track({ module: 'shopping', type: 'click', refId: productId, meta: { context: 'ar_view', screen: 'ProductDetail' } });
-    const opened = await openInAR(product.model3d, product.name);
-    if (opened === 'unavailable') {
-      Alert.alert('3D view unavailable', 'This phone could not open the 3D model. Try again on an Android phone with the Google app.');
-    }
-  }, [product, productId]);
 
   const openSimilar = useCallback(
     (id: string, bId: string) => {
@@ -348,26 +335,6 @@ const ProductDetailScreen: React.FC = () => {
             <Text style={styles.reviewCount}>({product.totalReviews} reviews)</Text>
             <ChevronRight size={14} stroke={Colors.text.tertiary} />
           </TouchableOpacity>
-
-          {/* View in your room (AR) — only when the vendor attached a 3D model */}
-          {arMode !== 'unavailable' && (
-            <TouchableOpacity
-              style={styles.arButton}
-              onPress={handleViewInRoom}
-              accessibilityRole="button"
-              accessibilityLabel={arMode === 'web_3d' ? 'View in 3D' : 'View in your room'}
-              testID="view-in-room"
-            >
-              <Rotate3d size={18} stroke={ShopColors.primaryDark} strokeWidth={1.75} />
-              <View style={styles.arButtonText}>
-                <Text style={styles.arButtonTitle}>{arMode === 'web_3d' ? 'View in 3D' : 'View in your room'}</Text>
-                <Text style={styles.arButtonHint}>
-                  {arMode === 'web_3d' ? 'Turn it around in 3D' : 'See it at real size with your camera (AR)'}
-                </Text>
-              </View>
-              <ChevronRight size={16} stroke={ShopColors.primaryDark} />
-            </TouchableOpacity>
-          )}
 
           {/* Price */}
           <View style={styles.priceRow}>
@@ -764,29 +731,6 @@ const makeStyles = (Colors: ColorType, ShopColors: ReturnType<typeof makeShopCol
   reviewCount: {
     fontSize: 13,
     color: Colors.text.tertiary,
-  },
-  arButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.md,
-    backgroundColor: ShopColors.primaryLight,
-  },
-  arButtonText: {
-    flex: 1,
-  },
-  arButtonTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: ShopColors.primaryDark,
-  },
-  arButtonHint: {
-    fontSize: 12,
-    color: Colors.text.secondary,
-    marginTop: 1,
   },
   priceRow: {
     flexDirection: 'row',

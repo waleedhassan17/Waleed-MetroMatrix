@@ -1,8 +1,7 @@
 // ============================================================================
 // A patient's recent vital signs, for the doctor treating them (read-only).
-// The patient records these from a Bluetooth monitor or by hand; the API only
-// shows them to a doctor the patient has an appointment with. Renders nothing
-// when there are none.
+// The patient types these in; the API only shows them to a doctor the patient
+// has an appointment with. Renders nothing when there are none.
 // ============================================================================
 
 import { Ionicons } from '@expo/vector-icons';
@@ -50,7 +49,7 @@ export default function PatientVitalsCard({ patientId, sectionStyle }: { patient
             <View style={styles.text}>
               <Text style={styles.value}>{describeVital(v)}</Text>
               <Text style={styles.meta}>
-                {when(v.measuredAt)} · {v.source.kind === 'ble' ? v.source.deviceName || 'Bluetooth monitor' : 'Typed in'}
+                {when(v.measuredAt)} · {v.source.kind === 'ble' ? v.source.deviceName || 'Monitor' : 'Typed in'}
               </Text>
             </View>
           </View>

@@ -87,16 +87,7 @@ export interface Product {
   isActive?: boolean;
   /** Platform's switch; absent on products from before moderation (= approved). */
   moderation?: ProductModeration;
-  /** "View in your room": a .glb for Android's Scene Viewer, optionally a .usdz for iPhone. */
-  model3d?: ProductModel3d | null;
   createdAt: string;
-}
-
-export interface ProductModel3d {
-  glbUrl: string | null;
-  usdzUrl?: string | null;
-  sizeBytes?: number | null;
-  attachedAt?: string | null;
 }
 
 export type ProductModerationStatus = 'approved' | 'pending' | 'rejected' | 'removed';

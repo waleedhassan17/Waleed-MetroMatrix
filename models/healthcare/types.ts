@@ -587,7 +587,6 @@ export type HealthcareStackParamList = {
   MyPrescriptions: undefined;
   SymptomChecker: undefined;
   Vitals: undefined;
-  ConnectVitalsDevice: undefined;
 };
 
 export type DoctorTabParamList = {

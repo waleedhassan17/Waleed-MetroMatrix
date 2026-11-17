@@ -347,7 +347,7 @@ const DoctorAppointmentDetailScreen: React.FC = () => {
           />
         </Card>
 
-        {/* Heart rate / blood pressure the patient recorded (Bluetooth or typed in) */}
+        {/* Heart rate / blood pressure the patient recorded */}
         <PatientVitalsCard patientId={a.patientId} sectionStyle={styles.section} />
 
         {detail.patientHistory.length > 0 && (
