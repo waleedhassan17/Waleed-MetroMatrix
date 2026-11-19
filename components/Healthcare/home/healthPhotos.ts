@@ -1,6 +1,6 @@
 // The Health home's bundled photos: the "How can we help you today?" cards
-// and the service tiles. Free under the Unsplash License; each photo's page
-// and photographer are in assets/images/healthcare/CREDITS.md.
+// and the service tiles. All from Unsplash, free under the Unsplash License
+// (commercial use allowed, no attribution required).
 
 import type { ImageSourcePropType } from 'react-native';
 import type { PhotoFocus } from './FocusImage';

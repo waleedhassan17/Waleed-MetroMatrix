@@ -12,10 +12,8 @@
 //      a header behind white text.
 //   3. Say when the result fails contrast, in the same breath as the choice.
 //
-// Deliberately NOT built on components/Shopping/ColorPicker.tsx: that is a
-// product-variant swatch picker, it emits a colour NAME rather than a hex, its
-// "is this light?" test is a hardcoded three-value list, and it has no
-// importers anywhere in the app.
+// Deliberately NOT built on a product-variant swatch picker: one emits a
+// colour NAME rather than a hex, and a brand colour has to be a measured hex.
 // ============================================================================
 
 import React, { useState, useMemo } from 'react';

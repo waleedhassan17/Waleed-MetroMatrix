@@ -9,8 +9,9 @@
 // the next visit and its one action; Health's own services as photo tiles;
 // staff banners; the specialty grid; the city's top doctors; doctors free
 // today; the concerns patients name; why MetroMatrix Health; and, quietly
-// last, the emergency line. Every photo is licensed (assets/images/
-// healthcare/CREDITS.md). The page comes from one call, GET /home.
+// last, the emergency line. Every photo is Unsplash-licensed (see
+// components/Healthcare/home/healthPhotos.ts). The page comes from one call,
+// GET /home.
 
 import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import {

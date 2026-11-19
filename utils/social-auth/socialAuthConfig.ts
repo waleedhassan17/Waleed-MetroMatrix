@@ -64,7 +64,7 @@ WebBrowser.maybeCompleteAuthSession();
 // ALIGNED to metromatrix-c44c6 (2026-08-02) — must match the backend's
 // GOOGLE_CLIENT_ID / FIREBASE_PROJECT_ID exactly, since this is the
 // audience the resulting ID token carries and admin.auth().verifyIdToken()
-// checks it against the backend's own project. See BUILD_AND_SHARE.md.
+// checks it against the backend's own project.
 //
 // Web Client ID (client_type: 3) - required for Firebase auth and idToken.
 // This value is the backend's known-good GOOGLE_CLIENT_ID (.env), so it's
@@ -80,10 +80,10 @@ const GOOGLE_WEB_CLIENT_ID = '942315940095-t465i8sfr4dc3m685fm9juqm8d4o49c5.apps
 // kept here for documentation/reference.
 //
 // NOTE: this fingerprint is the local dev/debug keystore's SHA-1. The EAS
-// **build** keystore (used for the shareable preview APK from eas.md) has a
+// **build** keystore (used for the shareable preview APK) has a
 // DIFFERENT SHA-1 and must be added as a second fingerprint on the same
 // Firebase Android app before that APK's native Google Sign-In will work —
-// see BUILD_AND_SHARE.md §4 (`eas credentials`).
+// read it with `eas credentials -p android` (an interactive prompt).
 const GOOGLE_ANDROID_CLIENT_ID = '942315940095-fvodke6uh00g3ooshvi56jcch6glk6oo.apps.googleusercontent.com';
 
 // iOS Client ID - set when iOS config is available
@@ -91,8 +91,7 @@ const GOOGLE_IOS_CLIENT_ID = '';
 
 // Facebook App ID — ALIGNED to 26818541697736156 (2026-08-02), the one you
 // confirmed matches the backend's FACEBOOK_APP_ID. The old value
-// (2277966629368711) was a different Facebook app entirely — see
-// BUILD_AND_SHARE.md for the full mismatch this replaces.
+// (2277966629368711) was a different Facebook app entirely.
 const FACEBOOK_APP_ID = '26818541697736156';
 
 // Configure Google Sign-In for native implementation (only in dev builds)

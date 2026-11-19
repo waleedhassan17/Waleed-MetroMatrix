@@ -10,9 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // on the backend checks the token's issuer/audience against ITS configured
 // project — a token minted against a different Firebase project (the old
 // value here was metromatrix-31f9f) is always rejected, regardless of
-// whether the token itself is otherwise perfectly valid. See
-// BUILD_AND_SHARE.md's "Blocking config mismatches" section for the full
-// trace of how this was found. Real values below are from the
+// whether the token itself is otherwise perfectly valid. Real values below are from the
 // metromatrix-c44c6 Firebase console (Project settings -> General -> Your
 // apps -> Web app -> SDK setup and configuration).
 const firebaseConfig = {

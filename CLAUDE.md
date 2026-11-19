@@ -49,7 +49,7 @@ Both hosts are configured in `config/env.ts`.
 
 **Auth token lifecycle** (`networks/network/network.ts`): request interceptor attaches a role-audience-matched token (`audienceForUrl` — admin/provider/user, or "whoever is signed in" for shared routes) via `tokenForRequest`. On a 401, `refreshSessionOnce()` performs a **single-flight** refresh (concurrent 401s all await the same promise, since `/auth/refresh` rotates the refresh token and a second concurrent refresh would lose that race and log the user out) and replays the original request once; on failure it clears auth. A successful refresh also re-handshakes the socket client (`refreshSocketAuth`), since the socket only reads its token once at connect time.
 
-Social login (Google/Facebook) flows through Firebase client-side and is independently re-validated by the backend per-provider — see `AUTH_FLOW.md` for the full mint/validate chain and the external config surfaces (Firebase Console, Facebook Developer Console) that can drift out of sync with this repo.
+Social login (Google/Facebook) flows through Firebase client-side and is independently re-validated by the backend per-provider. The external config surfaces (Firebase Console, Facebook Developer Console) can drift out of sync with this repo; the IDs it depends on are documented inline in `firebaseConfig.ts` and `utils/social-auth/socialAuthConfig.ts`.
 
 ### State (Redux Toolkit)
 
@@ -80,7 +80,7 @@ Single root native-stack navigator (`navigators/BaseNavigator.tsx` + `navigation
 
 ### Chat and calling are centralized, not per-vertical
 
-One `ChatScreen`/`CallScreen`/`ConversationsScreen` (`screens/shared/communication/`) serves both Home Services and Healthcare, customer and provider side — `roomParams.ts` normalizes the differing param names each call site passes into one shape. Calling (`services/call/`) is peer-to-peer WebRTC (`react-native-webrtc`) relayed through Cloudflare TURN when needed, including telemedicine video consultations (no longer Jitsi, despite `TELEMEDICINE_DECISION.md`) — `POST /video-calls/*` on the main backend is bookkeeping only (open/close the call record for billing/history), it never carries media. `services/call/callBackgroundHandler.ts` registers Notifee's background handler at the true entry point (`index.ts`, before the React tree exists), because a lock-screen call action can arrive in a process with no React tree yet.
+One `ChatScreen`/`CallScreen`/`ConversationsScreen` (`screens/shared/communication/`) serves both Home Services and Healthcare, customer and provider side — `roomParams.ts` normalizes the differing param names each call site passes into one shape. Calling (`services/call/`) is peer-to-peer WebRTC (`react-native-webrtc`) relayed through Cloudflare TURN when needed, including telemedicine video consultations (no longer Jitsi) — `POST /video-calls/*` on the main backend is bookkeeping only (open/close the call record for billing/history), it never carries media. `services/call/callBackgroundHandler.ts` registers Notifee's background handler at the true entry point (`index.ts`, before the React tree exists), because a lock-screen call action can arrive in a process with no React tree yet.
 
 ### Models & serializers
 
@@ -90,6 +90,6 @@ Each vertical's `networks/<vertical>/` returns raw backend JSON; `serializers/<v
 
 `services/wallet/` (slice + API) is a shared feature consumed by every vertical's screens (`screens/user/wallet/`), not owned by any one of them — same pattern as chat/call.
 
-## Reference docs
+## History
 
-The repo root and `docs/` carry extensive per-feature specs and change history worth checking before touching that area: `AUTH_FLOW.md` (social login), `HOMESERVICE_SPEC.md` / `HEALTHCARE_SPEC.md` / `SHOPPING_SPEC.md`, `CHAT_CALL_CHANGELOG.md` / `CHAT_CALL_QA_MATRIX.md`, `HEALTHCARE_SLOTS_CHANGELOG.md`, `docs/API_REQUIREMENTS.md` / `docs/ADMIN_API_REQUIREMENTS.md` / `docs/SERVICE_PROVIDER_API_GUIDE.md` / `docs/HEALTHCARE_FLOW_GUIDE.md` / `docs/COMPLETE_FLOW_GUIDE.md`, and `BUILD_AND_SHARE.md` for EAS build/distribution.
+The per-feature specs, QA records, changelogs and API guides that used to sit in the repo root and `docs/` were removed on 2026-11-20. They remain in git history: `git log --diff-filter=D --name-only -- '*.md'` lists them, and `git show <commit>^:<path>` reads one back.

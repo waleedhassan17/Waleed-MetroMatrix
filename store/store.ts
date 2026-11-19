@@ -75,7 +75,6 @@ import appointmentDetailReducer from '../screens/user/healthcare/AppointmentDeta
 import rescheduleAppointmentReducer from '../screens/user/healthcare/RescheduleAppointment/rescheduleAppointmentSlice';
 import videoWaitingRoomReducer from '../screens/user/healthcare/VideoWaitingRoom/videoWaitingRoomSlice';
 import videoCallReducer from '../screens/user/healthcare/VideoCall/videoCallSlice';
-import inCallChatReducer from '../screens/user/healthcare/InCallChat/inCallChatSlice';
 import prescriptionViewReducer from '../screens/user/healthcare/prescription-view/prescriptionViewSlice';
 import healthRecordsReducer from '../screens/user/healthcare/health-records/healthRecordsSlice';
 import uploadRecordReducer from '../screens/user/healthcare/upload-record/uploadRecordSlice';
@@ -252,7 +251,6 @@ const appReducer = combineReducers({
   rescheduleAppointment: rescheduleAppointmentReducer,
   videoWaitingRoom: videoWaitingRoomReducer,
   videoCall: videoCallReducer,
-  inCallChat: inCallChatReducer,
   prescriptionView: prescriptionViewReducer,
   healthRecords: healthRecordsReducer,
   uploadRecord: uploadRecordReducer,

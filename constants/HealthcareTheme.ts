@@ -1,7 +1,7 @@
 // ============================================================================
 // Healthcare Module — Unified Design Tokens
 // Marham-style clinical blue. Single source of truth for the patient (user)
-// healthcare flow AND, via constants/DoctorTheme.ts, the doctor flow.
+// healthcare flow and the doctor flow.
 // Consolidates the per-screen THEME blocks that used to be copy-pasted.
 //
 // HOW THIS RELATES TO constants/theme.ts

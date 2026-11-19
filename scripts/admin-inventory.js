@@ -172,5 +172,7 @@ const md = [
   '',
 ].join('\n');
 fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+// docs/ is not kept in the repo any more, so create it on demand.
+fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
 fs.writeFileSync(path.join(root, 'docs', 'ADMIN_SCREEN_INVENTORY.md'), md);
 console.log(`Wrote docs/ADMIN_SCREEN_INVENTORY.md — ${JSON.stringify({ ...totals, largestFile: `${totals.largestFile.file} (${totals.largestFile.lines})` })}`);

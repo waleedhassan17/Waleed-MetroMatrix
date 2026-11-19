@@ -39,7 +39,7 @@ export interface ProgressStep {
 }
 
 // Payment runs AFTER completion, so it is a parallel field rather than a
-// booking status (HOMESERVICE_SPEC.md §2). The service-status screen needs it
+// booking status. The service-status screen needs it
 // to decide whether the payment card is still owed — that decision has to come
 // from the server, not from screen-local state that resets on focus.
 export interface ServicePayment {

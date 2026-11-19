@@ -19,7 +19,7 @@
 // requires a data-only FCM message and a native background handler, i.e.
 // replacing Expo's push transport with @react-native-firebase/messaging. That
 // is a transport change, not a UI change, and is deliberately not attempted
-// here. See CHAT_CALL_CHANGELOG.md.
+// here.
 //
 // Everything is best-effort: notifee is loaded lazily so a build without the
 // native module falls back to the in-app sheet instead of failing to start.
